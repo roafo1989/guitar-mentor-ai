@@ -1,7 +1,7 @@
 # DEV-01 — Локальный запуск для Windows 10
 
 ## Предварительно
-- Python 3.12 (проверка в PowerShell: `py -3.12 --version`);
+- Python 3.13 (проверка в PowerShell: `py -3.13 --version`);
 - Git (проверка: `git --version`);
 - доступ к приватному репозиторию GitHub.
 
@@ -15,7 +15,7 @@ cd guitar-mentor-ai
 # Переключиться на ветку текущего DEV-01, пока PR не включён в main:
 git switch feature/dev-01-python-bootstrap
 
-py -3.12 -m venv .venv
+py -3.13 -m venv .venv
 
 .\.venv\Scripts\python.exe -m pip install --upgrade pip
 .\.venv\Scripts\python.exe -m pip install -e ".[dev]"
