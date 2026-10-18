@@ -1,5 +1,6 @@
 <script setup lang="ts">
-import { onMounted, ref } from 'vue';
+import { onBeforeUnmount, onMounted, ref } from 'vue';
+import MicrophoneRecorder from './MicrophoneRecorder.vue';
 import { useI18n } from 'vue-i18n';
 import { attemptService } from './attempt.service';
 import type { SubmissionAttempt, UploadCapabilities } from './attempt.service';
@@ -14,6 +15,22 @@ const attempts = ref<SubmissionAttempt[]>([]);
 const capabilities = ref<UploadCapabilities | null>(null);
 const file = ref<File | null>(null);
 const fileInput = ref<HTMLInputElement | null>(null);
+const recordedPreview = ref<string | null>(null);
+
+function clearRecordedPreview() {
+  if (recordedPreview.value) URL.revokeObjectURL(recordedPreview.value);
+  recordedPreview.value = null;
+}
+
+function onRecorded(recording: File) {
+  clearRecordedPreview();
+  if (fileInput.value) fileInput.value.value = '';
+  file.value = recording;
+  recordedPreview.value = URL.createObjectURL(recording);
+  requestId.value = crypto.randomUUID();
+  notice.value = '';
+  error.value = '';
+}
 const comment = ref('');
 const requestId = ref(crypto.randomUUID());
 const loading = ref(true);
@@ -22,6 +39,7 @@ const error = ref('');
 const notice = ref('');
 
 function selectFile(event: Event) {
+  clearRecordedPreview();
   const input = event.target as HTMLInputElement;
   file.value = input.files?.[0] ?? null;
   requestId.value = crypto.randomUUID();
@@ -61,6 +79,7 @@ async function submit() {
     await attemptService.upload(props.learnerId, props.sessionId, props.taskId,
       chosen, comment.value, requestId.value);
     file.value = null;
+    clearRecordedPreview();
     // File inputs are native browser controls: clearing Vue state alone does not reset their label.
     if (fileInput.value) fileInput.value.value = '';
     comment.value = '';
@@ -78,6 +97,7 @@ function fileSize(bytes: number): string {
   return (bytes / 1024 / 1024).toFixed(2) + ' MB';
 }
 onMounted(refresh);
+onBeforeUnmount(clearRecordedPreview);
 </script>
 
 <template>
@@ -99,6 +119,17 @@ onMounted(refresh);
         <input id="attempt-file" ref="fileInput" type="file" accept=".mp3,.wav,.ogg,.webm,audio/*"
           :disabled="!capabilities?.enabled || uploading" @change="selectFile" />
         <p class="hint">{{ t('attempt.fileLimits') }}</p>
+        <MicrophoneRecorder :disabled="!capabilities?.enabled || uploading"
+          :max-bytes="capabilities?.maxBytes ?? 20971520" @recorded="onRecorded" />
+        <div v-if="recordedPreview && file" class="recorded-preview">
+          <strong>{{ t('attempt.recordingReady') }} ({{ fileSize(file.size) }})</strong>
+          <audio :src="recordedPreview" controls preload="metadata"
+            :aria-label="t('attempt.listenRecording')" />
+          <button type="button" class="recorder-button secondary-button"
+            :disabled="uploading" @click="file = null; clearRecordedPreview()">
+            {{ t('attempt.discardRecording') }}
+          </button>
+        </div>
         <label for="attempt-comment">{{ t('attempt.commentLabel') }}</label>
         <textarea id="attempt-comment" v-model="comment" rows="3" maxlength="2000"
           :disabled="!capabilities?.enabled || uploading"

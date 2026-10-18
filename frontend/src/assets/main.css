@@ -127,3 +127,16 @@ footer { text-align: center; font-size: 12px; padding: 24px; color: #8793a4; }
 .attempt-card-title { display: flex; justify-content: space-between; gap: 12px; flex-wrap: wrap; align-items: baseline; }
 .attempt-card p { margin: 6px 0; }
 .attempt-unreviewed { color: #5c6974; font-size: 13px; }
+
+/* Microphone recorder: never submits until the user explicitly confirms */
+.microphone-recorder { padding: 14px; border: 1px solid #d6e3e7; border-radius: 9px; background: #f7fafb; }
+.microphone-recorder strong, .recorded-preview strong { display: block; margin-bottom: 6px; }
+.microphone-recorder .hint { margin: 0 0 12px; }
+.microphone-controls { display: flex; align-items: center; flex-wrap: wrap; gap: 10px; }
+.recorder-button { display: inline-flex; justify-content: center; align-items: center; padding: 9px 14px; border: 1px solid #277a6b; border-radius: 7px; background: #fff; color: #17675b; font: inherit; font-weight: 600; cursor: pointer; }
+.recorder-button:disabled { opacity: .55; cursor: not-allowed; }
+.recording-timer { color: #9d3434; font-variant-numeric: tabular-nums; font-weight: 700; }
+.recorded-preview { display: grid; gap: 10px; padding: 13px; border-radius: 9px; background: #eff7f4; }
+.recorded-preview audio { width: 100%; }
+.recorded-preview button { justify-self: start; }
+.attempt-error { color: #a52b35; margin: 8px 0 0; }

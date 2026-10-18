@@ -180,6 +180,20 @@
     "history": "Attempt history",
     "noAttempts": "No submissions yet.",
     "attempt": "Attempt",
-    "receivedUnassessed": "Audio received · assessment not yet available"
+    "receivedUnassessed": "Audio received · assessment not yet available",
+    "micHeading": "Or record using your microphone",
+    "micPrivacy": "Your browser will request permission when you press Start. The recording remains in the browser until you submit it. Use test audio only for this MVP.",
+    "micUnsupported": "This browser does not support a compatible recording format. Upload MP3/WAV/OGG/WebM instead.",
+    "micPermission": "Allow microphone",
+    "startRecording": "Start recording",
+    "stopRecording": "Stop",
+    "cancelRecording": "Cancel",
+    "recordingTimer": "Recording duration",
+    "recorderError": "Recording failed. Check your microphone and retry.",
+    "recorderEmpty": "The recording is empty. Please try again.",
+    "microphoneDenied": "Could not access the microphone. Check browser permissions and the selected device.",
+    "recordingReady": "Recording ready — listen before submitting",
+    "listenRecording": "Listen to recording",
+    "discardRecording": "Remove recording from the form"
   }
 }
