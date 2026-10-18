@@ -32,6 +32,12 @@
 - [Анкета: опыт и цели — UC-03](docs/use-cases/UC-03-onboarding-experience-goals.md)
 - [Рабочее место Windows 10](docs/development/workstation-setup-windows.md)
 
+## Красивый локальный адрес (Windows 10)
+
+Для удобства можно открывать приложение по адресу **`https://guitar-mentor`** без `.localhost` и порта. Для этого на своём ПК нужно один раз добавить локальную запись `hosts`, установить бесплатный Caddy и доверить его локальный сертификат. **Только локальная разработка, доступ из интернета не включён.**
+
+Пошаговое руководство: [Windows — локальный HTTPS через Caddy](docs/development/local-https-caddy-windows.md). Конфигурация: [`infra/local/Caddyfile`](infra/local/Caddyfile).
+
 ## Как запускать
 
 Требуются PostgreSQL 17, JDK 21, Node.js 22+ и настроенная роль БД. Не сохраняйте пароли в исходном коде.
@@ -40,7 +46,8 @@
 
 ```powershell
 cd D:\Development\guitar-mentor-ai\backend
-$env:SPRING_DATASOURCE_PASSWORD = Read-Host "Пароль guitar_mentor_app" -MaskInput
+$password = Read-Host "Пароль guitar_mentor_app" -AsSecureString
+$env:SPRING_DATASOURCE_PASSWORD = [System.Net.NetworkCredential]::new('', $password).Password
 .\mvnw.cmd spring-boot:run
 ```
 
@@ -52,7 +59,7 @@ npm ci
 npm run dev
 ```
 
-Откройте `http://127.0.0.1:5173/profile` для анкеты и `/onboarding` для опыта и целей.
+После установки локального Caddy открывайте **`https://guitar-mentor/profile`** и **`https://guitar-mentor/onboarding`**. Без Caddy по-прежнему работает `http://127.0.0.1:5173/profile`; разделы используют один backend, но отдельные `localStorage` для разных адресов.
 
 ## Планы
 

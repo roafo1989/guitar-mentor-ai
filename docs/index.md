@@ -22,6 +22,7 @@
 ## Разработка
 
 - [Установка инструментов](development/workstation-setup-windows.md)
+- [Локальный адрес https://guitar-mentor (Windows 10, Caddy)](development/local-https-caddy-windows.md)
 - [DEV-01 — Java bootstrap](development/dev-01-java-quickstart.md)
 - [DEV-02 — Профиль ученика REST](development/dev-02-learner-profile-quickstart.md)
 - [DEV-04 — Анкета опыта и целей](development/dev-04-onboarding-quickstart.md)
