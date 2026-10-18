@@ -23,6 +23,6 @@ jobs:
         with:
           node-version: "22"
       - name: Install packages
-        run: npm install --no-audit --no-fund
+        run: npm ci --no-audit --no-fund
       - name: Typecheck and build
         run: npm run build
