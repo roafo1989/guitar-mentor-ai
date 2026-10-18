@@ -50,6 +50,42 @@ const uploading = ref(false);
 const recordingActive = ref(false);
 const error = ref('');
 const notice = ref('');
+let polling: ReturnType<typeof setInterval> | undefined;
+let historyRequestInFlight = false;
+
+function statusLabel(attempt: SubmissionAttempt): string {
+  const labels: Record<SubmissionAttempt['status'], string> = {
+    UPLOADED: 'attempt.statusUploaded',
+    PROCESSING: 'attempt.statusProcessing',
+    PROCESSED: 'attempt.statusProcessed',
+    FAILED: 'attempt.statusFailed',
+  };
+  return t(labels[attempt.status]);
+}
+function failureHint(attempt: SubmissionAttempt): string {
+  const errors: Record<string, string> = {
+    MEDIA_MISSING: 'attempt.failedMissing',
+    SIZE_MISMATCH: 'attempt.failedSize',
+    INVALID_FORMAT: 'attempt.failedFormat',
+    INVALID_KEY: 'attempt.failedGeneric',
+    IO_ERROR: 'attempt.failedGeneric',
+    TECHNICAL_ERROR: 'attempt.failedGeneric',
+  };
+  return t(errors[attempt.processingErrorCode || ''] || 'attempt.failedGeneric');
+}
+
+async function pollHistory() {
+  if (historyRequestInFlight || uploading.value || loading.value ||
+      !attempts.value.some(item => item.status === 'UPLOADED' || item.status === 'PROCESSING')) return;
+  historyRequestInFlight = true;
+  try {
+    attempts.value = await attemptService.list(props.learnerId, props.sessionId, props.taskId);
+  } catch {
+    // Keep the last known history. Manual refresh can surface network errors.
+  } finally {
+    historyRequestInFlight = false;
+  }
+}
 
 function selectFile(event: Event) {
   clearRecordedPreview();
@@ -109,8 +145,14 @@ async function submit() {
 function fileSize(bytes: number): string {
   return (bytes / 1024 / 1024).toFixed(2) + ' MB';
 }
-onMounted(refresh);
-onBeforeUnmount(clearRecordedPreview);
+onMounted(() => {
+  void refresh();
+  polling = setInterval(() => { void pollHistory(); }, 3000);
+});
+onBeforeUnmount(() => {
+  if (polling !== undefined) clearInterval(polling);
+  clearRecordedPreview();
+});
 </script>
 
 <template>
@@ -167,7 +209,10 @@ onBeforeUnmount(clearRecordedPreview);
           </div>
           <p class="hint">{{ item.format.toUpperCase() }} · {{ fileSize(item.bytes) }}</p>
           <p v-if="item.comment">{{ item.comment }}</p>
-          <p class="attempt-unreviewed">{{ t('attempt.receivedUnassessed') }}</p>
+          <p class="attempt-unreviewed" role="status">
+            {{ statusLabel(item) }}
+            <span v-if="item.status === 'FAILED'"> · {{ failureHint(item) }}</span>
+          </p>
         </article>
       </div>
     </template>

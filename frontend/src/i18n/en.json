@@ -200,6 +200,14 @@
     "micSignalDetected": "Audio signal detected",
     "micSignalLow": "Low signal — check your microphone",
     "micLevelHint": "The meter reacts to incoming sound in real time. It tests the microphone, not your playing.",
-    "micLevelUnavailable": "The input level meter is unavailable in this browser; recording may still work."
+    "micLevelUnavailable": "The input level meter is unavailable in this browser; recording may still work.",
+    "statusUploaded": "File uploaded · awaiting technical verification",
+    "statusProcessing": "Checking file integrity…",
+    "statusProcessed": "File integrity verified · musical assessment not yet available",
+    "statusFailed": "Technical verification failed",
+    "failedMissing": "The file was not found in local storage",
+    "failedSize": "Stored file size does not match",
+    "failedFormat": "Unsupported or damaged file format",
+    "failedGeneric": "The file could not be checked. Contact the local prototype administrator"
   }
 }

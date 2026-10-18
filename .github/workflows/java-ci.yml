@@ -135,7 +135,7 @@ jobs:
               attempt=$(curl --fail --silent --show-error -X POST "$attempts_base" \
                 -F "file=@sample.wav;type=audio/wav" -F "comment=CI test" \
                 -F "requestId=$submission_id")
-              echo "$attempt" | grep -q '"status":"RECEIVED_UNASSESSED"'
+              printf '%s' "$attempt" | python3 -c 'import json,sys; a=json.load(sys.stdin); assert a["status"] in ("UPLOADED","PROCESSING","PROCESSED")'
               echo "$attempt" | grep -q '"number":1'
               attempt_id=$(printf '%s' "$attempt" | python3 -c 'import json,sys;print(json.load(sys.stdin)["id"])')
               duplicate=$(curl --fail --silent --show-error -X POST "$attempts_base" \
@@ -144,6 +144,18 @@ jobs:
               history=$(curl --fail --silent --show-error "$attempts_base")
               printf '%s' "$history" | python3 -c \
                 'import json,sys; a=json.load(sys.stdin); assert len(a)==1 and a[0]["number"]==1'
+              # Await the local background technical worker, without confusing it with music assessment.
+              validated=false
+              for check in $(seq 1 30); do
+                latest=$(curl --fail --silent --show-error "$attempts_base")
+                if printf '%s' "$latest" | python3 -c 'import json,sys; a=json.load(sys.stdin); assert len(a)==1 and a[0]["status"]=="PROCESSED" and a[0]["assessmentAvailable"] is False and a[0]["processingFinishedAt"] and not a[0]["processingErrorCode"]'; then
+                  validated=true
+                  break
+                fi
+                sleep 1
+              done
+              test "$validated" = true
+              echo "Asynchronous file integrity verification: OK"
               printf '%s' 'not an mp3' >invalid.mp3
               bad_status=$(curl --silent --output /dev/null --write-out '%{http_code}' \
                 -X POST "$attempts_base" -F "file=@invalid.mp3;type=audio/mpeg" \
