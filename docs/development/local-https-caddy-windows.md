@@ -75,11 +75,12 @@ ping -4 guitar-mentor
 
 ```powershell
 cd D:\Development\guitar-mentor-ai\backend
-$env:SPRING_DATASOURCE_PASSWORD = Read-Host "Пароль guitar_mentor_app" -MaskInput
+$password = Read-Host "Пароль guitar_mentor_app" -AsSecureString
+$env:SPRING_DATASOURCE_PASSWORD = [System.Net.NetworkCredential]::new('', $password).Password
 .\mvnw.cmd spring-boot:run
 ```
 
-Если установлен Windows PowerShell 5.1, который не поддерживает `Read-Host -MaskInput`, используйте `Read-Host -AsSecureString` и локальную безопасную процедуру передачи секрета согласно `backend/README.md`; не пишите пароль в команду или Git. Если терминал и конфигурация базы уже настроены — используйте свой текущий способ запуска.
+Эти команды работают и в Windows PowerShell 5.1, и в PowerShell 7. Они считывают пароль без отображения и передают его приложению через переменную окружения текущего процесса. Не выводите её содержимое в терминал и не записывайте пароль в Git. Если база уже настроена — используйте свой текущий способ запуска.
 
 **Терминал 2 — Vue:**
 
