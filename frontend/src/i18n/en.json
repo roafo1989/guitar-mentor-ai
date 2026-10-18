@@ -166,7 +166,7 @@
     "title": "My performance",
     "subtitle": "Submit an audio attempt and review your submission history.",
     "loading": "Loading attempts...",
-    "noAiFeedback": "AI audio analysis is not yet available. Uploaded recordings will be shown as received without assessment; no fabricated scores or errors.",
+    "noAiFeedback": "Recordings undergo technical file and duration checks only. AI music analysis is not yet connected; performance is not assessed.",
     "disabledHelp": "Uploads are disabled by default because authentication is not yet implemented. For non-personal local test audio only, start the backend with GUITAR_MENTOR_ENABLE_UPLOADS=true.",
     "fileLabel": "Performance audio file",
     "fileLimits": "MP3, WAV, OGG or WebM · up to 20 MB. Test audio only; do not upload personal recordings.",
