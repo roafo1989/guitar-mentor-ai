@@ -48,6 +48,18 @@ public class SubmissionAttempt {
     @Column(name = "size_bytes", nullable = false)
     private long sizeBytes;
 
+    @Column(name = "processing_started_at")
+    private Instant processingStartedAt;
+
+    @Column(name = "processing_finished_at")
+    private Instant processingFinishedAt;
+
+    @Column(name = "technical_sha256", length = 64)
+    private String technicalSha256;
+
+    @Column(name = "processing_error_code", length = 50)
+    private String processingErrorCode;
+
     protected SubmissionAttempt() {}
 
     public SubmissionAttempt(DiagnosticTask task, UUID requestId, int attemptNumber,
@@ -57,7 +69,7 @@ public class SubmissionAttempt {
         this.requestId = requestId;
         this.attemptNumber = attemptNumber;
         this.submittedAt = Instant.now();
-        this.status = AttemptStatus.RECEIVED_UNASSESSED;
+        this.status = AttemptStatus.UPLOADED;
         this.studentComment = studentComment;
         this.mediaKey = mediaKey;
         this.mediaFormat = mediaFormat;
@@ -74,4 +86,47 @@ public class SubmissionAttempt {
     public String getMediaKey() { return mediaKey; }
     public String getMediaFormat() { return mediaFormat; }
     public long getSizeBytes() { return sizeBytes; }
+    public Instant getProcessingStartedAt() { return processingStartedAt; }
+    public Instant getProcessingFinishedAt() { return processingFinishedAt; }
+    public String getTechnicalSha256() { return technicalSha256; }
+    public String getProcessingErrorCode() { return processingErrorCode; }
+
+    public void startProcessing() {
+        if (status != AttemptStatus.UPLOADED) throw new IllegalStateException("Attempt is not queued");
+        status = AttemptStatus.PROCESSING;
+        processingStartedAt = Instant.now();
+        processingFinishedAt = null;
+        processingErrorCode = null;
+    }
+
+    public void finishTechnicalValidation(String sha256) {
+        if (status != AttemptStatus.PROCESSING) throw new IllegalStateException("Attempt not processing");
+        if (sha256 == null || !sha256.matches("[a-f0-9]{64}")) {
+            throw new IllegalArgumentException("Invalid sha256 digest");
+        }
+        status = AttemptStatus.PROCESSED;
+        processingFinishedAt = Instant.now();
+        technicalSha256 = sha256;
+        processingErrorCode = null;
+    }
+
+    public void failTechnicalValidation(String code) {
+        if (status != AttemptStatus.PROCESSING) throw new IllegalStateException("Attempt not processing");
+        if (code == null || !code.matches("[A-Z_]{3,50}")) {
+            throw new IllegalArgumentException("Invalid failure code");
+        }
+        status = AttemptStatus.FAILED;
+        processingFinishedAt = Instant.now();
+        processingErrorCode = code;
+        technicalSha256 = null;
+    }
+
+    public void requeueAfterInterruptedProcessing() {
+        if (status != AttemptStatus.PROCESSING) return;
+        status = AttemptStatus.UPLOADED;
+        processingStartedAt = null;
+        processingFinishedAt = null;
+        technicalSha256 = null;
+        processingErrorCode = null;
+    }
 }

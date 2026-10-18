@@ -1,6 +1,12 @@
 package ai.guitarmentor.domain.attempt;
 
-/** A file is received, but no audio analysis or teacher review has occurred. */
+/**
+ * Transport/technical processing, NOT a music assessment.
+ * PROCESSED only means that stored file bytes passed basic integrity checks.
+ */
 public enum AttemptStatus {
-    RECEIVED_UNASSESSED
+    UPLOADED,
+    PROCESSING,
+    PROCESSED,
+    FAILED
 }
