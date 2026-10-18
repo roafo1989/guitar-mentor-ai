@@ -52,6 +52,11 @@ public class Exercise {
     @Column(name = "events_resource", nullable = false)
     private String eventsResource;
 
+    @Column(name = "preview_audio_resource")
+    private String previewAudioResource;
+    @Column(name = "preview_pdf_resource")
+    private String previewPdfResource;
+
     @ElementCollection(fetch = FetchType.EAGER)
     @CollectionTable(name = "exercise_skills", joinColumns = @JoinColumn(name = "exercise_id"))
     @Column(name = "skill_code")
@@ -77,5 +82,7 @@ public class Exercise {
     public String getDescription() { return description; }
     public String getScoreResource() { return scoreResource; }
     public String getEventsResource() { return eventsResource; }
+    public String getPreviewAudioResource() { return previewAudioResource; }
+    public String getPreviewPdfResource() { return previewPdfResource; }
     public Set<String> getSkillCodes() { return Set.copyOf(skillCodes); }
 }
