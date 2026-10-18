@@ -1,0 +1,18 @@
+{
+  "id": "GM-EB01",
+  "version": "0.2",
+  "title": "Вечерний блюз",
+  "bars": 12,
+  "key": "E minor",
+  "meter": "4/4",
+  "tempoBpm": 76,
+  "feel": "light eighth-note swing",
+  "instrument": "acoustic guitar",
+  "technique": "fingerstyle, no pick",
+  "form": "A (1-4), B (5-8), C/climax (9-10), return (11-12)",
+  "dynamicArc": "mp -> mf -> f -> p",
+  "source": "original",
+  "license": "CC BY 4.0",
+  "reviewStatus": "DRAFT_NEEDS_MUSICAL_REVIEW",
+  "audioPreview": "synthesized steel acoustic soundfont; not a performed guitar recording"
+}
