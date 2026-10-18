@@ -9,13 +9,18 @@ import jakarta.persistence.Id;
 import jakarta.persistence.JoinColumn;
 import jakarta.persistence.Table;
 import java.util.LinkedHashSet;
+import java.util.UUID;
 import java.util.Set;
 
 @Entity
 @Table(name = "exercises")
 public class Exercise {
     @Id
+    private UUID id;
+    @Column(nullable = false)
     private String code;
+    @Column(name = "is_current", nullable = false)
+    private boolean current;
     @Column(nullable = false)
     private String version;
     @Column(nullable = false)
@@ -48,13 +53,15 @@ public class Exercise {
     private String eventsResource;
 
     @ElementCollection(fetch = FetchType.EAGER)
-    @CollectionTable(name = "exercise_skills", joinColumns = @JoinColumn(name = "exercise_code"))
+    @CollectionTable(name = "exercise_skills", joinColumns = @JoinColumn(name = "exercise_id"))
     @Column(name = "skill_code")
     private Set<String> skillCodes = new LinkedHashSet<>();
 
     protected Exercise() {}
 
+    public UUID getId() { return id; }
     public String getCode() { return code; }
+    public boolean isCurrent() { return current; }
     public String getVersion() { return version; }
     public String getTitle() { return title; }
     public String getInstrumentCode() { return instrumentCode; }

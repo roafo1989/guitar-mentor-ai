@@ -61,7 +61,7 @@ class DiagnosticTaskServiceTest {
         session.finishIntake();
         when(sessions.findLockedById(session.getId())).thenReturn(Optional.of(session));
         when(learners.findById(learner.getId())).thenReturn(Optional.of(learner));
-        when(exercises.findById("GM-EB01")).thenReturn(Optional.of(exercise));
+        when(exercises.findByCodeAndCurrentTrue("GM-EB01")).thenReturn(Optional.of(exercise));
         when(exercise.getInstrumentCode()).thenReturn("ACOUSTIC_GUITAR");
         when(exercise.getTechniqueCode()).thenReturn("FINGERSTYLE");
         when(exercise.getCode()).thenReturn("GM-EB01");
@@ -96,7 +96,7 @@ class DiagnosticTaskServiceTest {
         session.finishIntake();
         when(sessions.findLockedById(session.getId())).thenReturn(Optional.of(session));
         when(learners.findById(learner.getId())).thenReturn(Optional.of(learner));
-        when(exercises.findById("GM-EB01")).thenReturn(Optional.of(exercise));
+        when(exercises.findByCodeAndCurrentTrue("GM-EB01")).thenReturn(Optional.of(exercise));
         when(exercise.getInstrumentCode()).thenReturn("ACOUSTIC_GUITAR");
         when(exercise.getTechniqueCode()).thenReturn("PICK");
         assertThrows(IllegalStateException.class,

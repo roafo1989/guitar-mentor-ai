@@ -22,7 +22,7 @@ public class DiagnosticTask {
     private DiagnosticSession session;
 
     @ManyToOne(fetch = FetchType.LAZY, optional = false)
-    @JoinColumn(name = "exercise_code", nullable = false)
+    @JoinColumn(name = "exercise_id", nullable = false)
     private Exercise exercise;
 
     @Column(name = "assigned_at", nullable = false)

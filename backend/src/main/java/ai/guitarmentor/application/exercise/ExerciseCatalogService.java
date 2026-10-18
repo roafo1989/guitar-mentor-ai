@@ -20,19 +20,19 @@ public class ExerciseCatalogService {
 
     @Transactional(readOnly = true)
     public List<ExerciseView> available(String instrumentCode, String techniqueCode) {
-        return exercises.findByInstrumentCodeAndTechniqueCodeOrderByCode(
+        return exercises.findByInstrumentCodeAndTechniqueCodeAndCurrentTrueOrderByCode(
                 instrumentCode, techniqueCode).stream().map(ExerciseView::from).toList();
     }
 
     @Transactional(readOnly = true)
     public ExerciseView find(String code) {
-        return ExerciseView.from(exercises.findById(code)
+        return ExerciseView.from(exercises.findByCodeAndCurrentTrue(code)
                 .orElseThrow(() -> new EntityNotFoundException("Exercise not found")));
     }
 
     @Transactional(readOnly = true)
     public byte[] resource(String code, boolean score) throws IOException {
-        Exercise exercise = exercises.findById(code)
+        Exercise exercise = exercises.findByCodeAndCurrentTrue(code)
                 .orElseThrow(() -> new EntityNotFoundException("Exercise not found"));
         // Only trusted resource paths stored by migration, never client-supplied paths.
         var path = score ? exercise.getScoreResource() : exercise.getEventsResource();

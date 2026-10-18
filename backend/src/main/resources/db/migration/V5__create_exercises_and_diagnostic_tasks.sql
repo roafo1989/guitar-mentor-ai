@@ -1,7 +1,9 @@
 -- Versioned preview catalog. In the first increment only GM-EB01 v0.8B is available.
 CREATE TABLE exercises (
-    code VARCHAR(50) PRIMARY KEY,
+    id UUID PRIMARY KEY,
+    code VARCHAR(50) NOT NULL,
     version VARCHAR(20) NOT NULL,
+    is_current BOOLEAN NOT NULL DEFAULT FALSE,
     title VARCHAR(150) NOT NULL,
     instrument_code VARCHAR(50) NOT NULL,
     technique_code VARCHAR(50) NOT NULL,
@@ -18,6 +20,7 @@ CREATE TABLE exercises (
     events_resource VARCHAR(255) NOT NULL,
     UNIQUE (code, version)
 );
+CREATE UNIQUE INDEX uq_current_exercise_code ON exercises(code) WHERE is_current;
 
 CREATE TABLE skill_codes (
     code VARCHAR(50) PRIMARY KEY,
@@ -35,24 +38,24 @@ INSERT INTO skill_codes (code, title) VALUES
  ('TAB_READING', 'Чтение табулатуры');
 
 CREATE TABLE exercise_skills (
-    exercise_code VARCHAR(50) NOT NULL REFERENCES exercises(code),
+    exercise_id UUID NOT NULL REFERENCES exercises(id),
     skill_code VARCHAR(50) NOT NULL REFERENCES skill_codes(code),
-    PRIMARY KEY (exercise_code, skill_code)
+    PRIMARY KEY (exercise_id, skill_code)
 );
 
-INSERT INTO exercises (code, version, title, instrument_code, technique_code,
+INSERT INTO exercises (id, code, version, is_current, title, instrument_code, technique_code,
     style_code, difficulty, bpm, measures, meter, author, license, review_status,
     description, score_resource, events_resource)
-VALUES ('GM-EB01', '0.8B', 'Вечерний блюз в ми', 'ACOUSTIC_GUITAR', 'FINGERSTYLE',
+VALUES ('58430000-0000-4000-8000-000000000801', 'GM-EB01', '0.8B', TRUE, 'Вечерний блюз в ми', 'ACOUSTIC_GUITAR', 'FINGERSTYLE',
     'BLUES', 'INTERMEDIATE', 84, 12, '4/4', 'Guitar Mentor AI', 'CC BY 4.0',
     'ACCEPTED_FOR_MVP_PROTOTYPE',
     '12-тактовый блюз E7–A7–B7: бас большим пальцем, мелодия и аккордовые ответы.',
     'exercises/GM-EB01/evening_blues_v08B.musicxml',
     'exercises/GM-EB01/score_events_v08B.json');
-INSERT INTO exercise_skills (exercise_code, skill_code) VALUES
- ('GM-EB01', 'PULSE'), ('GM-EB01', 'BASS_PULSE'),
- ('GM-EB01', 'MELODY'), ('GM-EB01', 'VOICE_INDEPENDENCE'),
- ('GM-EB01', 'DYNAMICS');
+INSERT INTO exercise_skills (exercise_id, skill_code) VALUES
+ ('58430000-0000-4000-8000-000000000801', 'PULSE'), ('58430000-0000-4000-8000-000000000801', 'BASS_PULSE'),
+ ('58430000-0000-4000-8000-000000000801', 'MELODY'), ('58430000-0000-4000-8000-000000000801', 'VOICE_INDEPENDENCE'),
+ ('58430000-0000-4000-8000-000000000801', 'DYNAMICS');
 
 -- Transition for a single assignment per diagnostic session.
 ALTER TABLE diagnostic_sessions
@@ -70,6 +73,6 @@ CREATE TABLE diagnostic_tasks (
     id UUID PRIMARY KEY,
     diagnostic_session_id UUID NOT NULL UNIQUE
         REFERENCES diagnostic_sessions(id) ON DELETE CASCADE,
-    exercise_code VARCHAR(50) NOT NULL REFERENCES exercises(code),
+    exercise_id UUID NOT NULL REFERENCES exercises(id),
     assigned_at TIMESTAMPTZ NOT NULL
 );

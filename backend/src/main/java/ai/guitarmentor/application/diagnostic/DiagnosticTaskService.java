@@ -50,7 +50,7 @@ public class DiagnosticTaskService {
         if (session.getStatus() != DiagnosticStatus.READY_FOR_TASK) {
             throw new IllegalStateException("Finish intake before assigning an exercise");
         }
-        var exercise = exercises.findById(exerciseCode)
+        var exercise = exercises.findByCodeAndCurrentTrue(exerciseCode)
                 .orElseThrow(() -> new EntityNotFoundException("Exercise not found"));
         if (!exercise.getInstrumentCode().equals(session.getInstrumentProfile().getInstrumentCode())
                 || !exercise.getTechniqueCode().equals(session.getInstrumentProfile().getTechniqueCode())) {
