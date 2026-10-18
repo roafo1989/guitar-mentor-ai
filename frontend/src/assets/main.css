@@ -70,3 +70,6 @@ footer { text-align: center; font-size: 12px; padding: 24px; color: #8793a4; }
 .continue-link { color: #28776d; font-weight: 700; text-decoration: none; }
 .header-actions nav { display: flex; gap: 20px; flex-wrap: wrap; }
 @media (max-width: 680px) { .choice-grid { grid-template-columns: 1fr; } }
+
+/* DEV-05A — diagnostic session */
+.panel p { line-height: 1.55; }

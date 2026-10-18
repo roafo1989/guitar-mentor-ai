@@ -207,7 +207,7 @@ async function save(): Promise<void> {
       </template>
       <p v-if="error" class="error" role="alert">{{ error }}</p>
       <p v-if="saved" class="success" role="status">{{ t('onboarding.saved') }}</p>
-      <div class="form-actions"><RouterLink to="/profile">{{ t('onboarding.profileBack') }}</RouterLink></div>
+      <div class="form-actions"><RouterLink to="/profile">{{ t('onboarding.profileBack') }}</RouterLink><RouterLink to="/diagnostics">{{ t('diagnostic.nextFromOnboarding') }} →</RouterLink></div>
     </form>
   </section>
 </template>
