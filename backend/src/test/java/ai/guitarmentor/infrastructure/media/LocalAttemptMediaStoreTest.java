@@ -23,6 +23,9 @@ class LocalAttemptMediaStoreTest {
         assertTrue(item.key().matches("[0-9a-f-]{36}\\.wav"));
         assertEquals(wav.length, item.size());
         assertTrue(Files.exists(temp.resolve(item.key())));
+        assertEquals(64, store.verifyAndHash(item.key(), wav.length).length());
+        assertThrows(java.io.IOException.class,
+                () -> store.verifyAndHash(item.key(), wav.length + 1));
         store.deleteQuietly(item.key());
         assertTrue(Files.notExists(temp.resolve(item.key())));
     }
