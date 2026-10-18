@@ -10,6 +10,9 @@
 
 ## Сценарии и требования
 
+- **[Бизнес-требования — версия и история изменений](requirements/business-requirements.md)** — единый документ БТ; начальная редакция 0.1.
+- **[Регламент бизнес-анализа](project/business-analysis-workflow.md)** — чат БА, обработка идей, версии, критерии приёмки и связь с задачами.
+
 - [UC-01 — Профиль ученика](use-cases/UC-01-learner-profile-api.md) — реализовано
 - [UC-03 — Музыкальный опыт и цели](use-cases/UC-03-onboarding-experience-goals.md) — реализовано
 - [UC-02 — Первичная диагностика](use-cases/UC-02-initial-diagnostics.md) — проектируется

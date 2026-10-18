@@ -27,6 +27,9 @@
 
 ## Документация
 
+- [Бизнес-требования и история версий](docs/requirements/business-requirements.md)
+- [Регламент бизнес-анализа](docs/project/business-analysis-workflow.md)
+
 - [Утверждённая дорожная карта MVP v1.0](docs/project/roadmap-mvp-v1.md)
 - [Оглавление документации](docs/index.md)
 - [Архитектурный стек](docs/adr/0001-java-vue-postgresql.md)
