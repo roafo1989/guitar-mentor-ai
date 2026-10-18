@@ -13,6 +13,7 @@ const { t } = useI18n();
 const attempts = ref<SubmissionAttempt[]>([]);
 const capabilities = ref<UploadCapabilities | null>(null);
 const file = ref<File | null>(null);
+const fileInput = ref<HTMLInputElement | null>(null);
 const comment = ref('');
 const requestId = ref(crypto.randomUUID());
 const loading = ref(true);
@@ -60,6 +61,8 @@ async function submit() {
     await attemptService.upload(props.learnerId, props.sessionId, props.taskId,
       chosen, comment.value, requestId.value);
     file.value = null;
+    // File inputs are native browser controls: clearing Vue state alone does not reset their label.
+    if (fileInput.value) fileInput.value.value = '';
     comment.value = '';
     requestId.value = crypto.randomUUID();
     notice.value = t('attempt.uploaded');
@@ -93,7 +96,7 @@ onMounted(refresh);
       </p>
       <form class="homework-form" @submit.prevent="submit">
         <label for="attempt-file">{{ t('attempt.fileLabel') }}</label>
-        <input id="attempt-file" type="file" accept=".mp3,.wav,.ogg,.webm,audio/*"
+        <input id="attempt-file" ref="fileInput" type="file" accept=".mp3,.wav,.ogg,.webm,audio/*"
           :disabled="!capabilities?.enabled || uploading" @change="selectFile" />
         <p class="hint">{{ t('attempt.fileLimits') }}</p>
         <label for="attempt-comment">{{ t('attempt.commentLabel') }}</label>
