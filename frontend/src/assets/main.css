@@ -140,3 +140,15 @@ footer { text-align: center; font-size: 12px; padding: 24px; color: #8793a4; }
 .recorded-preview audio { width: 100%; }
 .recorded-preview button { justify-self: start; }
 .attempt-error { color: #a52b35; margin: 8px 0 0; }
+
+/* Input-level meter, similar to Windows microphone test (recording only). */
+.mic-level-panel { margin-top: 14px; border-radius: 8px; background: #eef5f7; padding: 12px 14px; }
+.mic-level-heading { display: flex; flex-wrap: wrap; justify-content: space-between; gap: 8px; align-items: baseline; font-weight: 600; margin-bottom: 8px; }
+.mic-level-status { color: #39776a; font-size: 12px; }
+.mic-level-track { display: grid; grid-template-columns: repeat(24, minmax(0, 1fr)); gap: 3px; width: 100%; height: 20px; }
+.mic-level-segment { border-radius: 3px; background: #cbd9dd; transition: background-color 80ms linear; }
+.mic-level-segment.is-active { background: #218976; }
+.mic-level-panel .hint { margin: 8px 0 0; }
+@media (prefers-reduced-motion: reduce) {
+  .mic-level-segment { transition: none; }
+}
