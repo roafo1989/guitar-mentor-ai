@@ -57,3 +57,16 @@ footer { text-align: center; font-size: 12px; padding: 24px; color: #8793a4; }
   .profile-page { padding: 28px 14px 60px; }
   .form-grid, .style-grid { grid-template-columns: 1fr; }
 }
+
+/* DEV-04 onboarding */
+.step-indicator { color: #4b7a73; font-size: 13px; font-weight: 700; margin-bottom: 16px; }
+.hint { color: #5c6b7e; font-size: 14px; margin: -6px 0 16px; }
+.choice-grid { display: grid; grid-template-columns: repeat(2,minmax(0,1fr)); gap: 10px 18px; }
+.choice-checkbox { display: flex; gap: 10px; align-items: center; border: 1px solid #e5eaf0; padding: 12px 14px; border-radius: 8px; cursor: pointer; }
+.choice-checkbox input { width: 17px; height: 17px; accent-color: #28776d; }
+.field textarea { width: 100%; border: 1px solid #ccd6e0; border-radius: 8px; padding: 12px; min-height: 100px; resize: vertical; }
+.action-button { color: white; background: #28776d; border: 0; padding: 12px 20px; border-radius: 8px; cursor: pointer; font-weight: 600; }
+.secondary-button { background: #eef2f6; color: #253f56; border: 1px solid #cad7e0; }
+.continue-link { color: #28776d; font-weight: 700; text-decoration: none; }
+.header-actions nav { display: flex; gap: 20px; flex-wrap: wrap; }
+@media (max-width: 680px) { .choice-grid { grid-template-columns: 1fr; } }

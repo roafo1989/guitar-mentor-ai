@@ -2,7 +2,8 @@
   "app": {
     "subtitle": "Personalized music learning",
     "profile": "Learner profile",
-    "language": "Language"
+    "language": "Language",
+    "onboarding": "Background & goals"
   },
   "form": {
     "title": "Let's meet your student",
@@ -22,7 +23,8 @@
     "networkError": "Backend unavailable. Check that Spring Boot is listening on port 8080.",
     "error": "Operation failed:",
     "example": "For example, Student",
-    "supported": "Only acoustic guitar is included in the first iteration."
+    "supported": "Only acoustic guitar is included in the first iteration.",
+    "continue": "Continue onboarding"
   },
   "ratings": {
     "LIKE": "Like",
@@ -43,5 +45,52 @@
     "CLASSICAL": "Classical",
     "MANOUCHE": "Manouche",
     "FUNK": "Funk"
+  },
+  "onboarding": {
+    "title": "Your musical background and goals",
+    "subtitle": "We'll use these details to tailor lessons to your experience and interests. Actual performance assessment comes later.",
+    "loading": "Loading questionnaire...",
+    "needProfile": "Create your learner profile first.",
+    "step": "Step {step} of {total}",
+    "experienceTitle": "What can you play already?",
+    "experienceLevel": "How would you describe your level?",
+    "yearsPlaying": "Full years playing",
+    "levels": {
+      "NONE": "Never played",
+      "BEGINNER": "Beginner",
+      "INTERMEDIATE": "Experienced",
+      "ADVANCED": "Advanced"
+    },
+    "skillsTitle": "Which techniques have you tried?",
+    "skillsHint": "Leave blank if you are new to the instrument.",
+    "skills": {
+      "CHORDS": "Chords",
+      "STRUMMING": "Strumming",
+      "ARPEGGIOS": "Simple arpeggios",
+      "FINGERSTYLE_MELODY": "Melodic fingerstyle"
+    },
+    "piecesTitle": "Which pieces have you played?",
+    "piecesHint": "Optional. One per line: title | artist (up to 10).",
+    "piecesExample": "Yesterday | The Beatles\nWindy & Warm | Tommy Emmanuel",
+    "invalidPieces": "Maximum 10 pieces; title required (up to 120 characters).",
+    "goalsTitle": "What would you like to learn?",
+    "goals": {
+      "FINGERSTYLE": "Pure fingerstyle",
+      "RHYTHM": "Better rhythm and timing",
+      "INDEPENDENT_BASS": "Independent bass and melody",
+      "DIFFERENT_STYLES": "Various music styles",
+      "COMPOSITIONS": "Learn compositions",
+      "THEORY": "Music theory"
+    },
+    "practiceTitle": "How much time can you practice?",
+    "practiceMinutes": "Minutes per session",
+    "sessionsPerWeek": "Sessions per week",
+    "notesTitle": "Anything else your teacher should know?",
+    "notesHint": "Your preferences, challenges, special requests (optional).",
+    "next": "Continue",
+    "back": "Back",
+    "save": "Save questionnaire",
+    "saved": "Questionnaire saved to PostgreSQL",
+    "profileBack": "Back to profile"
   }
 }
