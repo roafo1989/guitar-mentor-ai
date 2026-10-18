@@ -3,7 +3,7 @@ import { onMounted, ref } from 'vue';
 import { useI18n } from 'vue-i18n';
 import type { Exercise } from '../../shared/model/diagnostic.model';
 
-const props = defineProps<{ exercise: Exercise }>();
+const props = defineProps<{ exercise: Exercise; assigned?: boolean }>();
 const { t } = useI18n();
 const audioExists = ref(false);
 const pdfExists = ref(false);
@@ -29,8 +29,8 @@ onMounted(async () => {
 <template>
   <section class="exercise-preview" :aria-label="t('diagnostic.previewHeading')">
     <div class="exercise-preview-heading">
-      <h4>{{ t('diagnostic.previewHeading') }}</h4>
-      <span class="hint">{{ t('diagnostic.previewBeforeAssign') }}</span>
+      <h4>{{ assigned ? t('diagnostic.assignedMediaHeading') : t('diagnostic.previewHeading') }}</h4>
+      <span class="hint">{{ assigned ? t('diagnostic.assignedMediaHint') : t('diagnostic.previewBeforeAssign') }}</span>
     </div>
     <div class="exercise-preview-audio">
       <strong>{{ t('diagnostic.listenExample') }}</strong>

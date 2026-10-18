@@ -138,7 +138,9 @@
     "viewNotes": "Ноты и табулатура (PDF)",
     "pdfTitle": "Партитура этюда — PDF",
     "pdfNewTab": "Открыть PDF в новой вкладке",
-    "musicXmlAlternative": "Если встроенный просмотр не поддерживается браузером: "
+    "musicXmlAlternative": "Если встроенный просмотр не поддерживается браузером: ",
+    "assignedMediaHeading": "Материалы задания",
+    "assignedMediaHint": "Этюд назначен"
   },
   "home": {
     "welcome": "Твоё пространство для музыки",

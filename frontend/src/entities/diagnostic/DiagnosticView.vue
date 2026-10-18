@@ -187,8 +187,7 @@ async function assign(exerciseCode: string): Promise<void> {
         <h3>{{ t('diagnostic.taskInstructions') }}</h3>
         <p>{{ t('diagnostic.practiceTips') }}</p>
         <p class="hint">{{ t('diagnostic.draftWarning') }}</p>
-        <ExercisePreview :exercise="task.exercise" />
-        <p><a class="continue-link" :href="task.exercise.scoreUrl" download="GM-EB01.musicxml">{{ t('diagnostic.downloadScore') }}</a></p>
+        <ExercisePreview :exercise="task.exercise" assigned />
         <p class="hint">{{ t('diagnostic.noAssessment') }}</p>
       </template>
       <p v-if="error" role="alert" class="error">{{ error }}</p>

@@ -138,7 +138,9 @@
     "viewNotes": "Score and TAB (PDF)",
     "pdfTitle": "Etude score — PDF",
     "pdfNewTab": "Open PDF in new tab",
-    "musicXmlAlternative": "If your browser cannot display PDF inline: "
+    "musicXmlAlternative": "If your browser cannot display PDF inline: ",
+    "assignedMediaHeading": "Lesson materials",
+    "assignedMediaHint": "Exercise assigned"
   },
   "home": {
     "welcome": "Your space for music",
