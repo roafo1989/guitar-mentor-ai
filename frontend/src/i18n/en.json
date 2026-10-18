@@ -128,7 +128,17 @@
     "measures": "Measures",
     "catalogLoading": "Loading exercise catalog...",
     "retryCatalog": "Retry loading catalog",
-    "catalogApiMissing": "Exercise catalog API not found (HTTP 404). Make sure Spring Boot is running from feature/dev-05b-exercise-catalog rather than an older backend version."
+    "catalogApiMissing": "Exercise catalog API not found (HTTP 404). Make sure Spring Boot is running from feature/dev-05b-exercise-catalog rather than an older backend version.",
+    "previewHeading": "Preview before assigning",
+    "previewBeforeAssign": "No assignment needed",
+    "listenExample": "Listen to the example",
+    "synthesizedExample": "This is synthesized guitar, not a teacher performance.",
+    "checkingMedia": "Checking preview media...",
+    "mediaNotInstalled": "Preview file has not been installed in this local prototype yet. MusicXML score remains available below.",
+    "viewNotes": "Score and TAB (PDF)",
+    "pdfTitle": "Etude score — PDF",
+    "pdfNewTab": "Open PDF in new tab",
+    "musicXmlAlternative": "If your browser cannot display PDF inline: "
   },
   "home": {
     "welcome": "Your space for music",

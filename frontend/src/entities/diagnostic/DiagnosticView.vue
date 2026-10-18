@@ -3,6 +3,7 @@ import { computed, onMounted, ref } from 'vue';
 import { useI18n } from 'vue-i18n';
 import { useLearnerStore } from '../../stores/learner.store';
 import { diagnosticService } from './diagnostic.service';
+import ExercisePreview from './ExercisePreview.vue';
 import type { DiagnosticSession, DiagnosticTask, Exercise, ScoreEvents, ScoreMeasure } from '../../shared/model/diagnostic.model';
 
 const { t } = useI18n();
@@ -202,6 +203,7 @@ async function assign(exerciseCode: string): Promise<void> {
           <h3>{{ exercise.title }}</h3>
           <p>{{ exercise.description }}</p>
           <p class="hint">{{ t('diagnostic.draftWarning') }}</p>
+          <ExercisePreview :exercise="exercise" />
           <button type="button" class="action-button" :disabled="busy" @click="assign(exercise.code)">
             {{ t('diagnostic.assign') }}
           </button>
@@ -220,6 +222,7 @@ async function assign(exerciseCode: string): Promise<void> {
         <h3>{{ t('diagnostic.taskInstructions') }}</h3>
         <p>{{ t('diagnostic.practiceTips') }}</p>
         <p class="hint">{{ t('diagnostic.draftWarning') }}</p>
+        <ExercisePreview :exercise="task.exercise" />
         <p><a class="continue-link" :href="task.exercise.scoreUrl" download="GM-EB01.musicxml">{{ t('diagnostic.downloadScore') }}</a></p>
         <h3>{{ t('diagnostic.tabTitle') }}</h3>
         <p class="hint">{{ t('diagnostic.tabWarning') }}</p>

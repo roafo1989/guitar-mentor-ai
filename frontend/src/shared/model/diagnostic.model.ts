@@ -24,6 +24,8 @@ export interface Exercise {
   skillCodes: string[];
   scoreUrl: string;
   eventsUrl: string;
+  previewAudioUrl: string | null;
+  previewPdfUrl: string | null;
 }
 export interface DiagnosticTask {
   id: string;

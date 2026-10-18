@@ -128,7 +128,17 @@
     "measures": "Такты",
     "catalogLoading": "Загружаем каталог упражнений...",
     "retryCatalog": "Повторить загрузку каталога",
-    "catalogApiMissing": "API каталога не найден (HTTP 404). Проверь, что запущен Spring Boot из ветки feature/dev-05b-exercise-catalog, а не предыдущая версия backend."
+    "catalogApiMissing": "API каталога не найден (HTTP 404). Проверь, что запущен Spring Boot из ветки feature/dev-05b-exercise-catalog, а не предыдущая версия backend.",
+    "previewHeading": "Посмотреть и послушать перед выбором",
+    "previewBeforeAssign": "Без назначения задания",
+    "listenExample": "Послушать пример исполнения",
+    "synthesizedExample": "Это синтезированная гитара, не запись преподавателя.",
+    "checkingMedia": "Проверяем наличие аудио и партитуры...",
+    "mediaNotInstalled": "Файл предпросмотра пока не установлен в локальном прототипе. Исходная партитура MusicXML доступна ниже.",
+    "viewNotes": "Ноты и табулатура (PDF)",
+    "pdfTitle": "Партитура этюда — PDF",
+    "pdfNewTab": "Открыть PDF в новой вкладке",
+    "musicXmlAlternative": "Если встроенный просмотр не поддерживается браузером: "
   },
   "home": {
     "welcome": "Твоё пространство для музыки",
