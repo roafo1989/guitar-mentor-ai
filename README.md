@@ -14,6 +14,7 @@
 
 ## Документация
 
+- [Утверждённая дорожная карта MVP v1.0](docs/project/roadmap-mvp-v1.md)
 - [Оглавление документации](docs/index.md)
 - [Архитектурный стек](docs/adr/0001-java-vue-postgresql.md)
 - [Первичная диагностика — спецификация UC-02](docs/use-cases/UC-02-initial-diagnostics.md)
