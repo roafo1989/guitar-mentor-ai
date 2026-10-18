@@ -22,10 +22,15 @@
 ## Разработка
 
 - [Установка инструментов](development/workstation-setup-windows.md)
-- [Локальный адрес https://guitar-mentor (Windows 10, Caddy)](development/local-https-caddy-windows.md)
+- [Локальный адрес https://guitar-mentor (Windows 10, Caddy)](development/local-https-caddy-windows.md) — **подтверждено 18.10.2026**, настройка HTTPS, восстановление старого `learnerId`, результаты проверок и ограничения
 - [DEV-01 — Java bootstrap](development/dev-01-java-quickstart.md)
 - [DEV-02 — Профиль ученика REST](development/dev-02-learner-profile-quickstart.md)
 - [DEV-04 — Анкета опыта и целей](development/dev-04-onboarding-quickstart.md)
+
+## Развёртывание
+
+- **Сейчас:** бесплатный локальный `https://guitar-mentor` только на Windows-компьютере; [инструкция и результаты проверки](development/local-https-caddy-windows.md).
+- **Позднее:** интернет-доступ по домену, VPS, идентификация и приглашения; [DEPLOY-00 #37](https://github.com/roafo1989/guitar-mentor-ai/issues/37), [проект плана (PR #41)](https://github.com/roafo1989/guitar-mentor-ai/pull/41). Публичный запуск **запрещён**, пока не реализована серверная авторизация.
 
 ## Активная разработка
 

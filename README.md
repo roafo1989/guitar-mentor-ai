@@ -32,11 +32,11 @@
 - [Анкета: опыт и цели — UC-03](docs/use-cases/UC-03-onboarding-experience-goals.md)
 - [Рабочее место Windows 10](docs/development/workstation-setup-windows.md)
 
-## Красивый локальный адрес (Windows 10)
+## Проверенный локальный HTTPS-адрес (Windows 10)
 
-Для удобства можно открывать приложение по адресу **`https://guitar-mentor`** без `.localhost` и порта. Для этого на своём ПК нужно один раз добавить локальную запись `hosts`, установить бесплатный Caddy и доверить его локальный сертификат. **Только локальная разработка, доступ из интернета не включён.**
+**Проверено 18.10.2026 на Windows 10 / Chrome / Caddy v2.11.7:** приложение открывается по **`https://guitar-mentor`** без `.localhost` и порта. Для этого на своём ПК один раз добавлена локальная запись `hosts`, установлен бесплатный Caddy и настроен доверенный локальный HTTPS-сертификат. Проверены чтение существующего профиля и ранее сохранённой анкеты из PostgreSQL после переноса тестового `learnerId`. **Только локальная разработка: доступ из интернета не включён, авторизации нет.**
 
-Пошаговое руководство: [Windows — локальный HTTPS через Caddy](docs/development/local-https-caddy-windows.md). Конфигурация: [`infra/local/Caddyfile`](infra/local/Caddyfile).
+Пошаговое руководство, раздел **5.1 «Перенос тестового профиля»** и журнал **5.2 «Фактическая проверка»**: [Windows — локальный HTTPS через Caddy](docs/development/local-https-caddy-windows.md). Конфигурация: [`infra/local/Caddyfile`](infra/local/Caddyfile).
 
 ## Как запускать
 
@@ -59,7 +59,14 @@ npm ci
 npm run dev
 ```
 
-После установки локального Caddy открывайте **`https://guitar-mentor/profile`** и **`https://guitar-mentor/onboarding`**. Без Caddy по-прежнему работает `http://127.0.0.1:5173/profile`; разделы используют один backend, но отдельные `localStorage` для разных адресов.
+В **третьем терминале** VS Code после установки Caddy:
+
+```powershell
+cd D:\\Development\\guitar-mentor-ai
+& 'C:\\Tools\\Caddy\\caddy.exe' run --config .\\infra\\local\\Caddyfile --adapter caddyfile
+```
+
+Открывайте **`https://guitar-mentor/profile`** и **`https://guitar-mentor/onboarding`**. Без Caddy по-прежнему работает `http://127.0.0.1:5173/profile`. **При смене origin старый `localStorage` не переносится автоматически** — см. раздел 5.1 руководства, чтобы не создать дубликат ученика. Для HTTPS нужен запущенный Caddy; для данных — запущенные PostgreSQL и backend.
 
 ## Планы
 
