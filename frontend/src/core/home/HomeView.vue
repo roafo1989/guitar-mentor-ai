@@ -1,0 +1,123 @@
+<script setup lang="ts">
+import { computed, onMounted, ref } from 'vue';
+import { useI18n } from 'vue-i18n';
+import { useLearnerStore } from '../../stores/learner.store';
+
+const { t } = useI18n();
+const learnerStore = useLearnerStore();
+const loading = ref(true);
+const restoreFailed = computed(() =>
+  Boolean(learnerStore.error) && !learnerStore.error.startsWith('HTTP_404'),
+);
+const sections = [
+  { key: 'profile', to: '/profile', number: '01', icon: 'M12 12a4 4 0 1 0 0-8 4 4 0 0 0 0 8ZM4 21v-2a6 6 0 0 1 6-6h4a6 6 0 0 1 6 6v2' },
+  { key: 'onboarding', to: '/onboarding', number: '02', icon: 'M8 4H5a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2V6a2 2 0 0 0-2-2h-3M8 2h8v5H8ZM7 12h10M7 17h7' },
+  { key: 'diagnostics', to: '/diagnostics', number: '03', icon: 'M4 14v-4M8 19V5M12 22V2M16 17V7M20 14v-4' },
+] as const;
+
+async function restoreProfile(): Promise<void> {
+  loading.value = true;
+  try {
+    if (!learnerStore.learner) await learnerStore.restore();
+  } finally {
+    loading.value = false;
+  }
+}
+
+onMounted(restoreProfile);
+</script>
+
+<template>
+  <section class="home-page" aria-labelledby="home-title">
+    <div class="home-hero">
+      <div class="home-welcome">
+        <p class="eyebrow">
+          {{ learnerStore.learner
+            ? t('home.welcomeBack', { name: learnerStore.learner.displayName })
+            : t('home.welcome') }}
+        </p>
+        <h1 id="home-title">{{ t('home.title') }}</h1>
+        <p class="home-description">{{ t('home.description') }}</p>
+        <div class="home-start">
+          <p v-if="loading" class="home-loading" role="status">{{ t('home.loading') }}</p>
+          <RouterLink v-else to="/profile" class="home-primary">
+            {{ t(learnerStore.learner || restoreFailed ? 'home.openProfile' : 'home.start') }}
+            <span aria-hidden="true">→</span>
+          </RouterLink>
+        </div>
+      </div>
+      <aside class="home-instrument" :aria-label="t('home.focus')">
+        <img class="home-instrument-mark" src="/favicon.png" alt="" aria-hidden="true" width="72" height="72" />
+        <div>
+          <p class="home-instrument-label">{{ t('instruments.ACOUSTIC_GUITAR') }}</p>
+          <p class="home-instrument-style">{{ t('instruments.FINGERSTYLE') }}</p>
+          <p class="home-instrument-note">{{ t('home.pace') }}</p>
+        </div>
+      </aside>
+    </div>
+
+    <div v-if="!loading && restoreFailed" class="notice home-recovery" role="alert">
+      <span>{{ t('home.restoreError') }}</span>
+      <button type="button" class="text-button" @click="restoreProfile">{{ t('home.retry') }}</button>
+    </div>
+
+    <section class="home-sections" aria-labelledby="home-sections-title">
+      <h2 id="home-sections-title">{{ t('home.sectionsTitle') }}</h2>
+      <div class="home-cards">
+        <RouterLink v-for="section in sections" :key="section.key" :to="section.to" class="home-card">
+          <div class="home-card-top" aria-hidden="true">
+            <svg viewBox="0 0 24 24" width="24" height="24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
+              <path :d="section.icon" />
+            </svg>
+            <span>{{ section.number }}</span>
+          </div>
+          <h3>{{ t('app.' + section.key) }}</h3>
+          <p>{{ t('home.sections.' + section.key) }}</p>
+          <span class="home-card-link">{{ t('home.open') }} <span aria-hidden="true">→</span></span>
+        </RouterLink>
+      </div>
+    </section>
+  </section>
+</template>
+
+<style scoped>
+.home-page { max-width: 1130px; margin: 0 auto; padding: 64px 24px 72px; }
+.home-hero { display: grid; grid-template-columns: minmax(0, 1.6fr) minmax(0, 1fr); gap: 48px; align-items: center; margin-bottom: 52px; }
+.home-welcome .eyebrow { margin: 0 0 18px; overflow-wrap: anywhere; }
+h1 { max-width: 590px; font-size: clamp(36px, 4.5vw, 54px); line-height: 1.12; letter-spacing: -1.6px; margin: 0 0 20px; text-wrap: balance; }
+.home-description { max-width: 540px; color: #5c6b7e; line-height: 1.75; margin: 0; }
+.home-start { margin-top: 28px; min-height: 48px; }
+.home-loading { color: #5c6b7e; margin: 0; padding: 13px 0; }
+.home-primary { display: inline-flex; align-items: center; justify-content: space-between; gap: 24px; border-radius: 9px; padding: 14px 22px; background: #28776d; color: white; text-decoration: none; font-weight: 600; }
+.home-primary:hover { background: #205f57; }
+.home-instrument { min-width: 0; display: flex; flex-direction: column; gap: 28px; align-items: flex-start; border: 1px solid #d5e6e0; border-radius: 24px; padding: 32px; background: linear-gradient(135deg, #e8f2ed, #f3f7f5); }
+.home-instrument-mark { display: block; width: 72px; height: 72px; object-fit: contain; }
+.home-instrument-label { font-weight: 700; font-size: 18px; margin: 0 0 8px; }
+.home-instrument-style { color: #3d695f; margin: 0; font-size: 14px; }
+.home-instrument-note { border-top: 1px solid #d5e6e0; padding-top: 18px; margin: 22px 0 0; color: #5c6b7e; font-size: 14px; line-height: 1.6; }
+.home-recovery { display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 12px; }
+.home-cards { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 18px; }
+.home-card { display: flex; flex-direction: column; padding: 26px; background: white; border: 1px solid #e0e6ed; border-radius: 14px; text-decoration: none; box-shadow: 0 5px 25px rgba(25,42,64,.03); }
+.home-card:hover { border-color: #7daba1; box-shadow: 0 5px 25px rgba(25,42,64,.08); }
+.home-card-top { display: flex; align-items: center; justify-content: space-between; color: #3d786e; margin-bottom: 22px; }
+.home-card-top span { color: #768498; font-size: 12px; letter-spacing: 1px; }
+.home-card h3 { margin: 0 0 10px; font-size: 18px; }
+.home-card p { margin: 0 0 24px; color: #5c6b7e; font-size: 14px; line-height: 1.65; }
+.home-card-link { margin-top: auto; display: flex; justify-content: space-between; color: #28776d; font-size: 14px; font-weight: 600; }
+.home-primary:focus-visible, .home-card:focus-visible { outline: 3px solid #28776d; outline-offset: 4px; }
+@media (max-width: 800px) {
+  .home-hero { gap: 24px; }
+  .home-instrument { padding: 24px; }
+  .home-cards { gap: 12px; }
+  .home-card { padding: 20px; }
+}
+@media (max-width: 680px) {
+  .home-page { padding: 36px 16px 48px; }
+  .home-hero { grid-template-columns: 1fr; margin-bottom: 36px; }
+  .home-instrument { flex-direction: row; align-items: center; gap: 24px; }
+  .home-instrument-mark { flex-shrink: 0; width: 56px; height: 56px; }
+  .home-instrument-label { font-size: 16px; }
+  .home-instrument-note { margin-top: 14px; padding-top: 12px; }
+  .home-cards { grid-template-columns: 1fr; }
+}
+</style>
