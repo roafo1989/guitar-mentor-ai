@@ -22,11 +22,11 @@ Flyway V6 добавляет exercises.preview_audio_resource / preview_pdf_reso
 
 ## Установка Windows
 В чате доступен ZIP: **guitar-mentor-dev06-preview-media-v08B-4bars.zip**. Внутри обновлённый PDF (1 страница, по 4 такта в строке) и прежний MP3 (~36 с).
-1. Остановить Spring Boot Ctrl+C.
+1. Обновить ветку `main`: `git switch main`, затем `git pull --ff-only`. Если Git сообщает о локальных изменениях — не перезаписывать их, сначала разобраться с ними. Остановить Spring Boot Ctrl+C.
 2. Сохранить ZIP в D:\Development.
 3. Распаковать в корень репозитория:
 ```powershell
-Expand-Archive -Path "D:\Development\guitar-mentor-dev06-preview-media-v08B.zip" `
+Expand-Archive -Path "D:\Development\guitar-mentor-dev06-preview-media-v08B-4bars.zip" `
   -DestinationPath "D:\Development\guitar-mentor-ai" -Force
 ```
 4. Убедиться, что файлы по путям:
@@ -37,7 +37,7 @@ D:\Development\guitar-mentor-ai\backend\src\main\resources\exercises\GM-EB01\sco
 5. Перезапустить backend, открыть https://guitar-mentor/diagnostics и обновить Ctrl+Shift+R.
 6. Проверить аудио/все страницы PDF **до** назначения, затем после назначения и F5.
 
-Медиа локально исключены из Git через .gitignore и пока не включены в публичный PR. По умолчанию CI проверяет код и миграции, а ручная медиа-проверка выполняется после установки ZIP. **PR не сливать до ручной приёмки.**
+Медиа локально исключены из Git через .gitignore и пока не включены в публичный PR. По умолчанию CI проверяет код и миграции, а ручная медиа-проверка выполняется после установки ZIP. PR #49 уже объединён в `main`; ручная приёмка нового PDF, плеера и назначения пока не подтверждена. Слияние не означает завершение всего Issue #17. После подтверждения обновления версии владельцем карточка переводится в «Тестирование / В очереди».
 
 ## Следующий инкремент
 Отправка записи, обратная связь и пересдача — отдельные R4/R5/R6. См. docs/ux/lesson-workflow-skillspace-reference.md.
