@@ -5,7 +5,7 @@ The 12-bar E blues study v0.4 remains unchanged. The new experiments replace **o
 
 ## Why these exist
 
-Learner feedback: v0.5 added lick sounds artificial; v0.6 traditional chromatic descent is closer but still not convincingly musical. The problem appears structural: neither ending answered the song's opening motif convincingly. Analysis of classic acoustic blues guitar emphasized a motivated phrase, rhythmic space, independent thumb and melody, and a natural dominant-to-tonic cadence rather than a pasted scale run. See [reference analysis](../../docs/music/reference-analysis-acoustic-blues-endings.md) (relative link may differ).
+Learner feedback: v0.5 added lick sounds artificial; v0.6 traditional chromatic descent is closer but still not convincingly musical. The problem appears structural: neither ending answered the song's opening motif convincingly. Analysis of classic acoustic blues guitar emphasized a motivated phrase, rhythmic space, independent thumb and melody, and a natural dominant-to-tonic cadence rather than a pasted scale run. See [reference analysis](../../../docs/music/reference-analysis-acoustic-blues-endings.md).
 
 ## v0.7A — Pedal note / descending inner voice
 
