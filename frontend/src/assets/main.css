@@ -13,16 +13,26 @@ a { color: inherit; }
 
 .app-shell { min-height: 100vh; display: flex; flex-direction: column; }
 .site-header {
+  position: sticky; top: 0; z-index: 100;
   display: flex; align-items: center; justify-content: space-between;
   padding: 16px clamp(20px, 6vw, 92px); background: #1c2b40; color: white;
-  gap: 20px;
+  gap: 20px; box-shadow: 0 2px 12px rgba(12, 28, 48, .16);
 }
 .brand { display: flex; align-items: center; gap: 12px; }
 .brand-icon { display: block; width: 40px; height: 40px; object-fit: contain; flex-shrink: 0; }
 .brand strong { display: block; letter-spacing: .1px; }
 .brand small { display: block; color: #c6d3e1; font-size: 12px; margin-top: 3px; }
-.header-actions { display: flex; gap: 22px; align-items: center; }
+.header-actions { display: flex; gap: 20px; align-items: center; justify-content: flex-end; flex-wrap: wrap; }
 .header-actions a { text-decoration: none; font-size: 14px; }
+.header-learner {
+  display: inline-flex; align-items: center; gap: 6px; min-width: 0; max-width: 225px;
+  padding: 7px 10px; border: 1px solid #667f96; border-radius: 8px;
+  background: #2c4359; white-space: nowrap; color: white;
+}
+.header-learner:hover { background: #38556e; }
+.header-learner:focus-visible { outline: 2px solid #a8ddca; outline-offset: 2px; }
+.header-learner-name { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+
 .language-picker select { color: white; background: #31465e; border: 1px solid #64758a; border-radius: 6px; padding: 6px 8px; }
 .main-content { width: 100%; flex: 1; }
 .profile-page { max-width: 1080px; margin: 0 auto; padding: 52px 24px 80px; }
@@ -52,8 +62,11 @@ button[type=submit]:disabled { opacity: .5; cursor: not-allowed; }
 footer { text-align: center; font-size: 12px; padding: 24px; color: #8793a4; }
 .sr-only { position: absolute; width: 1px; height: 1px; padding: 0; margin: -1px; overflow: hidden; clip: rect(0,0,0,0); white-space: nowrap; border: 0; }
 @media (max-width: 680px) {
-  .site-header { align-items: flex-start; padding: 16px; }
-  .header-actions { flex-direction: column-reverse; align-items: flex-end; gap: 7px; }
+  .site-header { flex-wrap: wrap; align-items: center; gap: 10px; padding: 10px 16px; }
+  .header-actions { width: 100%; justify-content: space-between; gap: 10px; }
+  .header-actions nav { order: 3; width: 100%; gap: 8px; justify-content: space-between; }
+  .header-learner { order: 1; max-width: min(75%, 250px); }
+  .language-picker { order: 2; margin-left: auto; }
   .profile-page { padding: 28px 14px 60px; }
   .form-grid, .style-grid { grid-template-columns: 1fr; }
 }

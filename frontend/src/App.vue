@@ -1,7 +1,10 @@
 <script setup lang="ts">
 import { useI18n } from 'vue-i18n';
+import { useLearnerStore } from './stores/learner.store';
 
 const { locale, t } = useI18n();
+// All routed pages restore the selected learner on mount; this header reacts to Pinia changes.
+const learnerStore = useLearnerStore();
 </script>
 
 <template>
@@ -20,6 +23,15 @@ const { locale, t } = useI18n();
           <RouterLink to="/onboarding">{{ t('app.onboarding') }}</RouterLink>
           <RouterLink to="/diagnostics">{{ t('app.diagnostics') }}</RouterLink>
         </nav>
+        <RouterLink
+          v-if="learnerStore.learner"
+          to="/profile"
+          class="header-learner"
+          :title="t('app.currentLearner') + ': ' + learnerStore.learner.displayName"
+        >
+          <span>{{ t('app.currentLearner') }}:</span>
+          <strong class="header-learner-name">{{ learnerStore.learner.displayName }}</strong>
+        </RouterLink>
         <label class="language-picker">
           <span class="sr-only">{{ t('app.language') }}</span>
           <select v-model="locale" aria-label="Language">

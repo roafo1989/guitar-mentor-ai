@@ -2,6 +2,7 @@
   "app": {
     "subtitle": "Персональное обучение музыке",
     "profile": "Профиль ученика",
+    "currentLearner": "Ученик",
     "language": "Язык",
     "onboarding": "Опыт и цели",
     "diagnostics": "Диагностика"
