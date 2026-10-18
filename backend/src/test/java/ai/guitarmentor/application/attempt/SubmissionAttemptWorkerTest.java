@@ -1,6 +1,7 @@
 package ai.guitarmentor.application.attempt;
 
 import static org.mockito.Mockito.verify;
+import static org.mockito.Mockito.verifyNoInteractions;
 import static org.mockito.Mockito.when;
 
 import ai.guitarmentor.application.attempt.SubmissionAttemptProcessor.ProcessingJob;
@@ -46,6 +47,19 @@ class SubmissionAttemptWorkerTest {
         when(probe.measure(path)).thenReturn(10.4);
         new SubmissionAttemptWorker(processor, media, probe).poll();
         verify(processor).success(id, "b".repeat(64), 10.4);
+    }
+
+    @Test
+    void unavailableProbeNeverMarksAttemptAsProcessed() throws Exception {
+        var id = UUID.randomUUID();
+        var job = new ProcessingJob(id, UUID.randomUUID() + ".wav", 150);
+        var path = Path.of("test.wav");
+        when(processor.claimNext()).thenReturn(Optional.of(job));
+        when(media.verifyAndHash(job.key(), job.size())).thenReturn("a".repeat(64));
+        when(media.resolveForInspection(job.key())).thenReturn(path);
+        when(probe.measure(path)).thenThrow(new IOException("PROBE_UNAVAILABLE"));
+        new SubmissionAttemptWorker(processor, media, probe).poll();
+        verify(processor).failure(id, "PROBE_UNAVAILABLE");
     }
 
     @Test

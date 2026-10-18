@@ -3,6 +3,9 @@ package ai.guitarmentor.infrastructure.media;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
+import static org.mockito.Mockito.when;
+import static org.mockito.Mockito.verifyNoInteractions;
+import static org.mockito.Mockito.mock;
 
 import java.nio.file.Files;
 import java.nio.file.Path;
@@ -39,6 +42,22 @@ class LocalAttemptMediaStoreTest {
         assertThrows(ResponseStatusException.class,
                 () -> store.store(new MockMultipartFile("file", "../unsafe.exe",
                         "audio/mpeg", new byte[] {'I', 'D', '3', 1, 2})));
+    }
+
+    @Test
+    void rejectsSizeAboveLimitBeforeReadingFile() {
+        var store = new LocalAttemptMediaStore(temp.toString());
+        var uploaded = mock(org.springframework.web.multipart.MultipartFile.class);
+        when(uploaded.getSize()).thenReturn(LocalAttemptMediaStore.MAX_BYTES + 1);
+        var failure = assertThrows(ResponseStatusException.class, () -> store.store(uploaded));
+        assertEquals(400, failure.getStatusCode().value());
+    }
+
+    @Test
+    void rejectsTraversalInInternalProcessingKey() {
+        var store = new LocalAttemptMediaStore(temp.toString());
+        assertThrows(java.io.IOException.class,
+                () -> store.resolveForInspection("../../etc/passwd"));
     }
 
     @Test
