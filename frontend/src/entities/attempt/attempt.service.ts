@@ -3,11 +3,15 @@ export interface SubmissionAttempt {
   taskId: string;
   number: number;
   submittedAt: string;
-  status: 'RECEIVED_UNASSESSED';
+  status: 'UPLOADED' | 'PROCESSING' | 'PROCESSED' | 'FAILED';
   comment: string | null;
   format: string;
   bytes: number;
   assessmentAvailable: boolean;
+  processingStartedAt: string | null;
+  processingFinishedAt: string | null;
+  processingErrorCode: 'MEDIA_MISSING' | 'SIZE_MISMATCH' | 'INVALID_FORMAT'
+    | 'INVALID_KEY' | 'IO_ERROR' | 'TECHNICAL_ERROR' | null;
 }
 export interface UploadCapabilities {
   enabled: boolean;

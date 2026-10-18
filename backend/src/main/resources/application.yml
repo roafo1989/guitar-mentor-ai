@@ -25,6 +25,7 @@ guitar-mentor:
     # Explicit opt-in for local, non-personal test recordings only.
     enabled: ${GUITAR_MENTOR_ENABLE_UPLOADS:false}
     storage-path: ${GUITAR_MENTOR_MEDIA_PATH:./.local-media/attempts}
+    poll-delay-ms: ${GUITAR_MENTOR_PROCESS_POLL_MS:3000}
 
 management:
   endpoints:
