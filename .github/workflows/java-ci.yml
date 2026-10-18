@@ -40,7 +40,12 @@ jobs:
           java-version: "21"
           cache: maven
           cache-dependency-path: backend/pom.xml
-      - name: Run unit tests and package
+      - name: Run unit tests, real PostgreSQL transaction integration and package
+        env:
+          SPRING_DATASOURCE_URL: jdbc:postgresql://localhost:5432/guitar_mentor
+          SPRING_DATASOURCE_USERNAME: guitar_mentor_app
+          SPRING_DATASOURCE_PASSWORD: ci_only_password
+          GUITAR_MENTOR_TEST_POSTGRES: 'true'
         run: ./mvnw --batch-mode verify
       - name: Ensure FFprobe is present for real audio-duration verification
         run: |

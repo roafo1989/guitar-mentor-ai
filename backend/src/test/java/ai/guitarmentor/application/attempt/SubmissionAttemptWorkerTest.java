@@ -6,7 +6,7 @@ import static org.mockito.Mockito.when;
 
 import ai.guitarmentor.application.attempt.SubmissionAttemptProcessor.ProcessingJob;
 import ai.guitarmentor.infrastructure.media.AudioDurationProbe;
-import ai.guitarmentor.infrastructure.media.LocalAttemptMediaStore;
+import ai.guitarmentor.application.attempt.AttemptMediaStore;
 import java.io.IOException;
 import java.nio.file.Path;
 import java.util.Optional;
@@ -19,7 +19,7 @@ import org.mockito.junit.jupiter.MockitoExtension;
 @ExtendWith(MockitoExtension.class)
 class SubmissionAttemptWorkerTest {
     @Mock SubmissionAttemptProcessor processor;
-    @Mock LocalAttemptMediaStore media;
+    @Mock AttemptMediaStore media;
     @Mock AudioDurationProbe probe;
 
     @Test
