@@ -53,13 +53,21 @@ public class DiagnosticSession {
     }
 
     public void finishIntake() {
-        if (status == DiagnosticStatus.READY_FOR_TASK) {
+        if (status == DiagnosticStatus.READY_FOR_TASK || status == DiagnosticStatus.TASK_ASSIGNED) {
             return; // Repeating the command is safe.
         }
         if (status != DiagnosticStatus.COLLECTING_EVIDENCE) {
             throw new IllegalStateException("Cannot finish intake in status " + status);
         }
         status = DiagnosticStatus.READY_FOR_TASK;
+        updatedAt = Instant.now();
+    }
+
+    public void markTaskAssigned() {
+        if (status != DiagnosticStatus.READY_FOR_TASK) {
+            throw new IllegalStateException("Cannot assign exercise in status " + status);
+        }
+        status = DiagnosticStatus.TASK_ASSIGNED;
         updatedAt = Instant.now();
     }
 
