@@ -42,6 +42,13 @@ jobs:
           cache-dependency-path: backend/pom.xml
       - name: Run unit tests and package
         run: ./mvnw --batch-mode verify
+      - name: Ensure FFprobe is present for real audio-duration verification
+        run: |
+          if ! command -v ffprobe >/dev/null; then
+            sudo apt-get update
+            sudo apt-get install -y ffmpeg
+          fi
+          ffprobe -version
       - name: Launch app and verify PostgreSQL migration and HTTP
         shell: bash
         env:
@@ -156,6 +163,25 @@ jobs:
               done
               test "$validated" = true
               echo "Asynchronous file integrity verification: OK"
+              printf '%s' "$latest" | python3 -c 'import json,sys; a=json.load(sys.stdin); assert abs(a[0]["audioDurationSeconds"]-0.1) < 0.02'
+              # A valid 125-second WAV stays below the 20-MiB limit,
+              # but must fail the server-side duration check.
+              python3 -c 'import wave; f=wave.open("too-long.wav", "wb"); f.setnchannels(1); f.setsampwidth(2); f.setframerate(8000); f.writeframes(bytes(125*8000*2)); f.close()'
+              long_upload=$(curl --fail --silent --show-error -X POST "$attempts_base" \
+                -F "file=@too-long.wav;type=audio/wav" \
+                -F "requestId=123e4567-e89b-12d3-a456-426614174002")
+              echo "$long_upload" | grep -q '"number":2'
+              rejected_long=false
+              for check in $(seq 1 30); do
+                latest_long=$(curl --fail --silent --show-error "$attempts_base")
+                if printf '%s' "$latest_long" | python3 -c 'import json,sys; a=json.load(sys.stdin); assert len(a)==2 and a[0]["status"]=="FAILED" and a[0]["processingErrorCode"]=="DURATION_EXCEEDED" and a[1]["status"]=="PROCESSED"'; then
+                  rejected_long=true
+                  break
+                fi
+                sleep 1
+              done
+              test "$rejected_long" = true
+              echo "Overlong audio and previous attempt history: OK"
               printf '%s' 'not an mp3' >invalid.mp3
               bad_status=$(curl --silent --output /dev/null --write-out '%{http_code}' \
                 -X POST "$attempts_base" -F "file=@invalid.mp3;type=audio/mpeg" \

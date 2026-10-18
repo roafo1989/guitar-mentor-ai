@@ -21,14 +21,17 @@ class SubmissionAttemptStateTest {
         var attempt = newAttempt();
         assertEquals(AttemptStatus.UPLOADED, attempt.getStatus());
         assertThrows(IllegalStateException.class,
-                () -> attempt.finishTechnicalValidation("a".repeat(64)));
+                () -> attempt.finishTechnicalValidation("a".repeat(64), 2.5));
         attempt.startProcessing();
         assertEquals(AttemptStatus.PROCESSING, attempt.getStatus());
         assertNotNull(attempt.getProcessingStartedAt());
-        attempt.finishTechnicalValidation("a".repeat(64));
+        attempt.finishTechnicalValidation("a".repeat(64), 2.5);
         assertEquals(AttemptStatus.PROCESSED, attempt.getStatus());
         assertEquals("a".repeat(64), attempt.getTechnicalSha256());
         assertNotNull(attempt.getProcessingFinishedAt());
+        assertEquals(0, attempt.getAudioDurationSeconds().compareTo(
+                new java.math.BigDecimal("2.500")));
+        assertEquals(1, attempt.getProcessingAttempts());
         assertThrows(IllegalStateException.class, attempt::startProcessing);
     }
 
@@ -41,6 +44,21 @@ class SubmissionAttemptStateTest {
         assertEquals("MEDIA_MISSING", attempt.getProcessingErrorCode());
         assertNotNull(attempt.getProcessingFinishedAt());
         assertFalse(attempt.getTechnicalSha256() != null);
+    }
+
+    @Test
+    void interruptedJobFailsAfterThreeClaimsInsteadOfRetryingForever() {
+        var attempt = newAttempt();
+        for (int i = 0; i < 2; i++) {
+            attempt.startProcessing();
+            attempt.requeueAfterInterruptedProcessing();
+            assertEquals(AttemptStatus.UPLOADED, attempt.getStatus());
+        }
+        attempt.startProcessing();
+        attempt.requeueAfterInterruptedProcessing();
+        assertEquals(AttemptStatus.FAILED, attempt.getStatus());
+        assertEquals("PROCESSING_INTERRUPTED", attempt.getProcessingErrorCode());
+        assertEquals(3, attempt.getProcessingAttempts());
     }
 
     @Test
