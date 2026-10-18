@@ -10,13 +10,13 @@ const learnerStore = useLearnerStore();
 <template>
   <div class="app-shell">
     <header class="site-header">
-      <div class="brand">
+      <RouterLink to="/" class="brand" :aria-label="t('app.home') + ' · Guitar Mentor AI'">
         <img class="brand-icon" src="/favicon.png" alt="" aria-hidden="true" width="40" height="40" />
         <div>
           <strong>Guitar Mentor AI</strong>
           <small>{{ t('app.subtitle') }}</small>
         </div>
-      </div>
+      </RouterLink>
       <div class="header-actions">
         <nav aria-label="Navigation">
           <RouterLink to="/profile">{{ t('app.profile') }}</RouterLink>

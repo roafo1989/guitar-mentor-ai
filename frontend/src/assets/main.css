@@ -18,7 +18,8 @@ a { color: inherit; }
   padding: 16px clamp(20px, 6vw, 92px); background: #1c2b40; color: white;
   gap: 20px; box-shadow: 0 2px 12px rgba(12, 28, 48, .16);
 }
-.brand { display: flex; align-items: center; gap: 12px; }
+.brand { display: flex; align-items: center; gap: 12px; text-decoration: none; border-radius: 6px; }
+.brand:focus-visible { outline: 2px solid #a8ddca; outline-offset: 6px; }
 .brand-icon { display: block; width: 40px; height: 40px; object-fit: contain; flex-shrink: 0; }
 .brand strong { display: block; letter-spacing: .1px; }
 .brand small { display: block; color: #c6d3e1; font-size: 12px; margin-top: 3px; }

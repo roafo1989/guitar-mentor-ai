@@ -5,7 +5,8 @@
     "currentLearner": "Learner",
     "language": "Language",
     "onboarding": "Background & goals",
-    "diagnostics": "Assessment"
+    "diagnostics": "Assessment",
+    "home": "Home"
   },
   "form": {
     "title": "Let's meet your student",
@@ -114,5 +115,25 @@
     "noAssessment": "No audio has been analyzed and no skill assessments have been made.",
     "back": "Back to onboarding",
     "nextFromOnboarding": "Continue to assessment"
+  },
+  "home": {
+    "welcome": "Your space for music",
+    "welcomeBack": "Welcome back, {name}!",
+    "title": "More music. One step at a time.",
+    "description": "Tell us about yourself, choose your goals and start exploring your playing. Your first steps, all in one place.",
+    "start": "Get started",
+    "openProfile": "My profile",
+    "loading": "Loading profile…",
+    "focus": "Learning focus",
+    "pace": "Music you love. Clear steps. At your own pace.",
+    "sectionsTitle": "Where shall we start?",
+    "open": "Open",
+    "restoreError": "Could not load your profile. Try again or open the profile page.",
+    "retry": "Try again",
+    "sections": {
+      "profile": "Your instrument, playing technique and the music you enjoy.",
+      "onboarding": "What you can play, what you want to learn and when you can practice.",
+      "diagnostics": "A starting point for getting to know your playing. The first assessment step is available for now."
+    }
   }
 }
