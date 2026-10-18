@@ -13,6 +13,8 @@
   "dynamicArc": "mp -> mf -> f -> p",
   "source": "original",
   "license": "CC BY 4.0",
-  "reviewStatus": "DRAFT_NEEDS_MUSICAL_REVIEW",
-  "audioPreview": "synthesized steel acoustic soundfont; not a performed guitar recording"
+  "reviewStatus": "REJECTED_BY_LEARNER",
+  "audioPreview": "synthesized steel acoustic soundfont; not a performed guitar recording",
+  "reviewFeedback": "More varied than v0.1, but still sounds like monophonic Nokia 3310 ringtone; insufficient true chordal guitar texture, needs E7/A7/B7 dominant blues.",
+  "assignable": false
 }
