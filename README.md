@@ -46,7 +46,8 @@
 
 ```powershell
 cd D:\Development\guitar-mentor-ai\backend
-$env:SPRING_DATASOURCE_PASSWORD = Read-Host "Пароль guitar_mentor_app" -MaskInput
+$password = Read-Host "Пароль guitar_mentor_app" -AsSecureString
+$env:SPRING_DATASOURCE_PASSWORD = [System.Net.NetworkCredential]::new('', $password).Password
 .\mvnw.cmd spring-boot:run
 ```
 
