@@ -16,6 +16,7 @@
 
 - **Backend:** Java 21, Spring Boot 4.1.1, Spring Data JPA, PostgreSQL 17, Flyway.
 - **Frontend:** Vue 3, TypeScript, Vite, Pinia, vue-i18n (RU/EN).
+- **Иконка приложения:** собственный favicon (`frontend/public/favicon.png`) — гитара и электронные цепи, подключён через `frontend/index.html`.
 - **UC-01:** профиль ученика, техника игры и отношение к музыкальным стилям.
 - **UC-03:** музыкальный опыт, репертуар, учебные цели и расписание занятий.
 - **Тестирование:** Java CI с PostgreSQL и Vue CI; локальный сценарий от Vue до PostgreSQL проверен.
