@@ -1,0 +1,36 @@
+@startuml
+title DEV-05B / #30 — переиспользование storage и компенсация rollback
+participant "SubmissionAttemptService" as S
+participant "AttemptMediaStore" as M
+database "PostgreSQL transaction" as DB
+participant "Completion callback" as C
+S -> DB: Проверить task/session, lock и requestId
+alt Повтор requestId
+  DB --> S: Существующая попытка без нового файла
+else Новая отправка
+  S -> M: store(file) — существующая валидация
+  M --> S: StoredMedia(key, format, size)
+  S -> C: Зарегистрировать callback исхода транзакции
+  S -> DB: Сохранить попытку / завершить транзакцию
+  alt Подтверждён commit
+    DB -> C: COMMITTED
+    C --> S: Сохранить файл
+  else Подтверждён rollback, в том числе поздний
+    DB -> C: ROLLED_BACK
+    C -> M: delete(key)
+    alt Файл удалён либо отсутствует
+      M --> C: DELETED / ALREADY_ABSENT
+    else Ошибка файловой системы
+      M --> C: DELETE_IO_ERROR
+      C -> C: Безопасное событие, не скрывать ошибку БД
+    end
+  else Неопределённый исход
+    DB -> C: UNKNOWN
+    C -> C: Событие для сверки, не удалять вслепую
+  end
+end
+note over S, C
+  TTL, планировщик и reconciliation — #21.
+  В #30 нет нового HTTP endpoint и автоматического удаления по возрасту.
+end note
+@enduml

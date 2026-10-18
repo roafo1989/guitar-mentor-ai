@@ -2,6 +2,7 @@
 
 | Версия | Дата | Что поменялось |
 | --- | --- | --- |
+| 0.6 | 18.10.2026 | #20 закрыта; #30 выделена в остаток storage/rollback (8 ч); добавлено отдельное покрытие собственных примеров FT-002-04. Поля Project этим обновлением не записаны. |
 | 0.5 | 18.10.2026 | Актуализированы стори: US-009 выполнена, US-004 в разработке, прочие в бэклоге; неактивные задачи отложены с сохранением точки возврата. |
 | 0.4 | 18.10.2026 | Настройка Project выполнена: 42 элемента, 39 native-связей, Уровень, три отдельные доски; у стори/эпиков Бэклог → Разработка → Выполнено. |
 | 0.3 | 18.10.2026 | Заголовки всех 45 Issues приведены к `<ID>.<Тип>.<Заголовок>` с сохранением ID и состояний. |
@@ -33,7 +34,7 @@
 | EPIC-001 | US-003 / [#57](https://github.com/roafo1989/guitar-mentor-ai/issues/57) | FT-003-03 | [#24](https://github.com/roafo1989/guitar-mentor-ai/issues/24) — План занятий по истории и целям |
 | EPIC-001 | US-003 / [#57](https://github.com/roafo1989/guitar-mentor-ai/issues/57) | FT-003-04 | [#51](https://github.com/roafo1989/guitar-mentor-ai/issues/51) — Удобный сквозной сценарий и лаконичный интерфейс |
 | EPIC-001 | US-004 / [#58](https://github.com/roafo1989/guitar-mentor-ai/issues/58) | FT-004-01 | [#20](https://github.com/roafo1989/guitar-mentor-ai/issues/20) — Запись, загрузка и обработка попытки |
-| EPIC-001 | US-004 / [#58](https://github.com/roafo1989/guitar-mentor-ai/issues/58) | FT-004-02 | [#30](https://github.com/roafo1989/guitar-mentor-ai/issues/30) — Приём диагностических медиа и StorageService |
+| EPIC-001 | US-004 / [#58](https://github.com/roafo1989/guitar-mentor-ai/issues/58) | FT-004-02 | [#30](https://github.com/roafo1989/guitar-mentor-ai/issues/30) — Единый контракт хранения аудио и безопасное удаление |
 | EPIC-001 | US-004 / [#58](https://github.com/roafo1989/guitar-mentor-ai/issues/58) | FT-004-03 | [#21](https://github.com/roafo1989/guitar-mentor-ai/issues/21) — Политика хранения и безопасная очистка |
 | EPIC-001 | US-005 / [#59](https://github.com/roafo1989/guitar-mentor-ai/issues/59) | FT-005-01 | [#14](https://github.com/roafo1989/guitar-mentor-ai/issues/14) — Тестовый набор и методика аудиопроверки |
 | EPIC-001 | US-005 / [#59](https://github.com/roafo1989/guitar-mentor-ai/issues/59) | FT-005-02 | [#15](https://github.com/roafo1989/guitar-mentor-ai/issues/15) — Измерительный аудио PoC |
@@ -95,3 +96,9 @@ Issues #1/#2/#3 — прежние Python/Telegram/SQLite работы. Их з�
 - Эпики: EPIC-001/#53 в Разработке; EPIC-002/#37 и EPIC-003/#54 в Бэклоге. Ни один эпик не завершён.
 
 Итого: 42 уникальные карточки; задачи — 22 в бэклоге, 1 в разработке, 7 в завершении; стори — 7 в бэклоге, 1 в разработке, 1 выполнена. Оценки не пересчитывались, дубликаты не создавались.
+
+## Подготовка #30 после приёмки #20
+
+Сверка: main `270238f`, PR #50 merged, #20 closed. #30 подготовлена к Разработка / В очереди, 8 ч: [спецификация](../specifications/DEV-05B-media-storage.md). Фактическая запись этапа/оценки Project в этой сессии недоступна; старые снимки активной #20 выше исторические. #30 ещё open, программная реализация не начата. #21 остаётся незавершённой политикой TTL и не дублирует общий адаптер.
+
+Отдельный бэклог BT-003: US-002 #56 → FT-002-04 [#68](https://github.com/roafo1989/guitar-mentor-ai/issues/68), собственные записи/ноты до выдачи задания. Добавление в Project и native parent требуется отдельно; оценка не назначена.

@@ -10,7 +10,7 @@
 
 ## Сценарии и требования
 
-- **[Техническое задание 0.3](requirements/technical-specification.md)** — US, ФТ, НФТ, безопасность, сценарии и открытые вопросы.
+- **[Техническое задание 0.4](requirements/technical-specification.md)** — US, ФТ, НФТ, безопасность, сценарии и открытые вопросы.
 - **[Регламент системного анализа](project/system-analysis-workflow.md)** — обработка новых БТ, эпики/стори/задачи и релизы.
 - [Системная спецификация](specifications/system-specification.md) · [Архитектура и компоненты](architecture/system-architecture.md) · [Реестр иерархии Issues](project/issue-hierarchy.md)
 
@@ -51,3 +51,5 @@
 - [DEV-05A — DiagnosticSession и сценарий](https://github.com/roafo1989/guitar-mentor-ai/issues/29)
 - [DEV-05B — StorageService и TTL](https://github.com/roafo1989/guitar-mentor-ai/issues/30)
 - [SPIKE-01 — Достоверность анализа исполнения](https://github.com/roafo1989/guitar-mentor-ai/issues/31)
+
+- [DEV-05B / #30 — пакет для разработки](specifications/DEV-05B-media-storage.md): сверка с принятой #20, оставшийся контракт storage, ошибки, критерии и оценка 8 ч.
