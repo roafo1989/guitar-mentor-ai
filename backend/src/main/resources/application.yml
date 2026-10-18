@@ -12,6 +12,10 @@ spring:
   flyway:
     enabled: true
 
+# DEV-02 endpoints have no authentication. Bind to loopback until security is implemented.
+server:
+  address: ${GUITAR_MENTOR_BIND_ADDRESS:127.0.0.1}
+
 management:
   endpoints:
     web:
