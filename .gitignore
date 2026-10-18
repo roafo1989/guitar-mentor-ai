@@ -44,3 +44,7 @@ uploads/
 *.db
 *.sqlite
 *.sqlite3
+
+# Local exercise-preview media; shipped separately during DEV-06 testing
+/backend/src/main/resources/exercises/**/*.pdf
+/backend/src/main/resources/exercises/**/*.mp3
