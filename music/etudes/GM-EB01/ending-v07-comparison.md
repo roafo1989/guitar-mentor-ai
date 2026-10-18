@@ -1,6 +1,6 @@
 # GM-EB01 — Alternative endings v0.7A and v0.7B
 
-**Status: TWO DRAFTS FOR LISTENING, NEITHER APPROVED.**
+**Review outcome: learner prefers B over A. B is NOT YET fully approved.**
 The 12-bar E blues study v0.4 remains unchanged. The new experiments replace **only bars 11–12**. The provided audio previews include **bars 9–10 unchanged** to hear the transition in context; all instrument demos are synthesized, not live guitar recordings.
 
 ## Why these exist
