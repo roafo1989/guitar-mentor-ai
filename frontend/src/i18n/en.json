@@ -1,0 +1,47 @@
+{
+  "app": {
+    "subtitle": "Personalized music learning",
+    "profile": "Learner profile",
+    "language": "Language"
+  },
+  "form": {
+    "title": "Let's meet your student",
+    "description": "Choose your instrument and the styles you like.",
+    "name": "Learner name",
+    "instrument": "Instrument",
+    "technique": "Playing technique",
+    "styles": "Music preferences",
+    "save": "Create profile",
+    "update": "Save preferences",
+    "saving": "Saving...",
+    "loaded": "Profile loaded from PostgreSQL",
+    "saved": "Preferences saved",
+    "new": "Create another test profile",
+    "nameReadonly": "Editing the name will be added later.",
+    "notice": "Local prototype without authentication. Do not enter real personal data yet.",
+    "networkError": "Backend unavailable. Check that Spring Boot is listening on port 8080.",
+    "error": "Operation failed:",
+    "example": "For example, Student",
+    "supported": "Only acoustic guitar is included in the first iteration."
+  },
+  "ratings": {
+    "LIKE": "Like",
+    "NEUTRAL": "Neutral",
+    "EXCLUDE": "Exclude"
+  },
+  "instruments": {
+    "ACOUSTIC_GUITAR": "Acoustic guitar",
+    "FINGERSTYLE": "Fingerstyle (fingers)"
+  },
+  "styles": {
+    "BLUES": "Blues",
+    "BLUES_ROCK": "Blues rock",
+    "ROCK": "Rock",
+    "BLUEGRASS": "Bluegrass",
+    "JAZZ": "Jazz",
+    "SWING": "Swing",
+    "CLASSICAL": "Classical",
+    "MANOUCHE": "Manouche",
+    "FUNK": "Funk"
+  }
+}
