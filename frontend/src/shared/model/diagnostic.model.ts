@@ -1,4 +1,4 @@
-export type DiagnosticStatus = 'COLLECTING_EVIDENCE' | 'READY_FOR_TASK';
+export type DiagnosticStatus = 'COLLECTING_EVIDENCE' | 'READY_FOR_TASK' | 'TASK_ASSIGNED';
 export interface DiagnosticSession {
   id: string;
   instrumentCode: string;
