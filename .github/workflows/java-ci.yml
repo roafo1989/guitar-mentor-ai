@@ -81,6 +81,22 @@ jobs:
                 "http://localhost:8080/api/v1/learners/$learner_id/instruments/ACOUSTIC_GUITAR/background" \
                 | grep -q '"sessionsPerWeek":3'
               echo "Onboarding REST smoke: OK"
+              started=$(curl --fail --silent --show-error -X POST \
+                "http://localhost:8080/api/v1/learners/$learner_id/diagnostic-sessions" \
+                -H 'Content-Type: application/json' --data '{"instrumentCode":"ACOUSTIC_GUITAR"}')
+              echo "$started" | grep -q '"status":"COLLECTING_EVIDENCE"'
+              session_id=$(printf '%s' "$started" | python3 -c 'import json,sys;print(json.load(sys.stdin)["id"])')
+              continued=$(curl --fail --silent --show-error -X POST \
+                "http://localhost:8080/api/v1/learners/$learner_id/diagnostic-sessions/$session_id/continue")
+              echo "$continued" | grep -q '"status":"READY_FOR_TASK"'
+              curl --fail --silent --show-error \
+                "http://localhost:8080/api/v1/learners/$learner_id/diagnostic-sessions/$session_id" \
+                | grep -q '"status":"READY_FOR_TASK"'
+              restarted=$(curl --fail --silent --show-error -X POST \
+                "http://localhost:8080/api/v1/learners/$learner_id/diagnostic-sessions" \
+                -H 'Content-Type: application/json' --data '{"instrumentCode":"ACOUSTIC_GUITAR"}')
+              echo "$restarted" | grep -q "\"id\":\"$session_id\""
+              echo "Diagnostic session HTTP smoke: OK"
               exit 0
             fi
             if ! kill -0 "$app_pid" 2>/dev/null; then

@@ -3,7 +3,8 @@
     "subtitle": "Personalized music learning",
     "profile": "Learner profile",
     "language": "Language",
-    "onboarding": "Background & goals"
+    "onboarding": "Background & goals",
+    "diagnostics": "Assessment"
   },
   "form": {
     "title": "Let's meet your student",
@@ -92,5 +93,25 @@
     "save": "Save questionnaire",
     "saved": "Questionnaire saved to PostgreSQL",
     "profileBack": "Back to profile"
+  },
+  "diagnostic": {
+    "title": "Initial assessment",
+    "subtitle": "Set a starting point for personalized music lessons.",
+    "loading": "Loading diagnostic session...",
+    "needProfile": "Create a learner profile first.",
+    "session": "Session",
+    "startTitle": "Let's get to know your playing",
+    "startDescription": "We will create a diagnostic session. You will be able to add familiar performances later.",
+    "start": "Start assessment",
+    "working": "Please wait...",
+    "intakeTitle": "Familiar compositions",
+    "intakeDescription": "Uploading performances and scores comes later. You can continue without recordings now and preserve your progress in PostgreSQL.",
+    "noFilesYet": "File upload is not implemented yet; this screen tests the session lifecycle.",
+    "continue": "Continue without recording",
+    "readyTitle": "Ready to choose short studies",
+    "readyDescription": "The session is stored and waiting for its first diagnostic task. Task selection comes in the next increment.",
+    "noAssessment": "No audio has been analyzed and no skill assessments have been made.",
+    "back": "Back to onboarding",
+    "nextFromOnboarding": "Continue to assessment"
   }
 }
