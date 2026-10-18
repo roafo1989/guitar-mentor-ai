@@ -2,6 +2,11 @@
 
 Документация ведётся в репозитории вместе с кодом: Markdown + исходники PlantUML. Приложение пока работает **только локально** и **без авторизации**.
 
+## Управление проектом
+
+- [Порядок Kanban: этапы, оценка, выбор разработки и приёмка](project/kanban-workflow.md) — согласовано 18.10.2026; Status относится к текущему этапу.
+- [Kanban-доска](https://github.com/users/roafo1989/projects/1/views/3) · [Реестр задач](https://github.com/users/roafo1989/projects/1/views/2)
+
 ## Сценарии и требования
 
 - [UC-01 — Профиль ученика](use-cases/UC-01-learner-profile-api.md) — реализовано
