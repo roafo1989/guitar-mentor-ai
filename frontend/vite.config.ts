@@ -6,6 +6,9 @@ export default defineConfig({
   server: {
     host: '127.0.0.1',
     port: 5173,
+    // Caddy forwards https://guitar-mentor to this local Vite dev server.
+    // Explicitly allow only our local alias; never use allowedHosts: true.
+    allowedHosts: ['guitar-mentor'],
     strictPort: true,
     proxy: {
       '/api': {
