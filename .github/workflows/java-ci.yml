@@ -49,7 +49,7 @@ jobs:
         run: ./mvnw --batch-mode verify
       - name: Ensure FFprobe is present for real audio-duration verification
         run: |
-          if ! command -v ffprobe >/dev/null; then
+          if ! command -v ffprobe >/dev/null || ! command -v ffmpeg >/dev/null; then
             sudo apt-get update
             sudo apt-get install -y ffmpeg
           fi
@@ -196,6 +196,34 @@ jobs:
               after_rejection=$(curl --fail --silent --show-error "$attempts_base")
               printf '%s' "$after_rejection" | python3 -c 'import json,sys; a=json.load(sys.stdin); assert len(a)==2 and a[0]["number"]==2 and a[1]["number"]==1'
               echo "Attempt upload, idempotency, structured rejection and unchanged history HTTP smoke: OK"
+              # Compatibility regression for all accepted formats, using real encoded audio.
+              # Only the single AttemptMediaStore adapter should handle these uploads.
+              for format in mp3 ogg webm; do
+                case "$format" in
+                  mp3) codec=libmp3lame; request_id=123e4567-e89b-12d3-a456-426614174003 ;;
+                  ogg) codec=libvorbis;  request_id=123e4567-e89b-12d3-a456-426614174004 ;;
+                  webm) codec=libopus;   request_id=123e4567-e89b-12d3-a456-426614174005 ;;
+                esac
+                ffmpeg -nostdin -hide_banner -loglevel error \
+                  -f lavfi -i anullsrc=channel_layout=mono:sample_rate=48000 \
+                  -t 0.5 -c:a "$codec" -y "test.$format"
+                uploaded=$(curl --fail --silent --show-error -X POST "$attempts_base" \
+                  -F "file=@test.$format;type=audio/$format" -F "requestId=$request_id")
+                printf '%s' "$uploaded" | python3 -c 'import json,sys; a=json.load(sys.stdin); assert a["format"] == sys.argv[1]' "$format"
+                processed=false
+                for check in $(seq 1 30); do
+                  latest_format=$(curl --fail --silent --show-error "$attempts_base")
+                  if printf '%s' "$latest_format" | python3 -c 'import json,sys; a=json.load(sys.stdin); assert a[0]["format"]==sys.argv[1] and a[0]["status"]=="PROCESSED" and a[0]["assessmentAvailable"] is False' "$format"; then
+                    processed=true
+                    break
+                  fi
+                  sleep 1
+                done
+                test "$processed" = true
+                echo "Format $format upload and technical worker: OK"
+              done
+              all_formats=$(curl --fail --silent --show-error "$attempts_base")
+              printf '%s' "$all_formats" | python3 -c 'import json,sys; a=json.load(sys.stdin); assert len(a)==5 and a[-1]["number"]==1 and a[-1]["status"]=="PROCESSED" and a[-2]["number"]==2 and a[-2]["processingErrorCode"]=="DURATION_EXCEEDED"'
               exit 0
             fi
             if ! kill -0 "$app_pid" 2>/dev/null; then
