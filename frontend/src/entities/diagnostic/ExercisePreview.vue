@@ -41,7 +41,7 @@ onMounted(async () => {
         :aria-label="t('diagnostic.listenExample')" />
       <p v-else class="hint">{{ t('diagnostic.mediaNotInstalled') }}</p>
     </div>
-    <details class="exercise-pdf-details" open>
+    <details class="exercise-pdf-details">
       <summary>{{ t('diagnostic.viewNotes') }}</summary>
       <p v-if="checking" class="hint">{{ t('diagnostic.checkingMedia') }}</p>
       <template v-else-if="pdfExists && exercise.previewPdfUrl">
