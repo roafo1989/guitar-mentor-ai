@@ -22,6 +22,18 @@ function clearRecordedPreview() {
   recordedPreview.value = null;
 }
 
+function onRecordingActive(active: boolean) {
+  recordingActive.value = active;
+  if (!active) return;
+  // Avoid accidentally submitting a previously selected file while capturing.
+  file.value = null;
+  clearRecordedPreview();
+  if (fileInput.value) fileInput.value.value = '';
+  requestId.value = crypto.randomUUID();
+  error.value = '';
+  notice.value = '';
+}
+
 function onRecorded(recording: File) {
   clearRecordedPreview();
   if (fileInput.value) fileInput.value.value = '';
@@ -35,6 +47,7 @@ const comment = ref('');
 const requestId = ref(crypto.randomUUID());
 const loading = ref(true);
 const uploading = ref(false);
+const recordingActive = ref(false);
 const error = ref('');
 const notice = ref('');
 
@@ -63,7 +76,7 @@ async function refresh() {
 }
 async function submit() {
   const chosen = file.value;
-  if (!chosen || !capabilities.value?.enabled || uploading.value) return;
+  if (!chosen || !capabilities.value?.enabled || uploading.value || recordingActive.value) return;
   if (chosen.size === 0 || chosen.size > capabilities.value.maxBytes) {
     error.value = t('attempt.sizeError');
     return;
@@ -117,10 +130,11 @@ onBeforeUnmount(clearRecordedPreview);
       <form class="homework-form" @submit.prevent="submit">
         <label for="attempt-file">{{ t('attempt.fileLabel') }}</label>
         <input id="attempt-file" ref="fileInput" type="file" accept=".mp3,.wav,.ogg,.webm,audio/*"
-          :disabled="!capabilities?.enabled || uploading" @change="selectFile" />
+          :disabled="!capabilities?.enabled || uploading || recordingActive" @change="selectFile" />
         <p class="hint">{{ t('attempt.fileLimits') }}</p>
         <MicrophoneRecorder :disabled="!capabilities?.enabled || uploading"
-          :max-bytes="capabilities?.maxBytes ?? 20971520" @recorded="onRecorded" />
+          :max-bytes="capabilities?.maxBytes ?? 20971520"
+          @recorded="onRecorded" @active="onRecordingActive" />
         <div v-if="recordedPreview && file" class="recorded-preview">
           <strong>{{ t('attempt.recordingReady') }} ({{ fileSize(file.size) }})</strong>
           <audio :src="recordedPreview" controls preload="metadata"
@@ -136,7 +150,7 @@ onBeforeUnmount(clearRecordedPreview);
           :placeholder="t('attempt.commentPlaceholder')" />
         <div class="form-actions">
           <button type="submit" class="action-button"
-            :disabled="!file || !capabilities?.enabled || uploading">
+            :disabled="!file || !capabilities?.enabled || uploading || recordingActive">
             {{ uploading ? t('attempt.uploading') : t('attempt.submit') }}
           </button>
         </div>

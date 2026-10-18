@@ -194,6 +194,7 @@
     "microphoneDenied": "Could not access the microphone. Check browser permissions and the selected device.",
     "recordingReady": "Recording ready — listen before submitting",
     "listenRecording": "Listen to recording",
-    "discardRecording": "Remove recording from the form"
+    "discardRecording": "Remove recording from the form",
+    "requestingMic": "Waiting for microphone permission…"
   }
 }

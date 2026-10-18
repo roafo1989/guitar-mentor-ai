@@ -3,7 +3,7 @@ import { computed, onBeforeUnmount, ref } from 'vue';
 import { useI18n } from 'vue-i18n';
 
 const props = defineProps<{ disabled: boolean; maxBytes: number }>();
-const emit = defineEmits<{ recorded: [file: File] }>();
+const emit = defineEmits<{ recorded: [file: File]; active: [value: boolean] }>();
 const { t } = useI18n();
 
 const MAX_DURATION_SECONDS = 120;
@@ -18,7 +18,7 @@ const supported = typeof navigator !== 'undefined' &&
   typeof MediaRecorder !== 'undefined' &&
   preferences.some(choice => MediaRecorder.isTypeSupported(choice.mime));
 
-const state = ref<'idle' | 'recording' | 'stopping'>('idle');
+const state = ref<'idle' | 'requesting' | 'recording' | 'stopping'>('idle');
 const seconds = ref(0);
 const error = ref('');
 const timeLabel = computed(() => {
@@ -44,6 +44,7 @@ function release() {
   recorder = null;
   chunks = [];
   state.value = 'idle';
+  emit('active', false);
 }
 
 function stop() {
@@ -75,6 +76,8 @@ async function start() {
   cancelled = false;
   chunks = [];
   seconds.value = 0;
+  state.value = 'requesting';
+  emit('active', true);
   try {
     const microphone = await navigator.mediaDevices.getUserMedia({ audio: true, video: false });
     if (props.disabled || cancelled) {
@@ -137,6 +140,9 @@ onBeforeUnmount(() => {
     <div v-else class="microphone-controls">
       <button v-if="state === 'idle'" type="button" class="recorder-button"
         :disabled="disabled" @click="start">{{ t('attempt.startRecording') }}</button>
+      <span v-if="state === 'requesting'" class="hint" role="status">
+        {{ t('attempt.requestingMic') }}
+      </span>
       <template v-else>
         <span class="recording-timer" role="timer" :aria-label="t('attempt.recordingTimer')">
           {{ timeLabel }} / 02:00
