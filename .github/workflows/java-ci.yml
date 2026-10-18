@@ -48,6 +48,8 @@ jobs:
           SPRING_DATASOURCE_URL: jdbc:postgresql://localhost:5432/guitar_mentor
           SPRING_DATASOURCE_USERNAME: guitar_mentor_app
           SPRING_DATASOURCE_PASSWORD: ci_only_password
+          GUITAR_MENTOR_ENABLE_UPLOADS: 'true'
+          GUITAR_MENTOR_MEDIA_PATH: ./target/ci-attempts
         run: |
           set -euo pipefail
           ./mvnw --batch-mode spring-boot:run > boot.log 2>&1 &
@@ -123,6 +125,38 @@ jobs:
                 "http://localhost:8080/api/v1/learners/$learner_id/diagnostic-sessions/$session_id/tasks" \
                 | grep -q '"code":"GM-EB01"'
               echo "Exercise catalog and diagnostic assignment HTTP smoke: OK"
+              attempts_base="http://localhost:8080/api/v1/learners/$learner_id/diagnostic-sessions/$session_id/tasks/$task_id/attempts"
+              capability=$(curl --fail --silent --show-error "$attempts_base/capabilities")
+              echo "$capability" | grep -q '"enabled":true'
+              initial=$(curl --fail --silent --show-error "$attempts_base")
+              test "$initial" = '[]'
+              python3 - <<'PY'
+              import wave
+              with wave.open('sample.wav', 'wb') as f:
+                  f.setnchannels(1)
+                  f.setsampwidth(2)
+                  f.setframerate(8000)
+                  f.writeframes(bytes(1600))
+              PY
+              submission_id=123e4567-e89b-12d3-a456-426614174000
+              attempt=$(curl --fail --silent --show-error -X POST "$attempts_base" \
+                -F "file=@sample.wav;type=audio/wav" -F "comment=CI test" \
+                -F "requestId=$submission_id")
+              echo "$attempt" | grep -q '"status":"RECEIVED_UNASSESSED"'
+              echo "$attempt" | grep -q '"number":1'
+              attempt_id=$(printf '%s' "$attempt" | python3 -c 'import json,sys;print(json.load(sys.stdin)["id"])')
+              duplicate=$(curl --fail --silent --show-error -X POST "$attempts_base" \
+                -F "file=@sample.wav;type=audio/wav" -F "requestId=$submission_id")
+              echo "$duplicate" | grep -q "\"id\":\"$attempt_id\""
+              history=$(curl --fail --silent --show-error "$attempts_base")
+              printf '%s' "$history" | python3 -c \
+                'import json,sys; a=json.load(sys.stdin); assert len(a)==1 and a[0]["number"]==1'
+              printf '%s' 'not an mp3' >invalid.mp3
+              bad_status=$(curl --silent --output /dev/null --write-out '%{http_code}' \
+                -X POST "$attempts_base" -F "file=@invalid.mp3;type=audio/mpeg" \
+                -F "requestId=123e4567-e89b-12d3-a456-426614174001")
+              test "$bad_status" = '400'
+              echo "Attempt upload, idempotency, rejection and history HTTP smoke: OK"
               exit 0
             fi
             if ! kill -0 "$app_pid" 2>/dev/null; then
