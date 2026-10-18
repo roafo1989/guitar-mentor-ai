@@ -18,7 +18,7 @@ a { color: inherit; }
   gap: 20px;
 }
 .brand { display: flex; align-items: center; gap: 12px; }
-.brand-icon { font-size: 30px; font-weight: bold; color: #a8ddca; }
+.brand-icon { display: block; width: 40px; height: 40px; object-fit: contain; flex-shrink: 0; }
 .brand strong { display: block; letter-spacing: .1px; }
 .brand small { display: block; color: #c6d3e1; font-size: 12px; margin-top: 3px; }
 .header-actions { display: flex; gap: 22px; align-items: center; }
