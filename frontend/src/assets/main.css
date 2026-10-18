@@ -113,3 +113,17 @@ footer { text-align: center; font-size: 12px; padding: 24px; color: #8793a4; }
   .exercise-preview { padding: 10px; }
   .score-frame { min-height: 400px; height: 65vh; }
 }
+
+/* DEV-07: learner submissions. Future teacher/AI feedback lives in this same panel. */
+.homework-panel { margin-top: 26px; padding: 20px; background: #fff; border: 1px solid #d6e3e7; border-radius: 12px; }
+.homework-heading h3 { margin: 0 0 6px; }
+.homework-status { background: #f0f6f8; padding: 12px 14px; border-radius: 8px; margin: 16px 0; line-height: 1.5; }
+.homework-form { display: flex; flex-direction: column; gap: 10px; margin: 14px 0; }
+.homework-form label { font-weight: 650; }
+.homework-form input[type=file] { max-width: 100%; padding: 12px; border: 1px solid #d3e1e8; border-radius: 8px; }
+.homework-form textarea { min-height: 88px; padding: 12px; border: 1px solid #cbd7df; border-radius: 8px; }
+.homework-history { margin-top: 24px; }
+.attempt-card { padding: 12px 16px; border: 1px solid #dbe5e9; border-radius: 10px; margin-top: 12px; background: #fafcfd; }
+.attempt-card-title { display: flex; justify-content: space-between; gap: 12px; flex-wrap: wrap; align-items: baseline; }
+.attempt-card p { margin: 6px 0; }
+.attempt-unreviewed { color: #5c6974; font-size: 13px; }

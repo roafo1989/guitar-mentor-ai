@@ -161,5 +161,25 @@
       "onboarding": "What you can play, what you want to learn and when you can practice.",
       "diagnostics": "A starting point for getting to know your playing. The first assessment step is available for now."
     }
+  },
+  "attempt": {
+    "title": "My performance",
+    "subtitle": "Submit an audio attempt and review your submission history.",
+    "loading": "Loading attempts...",
+    "noAiFeedback": "AI audio analysis is not yet available. Uploaded recordings will be shown as received without assessment; no fabricated scores or errors.",
+    "disabledHelp": "Uploads are disabled by default because authentication is not yet implemented. For non-personal local test audio only, start the backend with GUITAR_MENTOR_ENABLE_UPLOADS=true.",
+    "fileLabel": "Performance audio file",
+    "fileLimits": "MP3, WAV, OGG or WebM · up to 20 MB. Test audio only; do not upload personal recordings.",
+    "commentLabel": "Comment on this attempt",
+    "commentPlaceholder": "For example: I lose the steady bass in bars 5–8",
+    "submit": "Submit attempt",
+    "uploading": "Uploading...",
+    "uploaded": "Attempt saved. No performance assessment is currently available.",
+    "sizeError": "Audio must be nonempty and no larger than 20 MB.",
+    "formatError": "MP3, WAV, OGG and WebM only.",
+    "history": "Attempt history",
+    "noAttempts": "No submissions yet.",
+    "attempt": "Attempt",
+    "receivedUnassessed": "Audio received · assessment not yet available"
   }
 }
