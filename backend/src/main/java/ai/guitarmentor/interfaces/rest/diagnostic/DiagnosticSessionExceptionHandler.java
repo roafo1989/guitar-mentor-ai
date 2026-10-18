@@ -1,5 +1,6 @@
 package ai.guitarmentor.interfaces.rest.diagnostic;
 
+import ai.guitarmentor.interfaces.rest.exercise.ExerciseController;
 import jakarta.persistence.EntityNotFoundException;
 import java.util.Map;
 import org.springframework.http.HttpStatus;
@@ -7,7 +8,8 @@ import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.ExceptionHandler;
 import org.springframework.web.bind.annotation.RestControllerAdvice;
 
-@RestControllerAdvice(assignableTypes = DiagnosticSessionController.class)
+@RestControllerAdvice(assignableTypes = {
+        DiagnosticSessionController.class, DiagnosticTaskController.class, ExerciseController.class})
 public class DiagnosticSessionExceptionHandler {
 
     @ExceptionHandler(EntityNotFoundException.class)

@@ -16,7 +16,8 @@ import org.springframework.transaction.annotation.Transactional;
 public class DiagnosticSessionService {
 
     private static final List<DiagnosticStatus> ACTIVE_STATUSES =
-            List.of(DiagnosticStatus.COLLECTING_EVIDENCE, DiagnosticStatus.READY_FOR_TASK);
+            List.of(DiagnosticStatus.COLLECTING_EVIDENCE, DiagnosticStatus.READY_FOR_TASK,
+                    DiagnosticStatus.TASK_ASSIGNED);
 
     private final LearnerRepository learners;
     private final DiagnosticSessionRepository sessions;
@@ -77,7 +78,8 @@ public class DiagnosticSessionService {
     private static SessionView toView(DiagnosticSession session) {
         var actions = switch (session.getStatus()) {
             case COLLECTING_EVIDENCE -> List.of("CONTINUE_WITHOUT_RECORDING");
-            case READY_FOR_TASK -> List.<String>of();
+            case READY_FOR_TASK -> List.of("ASSIGN_TASK");
+            case TASK_ASSIGNED -> List.of("VIEW_TASK");
         };
         return new SessionView(
                 session.getId(),

@@ -1,10 +1,10 @@
-import type { DiagnosticSession } from '../../shared/model/diagnostic.model';
+import type { DiagnosticSession, DiagnosticTask, Exercise, ScoreEvents } from '../../shared/model/diagnostic.model';
 
 function baseUrl(learnerId: string): string {
   return '/api/v1/learners/' + encodeURIComponent(learnerId) + '/diagnostic-sessions';
 }
 
-async function request(url: string, options?: RequestInit): Promise<DiagnosticSession> {
+async function request<T>(url: string, options?: RequestInit): Promise<T> {
   let result: Response;
   try {
     result = await fetch(url, {
@@ -22,22 +22,40 @@ async function request(url: string, options?: RequestInit): Promise<DiagnosticSe
       ? payload.error : result.statusText;
     throw new Error('HTTP_' + result.status + ': ' + message);
   }
-  return (await result.json()) as DiagnosticSession;
+  if (result.status === 204) return null as T;
+  return (await result.json()) as T;
 }
 
 export const diagnosticService = {
   start(learnerId: string, instrumentCode: string) {
-    return request(baseUrl(learnerId), {
+    return request<DiagnosticSession>(baseUrl(learnerId), {
       method: 'POST',
       body: JSON.stringify({ instrumentCode }),
     });
   },
   get(learnerId: string, sessionId: string) {
-    return request(baseUrl(learnerId) + '/' + encodeURIComponent(sessionId));
+    return request<DiagnosticSession>(baseUrl(learnerId) + '/' + encodeURIComponent(sessionId));
   },
   continueWithoutRecording(learnerId: string, sessionId: string) {
-    return request(baseUrl(learnerId) + '/' + encodeURIComponent(sessionId) + '/continue', {
+    return request<DiagnosticSession>(baseUrl(learnerId) + '/' + encodeURIComponent(sessionId) + '/continue', {
       method: 'POST',
     });
+  },
+  listExercises() {
+    return request<Exercise[]>('/api/v1/exercises?instrumentCode=ACOUSTIC_GUITAR&techniqueCode=FINGERSTYLE');
+  },
+  currentTask(learnerId: string, sessionId: string) {
+    return request<DiagnosticTask | null>(baseUrl(learnerId) + '/' +
+      encodeURIComponent(sessionId) + '/tasks');
+  },
+  assignTask(learnerId: string, sessionId: string, exerciseCode: string) {
+    return request<DiagnosticTask>(baseUrl(learnerId) + '/' +
+      encodeURIComponent(sessionId) + '/tasks', {
+      method: 'POST', body: JSON.stringify({ exerciseCode }),
+    });
+  },
+  scoreEvents(eventsUrl: string) {
+    // The URL comes from our own trusted backend exercise catalog.
+    return request<ScoreEvents>(eventsUrl);
   },
 };

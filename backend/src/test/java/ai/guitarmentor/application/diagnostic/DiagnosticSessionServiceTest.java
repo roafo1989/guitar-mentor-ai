@@ -45,7 +45,7 @@ class DiagnosticSessionServiceTest {
         when(learners.findLockedById(learner.getId())).thenReturn(Optional.of(learner));
         when(sessions.findFirstByInstrumentProfile_IdAndStatusInOrderByCreatedAtDesc(
                 instrument.getId(), List.of(DiagnosticStatus.COLLECTING_EVIDENCE,
-                        DiagnosticStatus.READY_FOR_TASK))).thenReturn(Optional.empty());
+                        DiagnosticStatus.READY_FOR_TASK, DiagnosticStatus.TASK_ASSIGNED))).thenReturn(Optional.empty());
         when(sessions.saveAndFlush(any(DiagnosticSession.class)))
                 .thenAnswer(invocation -> invocation.getArgument(0));
         var result = service.start(learner.getId(), "ACOUSTIC_GUITAR");
@@ -60,7 +60,7 @@ class DiagnosticSessionServiceTest {
         var existing = new DiagnosticSession(instrument);
         when(sessions.findFirstByInstrumentProfile_IdAndStatusInOrderByCreatedAtDesc(
                 instrument.getId(), List.of(DiagnosticStatus.COLLECTING_EVIDENCE,
-                        DiagnosticStatus.READY_FOR_TASK))).thenReturn(Optional.of(existing));
+                        DiagnosticStatus.READY_FOR_TASK, DiagnosticStatus.TASK_ASSIGNED))).thenReturn(Optional.of(existing));
 
         var result = service.start(learner.getId(), "ACOUSTIC_GUITAR");
         assertFalse(result.created());
