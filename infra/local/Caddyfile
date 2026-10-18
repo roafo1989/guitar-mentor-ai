@@ -1,0 +1,16 @@
+# Только для локальной разработки на Windows.
+# DNS: C:\Windows\System32\drivers\etc\hosts -> 127.0.0.1 guitar-mentor
+# HTTPS-сертификат выпускается локальным центром Caddy; см. docs/development/local-https-caddy-windows.md.
+{
+    # Не слушаем 80/tcp автоматически: нужен только HTTPS на 127.0.0.1:443.
+    auto_https disable_redirects
+}
+
+https://guitar-mentor {
+    # Не публиковать сервис в LAN/интернет, пока нет аутентификации и авторизации.
+    bind 127.0.0.1
+    tls internal
+
+    # Caddy поддерживает WebSocket для HMR Vite автоматически.
+    reverse_proxy 127.0.0.1:5173
+}
