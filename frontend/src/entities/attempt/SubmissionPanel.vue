@@ -2,7 +2,7 @@
 import { onBeforeUnmount, onMounted, ref } from 'vue';
 import MicrophoneRecorder from './MicrophoneRecorder.vue';
 import { useI18n } from 'vue-i18n';
-import { attemptService } from './attempt.service';
+import { AttemptHttpError, attemptService } from './attempt.service';
 import type { SubmissionAttempt, UploadCapabilities } from './attempt.service';
 
 const props = defineProps<{
@@ -93,6 +93,21 @@ async function pollHistory() {
   }
 }
 
+function uploadErrorMessage(cause: unknown): string {
+  if (!(cause instanceof AttemptHttpError)) return t('attempt.uploadNetworkError');
+  const known: Record<string, string> = {
+    INVALID_AUDIO_CONTENT: 'attempt.invalidAudioContent',
+    UNSUPPORTED_AUDIO_FORMAT: 'attempt.formatError',
+    INVALID_AUDIO_SIZE: 'attempt.sizeError',
+    MISSING_AUDIO_FILENAME: 'attempt.formatError',
+    COMMENT_TOO_LONG: 'attempt.commentTooLong',
+    UPLOAD_DISABLED: 'attempt.uploadDisabled',
+  };
+  if (known[cause.code]) return t(known[cause.code]);
+  if (cause.status === 400 || cause.status === 413) return t('attempt.invalidUpload');
+  return t('attempt.uploadServerError');
+}
+
 function selectFile(event: Event) {
   clearRecordedPreview();
   const input = event.target as HTMLInputElement;
@@ -110,8 +125,8 @@ async function refresh() {
     ]);
     capabilities.value = rules;
     attempts.value = history;
-  } catch (cause) {
-    error.value = cause instanceof Error ? cause.message : 'UNKNOWN_ERROR';
+  } catch {
+    error.value = t('attempt.historyLoadError');
   } finally {
     loading.value = false;
   }
@@ -142,8 +157,8 @@ async function submit() {
     notice.value = t('attempt.uploaded');
     await refresh();
   } catch (cause) {
-    error.value = cause instanceof Error ? cause.message : 'UNKNOWN_ERROR';
-    // Keep requestId for idempotent retry if the network fails after storage.
+    error.value = uploadErrorMessage(cause);
+    // Retain the selected file and idempotency key; user can retry or pick another file.
   } finally {
     uploading.value = false;
   }

@@ -183,11 +183,14 @@ jobs:
               test "$rejected_long" = true
               echo "Overlong audio and previous attempt history: OK"
               printf '%s' 'not an mp3' >invalid.mp3
-              bad_status=$(curl --silent --output /dev/null --write-out '%{http_code}' \
+              bad_status=$(curl --silent --output invalid-response.json --write-out '%{http_code}' \
                 -X POST "$attempts_base" -F "file=@invalid.mp3;type=audio/mpeg" \
                 -F "requestId=123e4567-e89b-12d3-a456-426614174001")
               test "$bad_status" = '400'
-              echo "Attempt upload, idempotency, rejection and history HTTP smoke: OK"
+              python3 -c 'import json; p=json.load(open("invalid-response.json")); assert p["code"]=="INVALID_AUDIO_CONTENT"'
+              after_rejection=$(curl --fail --silent --show-error "$attempts_base")
+              printf '%s' "$after_rejection" | python3 -c 'import json,sys; a=json.load(sys.stdin); assert len(a)==2 and a[0]["number"]==2 and a[1]["number"]==1'
+              echo "Attempt upload, idempotency, structured rejection and unchanged history HTTP smoke: OK"
               exit 0
             fi
             if ! kill -0 "$app_pid" 2>/dev/null; then

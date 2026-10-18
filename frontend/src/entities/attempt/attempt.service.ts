@@ -1,3 +1,10 @@
+export class AttemptHttpError extends Error {
+  constructor(readonly status: number, readonly code: string) {
+    super('Attempt request failed (' + status + ')');
+    this.name = 'AttemptHttpError';
+  }
+}
+
 export interface SubmissionAttempt {
   id: string;
   taskId: string;
@@ -30,10 +37,11 @@ function url(learnerId: string, sessionId: string, taskId: string): string {
 async function parse<T>(res: Response): Promise<T> {
   if (!res.ok) {
     const payload: unknown = await res.json().catch(() => null);
-    const message = typeof payload === 'object' && payload !== null &&
-      'error' in payload && typeof payload.error === 'string'
-      ? payload.error : res.statusText;
-    throw new Error('HTTP_' + res.status + ': ' + message);
+    // Only structured, server-controlled codes are used for localized UI messages.
+    const code = typeof payload === 'object' && payload !== null &&
+      'code' in payload && typeof payload.code === 'string'
+      ? payload.code : 'UNEXPECTED_RESPONSE';
+    throw new AttemptHttpError(res.status, code);
   }
   return await res.json() as T;
 }
