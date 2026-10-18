@@ -60,6 +60,12 @@ public class SubmissionAttempt {
     @Column(name = "processing_error_code", length = 50)
     private String processingErrorCode;
 
+    @Column(name = "audio_duration_seconds", precision = 9, scale = 3)
+    private java.math.BigDecimal audioDurationSeconds;
+
+    @Column(name = "processing_attempts", nullable = false)
+    private int processingAttempts;
+
     protected SubmissionAttempt() {}
 
     public SubmissionAttempt(DiagnosticTask task, UUID requestId, int attemptNumber,
@@ -90,20 +96,28 @@ public class SubmissionAttempt {
     public Instant getProcessingFinishedAt() { return processingFinishedAt; }
     public String getTechnicalSha256() { return technicalSha256; }
     public String getProcessingErrorCode() { return processingErrorCode; }
+    public java.math.BigDecimal getAudioDurationSeconds() { return audioDurationSeconds; }
+    public int getProcessingAttempts() { return processingAttempts; }
 
     public void startProcessing() {
         if (status != AttemptStatus.UPLOADED) throw new IllegalStateException("Attempt is not queued");
         status = AttemptStatus.PROCESSING;
+        processingAttempts++;
         processingStartedAt = Instant.now();
         processingFinishedAt = null;
         processingErrorCode = null;
     }
 
-    public void finishTechnicalValidation(String sha256) {
+    public void finishTechnicalValidation(String sha256, double audioDuration) {
         if (status != AttemptStatus.PROCESSING) throw new IllegalStateException("Attempt not processing");
         if (sha256 == null || !sha256.matches("[a-f0-9]{64}")) {
             throw new IllegalArgumentException("Invalid sha256 digest");
         }
+        if (!Double.isFinite(audioDuration) || audioDuration <= 0 || audioDuration > 120.0) {
+            throw new IllegalArgumentException("Invalid media duration");
+        }
+        audioDurationSeconds = java.math.BigDecimal.valueOf(audioDuration).setScale(
+                3, java.math.RoundingMode.HALF_UP);
         status = AttemptStatus.PROCESSED;
         processingFinishedAt = Instant.now();
         technicalSha256 = sha256;
@@ -119,10 +133,15 @@ public class SubmissionAttempt {
         processingFinishedAt = Instant.now();
         processingErrorCode = code;
         technicalSha256 = null;
+        audioDurationSeconds = null;
     }
 
     public void requeueAfterInterruptedProcessing() {
         if (status != AttemptStatus.PROCESSING) return;
+        if (processingAttempts >= 3) {
+            failTechnicalValidation("PROCESSING_INTERRUPTED");
+            return;
+        }
         status = AttemptStatus.UPLOADED;
         processingStartedAt = null;
         processingFinishedAt = null;

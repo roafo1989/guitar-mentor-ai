@@ -113,8 +113,8 @@ public class LocalAttemptMediaStore {
                 "[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}\\.(mp3|wav|ogg|webm)")) {
             throw new IOException("INVALID_KEY");
         }
-        Path target = root.resolve(key).normalize();
-        if (!target.getParent().equals(root) || !Files.isRegularFile(target)) {
+        Path target = resolveForInspection(key);
+        if (!Files.isRegularFile(target)) {
             throw new IOException("MEDIA_MISSING");
         }
         if (Files.size(target) != expectedSize) {
@@ -140,6 +140,17 @@ public class LocalAttemptMediaStore {
         } catch (NoSuchAlgorithmException unexpected) {
             throw new IllegalStateException("JVM is missing SHA-256", unexpected);
         }
+    }
+
+    /** Safe internal path for the FFmpeg probe; it is never returned by HTTP endpoints. */
+    public Path resolveForInspection(String key) throws IOException {
+        if (key == null || !key.matches(
+                "[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}\\.(mp3|wav|ogg|webm)")) {
+            throw new IOException("INVALID_KEY");
+        }
+        Path target = root.resolve(key).normalize();
+        if (!target.getParent().equals(root)) throw new IOException("INVALID_KEY");
+        return target;
     }
 
     public void deleteQuietly(String key) {

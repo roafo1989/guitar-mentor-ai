@@ -32,10 +32,10 @@ public class SubmissionAttemptProcessor {
     }
 
     @Transactional
-    public void success(UUID id, String digest) {
+    public void success(UUID id, String digest, double duration) {
         attempts.findById(id).ifPresent(attempt -> {
             if (attempt.getStatus() == AttemptStatus.PROCESSING) {
-                attempt.finishTechnicalValidation(digest);
+                attempt.finishTechnicalValidation(digest, duration);
             }
         });
     }

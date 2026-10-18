@@ -11,7 +11,10 @@ export interface SubmissionAttempt {
   processingStartedAt: string | null;
   processingFinishedAt: string | null;
   processingErrorCode: 'MEDIA_MISSING' | 'SIZE_MISMATCH' | 'INVALID_FORMAT'
-    | 'INVALID_KEY' | 'IO_ERROR' | 'TECHNICAL_ERROR' | null;
+    | 'INVALID_KEY' | 'IO_ERROR' | 'TECHNICAL_ERROR'
+    | 'DURATION_EXCEEDED' | 'INVALID_MEDIA' | 'PROBE_UNAVAILABLE'
+    | 'PROBE_TIMEOUT' | 'PROBE_INTERRUPTED' | 'PROCESSING_INTERRUPTED' | null;
+  audioDurationSeconds: number | null;
 }
 export interface UploadCapabilities {
   enabled: boolean;

@@ -26,6 +26,7 @@ guitar-mentor:
     enabled: ${GUITAR_MENTOR_ENABLE_UPLOADS:false}
     storage-path: ${GUITAR_MENTOR_MEDIA_PATH:./.local-media/attempts}
     poll-delay-ms: ${GUITAR_MENTOR_PROCESS_POLL_MS:3000}
+    ffprobe-command: ${GUITAR_MENTOR_FFPROBE:ffprobe}
 
 management:
   endpoints:

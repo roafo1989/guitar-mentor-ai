@@ -208,6 +208,9 @@
     "failedMissing": "The file was not found in local storage",
     "failedSize": "Stored file size does not match",
     "failedFormat": "Unsupported or damaged file format",
-    "failedGeneric": "The file could not be checked. Contact the local prototype administrator"
+    "failedGeneric": "The file could not be checked. Contact the local prototype administrator",
+    "failedDuration": "Audio is longer than 2 minutes. Please submit a shorter attempt.",
+    "failedProbe": "Audio inspection is unavailable: the server needs ffprobe (FFmpeg).",
+    "failedInterrupted": "Technical processing was interrupted repeatedly. Please submit a new attempt."
   }
 }

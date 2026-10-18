@@ -70,6 +70,12 @@ function failureHint(attempt: SubmissionAttempt): string {
     INVALID_KEY: 'attempt.failedGeneric',
     IO_ERROR: 'attempt.failedGeneric',
     TECHNICAL_ERROR: 'attempt.failedGeneric',
+    DURATION_EXCEEDED: 'attempt.failedDuration',
+    INVALID_MEDIA: 'attempt.failedFormat',
+    PROBE_UNAVAILABLE: 'attempt.failedProbe',
+    PROBE_TIMEOUT: 'attempt.failedProbe',
+    PROBE_INTERRUPTED: 'attempt.failedProbe',
+    PROCESSING_INTERRUPTED: 'attempt.failedInterrupted',
   };
   return t(errors[attempt.processingErrorCode || ''] || 'attempt.failedGeneric');
 }

@@ -1,6 +1,7 @@
 package ai.guitarmentor.application.attempt;
 
 import ai.guitarmentor.infrastructure.media.LocalAttemptMediaStore;
+import ai.guitarmentor.infrastructure.media.AudioDurationProbe;
 import java.io.IOException;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
 import org.springframework.context.annotation.Configuration;
@@ -18,11 +19,13 @@ import org.springframework.scheduling.annotation.Scheduled;
 public class SubmissionAttemptWorker {
     private final SubmissionAttemptProcessor processor;
     private final LocalAttemptMediaStore media;
+    private final AudioDurationProbe probe;
 
     public SubmissionAttemptWorker(SubmissionAttemptProcessor processor,
-            LocalAttemptMediaStore media) {
+            LocalAttemptMediaStore media, AudioDurationProbe probe) {
         this.processor = processor;
         this.media = media;
+        this.probe = probe;
     }
 
     @Scheduled(fixedDelayString = "${guitar-mentor.submissions.poll-delay-ms:3000}")
@@ -33,13 +36,17 @@ public class SubmissionAttemptWorker {
         var item = job.get();
         try {
             var digest = media.verifyAndHash(item.key(), item.size());
-            processor.success(item.id(), digest);
+            double duration = probe.measure(media.resolveForInspection(item.key()));
+            processor.success(item.id(), digest, duration);
         } catch (IOException failure) {
             // Only stable error codes enter the database; never expose disk locations.
             String message = failure.getMessage();
             String code = "IO_ERROR";
             if ("MEDIA_MISSING".equals(message) || "SIZE_MISMATCH".equals(message)
-                    || "INVALID_FORMAT".equals(message) || "INVALID_KEY".equals(message)) {
+                    || "INVALID_FORMAT".equals(message) || "INVALID_KEY".equals(message)
+                    || "INVALID_MEDIA".equals(message) || "DURATION_EXCEEDED".equals(message)
+                    || "PROBE_UNAVAILABLE".equals(message) || "PROBE_TIMEOUT".equals(message)
+                    || "PROBE_INTERRUPTED".equals(message)) {
                 code = message;
             }
             processor.failure(item.id(), code);

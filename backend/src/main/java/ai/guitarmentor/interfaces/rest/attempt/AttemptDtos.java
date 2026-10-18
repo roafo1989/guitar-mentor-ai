@@ -12,14 +12,15 @@ public final class AttemptDtos {
     public record AttemptView(UUID id, UUID taskId, int number, Instant submittedAt,
             String status, String comment, String format, long bytes,
             boolean assessmentAvailable, Instant processingStartedAt,
-            Instant processingFinishedAt, String processingErrorCode) {
+            Instant processingFinishedAt, String processingErrorCode,
+            java.math.BigDecimal audioDurationSeconds) {
         public static AttemptView from(SubmissionAttempt attempt) {
             return new AttemptView(attempt.getId(), attempt.getTask().getId(),
                     attempt.getAttemptNumber(), attempt.getSubmittedAt(),
                     attempt.getStatus().name(), attempt.getStudentComment(),
                     attempt.getMediaFormat(), attempt.getSizeBytes(), false,
                     attempt.getProcessingStartedAt(), attempt.getProcessingFinishedAt(),
-                    attempt.getProcessingErrorCode());
+                    attempt.getProcessingErrorCode(), attempt.getAudioDurationSeconds());
         }
     }
 }
