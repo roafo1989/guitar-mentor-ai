@@ -1,0 +1,35 @@
+{
+  "id": "GM-EB01",
+  "version": "0.5",
+  "title": "Вечерний блюз в ми — сольная концовка",
+  "status": "DRAFT_AWAITING_LEARNER_REVIEW",
+  "bars": 14,
+  "bpm": 84,
+  "chords": [
+    "E7",
+    "E7",
+    "A7",
+    "E7",
+    "A7",
+    "A7",
+    "E7",
+    "E7",
+    "B7",
+    "A7",
+    "E7",
+    "B7",
+    "E7",
+    "E7"
+  ],
+  "changedBars": [
+    12,
+    13,
+    14
+  ],
+  "lick": "E–G–G#–A–Bb–A–G–E / D–E–G–G# → E7",
+  "license": "CC BY 4.0",
+  "audio": "SYNTHESIZED_PREVIEW_NOT_LIVE",
+  "instrument": "ACOUSTIC_GUITAR",
+  "technique": "FINGERSTYLE",
+  "review": "Real-guitar fingering and musical finish not yet accepted"
+}

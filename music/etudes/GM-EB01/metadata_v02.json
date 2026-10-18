@@ -1,0 +1,20 @@
+{
+  "id": "GM-EB01",
+  "version": "0.2",
+  "title": "Вечерний блюз",
+  "bars": 12,
+  "key": "E minor",
+  "meter": "4/4",
+  "tempoBpm": 76,
+  "feel": "light eighth-note swing",
+  "instrument": "acoustic guitar",
+  "technique": "fingerstyle, no pick",
+  "form": "A (1-4), B (5-8), C/climax (9-10), return (11-12)",
+  "dynamicArc": "mp -> mf -> f -> p",
+  "source": "original",
+  "license": "CC BY 4.0",
+  "reviewStatus": "REJECTED_BY_LEARNER",
+  "audioPreview": "synthesized steel acoustic soundfont; not a performed guitar recording",
+  "reviewFeedback": "More varied than v0.1, but still sounds like monophonic Nokia 3310 ringtone; insufficient true chordal guitar texture, needs E7/A7/B7 dominant blues.",
+  "assignable": false
+}
