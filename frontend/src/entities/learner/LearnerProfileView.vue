@@ -134,6 +134,7 @@ async function save(): Promise<void> {
         <button type="submit" :disabled="store.busy || !name.trim()">
           {{ store.busy ? t('form.saving') : t(hasProfile ? 'form.update' : 'form.save') }}
         </button>
+        <RouterLink v-if="hasProfile" to="/onboarding" class="continue-link">{{ t('form.continue') }} →</RouterLink>
         <button v-if="hasProfile" type="button" class="text-button" @click="newProfile">
           {{ t('form.new') }}
         </button>

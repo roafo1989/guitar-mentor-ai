@@ -1,10 +1,10 @@
-# Guitar Mentor AI — Vue frontend (DEV-03)
+# Guitar Mentor AI — Vue frontend (DEV-03/04)
 
-Первый пользовательский экран: создание/чтение профиля и изменение музыкальных предпочтений. Структура по мотивам JHipster — `entities`, `service`, `router`, `shared/model`, `core`, `stores`, `i18n`.
+Первый пользовательский экран: создание/чтение профиля и изменение музыкальных предпочтений, затем двухэтапная анкета опыта и целей. Структура по мотивам JHipster — `entities`, `service`, `router`, `shared/model`, `core`, `stores`, `i18n`.
 
 ## Требования
 - Node.js 22.12+ / npm
-- Работающий Spring Boot backend на `127.0.0.1:8080` с PostgreSQL и миграциями Flyway V1/V2.
+- Работающий Spring Boot backend на `127.0.0.1:8080` с PostgreSQL и миграциями Flyway V1/V2/V3.
 
 ## Запуск в VS Code, PowerShell
 
@@ -14,9 +14,9 @@
 ```powershell
 cd D:\Development\guitar-mentor-ai
 git fetch origin
-git switch feature/dev-03-vue-learner-form
+git switch feature/dev-04-onboarding
 cd frontend
-npm install
+npm ci
 npm run dev
 ```
 
@@ -27,7 +27,7 @@ npm run dev
 2. Сохрани профиль. Будет создан Learner в PostgreSQL.
 3. Обнови страницу: приложение восстановит сохранённый ID профиля из localStorage и сделает GET.
 4. Измени оценку одного стиля и нажми «Сохранить предпочтения»: выполняется PUT, история ученика не теряется.
-5. Проверь `npm run build`.
+5. Перейди в «Опыт и цели», укажи техники, разученные композиции и время занятий, сохрани анкету.\n6. Обнови страницу и убедись, что сведения восстановились из PostgreSQL.\n7. Проверь `npm run build`.
 
 Первая версия не включает редактирование имени, переключение нескольких инструментов или авторизацию.
 

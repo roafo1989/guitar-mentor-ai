@@ -17,6 +17,7 @@ const { locale, t } = useI18n();
       <div class="header-actions">
         <nav aria-label="Navigation">
           <RouterLink to="/profile">{{ t('app.profile') }}</RouterLink>
+          <RouterLink to="/onboarding">{{ t('app.onboarding') }}</RouterLink>
         </nav>
         <label class="language-picker">
           <span class="sr-only">{{ t('app.language') }}</span>

@@ -72,6 +72,15 @@ jobs:
                 exit 1
               fi
               echo "Learner profile REST smoke: OK"
+              background=$(curl --fail --silent --show-error -X PUT \
+                "http://localhost:8080/api/v1/learners/$learner_id/instruments/ACOUSTIC_GUITAR/background" \
+                -H 'Content-Type: application/json' \
+                --data '{"experienceLevel":"BEGINNER","yearsPlaying":1,"skills":["CHORDS"],"knownPieces":[],"goals":["FINGERSTYLE"],"practiceMinutes":40,"sessionsPerWeek":3,"notes":""}')
+              echo "$background" | grep -q '"experienceLevel":"BEGINNER"'
+              curl --fail --silent --show-error \
+                "http://localhost:8080/api/v1/learners/$learner_id/instruments/ACOUSTIC_GUITAR/background" \
+                | grep -q '"sessionsPerWeek":3'
+              echo "Onboarding REST smoke: OK"
               exit 0
             fi
             if ! kill -0 "$app_pid" 2>/dev/null; then

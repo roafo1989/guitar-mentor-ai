@@ -3,7 +3,8 @@ name: Vue frontend CI
 on:
   push:
     branches:
-      - "feature/dev-03-vue-learner-form"
+      - main
+      - "feature/dev-04-onboarding"
   pull_request:
     paths:
       - "frontend/**"
