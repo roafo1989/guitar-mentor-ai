@@ -97,6 +97,29 @@ jobs:
                 -H 'Content-Type: application/json' --data '{"instrumentCode":"ACOUSTIC_GUITAR"}')
               echo "$restarted" | grep -q "\"id\":\"$session_id\""
               echo "Diagnostic session HTTP smoke: OK"
+              catalog=$(curl --fail --silent --show-error \
+                "http://localhost:8080/api/v1/exercises?instrumentCode=ACOUSTIC_GUITAR&techniqueCode=FINGERSTYLE")
+              echo "$catalog" | grep -q '"code":"GM-EB01"'
+              curl --fail --silent --show-error \
+                "http://localhost:8080/api/v1/exercises/GM-EB01/score" | grep -q 'score-partwise'
+              curl --fail --silent --show-error \
+                "http://localhost:8080/api/v1/exercises/GM-EB01/events" | grep -q '"measures"'
+              assigned=$(curl --fail --silent --show-error -X POST \
+                "http://localhost:8080/api/v1/learners/$learner_id/diagnostic-sessions/$session_id/tasks" \
+                -H 'Content-Type: application/json' --data '{"exerciseCode":"GM-EB01"}')
+              echo "$assigned" | grep -q '"code":"GM-EB01"'
+              task_id=$(printf '%s' "$assigned" | python3 -c 'import json,sys;print(json.load(sys.stdin)["id"])')
+              repeat=$(curl --fail --silent --show-error -X POST \
+                "http://localhost:8080/api/v1/learners/$learner_id/diagnostic-sessions/$session_id/tasks" \
+                -H 'Content-Type: application/json' --data '{"exerciseCode":"GM-EB01"}')
+              echo "$repeat" | grep -q "\"id\":\"$task_id\""
+              curl --fail --silent --show-error \
+                "http://localhost:8080/api/v1/learners/$learner_id/diagnostic-sessions/$session_id" \
+                | grep -q '"status":"TASK_ASSIGNED"'
+              curl --fail --silent --show-error \
+                "http://localhost:8080/api/v1/learners/$learner_id/diagnostic-sessions/$session_id/tasks" \
+                | grep -q '"code":"GM-EB01"'
+              echo "Exercise catalog and diagnostic assignment HTTP smoke: OK"
               exit 0
             fi
             if ! kill -0 "$app_pid" 2>/dev/null; then
