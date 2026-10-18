@@ -1,7 +1,7 @@
 {
   "id": "GM-EB01",
   "version": "0.8B",
-  "status": "PREFERRED_BY_LEARNER_NOT_FINAL",
+  "status": "ACCEPTED_FOR_MVP_PROTOTYPE",
   "instrument": "ACOUSTIC_GUITAR",
   "technique": "FINGERSTYLE",
   "bars": 12,
@@ -14,5 +14,9 @@
   "choice": "v0.7B: theme G→G# and answering descending bass",
   "license": "CC BY 4.0",
   "media": "Full demo and PDF are conversation artifacts; MP3 is synthesized",
-  "nextStep": "listen to entire score, play guitar, review fingering, only then approve"
+  "nextStep": "Integrate into diagnostic exercise catalog; validate fingering, MusicXML rendering and accessibility before public assignment",
+  "reviewDecision": "Acceptable as a first iteration; not ideal, do not continue musical revisions now",
+  "instrumentCheck": "PENDING",
+  "pdfIntegration": "PENDING",
+  "audioAssessment": "NOT_IMPLEMENTED"
 }
