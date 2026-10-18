@@ -140,7 +140,7 @@ onBeforeUnmount(() => {
     <div v-else class="microphone-controls">
       <button v-if="state === 'idle'" type="button" class="recorder-button"
         :disabled="disabled" @click="start">{{ t('attempt.startRecording') }}</button>
-      <span v-if="state === 'requesting'" class="hint" role="status">
+      <span v-else-if="state === 'requesting'" class="hint" role="status">
         {{ t('attempt.requestingMic') }}
       </span>
       <template v-else>
