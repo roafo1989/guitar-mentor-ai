@@ -125,7 +125,10 @@
     "downloadScore": "Open full notes and TAB (MusicXML)",
     "tabTitle": "TAB — simplified preview",
     "tabWarning": "Fret positions are shown on an eighth-note grid; use the MusicXML score for exact durations, rests and articulation.",
-    "measures": "Measures"
+    "measures": "Measures",
+    "catalogLoading": "Loading exercise catalog...",
+    "retryCatalog": "Retry loading catalog",
+    "catalogApiMissing": "Exercise catalog API not found (HTTP 404). Make sure Spring Boot is running from feature/dev-05b-exercise-catalog rather than an older backend version."
   },
   "home": {
     "welcome": "Your space for music",

@@ -11,6 +11,7 @@ const session = ref<DiagnosticSession | null>(null);
 const loading = ref(true);
 const busy = ref(false);
 const error = ref('');
+const catalogBusy = ref(false);
 const exercises = ref<Exercise[]>([]);
 const task = ref<DiagnosticTask | null>(null);
 const score = ref<ScoreEvents | null>(null);
@@ -53,7 +54,17 @@ async function loadTask(learnerId: string, diagnosticId: string): Promise<void> 
 }
 
 async function loadCatalog(): Promise<void> {
-  exercises.value = await diagnosticService.listExercises();
+  catalogBusy.value = true;
+  error.value = '';
+  try {
+    exercises.value = await diagnosticService.listExercises();
+  } catch (cause) {
+    exercises.value = [];
+    error.value = cause instanceof Error && cause.message.startsWith('HTTP_404')
+      ? t('diagnostic.catalogApiMissing') : showError(cause);
+  } finally {
+    catalogBusy.value = false;
+  }
 }
 const instrumentCode = 'ACOUSTIC_GUITAR';
 
@@ -75,15 +86,18 @@ onMounted(async () => {
     if (!stored) return;
     try {
       session.value = await diagnosticService.get(id, stored);
-      if (session.value.status === 'TASK_ASSIGNED') await loadTask(id, session.value.id);
-      if (session.value.status === 'READY_FOR_TASK') await loadCatalog();
     } catch (cause) {
+      // Only the session GET 404 invalidates its stored ID.
+      // 404 from the exercise catalog must NOT delete the session selection.
       if (cause instanceof Error && cause.message.startsWith('HTTP_404')) {
         window.localStorage.removeItem(storageKey(id));
-      } else {
-        throw cause;
+        session.value = null;
+        return;
       }
+      throw cause;
     }
+    if (session.value.status === 'TASK_ASSIGNED') await loadTask(id, session.value.id);
+    if (session.value.status === 'READY_FOR_TASK') await loadCatalog();
   } catch (cause) {
     error.value = showError(cause);
   } finally {
@@ -178,7 +192,11 @@ async function assign(exerciseCode: string): Promise<void> {
       <template v-else-if="session.status === 'READY_FOR_TASK'">
         <h2>{{ t('diagnostic.readyTitle') }}</h2>
         <p>{{ t('diagnostic.chooseStudy') }}</p>
-        <div v-if="exercises.length === 0" class="hint">{{ t('diagnostic.noExercises') }}</div>
+        <p v-if="catalogBusy" class="hint">{{ t('diagnostic.catalogLoading') }}</p>
+        <p v-else-if="!error && exercises.length === 0" class="hint">{{ t('diagnostic.noExercises') }}</p>
+        <button v-if="error" type="button" class="action-button secondary-button" :disabled="catalogBusy" @click="loadCatalog">
+          {{ t('diagnostic.retryCatalog') }}
+        </button>
         <article v-for="exercise in exercises" :key="exercise.code" class="exercise-card">
           <div class="exercise-meta">{{ exercise.code }} · v{{ exercise.version }} · {{ exercise.bpm }} BPM · {{ exercise.measures }} {{ t('diagnostic.bars') }}</div>
           <h3>{{ exercise.title }}</h3>

@@ -125,7 +125,10 @@
     "downloadScore": "Открыть исходные ноты + TAB (MusicXML)",
     "tabTitle": "Табулатура — предварительный просмотр",
     "tabWarning": "Показаны лады по сетке восьмых; длительности, паузы и штрихи смотри в полноценной партитуре MusicXML. Ритм в ASCII-табулатуре упрощён.",
-    "measures": "Такты"
+    "measures": "Такты",
+    "catalogLoading": "Загружаем каталог упражнений...",
+    "retryCatalog": "Повторить загрузку каталога",
+    "catalogApiMissing": "API каталога не найден (HTTP 404). Проверь, что запущен Spring Boot из ветки feature/dev-05b-exercise-catalog, а не предыдущая версия backend."
   },
   "home": {
     "welcome": "Твоё пространство для музыки",
