@@ -9,7 +9,7 @@
 - Telegram (позднее): ещё один интерфейс к тем же сервисам и базе.
 - Рабочая среда: VS Code / Windows 10.
 
-**[Архитектурное решение](docs/adr/0001-java-vue-postgresql.md)** · **[Настройка компьютера](docs/development/workstation-setup-windows.md)**
+**[Дорожная карта MVP v1.0](docs/project/roadmap-mvp-v1.md)** · **[Архитектурное решение](docs/adr/0001-java-vue-postgresql.md)** · **[Настройка компьютера](docs/development/workstation-setup-windows.md)**
 
 ## DEV-01-JAVA — первый backend
 
