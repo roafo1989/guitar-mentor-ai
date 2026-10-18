@@ -1,0 +1,43 @@
+@startuml
+title UC-02 — Начало диагностики (концептуальная последовательность)
+actor "Ученик" as User
+participant "Vue / Telegram" as Client
+participant "DiagnosticController" as Controller
+participant "DiagnosticService" as Service
+database "PostgreSQL" as DB
+participant "StorageService" as Storage
+participant "Diagnostic planner" as Planner
+
+User -> Client : Начать диагностику
+Client -> Controller : POST /diagnostic-sessions
+Controller -> Service : start(instrumentProfileId)
+Service -> DB : save session
+DB --> Service : sessionId, COLLECTING_EVIDENCE
+Service --> Controller : session
+Controller --> Client : 201 Created
+
+opt Ученик загружает собственную запись
+  User -> Client : Запись + необязательная партитура
+  Client -> Controller : POST /evidence (multipart)
+  Controller -> Service : validate ownership, size, type
+  Service -> Storage : save to private temporary storage
+  Storage --> Service : storageKey
+  Service -> DB : insert media metadata and evidence link
+  Service --> Controller : evidence metadata
+  Controller --> Client : 201 Created
+end
+
+User -> Client : Перейти к заданиям
+Client -> Controller : POST /continue
+Controller -> Service : finish intake
+Service -> DB : read profile, preferences, evidence
+Service -> Planner : propose questions or short exercises
+note right of Planner
+Planner must not claim measured accuracy
+without a validated analysis method.
+end note
+Planner --> Service : decision with rationale
+Service -> DB : persist next state, question/task draft
+Service --> Controller : next step
+Controller --> Client : questions or exercise
+@enduml

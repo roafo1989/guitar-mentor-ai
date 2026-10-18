@@ -1,0 +1,33 @@
+@startuml
+title UC-02 — Жизненный цикл диагностической сессии
+hide empty description
+
+[*] --> COLLECTING_EVIDENCE : create session
+COLLECTING_EVIDENCE --> COLLECTING_EVIDENCE : add another recording / score
+COLLECTING_EVIDENCE --> CLARIFYING : continue (questions required)
+COLLECTING_EVIDENCE --> AWAITING_SUBMISSION : continue (no questions)
+CLARIFYING --> AWAITING_SUBMISSION : answers saved / assign short exercise
+AWAITING_SUBMISSION --> ASSESSING : submit attempt
+ASSESSING --> REVIEW_READY : assessment available
+ASSESSING --> AWAITING_SUBMISSION : failed/unusable data; retry or skip
+REVIEW_READY --> AWAITING_SUBMISSION : retry / request another exercise
+REVIEW_READY --> COMPLETED : learner confirms or accepts with notes
+COMPLETED --> [*]
+
+COLLECTING_EVIDENCE --> CANCELLED : cancel
+CLARIFYING --> CANCELLED : cancel
+AWAITING_SUBMISSION --> CANCELLED : cancel
+REVIEW_READY --> CANCELLED : cancel
+CANCELLED --> [*]
+
+note right of ASSESSING
+MediaAsset processing has separate states.
+An uncertain assessment is not a failure
+and does not prove the skill is mastered.
+end note
+
+note bottom of COMPLETED
+Finishing with remarks does not mark
+skills as MASTERED.
+end note
+@enduml
