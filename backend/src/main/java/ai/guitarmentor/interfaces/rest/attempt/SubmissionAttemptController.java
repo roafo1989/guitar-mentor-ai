@@ -1,7 +1,7 @@
 package ai.guitarmentor.interfaces.rest.attempt;
 
 import ai.guitarmentor.application.attempt.SubmissionAttemptService;
-import ai.guitarmentor.infrastructure.media.LocalAttemptMediaStore;
+import ai.guitarmentor.application.attempt.AttemptMediaStore;
 import ai.guitarmentor.interfaces.rest.attempt.AttemptDtos.AttemptView;
 import ai.guitarmentor.interfaces.rest.attempt.AttemptDtos.UploadCapabilities;
 import java.net.URI;
@@ -33,7 +33,7 @@ public class SubmissionAttemptController {
     public UploadCapabilities capabilities(@PathVariable UUID learnerId,
             @PathVariable UUID sessionId, @PathVariable UUID taskId) {
         service.list(learnerId, sessionId, taskId); // Verify the task belongs to this learner.
-        return new UploadCapabilities(service.isEnabled(), LocalAttemptMediaStore.MAX_BYTES,
+        return new UploadCapabilities(service.isEnabled(), AttemptMediaStore.MAX_BYTES,
                 new String[] {"mp3", "wav", "ogg", "webm"});
     }
 

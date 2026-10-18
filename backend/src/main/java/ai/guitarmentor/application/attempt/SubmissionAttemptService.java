@@ -2,7 +2,7 @@ package ai.guitarmentor.application.attempt;
 
 import ai.guitarmentor.application.diagnostic.DiagnosticTaskService;
 import ai.guitarmentor.domain.attempt.SubmissionAttempt;
-import ai.guitarmentor.infrastructure.media.LocalAttemptMediaStore;
+import ai.guitarmentor.application.attempt.AttemptMediaStore;
 import ai.guitarmentor.infrastructure.persistence.DiagnosticSessionRepository;
 import ai.guitarmentor.infrastructure.persistence.DiagnosticTaskRepository;
 import ai.guitarmentor.infrastructure.persistence.SubmissionAttemptRepository;
@@ -23,18 +23,20 @@ public class SubmissionAttemptService {
     private final DiagnosticTaskRepository tasks;
     private final DiagnosticSessionRepository sessions;
     private final SubmissionAttemptRepository attempts;
-    private final LocalAttemptMediaStore media;
+    private final AttemptMediaStore media;
+    private final MediaTransactionGuard transactions;
     private final boolean enabled;
 
     public SubmissionAttemptService(DiagnosticTaskService taskService, DiagnosticTaskRepository tasks,
             DiagnosticSessionRepository sessions, SubmissionAttemptRepository attempts,
-            LocalAttemptMediaStore media,
+            AttemptMediaStore media, MediaTransactionGuard transactions,
             @Value("${guitar-mentor.submissions.enabled:false}") boolean enabled) {
         this.taskService = taskService;
         this.tasks = tasks;
         this.sessions = sessions;
         this.attempts = attempts;
         this.media = media;
+        this.transactions = transactions;
         this.enabled = enabled;
     }
 
@@ -67,15 +69,12 @@ public class SubmissionAttemptService {
         var task = tasks.findById(taskId)
                 .orElseThrow(() -> new EntityNotFoundException("Diagnostic task not found"));
         var stored = media.store(file);
-        try {
-            var attempt = new SubmissionAttempt(task, requestId,
-                    Math.toIntExact(attempts.countByTask_Id(taskId) + 1),
-                    cleanComment, stored.key(), stored.format(), stored.size());
-            return AttemptView.from(attempts.saveAndFlush(attempt));
-        } catch (RuntimeException problem) {
-            media.deleteQuietly(stored.key());
-            throw problem;
-        }
+        // Registration before saveAndFlush also covers rollback at the later commit boundary.
+        transactions.register(stored.key(), requestId);
+        var attempt = new SubmissionAttempt(task, requestId,
+                Math.toIntExact(attempts.countByTask_Id(taskId) + 1),
+                cleanComment, stored.key(), stored.format(), stored.size());
+        return AttemptView.from(attempts.saveAndFlush(attempt));
     }
 
     private void checkOwnership(UUID learnerId, UUID sessionId, UUID taskId) {
