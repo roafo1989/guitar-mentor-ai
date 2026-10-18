@@ -8,6 +8,8 @@ on:
   pull_request:
     paths:
       - "frontend/**"
+      # Guard Vue integration when backend APIs/storage change.
+      - "backend/**"
       - ".github/workflows/frontend-ci.yml"
 
 jobs:
