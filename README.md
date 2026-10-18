@@ -2,6 +2,16 @@
 
 Персональный ИИ-наставник по обучению игре на музыкальных инструментах. Начальная специализация — акустическая гитара и fingerstyle. Проект учебный, некоммерческий.
 
+## Навигация по проекту
+
+**[Kanban-доска — Процесс разработки](https://github.com/users/roafo1989/projects/1/views/3)** · [Реестр задач](https://github.com/users/roafo1989/projects/1/views/2) · [Дорожная карта MVP](docs/project/roadmap-mvp-v1.md) · [Документация](docs/index.md)
+
+- **Kanban-доска** — задачи по этапам: Анализ → Оценка → Разработка → Тестирование → Завершение. На карточках показаны состояние, оценка в часах и тип работы.
+- **Реестр задач** — таблица для просмотра, фильтрации и редактирования полей.
+- **[Issues](https://github.com/roafo1989/guitar-mentor-ai/issues)** — описания задач и обсуждения; **[Pull Requests](https://github.com/roafo1989/guitar-mentor-ai/pulls)** — изменения кода и ревью.
+
+Проект также доступен через вкладку **Projects → Guitar Mentor AI — MVP** в верхнем меню репозитория.
+
 ## Что уже работает
 
 - **Backend:** Java 21, Spring Boot 4.1.1, Spring Data JPA, PostgreSQL 17, Flyway.
