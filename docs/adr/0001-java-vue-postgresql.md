@@ -14,6 +14,7 @@
 
 1. **Основной backend:** Java 21, Spring Boot 4.1.x, Maven с Maven Wrapper, модульный монолит с REST API. Фреймворк Spring AI 2.0.x подключать по мере появления реальных ИИ-сценариев; не создавать агентную инфраструктуру заранее.
 2. **Frontend:** Vue 3 + Vite, адаптивный веб-интерфейс. Для локальной разработки возможен dev server Vite, в развёрнутом MVP статические ресурсы фронтенда могут раздаваться одним Spring Boot приложением.
+2a. **Структура Vue:** взять знакомые по JHipster принципы организации без самого генератора: разделы `entities/` (компоненты и сервисы по предметным сущностям), `router/`, `shared/model/`, `core/`, `shared/components/`, `stores/` (Pinia), `i18n/ru/*.json` и `i18n/en/*.json` через `vue-i18n`. REST-вызовы выносить в `*.service.ts`, модели — в TypeScript, подписи полей/кнопок — в файлы локализации. Нестандартные пользовательские сценарии (запись исполнения, практика, табулатуры) не принуждать к CRUD-шаблонам. Для frontend использовать Vue 3 + TypeScript + Vite, расширение VS Code `Vue (Official)`, ESLint/Prettier.
 3. **Telegram:** дополнительный интерфейс/адаптер к тем же application services и данным, а не второй backend. Возможность Mini App исследовать после появления работающего веб-интерфейса. Не считать Mini App гарантированной заменой мобильному браузеру до проверки записи аудио.
 4. **База данных:** PostgreSQL как **единая целевая СУБД** для локальной разработки и размещения. Для Java выбрать Spring Data JPA/Hibernate; схему менять версионированными миграциями Flyway. На продакшене Hibernate `ddl-auto=validate`, не `update`/`create`. Доступ к БД через переменные окружения / секреты.
 5. **Тестирование:** JUnit; интеграционные тесты по возможности против PostgreSQL (в CI — контейнер, локальный Docker необязателен). Не полагаться только на H2, чтобы не скрывать различия SQL.
@@ -34,7 +35,15 @@ SQLite **хватит по нагрузке** для небольшого про
 guitar-mentor-ai/
 ├── backend/                  # Spring Boot, Java, Maven Wrapper
 │   └── src/main/java/...      # domain, application, infrastructure, adapters
-├── frontend/                 # Vue 3 + Vite
+├── frontend/                 # Vue 3 + TypeScript + Vite
+│   └── src/
+│       ├── app/
+│       │   ├── core/         # клиентская инфраструктура, авторизация
+│       │   ├── entities/     # lesson/, exercise/, student/...
+│       │   ├── router/       # маршруты
+│       │   ├── shared/       # модели/общие компоненты
+│       │   └── stores/       # Pinia
+│       └── i18n/             # ru/, en/: JSON-словарь UI
 ├── docs/
 │   ├── adr/
 │   └── development/
