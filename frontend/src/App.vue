@@ -8,7 +8,7 @@ const { locale, t } = useI18n();
   <div class="app-shell">
     <header class="site-header">
       <div class="brand">
-        <span aria-hidden="true" class="brand-icon">♫</span>
+        <img class="brand-icon" src="/favicon.png" alt="" aria-hidden="true" width="40" height="40" />
         <div>
           <strong>Guitar Mentor AI</strong>
           <small>{{ t('app.subtitle') }}</small>
