@@ -52,10 +52,11 @@ jobs:
           set -euo pipefail
           ./mvnw --batch-mode spring-boot:run > boot.log 2>&1 &
           app_pid=$!
-          trap 'kill "$app_pid" 2>/dev/null || true' EXIT
+          trap 'result=$?; if [ "$result" -ne 0 ]; then echo "Smoke test failed (exit $result); last Spring Boot messages:"; tail -n 100 boot.log || true; fi; kill "$app_pid" 2>/dev/null || true' EXIT
           for attempt in $(seq 1 90); do
             if curl --fail --silent http://localhost:8080/api/v1/system/ping | grep -q '"status":"ok"'; then
-              curl --fail --silent http://localhost:8080/actuator/health | grep -q '"status":"UP"'
+              health=$(curl --fail --silent --show-error http://localhost:8080/actuator/health)
+              printf '%s' "$health" | grep -q '"status":"UP"'
               echo "Spring Boot and PostgreSQL Flyway bootstrap: OK"
               created=$(curl --fail --silent --show-error -X POST http://localhost:8080/api/v1/learners \
                 -H 'Content-Type: application/json' \
