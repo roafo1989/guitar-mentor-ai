@@ -2,30 +2,26 @@
 
 **Guitar Mentor AI** — некоммерческий проект персонального ИИ-наставника для обучения игре на гитаре.
 
-## Актуальный технологический стек (решение 18.10.2026)
+## Стек
 
-- **Backend:** Java 21 + Spring Boot 4.1.x + Maven + Spring Data JPA/Hibernate
-- **База данных:** PostgreSQL + Flyway
-- **Frontend:** Vue 3 + Vite (адаптивный веб-интерфейс)
-- **AI:** Spring AI 2.0.x по мере реализации ИИ-функций
-- **Telegram:** дополнительный клиент к единому backend (возможный Mini App)
-- **Среда разработки:** VS Code на Windows 10
+- Backend: Java 21, Spring Boot 4.1.1, Maven Wrapper, Spring Data JPA, PostgreSQL 17, Flyway.
+- Frontend (следующий этап): Vue 3, TypeScript, Vite, Pinia, vue-i18n, организация по мотивам JHipster.
+- Telegram (позднее): ещё один интерфейс к тем же сервисам и базе.
+- Рабочая среда: VS Code / Windows 10.
 
-Подробное обоснование: **[ADR-0001: Java, Vue, PostgreSQL](docs/adr/0001-java-vue-postgresql.md)**.
+**[Архитектурное решение](docs/adr/0001-java-vue-postgresql.md)** · **[Настройка компьютера](docs/development/workstation-setup-windows.md)**
 
-## Подготовка компьютера
+## DEV-01-JAVA — первый backend
 
-[Инструкция по настройке рабочего места Windows 10](docs/development/workstation-setup-windows.md) — установка JDK, VS Code, PostgreSQL, Node.js, Git, восстановление среды на новом ПК.
+Этот раздел относится к ветке `feature/dev-01-java-bootstrap`; до слияния PR в `main` Java-код будет отсутствовать.
 
-**Текущий статус:** архитектура утверждена, но Java backend и Vue frontend **ещё не реализованы** в `main`. Инструкция явно выделяет команды, которые станут рабочими после создания DEV-01-JAVA.
+- [Инструкция для первого Java запуска](docs/development/dev-01-java-quickstart.md)
+- [README backend и команды PowerShell](backend/README.md)
+- API: `GET /api/v1/system/ping`
+- Health: `GET /actuator/health`
 
-## История первоначального прототипа
+На данном этапе реализован только каркас приложения. **Пока нет** Telegram-интеграции, Vue-фронтенда, пользователей, уроков, ИИ-наставника, аудиоанализа. Для запуска нужна работающая PostgreSQL 17 и локальные переменные окружения с секретом вне Git.
 
-Python-каркас DEV-01 размещён в [PR #5](https://github.com/roafo1989/guitar-mentor-ai/pull/5) (не объединён с `main`; после смены стека не является основой нового backend). [Архив инструкции Python](docs/development/archive/python-workstation-2026-10.md) сохранён, чтобы не потерять шаги предыдущей настройки.
+## История проекта
 
-## Подход к разработке
-
-- Один backend и общие бизнес-сервисы для веб-интерфейса и Telegram, без микросервисов на первом этапе.
-- Оценки ИИ и решения ученика о завершении задания различаются и хранятся отдельно.
-- Локальные записи исполнения удаляются после обработки в рамках утверждаемой политики хранения; результаты обучения и история попыток сохраняются.
-- Секреты и пользовательские записи не коммитятся в Git.
+Первоначальный экспериментальный Python-каркас: [PR #5](https://github.com/roafo1989/guitar-mentor-ai/pull/5), не использовать как основу Java. [Python-инструкция (архив)](docs/development/archive/python-workstation-2026-10.md) сохранена.

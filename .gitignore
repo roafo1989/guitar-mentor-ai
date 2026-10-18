@@ -1,0 +1,46 @@
+# Editors and OS
+.vscode/*
+!.vscode/extensions.json
+.idea/
+.DS_Store
+Thumbs.db
+*.iml
+.classpath
+.project
+.settings/
+
+# Java and Maven
+**/target/
+.mvn/wrapper/maven-wrapper.jar
+*.log
+
+# Vue/Node (future frontend)
+**/node_modules/
+**/dist/
+**/.vite/
+
+# Local config, secrets and PostgreSQL dumps
+.env
+.env.*
+!.env.example
+*.local
+*.sql.gz
+*.dump
+*.backup
+
+# Python prototype leftovers, not part of Java backend
+.venv/
+venv/
+__pycache__/
+.pytest_cache/
+.ruff_cache/
+*.py[cod]
+*.egg-info/
+
+# User data and media
+data/
+media/
+uploads/
+*.db
+*.sqlite
+*.sqlite3
