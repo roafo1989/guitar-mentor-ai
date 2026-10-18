@@ -114,7 +114,18 @@
     "readyDescription": "The session is stored and waiting for its first diagnostic task. Task selection comes in the next increment.",
     "noAssessment": "No audio has been analyzed and no skill assessments have been made.",
     "back": "Back to onboarding",
-    "nextFromOnboarding": "Continue to assessment"
+    "nextFromOnboarding": "Continue to assessment",
+    "chooseStudy": "Choose your first diagnostic étude. One provisional original piece is available.",
+    "noExercises": "No études are available for this instrument yet.",
+    "bars": "bars",
+    "draftWarning": "The piece is accepted for the MVP prototype, but fingering and score rendering still require validation.",
+    "assign": "Assign this étude",
+    "taskInstructions": "Practice instructions",
+    "practiceTips": "Start with melody only, then a steady thumb bass. Combine parts at 60–70 BPM before approaching 84 BPM. This is practice, not a graded exam.",
+    "downloadScore": "Open full notes and TAB (MusicXML)",
+    "tabTitle": "TAB — simplified preview",
+    "tabWarning": "Fret positions are shown on an eighth-note grid; use the MusicXML score for exact durations, rests and articulation.",
+    "measures": "Measures"
   },
   "home": {
     "welcome": "Your space for music",
