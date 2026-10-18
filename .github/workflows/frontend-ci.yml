@@ -1,0 +1,28 @@
+name: Vue frontend CI
+
+on:
+  push:
+    branches:
+      - "feature/dev-03-vue-learner-form"
+  pull_request:
+    paths:
+      - "frontend/**"
+      - ".github/workflows/frontend-ci.yml"
+
+jobs:
+  frontend:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: frontend
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+      - name: Set up Node 22
+        uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+      - name: Install packages
+        run: npm install --no-audit --no-fund
+      - name: Typecheck and build
+        run: npm run build
