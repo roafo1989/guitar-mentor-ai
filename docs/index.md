@@ -10,6 +10,11 @@
 
 ## Сценарии и требования
 
+- **[Техническое задание 0.1](requirements/technical-specification.md)** — US, ФТ, НФТ, безопасность, сценарии и открытые вопросы.
+- **[Регламент системного анализа](project/system-analysis-workflow.md)** — обработка новых БТ, эпики/стори/задачи и релизы.
+- [Системная спецификация](specifications/system-specification.md) · [Архитектура и компоненты](architecture/system-architecture.md) · [Реестр иерархии Issues](project/issue-hierarchy.md)
+
+
 - **[Бизнес-требования — версия и история изменений](requirements/business-requirements.md)** — единый документ БТ; начальная редакция 0.1.
 - **[Регламент бизнес-анализа](project/business-analysis-workflow.md)** — чат БА, обработка идей, версии, критерии приёмки и связь с задачами.
 

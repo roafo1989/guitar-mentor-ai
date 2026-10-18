@@ -1,0 +1,24 @@
+@startuml
+title Backend — ответственность компонентов
+component "REST / DTO" as R
+component "Application services" as A
+component "Domain" as D
+component "Persistence adapters" as P
+component "Storage / cleanup
+целевые" as S
+component "Audio / AI adapters
+целевые" as I
+database "PostgreSQL" as DB
+folder "Приватные файлы" as F
+R --> A
+A --> D
+A --> P
+A ..> S
+A ..> I
+P --> DB
+S --> F
+note bottom of A
+  Переходы, транзакции и права — серверная ответственность.
+  ИИ не закрывает задания и не подтверждает навыки переходом.
+end note
+@enduml

@@ -1,0 +1,18 @@
+@startuml
+title US-007 — целевая логическая последовательность
+participant "Ученик" as p0
+participant "Application" as p1
+participant "OIDC" as p2
+participant "PostgreSQL" as p3
+p0 -> p1: Начать вход
+p1 -> p2: Запросить проверенную identity
+p2 -> p1: Issuer, subject и verified email
+p1 -> p3: Атомарно активировать приглашение / найти identity
+p1 -> p0: Защищённая сессия либо отказ
+p0 -> p1: Запросить ресурс
+p1 -> p3: Проверить ACTIVE и владельца ресурса
+p1 -> p0: Свой ресурс либо безопасный отказ
+note over p0
+  Требования и ограничения — ТЗ 0.1
+end note
+@enduml
