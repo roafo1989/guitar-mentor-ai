@@ -57,6 +57,21 @@ jobs:
             if curl --fail --silent http://localhost:8080/api/v1/system/ping | grep -q '"status":"ok"'; then
               curl --fail --silent http://localhost:8080/actuator/health | grep -q '"status":"UP"'
               echo "Spring Boot and PostgreSQL Flyway bootstrap: OK"
+              created=$(curl --fail --silent --show-error -X POST http://localhost:8080/api/v1/learners \
+                -H 'Content-Type: application/json' \
+                --data '{"displayName":"CI Student","instrumentCode":"ACOUSTIC_GUITAR","techniqueCode":"FINGERSTYLE","preferences":[{"styleCode":"FUNK","rating":"EXCLUDE"}]}')
+              echo "$created" | grep -q '"rating":"EXCLUDE"'
+              learner_id=$(printf '%s' "$created" | python3 -c 'import json,sys;print(json.load(sys.stdin)["id"])')
+              curl --fail --silent --show-error "http://localhost:8080/api/v1/learners/$learner_id" | grep -q '"styleCode":"FUNK"'
+              changed=$(curl --fail --silent --show-error -X PUT "http://localhost:8080/api/v1/learners/$learner_id/preferences" \
+                -H 'Content-Type: application/json' \
+                --data '{"instrumentCode":"ACOUSTIC_GUITAR","preferences":[{"styleCode":"BLUES","rating":"LIKE"}]}')
+              echo "$changed" | grep -q '"styleCode":"BLUES"'
+              if echo "$changed" | grep -q '"styleCode":"FUNK"'; then
+                echo "Old preferences were not removed"
+                exit 1
+              fi
+              echo "Learner profile REST smoke: OK"
               exit 0
             fi
             if ! kill -0 "$app_pid" 2>/dev/null; then
