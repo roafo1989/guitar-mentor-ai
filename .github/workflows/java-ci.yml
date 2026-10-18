@@ -130,14 +130,7 @@ jobs:
               echo "$capability" | grep -q '"enabled":true'
               initial=$(curl --fail --silent --show-error "$attempts_base")
               test "$initial" = '[]'
-              python3 - <<'PY'
-              import wave
-              with wave.open('sample.wav', 'wb') as f:
-                  f.setnchannels(1)
-                  f.setsampwidth(2)
-                  f.setframerate(8000)
-                  f.writeframes(bytes(1600))
-              PY
+              python3 -c 'import wave; f=wave.open("sample.wav", "wb"); f.setnchannels(1); f.setsampwidth(2); f.setframerate(8000); f.writeframes(bytes(1600)); f.close()'
               submission_id=123e4567-e89b-12d3-a456-426614174000
               attempt=$(curl --fail --silent --show-error -X POST "$attempts_base" \
                 -F "file=@sample.wav;type=audio/wav" -F "comment=CI test" \
