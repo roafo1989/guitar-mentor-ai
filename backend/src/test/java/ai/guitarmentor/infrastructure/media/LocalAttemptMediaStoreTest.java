@@ -144,10 +144,14 @@ class LocalAttemptMediaStoreTest {
         var media = new LocalAttemptMediaStore(temp.toString());
         Path target = temp.resolve(java.util.UUID.randomUUID() + ".wav");
         Files.write(target, new byte[]{1,2,3});
-        try (MockedStatic<Files> mocked = Mockito.mockStatic(Files.class,
-                Mockito.CALLS_REAL_METHODS)) {
-            mocked.when(() -> Files.delete(target))
-                    .thenThrow(new AccessDeniedException("simulated-error"));
+        // Custom answer avoids invoking the real Files.delete during Mockito stubbing.
+        try (MockedStatic<Files> mocked = Mockito.mockStatic(Files.class, invocation -> {
+            if ("delete".equals(invocation.getMethod().getName())
+                    && target.equals(invocation.getArgument(0))) {
+                throw new AccessDeniedException("simulated-error");
+            }
+            return invocation.callRealMethod();
+        })) {
             var failure = assertThrows(IOException.class,
                     () -> media.delete(target.getFileName().toString()));
             assertEquals("DELETE_IO_ERROR", failure.getMessage());

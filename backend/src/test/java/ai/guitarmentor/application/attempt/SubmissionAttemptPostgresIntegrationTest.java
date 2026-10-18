@@ -71,17 +71,18 @@ class SubmissionAttemptPostgresIntegrationTest {
         taskId = UUID.randomUUID();
         Instant now = Instant.now();
         jdbc.update("INSERT INTO learners(id,display_name,created_at) VALUES(?,?,?)",
-                learnerId, "D30 CI Student", now);
+                learnerId, "D30 CI Student", java.sql.Timestamp.from(now));
         jdbc.update("INSERT INTO instrument_profiles(id,learner_id,instrument_code,technique_code)"
                         + " VALUES(?,?,?,?)",
                 profileId, learnerId, "ACOUSTIC_GUITAR", "FINGERSTYLE");
         jdbc.update("INSERT INTO diagnostic_sessions"
                         + "(id,instrument_profile_id,status,created_at,updated_at,version)"
                         + " VALUES(?,?,?,?,?,?)",
-                sessionId, profileId, "TASK_ASSIGNED", now, now, 0L);
+                sessionId, profileId, "TASK_ASSIGNED", java.sql.Timestamp.from(now),
+                java.sql.Timestamp.from(now), 0L);
         jdbc.update("INSERT INTO diagnostic_tasks(id,diagnostic_session_id,exercise_id,assigned_at)"
                         + " VALUES(?,?,?,?)",
-                taskId, sessionId, EXERCISE_ID, now);
+                taskId, sessionId, EXERCISE_ID, java.sql.Timestamp.from(now));
     }
 
     @AfterEach
