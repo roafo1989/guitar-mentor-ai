@@ -1,7 +1,7 @@
 ---
 name: Задача
 about: ФТ US
-title: 'Задача FT-XXX-XX — '
+title: 'FT-XXX-XX.Задача.'
 labels: 'уровень:задача'
 ---
 

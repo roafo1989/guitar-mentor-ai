@@ -1,7 +1,7 @@
 ---
 name: Эпик
 about: Бизнес-задача / этап / компонент
-title: 'Эпик EPIC-XXX — '
+title: 'EPIC-XXX.Эпик.'
 labels: 'уровень:эпик'
 ---
 

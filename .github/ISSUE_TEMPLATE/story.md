@@ -1,7 +1,7 @@
 ---
 name: Стори
 about: US ТЗ
-title: 'Стори US-XXX — '
+title: 'US-XXX.Стори.'
 labels: 'уровень:стори'
 ---
 
