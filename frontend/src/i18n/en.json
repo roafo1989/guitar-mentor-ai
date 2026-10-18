@@ -2,6 +2,7 @@
   "app": {
     "subtitle": "Personalized music learning",
     "profile": "Learner profile",
+    "currentLearner": "Learner",
     "language": "Language",
     "onboarding": "Background & goals",
     "diagnostics": "Assessment"
