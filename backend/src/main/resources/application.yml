@@ -11,10 +11,22 @@ spring:
     open-in-view: false
   flyway:
     enabled: true
+  servlet:
+    multipart:
+      max-file-size: 20MB
+      max-request-size: 21MB
 
-# DEV-02 endpoints have no authentication. Bind to loopback until security is implemented.
+# Still a single-user local prototype. An ID in a URL is not authentication.
 server:
   address: ${GUITAR_MENTOR_BIND_ADDRESS:127.0.0.1}
+
+guitar-mentor:
+  submissions:
+    # Explicit opt-in for local, non-personal test recordings only.
+    enabled: ${GUITAR_MENTOR_ENABLE_UPLOADS:false}
+    storage-path: ${GUITAR_MENTOR_MEDIA_PATH:./.local-media/attempts}
+    poll-delay-ms: ${GUITAR_MENTOR_PROCESS_POLL_MS:3000}
+    ffprobe-command: ${GUITAR_MENTOR_FFPROBE:ffprobe}
 
 management:
   endpoints:
