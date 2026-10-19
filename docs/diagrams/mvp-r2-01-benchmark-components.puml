@@ -1,0 +1,18 @@
+@startuml
+title #14 — локальный исследовательский контур (целевой)
+top to bottom direction
+actor "Владелец / разметчик" as owner
+folder "Локальные оригиналы\nи приватная разметка" as private
+component "Read-only валидатор\nсхема, права, hash, полнота" as audit
+artifact "Версионный протокол\nи безопасный отчёт" as report
+component "#15 PoC → #31 выводы" as future
+owner --> private : выбирает и размечает
+private --> audit : явный локальный ввод
+report --> audit : контракт и правила
+audit --> report : готовность / ошибки
+report --> future : только готовый пакет
+note bottom of audit
+Нет product DB, HTTP, LLM и фонового worker.
+Нет оценки навыка и скрытого архива записей.
+end note
+@enduml

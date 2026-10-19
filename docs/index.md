@@ -19,10 +19,11 @@
 ## Требования и спецификации
 
 - [Бизнес-требования 0.4](requirements/business-requirements.md)
-- [Техническое задание 0.6](requirements/technical-specification.md) — 9 US / 31 FT, НФТ/SEC и открытые вопросы
-- [Системная спецификация 0.5](specifications/system-specification.md) — текущие API/данные и целевой остаток
+- [Техническое задание 0.7](requirements/technical-specification.md) — 9 US / 31 FT, НФТ/SEC и открытые вопросы
+- [Системная спецификация 0.6](specifications/system-specification.md) — текущие API/данные и целевой остаток
 - [MVP Scope & Acceptance 1.1](project/mvp-scope-v1.md)
 - [Roadmap 1.1](project/roadmap-mvp-v1.md) — исходные оценки исторические, не текущий остаток
+- [#14 — корпус, эталоны и методика аудиопроверки](specifications/MVP-R2-01-audio-feasibility.md) — анализ завершён, Оценка / В очереди; новая оценка отдельно
 - [#30 — контракт storage и rollback](specifications/DEV-05B-media-storage.md)
 - [#21 — TTL/очистка](specifications/MVP-R5-02-media-retention.md) — 20 ч, старт после приёмки/merge #30
 - [UC-01 — профиль](use-cases/UC-01-learner-profile-api.md)
@@ -32,7 +33,7 @@
 
 ## Архитектура и диаграммы
 
-- [Архитектура/компоненты 0.3](architecture/system-architecture.md)
+- [Архитектура/компоненты 0.4](architecture/system-architecture.md)
 - [ADR-0001 — стек](adr/0001-java-vue-postgresql.md)
 - [ADR-0002 — медиа и политика 48h](adr/0002-media-storage-and-retention.md) — TTL ещё не реализован
 - [ADR-0003 — оценка и решение ученика](adr/0003-diagnostic-feedback-and-student-decision.md)
@@ -63,3 +64,5 @@
 - [Архив Python workstation](development/archive/python-workstation-2026-10.md) — не инструкция текущего приложения
 - [GM-EB01: принятая v0.8B и история](../music/etudes/GM-EB01/README.md)
 - [Анализ акустических блюзовых концовок](music/reference-analysis-acoustic-blues-endings.md)
+
+**Последующее событие 19.10.2026:** #30 принята, PR #69/#70 объединены в main c521786; #14 выбрана для анализа и передана на оценку. Датированные снимки прежних этапов в документах сохраняют историю.
