@@ -1,0 +1,16 @@
+@startuml
+title US-001 — целевая логическая последовательность
+participant "Ученик" as p0
+participant "Vue" as p1
+participant "Application" as p2
+participant "PostgreSQL" as p3
+p0 -> p1: Заполнить профиль и цели
+p1 -> p2: Сохранить валидированную анкету
+p2 -> p3: Атомарно создать / обновить
+p3 -> p2: Сохранённые данные
+p2 -> p1: Профиль либо ошибки валидации
+p1 -> p0: Показать результат
+note over p0
+  Требования и ограничения — ТЗ 0.2
+end note
+@enduml

@@ -1,0 +1,19 @@
+@startuml
+title US-005 — целевая логическая последовательность
+participant "Application" as p0
+participant "AudioAdapter" as p1
+participant "PostgreSQL" as p2
+participant "AIAdapter" as p3
+participant "Vue" as p4
+participant "Ученик" as p5
+p0 -> p1: Оценить только разрешённые критерии
+p1 -> p0: Измерения либо не оценено и причина
+p0 -> p2: Сохранить метод, версию и результат
+p0 -> p3: Объяснить проверенные данные
+p3 -> p0: Текст с ограничениями либо ошибка
+p0 -> p4: Результаты доступны независимо от ИИ
+p4 -> p5: Оценка и рекомендации
+note over p0
+  Требования и ограничения — ТЗ 0.2
+end note
+@enduml

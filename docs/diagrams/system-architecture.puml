@@ -1,0 +1,23 @@
+@startuml
+title Локальный M1 — архитектура и целевые расширения
+actor "Ученик" as U
+node "Windows: loopback" {
+  component "Локальный Caddy / Vue" as UI
+  component "Spring Boot: модульный монолит" as A
+  database "PostgreSQL: метаданные и история" as DB
+  folder "Приватные аудиофайлы
+существуют в main #20" as S
+  component "Audio / AI adapters
+целевые компоненты" as AI
+}
+U --> UI
+UI --> A : REST
+A --> DB
+A --> S : LocalAttemptMediaStore / ffprobe
+A ..> S : TTL #21 — проект
+A ..> AI
+note bottom of A
+  Текущий прототип без авторизации — только локально.
+  Интернет-пилот US-007 требует отдельной приёмки безопасности.
+end note
+@enduml

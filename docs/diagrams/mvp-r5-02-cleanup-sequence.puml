@@ -1,0 +1,29 @@
+@startuml
+title #21 — настройки, защита активной работы и возобновляемое удаление
+participant "Scheduler" as C
+participant "MediaUseCoordinator" as G
+database "PostgreSQL" as D
+participant "AttemptMediaStore (#30)" as S
+C -> D: Прочитать и проверить settings / кандидатов
+C -> G: try-acquire guard ключа
+alt Файл занят upload / worker
+  G --> C: Пропустить до следующего цикла
+else Guard получен
+  C -> D: Короткая транзакция: повторно проверить TTL и состояние
+  C -> D: AVAILABLE -> DELETE_PENDING, commit
+  C -> S: delete(key), вне транзакции БД
+  alt DELETED / ALREADY_ABSENT
+    S --> C: Подтверждено отсутствие
+    C -> D: DELETED + deleted_at, история сохранена
+  else Ошибка удаления
+    S --> C: Безопасный код
+    C -> D: DELETE_PENDING + error / attempts
+  end
+  C -> G: Освободить guard
+end
+note over C, D
+  При старте возобновить DELETE_PENDING.
+  После crash между delete и записью в БД повтор безопасен.
+  48 часов от конца всех проверок, не от промежуточного PROCESSED.
+end note
+@enduml

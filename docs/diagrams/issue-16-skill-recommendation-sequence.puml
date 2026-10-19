@@ -1,0 +1,50 @@
+@startuml
+title FT-002-02 / #16: Подбор диагностического упражнения (проект)
+autonumber
+actor "Ученик" as L
+participant "Vue DiagnosticView" as Vue
+participant "RecommendationController" as C
+participant "DiagnosticRecommendationService" as S
+database "PostgreSQL\nSessions / Profile / Skills / Exercises" as DB
+participant "DiagnosticTaskService\n(уже существует)" as T
+
+L -> Vue: Открывает сессию
+Vue -> C: GET /learners/{learnerId}/diagnostic-sessions/{sessionId}/exercise-recommendations
+C -> S: recommend(learnerId, sessionId)
+S -> DB: Load owner & session / status
+alt Чужая/несуществующая сессия
+  DB --> S: not found / owner mismatch
+  S --> C: 404 SESSION_NOT_FOUND
+  C --> Vue: 404
+else Не READY_FOR_TASK
+  DB --> S: COLLECTING_EVIDENCE или TASK_ASSIGNED
+  S --> C: 409 DIAGNOSTIC_NOT_READY / TASK_ALREADY_ASSIGNED
+  C --> Vue: 409
+else READY_FOR_TASK
+  DB --> S: Current session & profile
+  S -> DB: Load goals, preferences, practice_minutes,\nSkillSnapshot & current reviewed exercises
+  DB --> S: Read-only snapshot
+  S -> S: Filter instrument/technique, rights, EXCLUDE,\nlevel and practice time
+  S -> S: Rank by goal/skill/LIKE/time; stable tie-break
+  alt Нет подходящего упражнения
+    S --> C: NO_MATCH + reasonCode + []
+    C --> Vue: 200 NO_MATCH
+    Vue --> L: Показать причину/действия
+  else Найдены варианты
+    S --> C: RECOMMENDED + ordered items + reasonCodes
+    C --> Vue: 200 RECOMMENDED
+    Vue --> L: Показать цели, навыки, объяснение
+    L -> Vue: Нажимает «Выбрать»
+    Vue -> T: POST /tasks (exerciseCode) — существующий контракт
+    T -> DB: Проверка владельца, блокировка session,\nпроверка однократного назначения
+    DB --> T: Saved DiagnosticTask OR existing
+    T --> Vue: 201 OR idempotent 200
+    Vue --> L: Открыть версию упражнения
+  end
+end
+note over S,DB
+GET не назначает задание и не меняет SkillEvidence.
+SELF_REPORTED не становится VERIFIED.
+Сохранение оценок и решений — отдельная #18.
+end note
+@enduml

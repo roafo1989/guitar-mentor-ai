@@ -1,0 +1,74 @@
+@startuml
+title FT-002-04 / #68 — pre-task evidence intake (target sequence, not existing API)
+actor "Ученик" as Student
+participant "Vue DiagnosticEvidencePanel" as UI
+participant "EvidenceController" as API
+participant "EvidenceService" as Service
+database "PostgreSQL" as DB
+participant "Safe media storage\n(#20/#30 adapter)" as Store
+participant "Unified media lifecycle\n(#21)" as TTL
+
+Student -> UI: Открыть диагностику
+UI -> API: GET /evidence/capabilities и GET /evidence
+API -> Service: Проверить learner/session ownership
+Service -> DB: SELECT session/evidence
+DB --> Service: COLLECTING_EVIDENCE + список
+Service --> API: EvidenceView[] / capabilities
+API --> UI: 200
+UI --> Student: Пусто либо список, загрузить / пропустить
+
+alt Ученик прикладывает исполнение
+    Student -> UI: title + audio + optional score
+    UI -> UI: local audio preview, явная отправка
+    UI -> API: POST /evidence multipart + requestId
+    API -> Service: submit(learnerId, sessionId, requestId)
+    Service -> DB: BEGIN + lock session row
+    Service -> DB: ownership, status, unique(requestId), quota
+    alt повторный requestId
+        DB --> Service: Existing evidence
+        Service --> API: Existing EvidenceView
+        API --> UI: 200, без нового файла
+    else новая запись и COLLECTING_EVIDENCE
+        Service -> Store: validate + store(audio)
+        Store --> Service: generated audio key
+        opt score supplied
+            Service -> Store: validate + store(score, document policy)
+            Store --> Service: generated score key
+        end
+        Service -> DB: INSERT evidence + evidence_media; FLUSH; COMMIT
+        alt commit successful
+            DB --> Service: COMMITTED
+            Service -> TTL: Track audio + optional score under common policy
+            Service --> API: EvidenceView
+            API --> UI: 201 + Location
+        else confirmed rollback / second file error
+            DB --> Service: ROLLED_BACK
+            Service -> Store: compensate all stored keys
+            Service --> API: Allowlisted error
+            API --> UI: 4xx/5xx; keep draft
+        else commit outcome unknown
+            DB --> Service: UNKNOWN
+            Service -> TTL: Reconcile without deleting referenced media
+            Service --> API: Safe transient error
+            API --> UI: 503; retry using requestId
+        end
+    else READY_FOR_TASK or TASK_ASSIGNED
+        Service --> API: 409 INVALID_SESSION_STATE
+        API --> UI: Refresh session, no upload
+    end
+else без собственной записи
+    Student -> UI: Перейти к заданиям
+    UI -> API: POST /diagnostic-sessions/{sessionId}/continue (existing)
+    API -> Service: Existing session transition
+    Service -> DB: lock session + COLLECTING_EVIDENCE -> READY_FOR_TASK
+    API --> UI: SessionView
+end
+note over Service,DB
+  Upload and continue serialize on the same session lock.
+  No fake taskId, no confirmed skill from uploaded media.
+end note
+note over Store,TTL
+  Private audio/score deleted by 48h-after-finalization policy.
+  Metadata survives. Educational catalog is excluded.
+end note
+@enduml

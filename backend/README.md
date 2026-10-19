@@ -1,6 +1,6 @@
 # Guitar Mentor AI — Java backend (DEV-01)
 
-**Состояние:** начальный Spring Boot-каркас. Пока нет моделей ученика, Telegram-бота и ИИ-интеграции.
+**Состояние на 19.10.2026:** main 270238f содержит профиль, анкету, диагностические сессии/задания, каталог и аудиопопытки с техническим worker/ffprobe (Flyway V1–V9). Музыкального AI, TTL, авторизации и Telegram нет. #30 находится в отдельном PR #69. [Текущий статус и приёмка](../docs/project/current-state.md).
 
 **Стек:** Java 21, Spring Boot 4.1.1, Maven Wrapper 3.3.4 (Maven 3.9.16), PostgreSQL 17, Flyway, JUnit 5/6 через Spring Boot test starter.
 
@@ -39,18 +39,22 @@ Invoke-RestMethod http://localhost:8080/api/v1/system/ping
 Invoke-RestMethod http://localhost:8080/actuator/health
 ```
 
-Ожидается `status=ok`, `service=guitar-mentor-ai` и `status=UP`. Первая миграция создаст таблицу `app_metadata` и таблицу истории миграций Flyway. `/actuator/health` сообщает о состоянии БД, тогда как `/api/v1/system/ping` — лишь о доступности HTTP.
+Ожидается `status=ok`, `service=guitar-mentor-ai` и `status=UP`. Flyway последовательно применяет V1–V9, создавая app_metadata, профиль/анкету, сессии/каталог и submission_attempts; существующие данные не требуется удалять. `/actuator/health` сообщает о состоянии БД, тогда как `/api/v1/system/ping` — лишь о доступности HTTP.
 
 ## Архитектурные договорённости
 
-- Пока один Spring Boot backend; будущий фронтенд Vue и Telegram будут общаться с ним через единые REST/application services.
-- Слои предметной логики `domain` / `application` / `infrastructure` будем добавлять **по мере появления реальных задач**, без пустых классов.
+- Один Spring Boot backend; существующий Vue использует REST, будущий Telegram переиспользует те же application services/данные.
+- Существующие слои: `domain` / `application` / `infrastructure` / `interfaces/rest`; правила и транзакции остаются на сервере.
 - Схема БД развивается только Flyway-миграциями, Hibernate использует `ddl-auto: validate`.
 - **Unit tests** могут запускаться без БД; CI дополнительно реально поднимает PostgreSQL и делает HTTP smoke test.
 - Maven Wrapper `only-script` скачивает Maven при первом запуске, поэтому нужен интернет; отдельная установка Maven не нужна.
 
 Если возникли ошибки или загрузка зависимостей прервана VPN/антивирусом, пришлите **текст ошибки без паролей**.
 
-## Известные границы
+## Аудио и границы
 
-Каркас подготовлен как исходный код и вынесен на проверку в GitHub Actions. Успешную реальную сборку не следует считать подтверждённой, пока CI не завершится зелёным либо локальные тесты не будут запущены. См. [ADR-0001](../docs/adr/0001-java-vue-postgresql.md).
+Для технического worker нужен ffprobe (FFmpeg) в PATH либо GUITAR_MENTOR_FFPROBE. GUITAR_MENTOR_ENABLE_UPLOADS=false по умолчанию; включать true только в локальном тестовом сеансе. GUITAR_MENTOR_MEDIA_PATH задаёт приватный каталог, по умолчанию ./.local-media/attempts относительно backend. Лимиты: MP3/WAV/OGG/WebM, 20 MiB, 120 с. [Полная инструкция](../docs/development/dev-07-local-audio-submission.md).
+
+PROCESSED не означает музыкальную оценку. Автоочистки ещё нет; политика #21 — 48 часов после всех проверок, PostgreSQL settings. Профиль UUID и HTTPS не заменяют авторизацию. При тестировании открытого #30 использовать его ветку, не считать Draft принятым main.
+
+Обычный `mvnw.cmd test` выполняет unit-тесты без БД. Настоящие PostgreSQL integration-тесты #30 и независимые QA сценарии пока находятся в PR #69/#71, их результаты и команды отличаются от main. Результаты текущего CI и ограничения — в снимке проекта; его зелёный статус не подменяет ручную приёмку.

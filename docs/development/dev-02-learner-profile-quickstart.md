@@ -5,12 +5,12 @@
 ```powershell
 Set-Location D:\Development\guitar-mentor-ai
 git fetch origin
-git switch --track origin/feature/dev-02-java-learner-profile
+git switch main
+git pull --ff-only
 Set-Location backend
 .\mvnw.cmd test
 ```
 
-Если ветка уже существует локально, вместо `git switch --track` выполнить `git switch feature/dev-02-java-learner-profile` и `git pull --ff-only`.
 
 ## Запуск backend
 

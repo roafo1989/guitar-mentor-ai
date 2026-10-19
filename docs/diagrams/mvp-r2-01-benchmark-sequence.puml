@@ -1,0 +1,26 @@
+@startuml
+title #14 — регистрация и проверка корпуса (целевой сценарий)
+actor "Владелец / разметчик" as owner
+participant "Манифест / протокол" as manifest
+participant "Read-only валидатор" as audit
+collections "Локальные исходники" as files
+owner -> manifest : версии, права, эталон, реальные метки, split
+owner -> audit : root, manifest, новый report, offline
+audit -> manifest : проверить схему, ссылки, полноту
+alt нет прав, опасный путь или невалидные метки
+ audit --> owner : INCOMPLETE / INVALID, безопасный код
+else структурно допустимо
+ audit -> files : read-only формат, размер, hash
+ files --> audit : фактические свойства / отсутствие
+ alt нет реальных групп или исходник недоступен
+  audit --> owner : INCOMPLETE / MISSING
+ else полный пакет подтверждён
+  audit -> manifest : сверить hash и версии, состав split
+  audit --> owner : READY_FOR_POC, без музыкальной оценки
+ end
+end
+note over audit,files
+Не меняет исходники и не обходит TTL.
+Синтетика не заменяет реальные записи.
+end note
+@enduml

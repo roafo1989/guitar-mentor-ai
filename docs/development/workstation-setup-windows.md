@@ -1,6 +1,6 @@
 # Guitar Mentor AI — полная настройка рабочего места разработчика (Windows 10)
 
-> **Актуально на 18.10.2026.** Пошаговое руководство для первого запуска и восстановления среды после смены ПК. Предполагается **Windows 10 x64**, **VS Code**, **Java 21 + Spring Boot 4.1.x**, **PostgreSQL**, **Vue 3 + TypeScript**. Для Windows 11 порядок почти такой же.
+> **Сверено с репозиторием 19.10.2026.** Пошаговое руководство для первого запуска и восстановления среды после смены ПК. Предполагается **Windows 10 x64**, **VS Code**, **Java 21 + Spring Boot 4.1.x**, **PostgreSQL**, **Vue 3 + TypeScript**. Для Windows 11 порядок почти такой же.
 >
 > **Актуальное состояние репозитория:** в `main` уже есть `backend/`, `frontend/`, Maven Wrapper и `package.json`. Локальный запуск подтверждён на Windows 10. После установки Caddy можно использовать короткий адрес **`https://guitar-mentor`**; подробная [инструкция и журнал проверки](local-https-caddy-windows.md).
 >
@@ -25,14 +25,14 @@
 ## 1. Что устанавливаем и зачем
 
 | Порядок | Компонент | Выбор для этого проекта | Назначение |
-|---|---|---|---|
+| --- | --- | --- | --- |
 | 1 | [Git for Windows](https://git-scm.com/install/windows) | x64, с Git Credential Manager | Клонирование GitHub, ветки, коммиты |
 | 2 | [Visual Studio Code](https://code.visualstudio.com/download) | **User Installer x64** | Редактор Java, Spring Boot и Vue |
 | 3 | [Eclipse Temurin JDK](https://adoptium.net/temurin/releases/?version=21) | **Java 21 LTS**, Windows, x64, **JDK** / MSI | Компиляция и запуск Spring Boot |
 | 4 | [PostgreSQL](https://www.postgresql.org/download/windows/) | **PostgreSQL 17.x** для воспроизводимой локальной установки, EDB Windows x64 | Общая реляционная БД |
-| 5 | [Node.js](https://nodejs.org/en/download/archive/v24) | **Node.js 24 LTS**, Windows x64 installer (.msi) | npm, Vite, Vue 3/TypeScript |
+| 5 | [Node.js](https://nodejs.org/en/download/archive/v22) | **Node.js 22.12+ (ветка 22.x)**, Windows x64 installer (.msi) | npm, Vite, Vue 3/TypeScript |
 
-**Почему такие версии:** Java 21 — выбранная LTS-версия; Spring Boot 4.1 и Spring AI 2.0 совместимы с ней. Node.js **24 LTS**, а не ветка Current 26, чтобы не менять платформу при каждом обновлении; выбирайте свежую патч-версию в пределах 24.x. PostgreSQL **17.x** выбран как стабильная воспроизводимая база для этого руководства. Установка PostgreSQL 18 тоже возможна, но перед переходом всей команды на другую major-версию её следует согласовать. Версии зависимостей приложения впоследствии будут зафиксированы в файлах репозитория.
+**Версии проекта:** JDK 21, PostgreSQL 17 и Node 22 используются в CI; frontend/package.json требует Node >=22.12.0. Версии Spring Boot и npm-зависимостей определяются pom.xml/package-lock.json. Это воспроизведение текущей базы проекта, а не рекомендация обновить весь стек до последних релизов.
 
 **Не нужно устанавливать отдельно:** IntelliJ IDEA, JHipster CLI, Java EE application server/Tomcat, Maven, Docker Desktop, WSL, Python, GitHub Desktop, платную БД, Telegram или OpenAI SDK. Maven будет запускаться из репозитория через **Maven Wrapper** (`mvnw.cmd`). **JHipster используем как образец структуры, но не как генератор приложения.**
 
@@ -97,7 +97,7 @@ code --version
 Установите **один раз** (через поиск Extensions или прямые ссылки):
 
 | Название в Marketplace | ID | Для чего |
-|---|---|---|
+| --- | --- | --- |
 | [Extension Pack for Java](https://marketplace.visualstudio.com/items?itemName=vscjava.vscode-java-pack) | `vscjava.vscode-java-pack` | Подсказки, JUnit, отладка, Maven, навигация и рефакторинг |
 | [Spring Boot Extension Pack](https://marketplace.visualstudio.com/items?itemName=vmware.vscode-boot-dev-pack) | `vmware.vscode-boot-dev-pack` | Spring Boot Dashboard, инструменты Spring и Initializr |
 | [Vue (Official)](https://marketplace.visualstudio.com/items?itemName=Vue.volar) | `Vue.volar` | Подсказки/типизация/ошибки в `.vue` файлах |
@@ -215,7 +215,7 @@ Get-NetTCPConnection -LocalPort 5432 -State Listen -ErrorAction SilentlyContinue
 
 ## 7. Установка Node.js и npm
 
-1. Откройте [архив официальных сборок Node.js 24](https://nodejs.org/en/download/archive/v24) либо [общую страницу загрузки Node.js](https://nodejs.org/en/download) и выберите **Node.js 24.x LTS** для **Windows x64**, MSI. На 18.10.2026 актуальный патч Node 24 LTS — **24.22.0**; если страница предлагает более новую поддерживаемую патч-версию 24.x, можно выбрать её.
+1. Откройте [официальные сборки Node.js 22](https://nodejs.org/en/download/archive/v22) и выберите Windows x64 MSI версии 22.x не ниже 22.12.0. Не ориентируйтесь на старую указанную в инструкции патч-версию: минимальная версия взята из frontend/package.json.
 2. В мастере установки оставьте **npm package manager**, добавление в PATH и стандартные компоненты. Для типичного Vue/Vite проекта **не требуется** устанавливать Visual Studio C++ Build Tools, Chocolatey или Python для сборки самого Node.js; дополнительные средства нужны только некоторым сторонним npm-пакетам с нативной компиляцией.
 3. Откройте новый PowerShell и проверьте:
 
@@ -224,7 +224,7 @@ node --version
 npm.cmd --version
 ```
 
-Результат первой команды должен начинаться с **v24.**. Во второй намеренно используем `npm.cmd`: на Windows PowerShell вызов `npm` иногда блокируется политикой выполнения `npm.ps1`. Через `npm.cmd` обычно можно работать **без изменения ExecutionPolicy**.
+Результат первой команды должен быть 22.x не ниже 22.12.0 для воспроизведения CI. Во второй намеренно используем `npm.cmd`: на Windows PowerShell вызов `npm` иногда блокируется политикой выполнения `npm.ps1`. Через `npm.cmd` обычно можно работать **без изменения ExecutionPolicy**.
 
 **Не запускайте npm в корне репозитория:** Node-проект находится в `frontend/` и уже присутствует в `main`. Используйте `cd frontend; npm.cmd ci`.
 
@@ -260,11 +260,12 @@ Set-Location "$HOME\Development"
 
 Остальные команды те же. **Не выполняйте `git clone` повторно в уже существующую папку проекта.** Если проект уже склонирован, просто откройте папку, проверьте `git status` и обновите актуальную ветку через `git pull --ff-only` только после сохранения локальных изменений.
 
-### 8.3. Текущие ветки и важная оговорка
+### 8.3. Рабочая база
 
-- **`main`** — текущая документация, архитектурное решение и (позднее) Java/Vue.
-- **`feature/dev-01-python-bootstrap`** / [PR #5](https://github.com/roafo1989/guitar-mentor-ai/pull/5) — **старый Python-прототип**. Не переключайтесь на него ради Java.
-- Когда появится ветка DEV-01-JAVA, мы отдельно зафиксируем её имя и правила переключения. **Не создавайте вручную ветку с предполагаемым именем ради выполнения этой инструкции.**
+- `main` — существующие Java/Vue, V1–V9 и принятая #20. Для обычного запуска: git status → git switch main → git pull --ff-only после сохранения локальных изменений.
+- Приёмка #30 — только `feature/issue-30-safe-media-store` / PR #69 по его инструкции; это ещё не main. Тестовые ветки #70/#71 не нужны для обычной работы владельца.
+- PR #4/#5 и Python-ветка — исторический эксперимент. Не использовать для Java и не сливать автоматически.
+- Состояние веток и приёмки меняется; перед переключением сверить [датированный снимок](../project/current-state.md) и текущий PR.
 
 ## 9. Настройка VS Code под Java и Vue
 
@@ -275,44 +276,21 @@ Set-Location "$HOME\Development"
 5. **Terminal → New Terminal**: PowerShell. Здесь будут команды Git, Maven Wrapper и `npm.cmd`.
 6. Не включайте глобальное автоматическое форматирование, если оно противоречит конфигурации проекта. После появления Java/Vue-кода правила будут храниться в репозитории (Java formatter, ESLint, Prettier, EditorConfig).
 
-### Планируемая структура кода (вдохновлена JHipster, но не сгенерирована им)
+### Текущая структура кода
 
 ```text
-guitar-mentor-ai/
-├── backend/
-│   ├── mvnw.cmd
-│   ├── .mvn/wrapper/...
-│   ├── pom.xml
-│   └── src/main/
-│       ├── java/...                  # domain, application, adapters
-│       └── resources/db/migration/   # Flyway SQL
-├── frontend/
-│   ├── package.json
-│   ├── package-lock.json
-│   └── src/
-│       ├── app/
-│       │   ├── core/                 # auth, http и инфраструктура клиента
-│       │   ├── entities/
-│       │   │   ├── lesson/
-│       │   │   │   ├── LessonListView.vue
-│       │   │   │   ├── LessonDetailView.vue
-│       │   │   │   ├── lesson.service.ts
-│       │   │   │   └── lesson.routes.ts
-│       │   │   ├── exercise/
-│       │   │   └── student/
-│       │   ├── router/
-│       │   ├── shared/model/
-│       │   ├── shared/components/
-│       │   └── stores/               # Pinia
-│       ├── i18n/
-│       │   ├── ru/                    # global.json, lesson.json, ...
-│       │   └── en/
-│       └── main.ts
-├── docs/
-└── .vscode/extensions.json
+backend/src/main/java/ai/guitarmentor/
+  domain/  application/  infrastructure/  interfaces/rest/
+backend/src/main/resources/db/migration/   # V1–V9 в main
+frontend/src/
+  core/  entities/  router/  shared/  stores/  assets/
+  i18n/ru.json  i18n/en.json
+infra/local/Caddyfile
+docs/
+music/etudes/GM-EB01/
 ```
 
-Это **схема будущей структуры**, а не перечень существующих сейчас файлов. Следуем принципам JHipster: выделенные **Vue-компоненты**, **сервисы REST API**, **маршруты**, **типизированные модели**, **общие компоненты**, отдельные **JSON-файлы текстов интерфейса** через `vue-i18n`. Например ключ `lesson.fields.name` будет отображаться как «Название урока», не смешиваясь с техническим именем поля `name` в Java/TypeScript. Привычные CRUD-модули не должны мешать отдельным функциональным сценариям, таким как запись гитары и просмотр табулатуры.
+Это существующая компактная структура с принципами JHipster. Каталога frontend/src/app нет; тексты находятся в ru.json/en.json, API — в *.service.ts. Новые модули добавлять по требованиям, не создавать пустой каркас из старой схемы.
 
 Почему **не** нужен JHipster CLI: он принёс бы генератор и административные модули, которые нам пока не требуются. Сохраняем узнаваемую организацию, но пишем компактный Vue 3 + TypeScript фронтенд.
 
@@ -348,7 +326,7 @@ Set-Location .\backend
 .\mvnw.cmd spring-boot:run
 ```
 
-Maven Wrapper скачивает нужную версию Maven и зависимости автоматически; интернет нужен при первом запуске. Перед стартом приложения PostgreSQL должен работать, роль/БД должны существовать, а локальная конфигурация datasource — быть задана способом, который будет указан в README Java-модуля. **Данные доступа не вставлять в исходники.**
+Maven Wrapper скачивает нужную версию Maven и зависимости автоматически; интернет нужен при первом запуске. Перед стартом приложения PostgreSQL должен работать, роль/БД должны существовать, а локальная конфигурация datasource — быть задана по [инструкции backend](../../backend/README.md). **Данные доступа не вставлять в исходники.**
 
 ### 10.3. Frontend (Vue 3)
 
@@ -364,25 +342,25 @@ npm.cmd run dev
 
 ### 10.4. Что НЕ делаем на этапе установки рабочего места
 
-Не нужно пока создавать Telegram-бота через BotFather, покупать API-кредиты, вводить OpenAI API key, строить CI, запускать Docker или вручную генерировать JHipster-проект. Это отдельные задачи реализации. ИИ-платные вызовы на стадии настройки компьютера не нужны.
+Не нужно при локальной установке создавать Telegram-бота через BotFather, покупать API-кредиты, вводить OpenAI API key, заново строить существующий GitHub CI, запускать Docker или вручную генерировать JHipster-проект. Это отдельные задачи реализации. ИИ-платные вызовы на стадии настройки компьютера не нужны.
 
 ## 11. Переезд на новый компьютер
 
-1. Установите Git, VS Code, JDK 21, PostgreSQL 17.x и Node.js 24 LTS из разделов 3–7. Если переходите на Windows 11 — настройка такая же.
+1. Установите Git, VS Code, JDK 21, PostgreSQL 17.x и Node.js 22.12+ (ветка 22.x) из разделов 3–7. Если переходите на Windows 11 — настройка такая же.
 2. Подготовьте учётную запись GitHub, если планируете записывать изменения в публичный репозиторию, настройте свои Git `user.name` и `user.email`.
 3. Склонируйте свежую `main` или согласованную рабочую ветку. **Не копируйте вручную всю папку вместе с кэшами**, если код можно получить через GitHub.
 4. Установите расширения VS Code (или примите рекомендации из `.vscode/extensions.json`).
 5. Создайте локальную роль и БД PostgreSQL; затем **отдельно** восстановите данные через штатный backup/restore, если это требуется.
 6. **Восстановите секреты из отдельного безопасного источника**: пароли СУБД, токены Telegram/OpenAI (когда они появятся). В GitHub их не будет.
-7. Когда Java/Vue-каркас появится, используйте `mvnw.cmd` и `npm.cmd ci`: зависимости скачиваются заново на новый ПК.
-8. Проверьте сборку, тесты, доступ к БД и авторизацию в приложении.
+7. Используйте `mvnw.cmd` и `npm.cmd ci`: зависимости скачиваются заново на новый ПК.
+8. Проверьте сборку, тесты, доступ к БД и локальный профиль в приложении; авторизации пока нет.
 
 **Важно:** GitHub — резервная копия **исходного кода**, но не содержимого PostgreSQL, не секретов и не пользовательских записей. Для PostgreSQL понадобится отдельная политика `pg_dump`/восстановления и резервное хранение, когда приложение начнёт содержать реальные данные учеников. Сырые медиа по правилам проекта хранятся временно и удаляются после обработки; долгосрочно храним результаты проверок и решения ученика.
 
 ## 12. Типовые ошибки
 
 | Что происходит | Как исправить |
-|---|---|
+| --- | --- |
 | `git` или `code` не распознаётся | Перезапустить PowerShell/VS Code, проверить PATH и факт установки |
 | `java -version` не равно 21 | Проверить `JAVA_HOME`, `where.exe java`, порядок записей PATH |
 | `javac` не найден | Установлена JRE вместо **JDK**, либо PATH смотрит не туда |
@@ -409,7 +387,7 @@ npm.cmd run dev
 - [ ] JDK 21 установлен; `java -version` и `javac -version` показывают 21
 - [ ] PostgreSQL работает; pgAdmin подключается к локальному серверу
 - [ ] Роль `guitar_mentor_app` и база `guitar_mentor` созданы; подключение под ролью проверено
-- [ ] Node.js 24 LTS установлен; `node --version` и `npm.cmd --version` работают
+- [ ] Node.js 22.12+ (ветка 22.x) установлен; `node --version` и `npm.cmd --version` работают
 - [ ] GitHub-репозиторий склонирован; для отправки изменений настроена авторизация
 - [ ] Корень проекта открыт в VS Code; JDK обнаруживается расширением
 - [ ] `mvnw.cmd test` и запуск backend выполняются успешно
@@ -424,7 +402,11 @@ npm.cmd run dev
 - [Spring Boot: требования](https://docs.spring.io/spring-boot/system-requirements.html)
 - [Spring AI: getting started](https://docs.spring.io/spring-ai/reference/getting-started.html)
 - [PostgreSQL Windows installer](https://www.postgresql.org/download/windows/)
-- [Node.js 24 LTS](https://nodejs.org/en/download/archive/v24)
+- [Node.js 22.12+ (ветка 22.x)](https://nodejs.org/en/download/archive/v22)
 - [JHipster Vue sample — пример структуры](https://github.com/jhipster/jhipster-sample-app-vuejs)
 
 **Правило актуализации:** при изменении структуры проекта, версии зависимостей, адреса запуска, auth-модели и параметров БД синхронно обновлять этот документ, [руководство локального HTTPS](local-https-caddy-windows.md) и `README.md`.
+
+## Аудио после #20
+
+При тестировании аудиопопыток дополнительно установить/проверить FFmpeg/ffprobe. Полная [инструкция DEV-07](dev-07-local-audio-submission.md) задаёт PATH или GUITAR_MENTOR_FFPROBE, включение GUITAR_MENTOR_ENABLE_UPLOADS только в локальном сеансе и каталог GUITAR_MENTOR_MEDIA_PATH. По умолчанию upload выключен. Нужны 20 MiB/120 с; PROCESSED не означает музыкальную оценку. Автоочистка #21 ещё не реализована.
