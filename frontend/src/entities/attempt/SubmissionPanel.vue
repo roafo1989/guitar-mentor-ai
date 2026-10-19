@@ -76,6 +76,7 @@ function failureHint(attempt: SubmissionAttempt): string {
     PROBE_TIMEOUT: 'attempt.failedProbe',
     PROBE_INTERRUPTED: 'attempt.failedProbe',
     PROCESSING_INTERRUPTED: 'attempt.failedInterrupted',
+    RETENTION_EXPIRED: 'attempt.failedExpired',
   };
   return t(errors[attempt.processingErrorCode || ''] || 'attempt.failedGeneric');
 }
@@ -234,6 +235,8 @@ onBeforeUnmount(() => {
             {{ statusLabel(item) }}
             <span v-if="item.status === 'FAILED'"> · {{ failureHint(item) }}</span>
           </p>
+          <p v-if="item.mediaState === 'DELETED'" class="hint">{{ t('attempt.mediaDeleted') }}</p>
+          <p v-else-if="item.mediaState === 'DELETE_PENDING'" class="hint">{{ t('attempt.mediaPending') }}</p>
         </article>
       </div>
     </template>

@@ -62,6 +62,49 @@ class SubmissionAttemptStateTest {
     }
 
     @Test
+    void finalizationIsIdempotentAndPendingDeletionDoesNotEraseHistory() {
+        var attempt=newAttempt();
+        assertThrows(IllegalStateException.class,
+            ()->attempt.finalizeProcessing(java.time.Instant.now(),"TECHNICAL_ONLY_V1"));
+        attempt.startProcessing();
+        attempt.finishTechnicalValidation("a".repeat(64),2.0);
+        var first=attempt.getProcessingFinalizedAt();
+        attempt.finalizeProcessing(first.plusSeconds(500),"TECHNICAL_ONLY_V1");
+        assertEquals(first,attempt.getProcessingFinalizedAt());
+        attempt.markDeletePending("PROCESSED_TTL");
+        attempt.markDeleteFailure("DELETE_IO_ERROR");
+        assertEquals(MediaState.DELETE_PENDING,attempt.getMediaState());
+        assertEquals(null,attempt.getMediaDeletedAt());
+        attempt.markDeleted(first.plusSeconds(172800),false);
+        assertEquals(MediaState.DELETED,attempt.getMediaState());
+        assertEquals(2,attempt.getMediaDeleteAttempts());
+        assertEquals(AttemptStatus.PROCESSED,attempt.getStatus());
+        assertEquals("test",attempt.getStudentComment());
+        assertEquals("PROCESSED_TTL",attempt.getMediaDeleteReason());
+        assertEquals("DELETED",attempt.getMediaDeleteOutcome());
+    }
+
+    @Test
+    void alreadyAbsentDoesNotOverwriteOriginalRetentionReason() {
+        var attempt=newAttempt();
+        assertThrows(IllegalStateException.class,()->attempt.markDeletePending("UNPROCESSED_TTL"));
+        attempt.expireUnprocessed(java.time.Instant.now());
+        attempt.markDeletePending("UNPROCESSED_TTL");
+        attempt.markDeleted(java.time.Instant.now(),true);
+        assertEquals("UNPROCESSED_TTL",attempt.getMediaDeleteReason());
+        assertEquals("ALREADY_ABSENT",attempt.getMediaDeleteOutcome());
+    }
+
+    @Test
+    void unprocessedExpiryTerminatesWithoutInventingAssessment() {
+        var attempt=newAttempt();
+        attempt.expireUnprocessed(java.time.Instant.now());
+        assertEquals(AttemptStatus.FAILED,attempt.getStatus());
+        assertEquals("RETENTION_EXPIRED",attempt.getProcessingErrorCode());
+        assertNotNull(attempt.getProcessingFinalizedAt());
+    }
+
+    @Test
     void interruptedJobCanBeQueuedAgain() {
         var attempt = newAttempt();
         attempt.startProcessing();
