@@ -183,6 +183,33 @@ class SubmissionAttemptPostgresIntegrationTest {
     }
 
     @Test
+    void realDatabaseRejectionOfDeletedStateRemainsRetryable() throws IOException {
+        var view=service.submit(learnerId,sessionId,taskId,UUID.randomUUID(),"db-failure",wav());
+        String key=jdbc.queryForObject("SELECT media_key FROM submission_attempts WHERE id=?",
+            String.class,view.id());
+        jdbc.update("UPDATE submission_attempts SET media_state='DELETE_PENDING' WHERE id=?",view.id());
+        jdbc.execute("ALTER TABLE submission_attempts ADD CONSTRAINT d21_reject_deleted_state "
+            + "CHECK (media_state <> 'DELETED')");
+        var policy=new MediaRetentionPolicy.Policy(java.time.Duration.ofHours(48),
+            java.time.Duration.ofHours(48),java.time.Duration.ofHours(1));
+        try {
+            cleanupService.runCycle(Instant.now(),policy);
+            assertFalse(Files.exists(MEDIA_ROOT.resolve(key)));
+            assertEquals("DELETE_PENDING",jdbc.queryForObject(
+                "SELECT media_state FROM submission_attempts WHERE id=?",String.class,view.id()));
+            assertEquals(null,jdbc.queryForObject(
+                "SELECT media_deleted_at FROM submission_attempts WHERE id=?",java.sql.Timestamp.class,view.id()));
+        } finally {
+            jdbc.execute("ALTER TABLE submission_attempts DROP CONSTRAINT IF EXISTS d21_reject_deleted_state");
+        }
+        cleanupService.runCycle(Instant.now(),policy);
+        assertEquals("DELETED",jdbc.queryForObject(
+            "SELECT media_state FROM submission_attempts WHERE id=?",String.class,view.id()));
+        assertNotNull(jdbc.queryForObject(
+            "SELECT media_deleted_at FROM submission_attempts WHERE id=?",java.sql.Timestamp.class,view.id()));
+    }
+
+    @Test
     void realPostgresBatchContinuesBeyondOneHundredRows() {
         Instant old=Instant.now().minusSeconds(49*3600);
         // All media keys deliberately point to absent files; ALREADY_ABSENT must be safe.
