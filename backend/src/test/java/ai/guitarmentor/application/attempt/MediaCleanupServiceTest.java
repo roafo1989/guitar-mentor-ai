@@ -89,6 +89,37 @@ class MediaCleanupServiceTest {
         verify(media,times(2)).delete("test.wav");
     }
 
+    @Test void directCleanupWaitsForTheExistingMediaOwner() throws Exception {
+        var db=mock(MediaCleanupTransactions.class);
+        var media=mock(AttemptMediaStore.class);
+        var guard=new MediaUseCoordinator();
+        var service=new MediaCleanupService(db,mock(MediaRetentionPolicy.class),media,guard);
+        var now=Instant.now();
+        var policy=new MediaRetentionPolicy.Policy(Duration.ofHours(48),
+            Duration.ofHours(48),Duration.ofHours(1));
+        var entered=new java.util.concurrent.CountDownLatch(1);
+        var finished=new java.util.concurrent.CountDownLatch(1);
+        var executor=java.util.concurrent.Executors.newSingleThreadExecutor();
+        guard.acquire();
+        try {
+            var job=executor.submit(()->{
+                entered.countDown();
+                service.runCycle(now,policy);
+                finished.countDown();
+            });
+            assertTrue(entered.await(5,java.util.concurrent.TimeUnit.SECONDS));
+            assertFalse(finished.await(100,java.util.concurrent.TimeUnit.MILLISECONDS));
+            verifyNoInteractions(db,media);
+            guard.release();
+            assertTrue(finished.await(5,java.util.concurrent.TimeUnit.SECONDS));
+            job.get(5,java.util.concurrent.TimeUnit.SECONDS);
+            verify(db).claim(now,policy);
+        } finally {
+            if(guard.tryAcquire()) guard.release();
+            executor.shutdownNow();
+        }
+    }
+
     @Test void invalidPolicyNeverTouchesStorageOrDatabase() {
         var db=mock(MediaCleanupTransactions.class);
         var policy=mock(MediaRetentionPolicy.class);
