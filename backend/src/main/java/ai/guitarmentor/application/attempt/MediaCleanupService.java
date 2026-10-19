@@ -40,10 +40,26 @@ public class MediaCleanupService {
         try {
             lastRun=now;
             runCycle(now,policy);
+            reconcileOrphans(now,policy);
         } catch(RuntimeException problem) {
             log.error("event=MEDIA_CLEANUP_FAILED code=DATABASE_OR_RUNTIME_ERROR");
         } finally {
             coordinator.release();
+        }
+    }
+    private void reconcileOrphans(Instant now, MediaRetentionPolicy.Policy policy) {
+        try {
+            Instant cutoff=now.minus(policy.maxUnprocessed());
+            for (var orphan:store.scanOlderThan(cutoff,100)) {
+                if (transactions.isReferenced(orphan.key())) continue;
+                // Re-evaluate mtime, storage key and DB reference under the same local guard
+                // held by upload, worker and cleanup.
+                boolean stillOld=store.scanOlderThan(cutoff,100).stream()
+                    .anyMatch(candidate->candidate.key().equals(orphan.key()));
+                if (stillOld && !transactions.isReferenced(orphan.key())) store.delete(orphan.key());
+            }
+        } catch(IOException | RuntimeException failure) {
+            log.error("event=MEDIA_ORPHAN_DELETE_FAILED code=ORPHAN_SCAN_OR_DATABASE_ERROR");
         }
     }
     public void runCycle(Instant now,MediaRetentionPolicy.Policy policy) {
