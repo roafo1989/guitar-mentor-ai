@@ -138,7 +138,7 @@ async function submit() {
     error.value = t('attempt.sizeError');
     return;
   }
-  if (!/\.(mp3|wav|ogg|webm)$/i.test(chosen.name)) {
+  if (!/\.(mp3|wav|ogg|webm|m4a)$/i.test(chosen.name)) {
     error.value = t('attempt.formatError');
     return;
   }
@@ -192,7 +192,7 @@ onBeforeUnmount(() => {
       </p>
       <form class="homework-form" @submit.prevent="submit">
         <label for="attempt-file">{{ t('attempt.fileLabel') }}</label>
-        <input id="attempt-file" ref="fileInput" type="file" accept=".mp3,.wav,.ogg,.webm,audio/*"
+        <input id="attempt-file" ref="fileInput" type="file" accept=".mp3,.wav,.ogg,.webm,.m4a,audio/*"
           :disabled="!capabilities?.enabled || uploading || recordingActive" @change="selectFile" />
         <p class="hint">{{ t('attempt.fileLimits') }}</p>
         <MicrophoneRecorder :disabled="!capabilities?.enabled || uploading"
