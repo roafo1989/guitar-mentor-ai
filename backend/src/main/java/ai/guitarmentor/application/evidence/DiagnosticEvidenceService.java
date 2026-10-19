@@ -67,6 +67,12 @@ public class DiagnosticEvidenceService {
 
     public record SubmitResult(EvidenceView evidence, boolean created) {}
 
+    @Transactional(readOnly = true)
+    public EvidenceView get(UUID learnerId, UUID sessionId, UUID evidenceId) {
+        return list(learnerId, sessionId).stream().filter(e -> e.id().equals(evidenceId))
+                .findFirst().orElseThrow(() -> rejected(HttpStatus.NOT_FOUND, "EVIDENCE_NOT_FOUND"));
+    }
+
     @Transactional
     public SubmitResult submit(UUID learnerId, UUID sessionId, UUID requestId,
             String title, String composer, String comment,
