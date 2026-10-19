@@ -40,7 +40,7 @@ class OnboardingSkillSignalTest {
         var instrument = new InstrumentProfile("ACOUSTIC_GUITAR", "FINGERSTYLE");
         learner.addInstrumentProfile(instrument);
         var background = new LearningBackground(instrument);
-        when(learners.findById(learner.getId())).thenReturn(Optional.of(learner));
+        when(learners.findLockedById(learner.getId())).thenReturn(Optional.of(learner));
         when(backgrounds.findByInstrumentProfile_Id(instrument.getId()))
                 .thenReturn(Optional.of(background));
         when(backgrounds.saveAndFlush(any(LearningBackground.class)))

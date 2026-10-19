@@ -110,4 +110,62 @@ class RecommendationEngineTest {
         assertThrows(IllegalArgumentException.class, () -> engine.select(
                 context(null, 10, Set.of(), Map.of()), List.of(), 0));
     }
+
+    @Test
+    void intermediateCannotReceiveAdvancedOrChallengeExercises() {
+        var c = context(ExperienceLevel.INTERMEDIATE, 60, Set.of(), Map.of());
+        assertEquals("NO_COMPATIBLE_EXERCISE", engine.select(c, List.of(
+                candidate("ADV", "BLUES", "ADVANCED", 30, "MELODY"),
+                candidate("CH", "BLUES", "CHALLENGE", 30, "MELODY")), 3).reasonCode());
+        assertEquals("ADV", engine.select(context(ExperienceLevel.ADVANCED, 60,
+                Set.of(), Map.of()), List.of(
+                candidate("ADV", "BLUES", "ADVANCED", 30, "MELODY"),
+                candidate("CH", "BLUES", "CHALLENGE", 30, "MELODY")), 3)
+                .items().getFirst().exerciseCode());
+    }
+
+    @Test
+    void unlicensedOrUnsupportedLicensesCannotBeRecommended() {
+        for (String license : List.of("ALL_RIGHTS_RESERVED", "UNLICENSED", "CC BY-NC 4.0")) {
+            var candidate = new RecommendationEngine.Candidate("X", "1.0", "X",
+                    "BLUES", "BEGINNER", license, "APPROVED", 20,
+                    Map.of("MELODY", "PRIMARY"));
+            assertEquals("NO_COMPATIBLE_EXERCISE", engine.select(
+                    context(null, 30, Set.of(), Map.of()), List.of(candidate), 3).reasonCode());
+        }
+    }
+
+    @Test
+    void assessedSkillChangesRankingAndUnknownExplanation() {
+        var unknown = new RecommendationEngine.SkillState(0, false, List.of());
+        var mastered = new RecommendationEngine.SkillState(3, false, List.of());
+        var a = candidate("A", "BLUES", "INTERMEDIATE", 30, "PULSE");
+        var b = candidate("B", "BLUES", "INTERMEDIATE", 30, "MELODY");
+        var novice = new RecommendationEngine.Context(ExperienceLevel.INTERMEDIATE, 60,
+                Set.of(), Map.of(), Map.of("PULSE", unknown, "MELODY", mastered));
+        var practiced = new RecommendationEngine.Context(ExperienceLevel.INTERMEDIATE, 60,
+                Set.of(), Map.of(), Map.of("PULSE", mastered, "MELODY", unknown));
+        var first = engine.select(novice, List.of(a, b), 3);
+        var second = engine.select(practiced, List.of(a, b), 3);
+        assertEquals("A", first.items().getFirst().exerciseCode());
+        assertEquals("B", second.items().getFirst().exerciseCode());
+        assertTrue(first.items().getFirst().reasonCodes().contains("UNKNOWN_SKILL_DIAGNOSTIC"));
+        assertFalse(first.items().get(1).reasonCodes().contains("UNKNOWN_SKILL_DIAGNOSTIC"));
+        assertEquals("initial-diagnostic-v2", RecommendationEngine.VERSION);
+    }
+
+    @Test
+    void prerequisiteAndTargetLevelInfluenceRankingWithoutInventingEvidence() {
+        var c = new RecommendationEngine.Context(ExperienceLevel.INTERMEDIATE, 40,
+                Set.of(), Map.of(), Map.of(
+                    "PULSE", new RecommendationEngine.SkillState(2, false, List.of()),
+                    "MELODY", new RecommendationEngine.SkillState(2, false, List.of()),
+                    "BASS_PULSE", new RecommendationEngine.SkillState(0, false, List.of("PULSE"))));
+        var a = new RecommendationEngine.Candidate("A","1","A","ROCK","INTERMEDIATE",
+                "CC BY 4.0","APPROVED",20,Map.of("PULSE","PRIMARY"),Map.of("PULSE",3));
+        var b = candidate("B","ROCK","INTERMEDIATE",20,"MELODY");
+        var result = engine.select(c, List.of(b,a),3);
+        assertEquals("A",result.items().getFirst().exerciseCode());
+        assertTrue(result.items().getFirst().reasonCodes().contains("PREREQUISITE_TO_PRACTICE"));
+    }
 }

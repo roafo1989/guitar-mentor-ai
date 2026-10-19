@@ -1,6 +1,7 @@
 package ai.guitarmentor.infrastructure.persistence;
 
 import java.time.Instant;
+import java.math.BigDecimal;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
@@ -19,7 +20,7 @@ public class SkillMapRepository {
     }
 
     public record SkillRow(String code, String title, String description, String category, int displayOrder) {}
-    public record SignalRow(UUID id, String skillCode, String sourceType, String claimState, Integer level,
+    public record SignalRow(UUID id, String skillCode, String sourceType, String claimState, Integer level, BigDecimal confidence,
                             Instant recordedAt, String noteCode) {}
     public record CriterionRow(String code, String skillCode, String label, String observableResult,
                                String assessmentPolicy) {}
@@ -51,6 +52,16 @@ public class SkillMapRepository {
         return result;
     }
 
+    /** NULL target_level is an unknown pedagogical target, not a confirmed level. */
+    public Map<String, Integer> exerciseTargetLevels(UUID exerciseId) {
+        var result = new HashMap<String, Integer>();
+        jdbc.query("SELECT skill_code,target_level FROM exercise_skills"
+                + " WHERE exercise_id=? AND target_level IS NOT NULL",
+                (org.springframework.jdbc.core.RowCallbackHandler) rs ->
+                        result.put(rs.getString(1), rs.getInt(2)), exerciseId);
+        return result;
+    }
+
     public List<CriterionRow> exerciseCriteria(UUID exerciseId) {
         return jdbc.query("SELECT criterion_code,skill_code,label,observable_result,assessment_policy"
                         + " FROM exercise_criteria WHERE exercise_id=? ORDER BY display_order,criterion_code",
@@ -59,7 +70,7 @@ public class SkillMapRepository {
     }
 
     public List<SignalRow> signals(UUID profileId) {
-        return jdbc.query("SELECT id,skill_code,source_type,claim_state,level,recorded_at,note_code"
+        return jdbc.query("SELECT id,skill_code,source_type,claim_state,level,confidence,recorded_at,note_code"
                 + " FROM learner_skill_signal_history WHERE instrument_profile_id=?"
                 + " ORDER BY recorded_at DESC,id DESC", (rs,n) -> signal(rs), profileId);
     }
@@ -67,7 +78,7 @@ public class SkillMapRepository {
     public List<SignalRow> history(UUID profileId, String code, int limit,
             Instant beforeRecordedAt, UUID beforeId) {
         boolean cursor = beforeRecordedAt != null;
-        String sql = "SELECT id,skill_code,source_type,claim_state,level,recorded_at,note_code"
+        String sql = "SELECT id,skill_code,source_type,claim_state,level,confidence,recorded_at,note_code"
                 + " FROM learner_skill_signal_history WHERE instrument_profile_id=? AND skill_code=?"
                 + (cursor ? " AND (recorded_at,id) < (?,?)" : "")
                 + " ORDER BY recorded_at DESC,id DESC LIMIT ?";
@@ -82,7 +93,7 @@ public class SkillMapRepository {
         return new SignalRow((UUID) rs.getObject("id"), rs.getString("skill_code"),
                 rs.getString("source_type"), rs.getString("claim_state"),
                 level == null ? null : level.intValue(),
-                rs.getTimestamp("recorded_at").toInstant(), rs.getString("note_code"));
+                rs.getBigDecimal("confidence"), rs.getTimestamp("recorded_at").toInstant(), rs.getString("note_code"));
     }
 
     public void appendOnboardingClaim(UUID profileId, String skill, boolean claimed) {

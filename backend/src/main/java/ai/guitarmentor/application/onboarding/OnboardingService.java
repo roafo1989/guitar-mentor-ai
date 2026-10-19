@@ -49,7 +49,9 @@ public class OnboardingService {
 
     @Transactional
     public BackgroundView upsert(UUID learnerId, String instrumentCode, BackgroundRequest request) {
-        var instrument = instrument(learnerId, instrumentCode);
+        // Lock the learner row before reading/updating claims: concurrent PUTs
+        // must serialize so duplicate claims and lost retractions cannot occur.
+        var instrument = instrument(learnerId, instrumentCode, true);
         var background = backgrounds.findByInstrumentProfile_Id(instrument.getId())
                 .orElseGet(() -> new LearningBackground(instrument));
         validate(request);
@@ -75,7 +77,11 @@ public class OnboardingService {
     }
 
     private InstrumentProfile instrument(UUID learnerId, String instrumentCode) {
-        var learner = learners.findById(learnerId)
+        return instrument(learnerId, instrumentCode, false);
+    }
+
+    private InstrumentProfile instrument(UUID learnerId, String instrumentCode, boolean lock) {
+        var learner = (lock ? learners.findLockedById(learnerId) : learners.findById(learnerId))
                 .orElseThrow(() -> new EntityNotFoundException("Learner not found"));
         return learner.getInstrumentProfiles().stream()
                 .filter(profile -> profile.getInstrumentCode().equals(instrumentCode))

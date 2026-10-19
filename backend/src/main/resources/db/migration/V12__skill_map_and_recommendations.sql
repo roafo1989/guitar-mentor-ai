@@ -1,5 +1,5 @@
 -- FT-002-02 (#16): additive skill graph, exercise criteria, and self-reported history.
--- V10/V11 are used by the open media-retention PR #72. Never edit previous migrations.
+-- Follows V10/V11 media retention already merged from #21. Never edit previous migrations.
 ALTER TABLE skill_codes
   ADD COLUMN description TEXT NOT NULL DEFAULT '',
   ADD COLUMN display_order INTEGER NOT NULL DEFAULT 0,

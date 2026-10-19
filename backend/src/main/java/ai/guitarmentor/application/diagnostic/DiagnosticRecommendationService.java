@@ -24,16 +24,19 @@ public class DiagnosticRecommendationService {
     private final LearningBackgroundRepository backgrounds;
     private final ExerciseRepository exercises;
     private final SkillMapRepository skills;
+    private final SkillMapService skillMap;
     private final RecommendationEngine engine = new RecommendationEngine();
 
     public DiagnosticRecommendationService(DiagnosticSessionRepository sessions,
             LearnerRepository learners, LearningBackgroundRepository backgrounds,
-            ExerciseRepository exercises, SkillMapRepository skills) {
+            ExerciseRepository exercises, SkillMapRepository skills,
+            SkillMapService skillMap) {
         this.sessions = sessions;
         this.learners = learners;
         this.backgrounds = backgrounds;
         this.exercises = exercises;
         this.skills = skills;
+        this.skillMap = skillMap;
     }
 
     private static boolean safeAndAvailable(String resource) {
@@ -57,10 +60,18 @@ public class DiagnosticRecommendationService {
             throw new EntityNotFoundException("Diagnostic session not found");
         }
         if (session.getStatus() != DiagnosticStatus.READY_FOR_TASK) {
-            throw new IllegalStateException(session.getStatus() == DiagnosticStatus.TASK_ASSIGNED
+            throw new RecommendationStateException(session.getStatus() == DiagnosticStatus.TASK_ASSIGNED
                     ? "TASK_ALREADY_ASSIGNED" : "DIAGNOSTIC_NOT_READY");
         }
 
+        // The same validated snapshot is used for explanations and for ranking.
+        // A corrupt/cyclic skill graph must stop recommendations (AC-16-02).
+        var snapshots = skillMap.map(learnerId, profile.getInstrumentCode());
+        var skillStates = new HashMap<String, RecommendationEngine.SkillState>();
+        for (var snapshot : snapshots) {
+            skillStates.put(snapshot.skillCode(), new RecommendationEngine.SkillState(
+                    snapshot.assessedLevel(), snapshot.selfReported(), snapshot.prerequisites()));
+        }
         var background = backgrounds.findByInstrumentProfile_Id(profile.getId());
         var minutes = background.map(b -> b.getPracticeMinutes()).orElse(10);
         var experience = background.map(b -> b.getExperienceLevel()).orElse(null);
@@ -76,10 +87,11 @@ public class DiagnosticRecommendationService {
                 .map(e -> new RecommendationEngine.Candidate(e.getCode(), e.getVersion(),
                         e.getTitle(), e.getStyleCode(), e.getDifficulty(),
                         e.getLicense(), e.getReviewStatus(),
-                        e.getRecommendedPracticeMinutes(), skills.exerciseRoles(e.getId())))
+                        e.getRecommendedPracticeMinutes(), skills.exerciseRoles(e.getId()),
+                        skills.exerciseTargetLevels(e.getId())))
                 .toList();
         var selected = engine.select(new RecommendationEngine.Context(experience, minutes,
-                goals, Map.copyOf(preferences)), candidates, limit);
+                goals, Map.copyOf(preferences), Map.copyOf(skillStates)), candidates, limit);
         return new RecommendationView(sessionId, RecommendationEngine.VERSION,
                 selected.status(), selected.reasonCode(), selected.items());
     }

@@ -6,9 +6,9 @@ import ai.guitarmentor.infrastructure.persistence.SkillMapRepository;
 import ai.guitarmentor.infrastructure.persistence.SkillMapRepository.SignalRow;
 import jakarta.persistence.EntityNotFoundException;
 import java.time.Instant;
-import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.HashSet;
+import java.math.BigDecimal;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
@@ -30,7 +30,7 @@ public class SkillMapService {
             List<String> prerequisites, boolean selfReported, int assessedLevel,
             String evidenceStatus, List<String> unresolvedGaps) {}
     public record SignalView(UUID id, String skillCode, String sourceType, String claimState,
-            Integer level, Instant recordedAt, String noteCode) {}
+            Integer level, BigDecimal confidence, Instant recordedAt, String noteCode) {}
 
     @Transactional(readOnly = true)
     public List<SkillView> map(UUID learnerId, String instrumentCode) {
@@ -74,7 +74,7 @@ public class SkillMapService {
         }
         return skills.history(profile.getId(), skillCode, limit, beforeRecordedAt, beforeId).stream()
                 .map(s -> new SignalView(s.id(), s.skillCode(), s.sourceType(), s.claimState(),
-                        s.level(), s.recordedAt(), s.noteCode())).toList();
+                        s.level(), s.confidence(), s.recordedAt(), s.noteCode())).toList();
     }
 
     private InstrumentProfile ownedProfile(UUID learnerId, String instrumentCode) {
@@ -90,9 +90,9 @@ public class SkillMapService {
         var visited = new HashSet<String>();
         var path = new HashSet<String>();
         for (var entry : graph.entrySet()) {
-            if (!known.contains(entry.getKey())) throw new IllegalStateException("Unknown skill");
+            if (!known.contains(entry.getKey())) throw new InvalidSkillGraphException("Unknown skill");
             for (String dependency : entry.getValue()) {
-                if (!known.contains(dependency)) throw new IllegalStateException("Unknown prerequisite");
+                if (!known.contains(dependency)) throw new InvalidSkillGraphException("Unknown prerequisite");
             }
         }
         for (String skill : known) visit(skill, graph, visited, path);
@@ -100,7 +100,7 @@ public class SkillMapService {
 
     private static void visit(String skill, Map<String, List<String>> graph,
             Set<String> visited, Set<String> path) {
-        if (path.contains(skill)) throw new IllegalStateException("Skill prerequisite cycle");
+        if (path.contains(skill)) throw new InvalidSkillGraphException("Skill prerequisite cycle");
         if (!visited.add(skill)) return;
         path.add(skill);
         for (var next : graph.getOrDefault(skill, List.of())) {
