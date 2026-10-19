@@ -196,6 +196,38 @@ class LocalAttemptMediaStoreTest {
         }
     }
 
+
+    @Test
+    void acceptsValid288ByteFtypAndRevalidatesStoredFile() throws Exception {
+        var media = new LocalAttemptMediaStore(temp.toString());
+        // 16 byte prefix + 68 compatible brands: deliberately larger than 256 bytes.
+        String[] brands = new String[68];
+        java.util.Arrays.fill(brands, "isom");
+        byte[] ftyp = isoFtyp("3gp4", brands);
+        assertEquals(288, ftyp.length);
+        var stored = media.store(new MockMultipartFile(
+                "file", "long-brands.M4A", "audio/mp4", ftyp));
+        assertEquals(64, media.verifyAndHash(stored.key(), ftyp.length).length());
+        assertEquals(AttemptMediaStore.DeleteOutcome.DELETED, media.delete(stored.key()));
+    }
+
+    @Test
+    void rejectsTruncatedOversizedAndMisalignedFtypBoxes() throws Exception {
+        var media = new LocalAttemptMediaStore(temp.toString());
+        byte[] large = isoFtyp("isom");
+        // Declaring 65540 (>64 KiB) must not allocate or read an unbounded box.
+        java.nio.ByteBuffer.wrap(large).putInt(65540);
+        byte[] truncated = isoFtyp("isom", "isom");
+        java.nio.ByteBuffer.wrap(truncated).putInt(288);
+        byte[] misaligned = isoFtyp("isom");
+        java.nio.ByteBuffer.wrap(misaligned).putInt(17);
+        for (byte[] bad : new byte[][] { large, truncated, misaligned }) {
+            assertEquals(400, assertThrows(ResponseStatusException.class,
+                    () -> media.store(new MockMultipartFile(
+                            "file", "bad.m4a", "audio/mp4", bad))).getStatusCode().value());
+        }
+    }
+
     @Test
     void rejectsBrokenFtypAndRenamedNonM4aContent() {
         var store = new LocalAttemptMediaStore(temp.toString());
