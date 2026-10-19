@@ -119,7 +119,8 @@ public final class AudioCorpusValidator {
                     if ("AVAILABLE".equals(available) && rec.path("rightsConfirmed").asBoolean(false)
                             && rec.path("manualReviewConfirmed").asBoolean(false)
                             && nonblank(rec, "annotationRef") && validSha(value(rec, "annotationSha256"))
-                            && nonblank(rec, "referenceRef") && validSha(value(rec, "referenceSha256"))) {
+                            && nonblank(rec, "referenceRef") && validSha(value(rec, "referenceSha256"))
+                            && ("CALIBRATION".equals(split) || "HOLDOUT".equals(split))) {
                         coverage.computeIfAbsent(group, ignored -> new HashSet<>()).add(recordingGroup + ":" + split);
                     }
                     if (!Set.of("OWNED", "LICENSED", "EXPLICIT_PERMISSION").contains(value(rec, "rightsBasis"))
@@ -254,7 +255,8 @@ public final class AudioCorpusValidator {
                     || !a.path("observations").isArray()
                     || !nonblank(a, "annotationId") || !nonblank(a, "annotationVersion")
                     || !value(rec, "annotationVersion").equals(value(a, "annotationVersion"))
-                    || !validId(value(a, "annotatorId"))) {
+                    || !validId(value(a, "annotatorId"))
+                    || !a.path("manualConfirmed").asBoolean(false)) {
                 errors.add("ANNOTATION_SCHEMA:" + id);
                 return;
             }
