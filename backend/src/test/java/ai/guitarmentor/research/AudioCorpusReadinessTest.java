@@ -45,7 +45,7 @@ class AudioCorpusReadinessTest {
                 index++;
                 String id = "R-" + index;
                 String media = "take-" + index + ".wav";
-                String mediaSha = writeWav(media);
+                String mediaSha = writeWav(media, index);
                 ObjectNode annotation = mapper.createObjectNode();
                 annotation.put("annotationId", "A-" + index).put("annotationVersion", "1")
                         .put("recordingId", id).put("sourceSha256", mediaSha)
@@ -96,7 +96,7 @@ class AudioCorpusReadinessTest {
         return sha(bytes);
     }
 
-    private String writeWav(String file) throws Exception {
+    private String writeWav(String file, int takeId) throws Exception {
         int dataSize = 8000 * 2;
         ByteBuffer b = ByteBuffer.allocate(44 + dataSize).order(ByteOrder.LITTLE_ENDIAN);
         b.put(new byte[]{'R','I','F','F'}).putInt(36 + dataSize)
@@ -104,7 +104,7 @@ class AudioCorpusReadinessTest {
                 .putShort((short)1).putShort((short)1).putInt(8000)
                 .putInt(16000).putShort((short)2).putShort((short)16)
                 .put(new byte[]{'d','a','t','a'}).putInt(dataSize);
-        for (int i=0; i<8000; i++) b.putShort((short)0);
+        for (int i=0; i<8000; i++) b.putShort((short)(i == 0 ? takeId : 0));
         byte[] bytes = b.array();
         Files.write(root.resolve(file), bytes);
         return sha(bytes);
