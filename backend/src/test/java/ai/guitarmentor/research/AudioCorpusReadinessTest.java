@@ -78,6 +78,33 @@ class AudioCorpusReadinessTest {
         assertEquals("READY_FOR_POC", result.status(), result.toString());
         assertEquals(6, result.realCount());
         assertEquals(0, result.exitCode());
+
+        // Regression: owner's recording permission alone does not attest all score rights.
+        ObjectNode first = (ObjectNode) recordings.get(0);
+        first.put("rightsConfirmed", false);
+        writeJson("manifest.json", manifest);
+        var unlicensedScore = AudioCorpusValidator.validate(root, "manifest.json");
+        assertEquals("INCOMPLETE", unlicensedScore.status(), unlicensedScore.toString());
+        assertTrue(unlicensedScore.gaps().contains("RIGHTS_UNCONFIRMED:R-1"));
+        first.put("rightsConfirmed", true);
+
+        // A file with no independently confirmed event review cannot count as ready.
+        first.put("manualReviewConfirmed", false);
+        writeJson("manifest.json", manifest);
+        var noHumanReview = AudioCorpusValidator.validate(root, "manifest.json");
+        assertEquals("INCOMPLETE", noHumanReview.status(), noHumanReview.toString());
+        assertTrue(noHumanReview.gaps().contains("REVIEW_MISSING:R-1"));
+        first.put("manualReviewConfirmed", true);
+
+        // Separate file hashes alone cannot replace holdout lineage attestation.
+        ObjectNode second = (ObjectNode) recordings.get(1);
+        second.put("holdoutIndependentConfirmed", false);
+        writeJson("manifest.json", manifest);
+        var holdoutUnknown = AudioCorpusValidator.validate(root, "manifest.json");
+        assertEquals("INCOMPLETE", holdoutUnknown.status(), holdoutUnknown.toString());
+        assertTrue(holdoutUnknown.gaps().contains("HOLDOUT_INDEPENDENCE_UNCONFIRMED:R-2"));
+        second.put("holdoutIndependentConfirmed", true);
+
         // A consent/review checkbox in the manifest is not sufficient by itself.
         ObjectNode firstAnnotation = (ObjectNode) mapper.readTree(
                 Files.readString(root.resolve("annotation-1.json")));
@@ -92,8 +119,6 @@ class AudioCorpusReadinessTest {
         ((ObjectNode)recordings.get(0)).put("annotationSha256", writeJson("annotation-1.json", firstAnnotation));
 
 
-        ObjectNode first = (ObjectNode) recordings.get(0);
-        ObjectNode second = (ObjectNode) recordings.get(1);
         String secondHash = second.path("sourceSha256").asText();
         second.put("sourceSha256", first.path("sourceSha256").asText());
         writeJson("manifest.json", manifest);
