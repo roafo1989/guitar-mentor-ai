@@ -10,6 +10,36 @@ import java.util.UUID;
 import org.junit.jupiter.api.Test;
 
 class MediaCleanupServiceTest {
+    @Test
+    void orphanAfterThreeHundredReferencedFilesIsActuallyDeleted(
+            @org.junit.jupiter.api.io.TempDir java.nio.file.Path folder) throws Exception {
+        var db=mock(MediaCleanupTransactions.class);
+        var policy=mock(MediaRetentionPolicy.class);
+        var media=new ai.guitarmentor.infrastructure.media.LocalAttemptMediaStore(folder.toString());
+        var now=Instant.now();
+        var cutoff=now.minus(Duration.ofHours(48));
+        when(policy.read()).thenReturn(new MediaRetentionPolicy.Policy(
+            Duration.ofHours(48),Duration.ofHours(48),Duration.ofMinutes(60)));
+        for(int n=0;n<300;n++) {
+            var key=String.format("%08x-0000-0000-0000-000000000001.wav",n);
+            var file=folder.resolve(key);
+            java.nio.file.Files.write(file,new byte[]{1});
+            java.nio.file.Files.setLastModifiedTime(file,
+                java.nio.file.attribute.FileTime.from(cutoff.minusSeconds(60)));
+            when(db.isReferenced(key)).thenReturn(true);
+        }
+        var orphanKey="ffffffff-0000-0000-0000-000000000001.wav";
+        var orphan=folder.resolve(orphanKey);
+        java.nio.file.Files.write(orphan,new byte[]{1});
+        java.nio.file.Files.setLastModifiedTime(orphan,
+            java.nio.file.attribute.FileTime.from(cutoff.minusSeconds(60)));
+        var service=new MediaCleanupService(db,policy,media,new MediaUseCoordinator());
+        service.tick();
+        assertFalse(java.nio.file.Files.exists(orphan));
+        assertTrue(java.nio.file.Files.exists(folder.resolve(
+            "00000000-0000-0000-0000-000000000001.wav")));
+    }
+
     @Test void missingFileIsConfirmedAndHistoryRemainsInDbLayer() throws Exception {
         var db=mock(MediaCleanupTransactions.class);
         var policy=mock(MediaRetentionPolicy.class);
