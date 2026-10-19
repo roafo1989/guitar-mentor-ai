@@ -91,4 +91,35 @@ class AudioCorpusValidatorTest {
             """);
         assertEquals("INCOMPLETE", AudioCorpusValidator.validate(root, "manifest.json").status());
     }
+    @Test
+    void rejectsOversizedManifest() throws Exception {
+        Files.writeString(root.resolve("manifest.json"), " ".repeat(1024 * 1024 + 1));
+        assertEquals("INVALID", AudioCorpusValidator.validate(root, "manifest.json").status());
+    }
+
+    @Test
+    void rejectsMissingAndRemoteManifest() {
+        assertEquals("INVALID", AudioCorpusValidator.validate(root, "missing.json").status());
+        assertEquals("INVALID", AudioCorpusValidator.validate(root, "https://bad.test/data").status());
+    }
+
+    @Test
+    void impossibleRealCorpusIsNotReady() throws Exception {
+        Files.writeString(root.resolve("manifest.json"), """
+            {
+              "schemaVersion":1,"datasetId":"REAL-NOT-AVAILABLE","datasetVersion":"1",
+              "createdAt":"2026-10-19T00:00:00Z","sourceCommit":"example",
+              "recordings":[{"recordingId":"REAL-1","kind":"REAL","group":"REAL-BASS",
+                "recordingGroupId":"GROUP-1","performerId":"P-1","sessionId":"S-1",
+                "deviceId":"D-1","split":"HOLDOUT","availability":"WITHDRAWN",
+                "rightsBasis":"OWNED","consentRef":"C-1","useScope":"LOCAL_RESEARCH",
+                "rightsConfirmed":true,"manualReviewConfirmed":true}]
+            }
+            """);
+        var result = AudioCorpusValidator.validate(root, "manifest.json");
+        assertEquals("INCOMPLETE", result.status());
+        assertTrue(result.gaps().contains("SOURCE_UNAVAILABLE:REAL-1"));
+        assertTrue(result.gaps().contains("NO_INDEPENDENT_HOLDOUT:REAL-BASS"));
+    }
+
 }
