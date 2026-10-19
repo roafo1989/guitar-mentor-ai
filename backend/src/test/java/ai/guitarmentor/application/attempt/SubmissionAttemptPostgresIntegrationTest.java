@@ -31,7 +31,8 @@ import org.springframework.transaction.support.TransactionTemplate;
  * Runs in CI with GUITAR_MENTOR_TEST_POSTGRES=true; locally only if explicitly enabled.
  * No mocked repository or mocked afterCompletion callbacks in this class.
  */
-@SpringBootTest(properties = {
+@org.junit.jupiter.api.extension.ExtendWith(org.springframework.boot.test.system.OutputCaptureExtension.class)
+@SpringBootTest(webEnvironment = SpringBootTest.WebEnvironment.RANDOM_PORT, properties = {
         "guitar-mentor.submissions.enabled=true",
         "guitar-mentor.submissions.poll-delay-ms=999999"
 })
@@ -47,6 +48,9 @@ class SubmissionAttemptPostgresIntegrationTest {
         registry.add("guitar-mentor.submissions.storage-path", MEDIA_ROOT::toString);
     }
 
+    @org.springframework.boot.web.server.test.LocalServerPort int port;
+    @org.springframework.test.context.bean.override.mockito.MockitoSpyBean
+    ai.guitarmentor.infrastructure.media.LocalAttemptMediaStore mediaStore;
     @Autowired JdbcTemplate jdbc;
     @Autowired PlatformTransactionManager txManager;
     @Autowired SubmissionAttemptService service;
@@ -173,5 +177,77 @@ class SubmissionAttemptPostgresIntegrationTest {
         assertEquals(1, countRows());
         assertEquals(1L, fileCount());
         assertTrue(Files.isRegularFile(MEDIA_ROOT.resolve(key)));
+    }
+
+    private java.net.http.HttpResponse<String> postAudio(UUID request, String comment) throws Exception {
+        String boundary = "qa30boundary";
+        String body = "--" + boundary + "\r\nContent-Disposition: form-data; name=\"requestId\"\r\n\r\n"
+                + request + "\r\n--" + boundary + "\r\nContent-Disposition: form-data; name=\"comment\"\r\n\r\n"
+                + comment + "\r\n--" + boundary + "\r\nContent-Disposition: form-data; name=\"file\"; filename=\"qa.wav\""
+                + "\r\nContent-Type: audio/wav\r\n\r\nRIFF0000WAVE0000\r\n--" + boundary + "--\r\n";
+        String url = "http://127.0.0.1:" + port + "/api/v1/learners/" + learnerId
+                + "/diagnostic-sessions/" + sessionId + "/tasks/" + taskId + "/attempts";
+        return java.net.http.HttpClient.newHttpClient().send(java.net.http.HttpRequest.newBuilder(
+                java.net.URI.create(url)).timeout(java.time.Duration.ofSeconds(20))
+                .header("Content-Type", "multipart/form-data; boundary=" + boundary)
+                .POST(java.net.http.HttpRequest.BodyPublishers.ofString(body)).build(),
+                java.net.http.HttpResponse.BodyHandlers.ofString());
+    }
+
+    @Test
+    void realHttpFlushFailureNeverReturns201AndDeletesNewFile() throws Exception {
+        jdbc.execute("ALTER TABLE submission_attempts ADD CONSTRAINT qa30_http_reject "
+                + "CHECK (student_comment <> 'QA30_HTTP_FAIL')");
+        try {
+            long before = fileCount();
+            var response = postAudio(UUID.randomUUID(), "QA30_HTTP_FAIL");
+            assertTrue(response.statusCode() >= 500);
+            assertEquals(0, countRows());
+            assertEquals(before, fileCount());
+            assertFalse(response.body().contains(MEDIA_ROOT.toString()));
+        } finally {
+            jdbc.execute("ALTER TABLE submission_attempts DROP CONSTRAINT IF EXISTS qa30_http_reject");
+        }
+    }
+
+    @Test
+    void failedDeletePreservesRealDatabaseErrorAndHttpFailsSafely(
+            org.springframework.boot.test.system.CapturedOutput output) throws Exception {
+        jdbc.execute("ALTER TABLE submission_attempts ADD CONSTRAINT qa30_compensation_reject "
+                + "CHECK (student_comment <> 'QA30_COMPENSATION_FAIL')");
+        org.mockito.Mockito.doThrow(new IOException("PRIVATE_PATH_MARKER"))
+                .when(mediaStore).delete(org.mockito.ArgumentMatchers.anyString());
+        try {
+            UUID request = UUID.randomUUID();
+            var original = assertThrows(RuntimeException.class, () -> service.submit(learnerId, sessionId,
+                    taskId, request, "QA30_COMPENSATION_FAIL", wav()));
+            StringBuilder chain = new StringBuilder();
+            for (Throwable e = original; e != null; e = e.getCause()) chain.append(e.toString());
+            assertTrue(chain.toString().contains("qa30_compensation_reject"));
+            assertFalse(chain.toString().contains("PRIVATE_PATH_MARKER"));
+            assertEquals(0, countRows());
+            assertEquals(1L, fileCount());
+            var response = postAudio(UUID.randomUUID(), "QA30_COMPENSATION_FAIL");
+            assertTrue(response.statusCode() >= 500);
+            assertEquals(0, countRows());
+            assertEquals(2L, fileCount());
+            assertFalse(response.body().contains("PRIVATE_PATH_MARKER"));
+            assertFalse(response.body().contains(MEDIA_ROOT.toString()));
+            var events = output.getOut().lines().filter(line -> line.contains("event=MEDIA_ROLLBACK_DELETE_FAILED")).toList();
+            assertEquals(2, events.size());
+            assertTrue(events.stream().anyMatch(line -> line.contains(request.toString())));
+            for (String line : events) {
+                assertTrue(line.contains("phase=ROLLED_BACK"));
+                assertTrue(line.contains("code=DELETE_IO_ERROR"));
+                assertFalse(line.contains("PRIVATE_PATH_MARKER"));
+                assertFalse(line.contains(MEDIA_ROOT.toString()));
+                assertFalse(line.contains("qa.wav"));
+                assertFalse(line.contains("QA30_COMPENSATION_FAIL"));
+                assertFalse(line.contains("Exception"));
+            }
+        } finally {
+            org.mockito.Mockito.reset(mediaStore);
+            jdbc.execute("ALTER TABLE submission_attempts DROP CONSTRAINT IF EXISTS qa30_compensation_reject");
+        }
     }
 }

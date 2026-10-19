@@ -1,0 +1,85 @@
+name: Independent acceptance issue 30
+on:
+  pull_request:
+    branches:
+      - feature/issue-30-safe-media-store
+    paths:
+      - 'backend/**'
+      - 'scripts/testing/**'
+      - '.github/workflows/qa-issue-30.yml'
+permissions:
+  contents: read
+jobs:
+  acceptance:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    services:
+      postgres:
+        image: postgres:17
+        env:
+          POSTGRES_DB: qa30
+          POSTGRES_USER: qa30
+          POSTGRES_PASSWORD: qa30_runner_only
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd="pg_isready -U qa30 -d qa30"
+          --health-interval=5s
+          --health-timeout=5s
+          --health-retries=10
+    env:
+      SPRING_DATASOURCE_URL: jdbc:postgresql://127.0.0.1:5432/qa30
+      SPRING_DATASOURCE_USERNAME: qa30
+      SPRING_DATASOURCE_PASSWORD: qa30_runner_only
+      GUITAR_MENTOR_TEST_POSTGRES: 'true'
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.pull_request.head.sha }}
+      - uses: actions/checkout@v4
+        with:
+          ref: 270238f8fdb0dec5075039a9bdd9483b85177305
+          path: qa30-baseline
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '21'
+          cache: maven
+          cache-dependency-path: backend/pom.xml
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: npm
+          cache-dependency-path: frontend/package-lock.json
+      - name: Install browser and real audio tools
+        run: |
+          sudo apt-get update -qq
+          sudo apt-get install -y ffmpeg
+          python3 -m pip install playwright
+          python3 -m playwright install --with-deps chromium
+      - name: Build baseline without running historical tests
+        working-directory: qa30-baseline/backend
+        run: ./mvnw --batch-mode -DskipTests package
+      - name: Fresh unit and PostgreSQL integration acceptance
+        working-directory: backend
+        run: ./mvnw --batch-mode verify
+      - name: Fresh Vue typecheck and production build
+        working-directory: frontend
+        run: |
+          npm ci
+          npm run build
+      - name: Real HTTP upgrade, boundaries, restart and browser acceptance
+        run: >-
+          python3 scripts/testing/qa30_http.py
+          --baseline qa30-baseline/backend/target/guitar-mentor-backend-0.1.0-SNAPSHOT.jar
+          --current backend/target/guitar-mentor-backend-0.1.0-SNAPSHOT.jar
+          --browser
+      - name: Preserve independent evidence
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: qa30-independent-evidence
+          path: |
+            backend/target/surefire-reports/
+            qa30-results/
+          retention-days: 5
