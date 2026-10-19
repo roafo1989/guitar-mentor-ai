@@ -1,6 +1,7 @@
 package ai.guitarmentor.application.attempt;
 
 import java.io.IOException;
+import ai.guitarmentor.application.evidence.EvidenceMediaCleanup;
 import java.time.Clock;
 import java.time.Instant;
 import org.slf4j.Logger;
@@ -16,11 +17,13 @@ public class MediaCleanupService {
     private final MediaRetentionPolicy settings;
     private final AttemptMediaStore store;
     private final MediaUseCoordinator coordinator;
+    private final EvidenceMediaCleanup evidenceCleanup;
     private final Clock clock=Clock.systemUTC();
     private Instant lastRun;
     public MediaCleanupService(MediaCleanupTransactions transactions,MediaRetentionPolicy settings,
-            AttemptMediaStore store,MediaUseCoordinator coordinator) {
+            AttemptMediaStore store,MediaUseCoordinator coordinator,EvidenceMediaCleanup evidenceCleanup) {
         this.transactions=transactions;this.settings=settings;this.store=store;this.coordinator=coordinator;
+        this.evidenceCleanup=evidenceCleanup;
     }
     /** Independent of upload flag; policy checked every 60s, even after SQL edits. */
     @Scheduled(fixedDelay=60000,initialDelay=1000)
@@ -40,6 +43,7 @@ public class MediaCleanupService {
         try {
             runCycle(now,policy);
             reconcileOrphans(now,policy);
+            evidenceCleanup.reconcileDocumentOrphans(now,policy);
             lastRun=now;
         } catch(RuntimeException problem) {
             log.error("event=MEDIA_CLEANUP_FAILED code=DATABASE_OR_RUNTIME_ERROR");
@@ -90,6 +94,7 @@ public class MediaCleanupService {
                 }
             }
         }
+            evidenceCleanup.runCycle(now,policy);
         } finally { coordinator.release(); }
     }
 }
