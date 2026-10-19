@@ -5,6 +5,7 @@ import { useLearnerStore } from '../../stores/learner.store';
 import { diagnosticService } from './diagnostic.service';
 import ExercisePreview from './ExercisePreview.vue';
 import SubmissionPanel from '../attempt/SubmissionPanel.vue';
+import DiagnosticEvidencePanel from './DiagnosticEvidencePanel.vue';
 import type { DiagnosticSession, DiagnosticTask, Exercise } from '../../shared/model/diagnostic.model';
 
 const { t } = useI18n();
@@ -138,7 +139,8 @@ async function assign(exerciseCode: string): Promise<void> {
       <template v-if="!session">
         <h2>{{ t('diagnostic.startTitle') }}</h2>
         <p>{{ t('diagnostic.startDescription') }}</p>
-        <p class="hint">{{ t('diagnostic.noFilesYet') }}</p>
+        <DiagnosticEvidencePanel v-if="learnerStore.learner"
+          :learner-id="learnerStore.learner.id" :session-id="session.id" />
         <div class="form-actions">
           <button type="button" class="action-button" :disabled="busy" @click="start">
             {{ busy ? t('diagnostic.working') : t('diagnostic.start') }}
