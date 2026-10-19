@@ -51,16 +51,22 @@ public class MediaCleanupService {
         try {
             Instant cutoff=now.minus(policy.maxUnprocessed());
             int deleted=0;
-            for (var orphan:store.scanOlderThan(cutoff,10000)) {
-                if (deleted>=100) break;
-                if (transactions.isReferenced(orphan.key())) continue;
-                // Re-evaluate mtime, storage key and DB reference under the same local guard
-                // held by upload, worker and cleanup.
-                boolean stillOld=store.isUnreferencedCandidateOld(orphan.key(),cutoff);
-                if (stillOld && !transactions.isReferenced(orphan.key())) {
-                    store.delete(orphan.key());
-                    deleted++;
+            String cursor=null;
+            // Continue past referenced files; bounded pages avoid starving distant orphans.
+            while (deleted<100) {
+                var page=store.scanOlderThan(cutoff,256,cursor);
+                if(page.isEmpty()) break;
+                for (var orphan:page) {
+                    if (transactions.isReferenced(orphan.key())) continue;
+                    if (store.isUnreferencedCandidateOld(orphan.key(),cutoff)
+                            && !transactions.isReferenced(orphan.key())) {
+                        store.delete(orphan.key());
+                        deleted++;
+                        if(deleted>=100) break;
+                    }
                 }
+                cursor=page.get(page.size()-1).key();
+                if(page.size()<256) break;
             }
         } catch(IOException | RuntimeException failure) {
             log.error("event=MEDIA_ORPHAN_DELETE_FAILED code=ORPHAN_SCAN_OR_DATABASE_ERROR");
