@@ -206,6 +206,7 @@ public final class AudioCorpusValidator {
                     return;
                 }
             }
+            if (!nonblank(rec, "annotationRef") || !validSha(value(rec, "annotationSha256"))) return;
             Path annotationPath = safePath(root, value(rec, "annotationRef"));
             if (!hash(annotationPath).equals(value(rec, "annotationSha256"))) return;
             JsonNode annotation = readBoundedJson(annotationPath);
