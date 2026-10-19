@@ -48,3 +48,7 @@ The offline validator and executable tests have been committed to Draft PR #73. 
 **Known non-automatable assertions:** consent/legal rights, actual instrument performance, whether score-event annotations match audible events, and independence between distinct waveforms. Dataset author must verify these; a boolean or hash is insufficient. The tool does not transcribe guitar notes or calculate musical accuracy. Negative-case tests and passing CI are not substitutes for real validation. The corpus is kept outside Git and product storage with separately agreed retention.
 
 The research handoff to #15 must include frozen corpus/reference/annotation version hashes, calibration/holdout allocations, approved metrics policy, and explicit unresolved ambiguity and abstention domains. Do not supply #15 with generated fixtures as real ground truth.
+
+## CI execution evidence
+
+The standard Java backend CI may run the Maven tests **before ffprobe is installed**; its overall green status does not prove the integration test actually ran. The dedicated `.github/workflows/audio-benchmark-ci.yml` installs ffprobe first, runs both validator test classes and fails if the positive `AudioCorpusReadinessTest` JUnit report records a skipped test. Only a completed successful run of that dedicated job confirms the ffprobe integration path. This still does not substitute for genuine human-performed recordings.
