@@ -10,12 +10,12 @@
 
 ## Сценарии и требования
 
-- **[Техническое задание 0.4](requirements/technical-specification.md)** — US, ФТ, НФТ, безопасность, сценарии и открытые вопросы.
+- **[Техническое задание 0.5](requirements/technical-specification.md)** — US, ФТ, НФТ, безопасность, сценарии и открытые вопросы.
 - **[Регламент системного анализа](project/system-analysis-workflow.md)** — обработка новых БТ, эпики/стори/задачи и релизы.
 - [Системная спецификация](specifications/system-specification.md) · [Архитектура и компоненты](architecture/system-architecture.md) · [Реестр иерархии Issues](project/issue-hierarchy.md)
 
 
-- **[Бизнес-требования — версия и история изменений](requirements/business-requirements.md)** — единый документ БТ; текущая редакция 0.2.
+- **[Бизнес-требования — версия и история изменений](requirements/business-requirements.md)** — единый документ БТ; текущая редакция 0.3.
 - **[Регламент бизнес-анализа](project/business-analysis-workflow.md)** — чат БА, обработка идей, версии, критерии приёмки и связь с задачами.
 
 - [UC-01 — Профиль ученика](use-cases/UC-01-learner-profile-api.md) — реализовано
@@ -53,3 +53,5 @@
 - [SPIKE-01 — Достоверность анализа исполнения](https://github.com/roafo1989/guitar-mentor-ai/issues/31)
 
 - [DEV-05B / #30 — пакет для разработки](specifications/DEV-05B-media-storage.md): сверка с принятой #20, оставшийся контракт storage, ошибки, критерии и оценка 8 ч.
+
+- [MVP-R5-02 / #21 — пакет для разработки](specifications/MVP-R5-02-media-retention.md): 48h после всех проверок, настройки PostgreSQL, безопасная возобновляемая очистка и оценка остатка 20 ч. Зависимость: приёмка/merge #30.
