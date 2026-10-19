@@ -49,7 +49,7 @@ class AudioCorpusReadinessTest {
                 ObjectNode annotation = mapper.createObjectNode();
                 annotation.put("annotationId", "A-" + index).put("annotationVersion", "1")
                         .put("recordingId", id).put("sourceSha256", mediaSha)
-                        .put("annotatorId", "TEST-ANNOTATOR");
+                        .put("annotatorId", "TEST-ANNOTATOR").put("manualConfirmed", true);
                 ObjectNode observation = annotation.putArray("observations").addObject();
                 observation.put("eventId", "NOTE-1").put("onsetMs", 0).put("fromMs", 0)
                         .put("toMs", 10).put("voice", "BASS").put("label", "MATCH");
