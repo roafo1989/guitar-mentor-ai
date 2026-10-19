@@ -28,6 +28,22 @@ class MediaCleanupServiceTest {
         verify(db,never()).failed(any());
     }
 
+    @Test void databaseOutageDuringOrphanReconciliationNeverDeletesFile() throws Exception {
+        var db=mock(MediaCleanupTransactions.class);
+        var policy=mock(MediaRetentionPolicy.class);
+        var media=mock(AttemptMediaStore.class);
+        var now=Instant.now();
+        when(policy.read()).thenReturn(new MediaRetentionPolicy.Policy(
+            Duration.ofHours(48),Duration.ofHours(48),Duration.ofMinutes(60)));
+        var candidate=new AttemptMediaStore.OrphanCandidate(UUID.randomUUID()+".wav",
+            now.minus(Duration.ofDays(3)));
+        when(media.scanOlderThan(any(Instant.class),eq(10000))).thenReturn(List.of(candidate));
+        when(db.isReferenced(candidate.key())).thenThrow(new IllegalStateException("DB offline"));
+        var service=new MediaCleanupService(db,policy,media,new MediaUseCoordinator());
+        service.tick();
+        verify(media,never()).delete(anyString());
+    }
+
     @Test void cleanupHandlesFullBatchAndContinuesNextCycle() throws Exception {
         var db=mock(MediaCleanupTransactions.class);
         var media=mock(AttemptMediaStore.class);
