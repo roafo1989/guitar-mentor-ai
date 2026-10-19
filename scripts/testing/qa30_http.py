@@ -74,7 +74,8 @@ def start(jar, enabled=True):
     for _ in range(160):
         if CURRENT.poll() is not None: raise RuntimeError('backend exited early')
         try:
-            if request('GET','/actuator/health')==(200,{'status':'UP'}): return
+            code, health = request('GET','/actuator/health')
+            if code == 200 and isinstance(health, dict) and health.get('status') == 'UP': return
         except OSError: pass
         time.sleep(.5)
     raise RuntimeError('backend readiness timeout')
