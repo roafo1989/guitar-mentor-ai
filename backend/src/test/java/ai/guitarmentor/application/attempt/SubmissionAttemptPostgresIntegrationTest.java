@@ -48,7 +48,7 @@ class SubmissionAttemptPostgresIntegrationTest {
         registry.add("guitar-mentor.submissions.storage-path", MEDIA_ROOT::toString);
     }
 
-    @org.springframework.boot.web.server.test.LocalServerPort int port;
+    @org.springframework.beans.factory.annotation.Value("${local.server.port}") int port;
     @org.springframework.test.context.bean.override.mockito.MockitoSpyBean
     ai.guitarmentor.infrastructure.media.LocalAttemptMediaStore mediaStore;
     @Autowired JdbcTemplate jdbc;
