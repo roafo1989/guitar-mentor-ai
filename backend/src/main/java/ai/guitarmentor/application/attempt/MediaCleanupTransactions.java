@@ -15,8 +15,12 @@ import org.springframework.transaction.annotation.Transactional;
 public class MediaCleanupTransactions {
     private final SubmissionAttemptRepository attempts;
     private final DiagnosticEvidenceRepository evidence;
+    @org.springframework.beans.factory.annotation.Autowired
     public MediaCleanupTransactions(SubmissionAttemptRepository attempts, DiagnosticEvidenceRepository evidence) {
         this.attempts=attempts;this.evidence=evidence;
+    }
+    public MediaCleanupTransactions(SubmissionAttemptRepository attempts) {
+        this(attempts, null);
     }
     public record Candidate(UUID id,String key) {}
 
@@ -44,7 +48,7 @@ public class MediaCleanupTransactions {
         });
     }
     @Transactional(readOnly=true)
-    public boolean isReferenced(String key) { return attempts.existsByMediaKey(key) || evidence.existsByKey(key); }
+    public boolean isReferenced(String key) { return attempts.existsByMediaKey(key) || (evidence != null && evidence.existsByKey(key)); }
 
     @Transactional
     public void failed(UUID id) {
