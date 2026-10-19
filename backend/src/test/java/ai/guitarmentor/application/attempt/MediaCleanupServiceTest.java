@@ -28,6 +28,16 @@ class MediaCleanupServiceTest {
         verify(db,never()).failed(any());
     }
 
+    @Test void invalidPolicyNeverTouchesStorageOrDatabase() {
+        var db=mock(MediaCleanupTransactions.class);
+        var policy=mock(MediaRetentionPolicy.class);
+        var media=mock(AttemptMediaStore.class);
+        when(policy.read()).thenThrow(new IllegalArgumentException("MEDIA_CLEANUP_CONFIG_INVALID"));
+        var service=new MediaCleanupService(db,policy,media,new MediaUseCoordinator());
+        service.tick();
+        verifyNoInteractions(db,media);
+    }
+
     @Test void concurrentWorkerGuardPreventsScheduledDeletion() throws Exception {
         var db=mock(MediaCleanupTransactions.class);
         var policy=mock(MediaRetentionPolicy.class);
