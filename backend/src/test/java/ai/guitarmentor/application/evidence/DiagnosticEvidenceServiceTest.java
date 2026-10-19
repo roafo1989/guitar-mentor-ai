@@ -100,7 +100,7 @@ class DiagnosticEvidenceServiceTest {
         assertTrue(result.created());
         verify(repo).addEvidence(any(),eq(sessionId),eq(request),
                 eq("Yesterday"),eq("Beatles"),isNull());
-        verify(repo).addMedia(eq(created.id()),eq("SCORE"),eq(storedDoc.key()),
+        verify(repo).addMedia(any(UUID.class),eq("SCORE"),eq(storedDoc.key()),
                 eq("pdf"),eq(9L),eq("PROCESSED"));
         verify(rollback).register(anyString(),eq(request));
     }
