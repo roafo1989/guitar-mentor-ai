@@ -2,6 +2,7 @@
 
 | Версия | Дата | Что поменялось |
 | --- | --- | --- |
+| 0.11 | 19.10.2026 | #17 выведена из активного учёта (not_planned, историческая); #76–#89 созданы отдельно под #56, 60 ч без двойного учёта; native Project-связи требуют синхронизации. |
 | 0.10 | 19.10.2026 | #14 выбрана и проведена через Анализ / В работе в Оценка / В очереди; Full, старые 15 ч сохранены как исторические. #59 возобновлена в текущем цикле анализа. |
 | 0.9 | 19.10.2026 | Новые параметры процесса и синхронизация #20/#30/#21/#55; иерархия и оценки сохранены. |
 | 0.8 | 19.10.2026 | Сверены 31 ФТ и состав 43 карточек; убраны взаимоисключающие снимки, отдельно отмечены расхождения Project и приёмки. |
@@ -32,7 +33,21 @@
 | EPIC-001 | US-001 / [#55](https://github.com/roafo1989/guitar-mentor-ai/issues/55) | FT-001-03 | [#11](https://github.com/roafo1989/guitar-mentor-ai/issues/11) — Опыт, репертуар и цели |
 | EPIC-001 | US-002 / [#56](https://github.com/roafo1989/guitar-mentor-ai/issues/56) | FT-002-01 | [#29](https://github.com/roafo1989/guitar-mentor-ai/issues/29) — Диагностическая сессия и критерии |
 | EPIC-001 | US-002 / [#56](https://github.com/roafo1989/guitar-mentor-ai/issues/56) | FT-002-02 | [#16](https://github.com/roafo1989/guitar-mentor-ai/issues/16) — Карта навыков и правила подбора |
-| EPIC-001 | US-002 / [#56](https://github.com/roafo1989/guitar-mentor-ai/issues/56) | FT-002-03 | [#17](https://github.com/roafo1989/guitar-mentor-ai/issues/17) — Каталог упражнений и учебные материалы |
+| EPIC-001 | US-002 / [#56](https://github.com/roafo1989/guitar-mentor-ai/issues/56) | FT-002-03 | [#17](https://github.com/roafo1989/guitar-mentor-ai/issues/17) — историческая (заменена, not_planned); активный остаток = 0 ч |
+| EPIC-001 | US-002 / [#56](https://github.com/roafo1989/guitar-mentor-ai/issues/56) | FT-002-03 | [#76](https://github.com/roafo1989/guitar-mentor-ai/issues/76) — Проверка GM-EB01 (3 ч) |
+| EPIC-001 | US-002 / [#56](https://github.com/roafo1989/guitar-mentor-ai/issues/56) | FT-002-03 | [#77](https://github.com/roafo1989/guitar-mentor-ai/issues/77) — Этюд GM-EB02 (5 ч) |
+| EPIC-001 | US-002 / [#56](https://github.com/roafo1989/guitar-mentor-ai/issues/56) | FT-002-03 | [#78](https://github.com/roafo1989/guitar-mentor-ai/issues/78) — Этюд GM-EB03 (5 ч) |
+| EPIC-001 | US-002 / [#56](https://github.com/roafo1989/guitar-mentor-ai/issues/56) | FT-002-03 | [#79](https://github.com/roafo1989/guitar-mentor-ai/issues/79) — Этюд GM-EB04 (5 ч) |
+| EPIC-001 | US-002 / [#56](https://github.com/roafo1989/guitar-mentor-ai/issues/56) | FT-002-03 | [#80](https://github.com/roafo1989/guitar-mentor-ai/issues/80) — Этюд GM-EB05 (5 ч) |
+| EPIC-001 | US-002 / [#56](https://github.com/roafo1989/guitar-mentor-ai/issues/56) | FT-002-03 | [#81](https://github.com/roafo1989/guitar-mentor-ai/issues/81) — PDF/MP3 GM-EB02/03 (4 ч) |
+| EPIC-001 | US-002 / [#56](https://github.com/roafo1989/guitar-mentor-ai/issues/56) | FT-002-03 | [#82](https://github.com/roafo1989/guitar-mentor-ai/issues/82) — PDF/MP3 GM-EB04/05 (4 ч) |
+| EPIC-001 | US-002 / [#56](https://github.com/roafo1989/guitar-mentor-ai/issues/56) | FT-002-03 | [#83](https://github.com/roafo1989/guitar-mentor-ai/issues/83) — Права и media pack (3 ч) |
+| EPIC-001 | US-002 / [#56](https://github.com/roafo1989/guitar-mentor-ai/issues/56) | FT-002-03 | [#84](https://github.com/roafo1989/guitar-mentor-ai/issues/84) — Java/PostgreSQL/REST (6 ч) |
+| EPIC-001 | US-002 / [#56](https://github.com/roafo1989/guitar-mentor-ai/issues/56) | FT-002-03 | [#85](https://github.com/roafo1989/guitar-mentor-ai/issues/85) — Vue цели и критерии (4 ч) |
+| EPIC-001 | US-002 / [#56](https://github.com/roafo1989/guitar-mentor-ai/issues/56) | FT-002-03 | [#86](https://github.com/roafo1989/guitar-mentor-ai/issues/86) — Звуковой движок метронома (4 ч) |
+| EPIC-001 | US-002 / [#56](https://github.com/roafo1989/guitar-mentor-ai/issues/56) | FT-002-03 | [#87](https://github.com/roafo1989/guitar-mentor-ai/issues/87) — Vue метроном (3 ч) |
+| EPIC-001 | US-002 / [#56](https://github.com/roafo1989/guitar-mentor-ai/issues/56) | FT-002-03 | [#88](https://github.com/roafo1989/guitar-mentor-ai/issues/88) — Интеграционные проверки (4 ч) |
+| EPIC-001 | US-002 / [#56](https://github.com/roafo1989/guitar-mentor-ai/issues/56) | FT-002-03 | [#89](https://github.com/roafo1989/guitar-mentor-ai/issues/89) — Музыкальная приёмка и документация (5 ч) |
 | EPIC-001 | US-003 / [#57](https://github.com/roafo1989/guitar-mentor-ai/issues/57) | FT-003-01 | [#18](https://github.com/roafo1989/guitar-mentor-ai/issues/18) — Попытки, оценки и решение ученика |
 | EPIC-001 | US-003 / [#57](https://github.com/roafo1989/guitar-mentor-ai/issues/57) | FT-003-02 | [#19](https://github.com/roafo1989/guitar-mentor-ai/issues/19) — Экран задания, результата и переходов |
 | EPIC-001 | US-003 / [#57](https://github.com/roafo1989/guitar-mentor-ai/issues/57) | FT-003-03 | [#24](https://github.com/roafo1989/guitar-mentor-ai/issues/24) — План занятий по истории и целям |
