@@ -87,6 +87,7 @@ public final class AudioCorpusValidator {
             Set<String> ids = new HashSet<>();
             Map<String, String> groupSplits = new HashMap<>();
             Map<String, String> groupKinds = new HashMap<>();
+            Map<String, String> sourceOwners = new HashMap<>();
             Map<String, Set<String>> coverage = new HashMap<>();
             Set<String> sourceHashes = new HashSet<>();
             for (JsonNode rec : dataset.path("recordings")) {
@@ -116,6 +117,9 @@ public final class AudioCorpusValidator {
                     if (validSha(sourceKey) && !sourceHashes.add(sourceKey)) {
                         errors.add("DUPLICATE_REAL_SOURCE:" + id);
                     }
+                    if (validSha(sourceKey)) {
+                        sourceOwners.putIfAbsent(sourceKey, recordingGroup);
+                    }
                     String oldKind = groupKinds.putIfAbsent(recordingGroup, group);
                     if (oldKind != null && !oldKind.equals(group)) errors.add("GROUP_REUSED_ACROSS_TYPES:" + id);
                     String oldSplit = groupSplits.putIfAbsent(recordingGroup, split);
@@ -125,7 +129,8 @@ public final class AudioCorpusValidator {
                             && rec.path("manualReviewConfirmed").asBoolean(false)
                             && nonblank(rec, "annotationRef") && validSha(value(rec, "annotationSha256"))
                             && nonblank(rec, "referenceRef") && validSha(value(rec, "referenceSha256"))
-                            && ("CALIBRATION".equals(split) || "HOLDOUT".equals(split))) {
+                            && ("CALIBRATION".equals(split) || "HOLDOUT".equals(split))
+                            && (!"HOLDOUT".equals(split) || rec.path("holdoutIndependentConfirmed").asBoolean(false))) {
                         coverage.computeIfAbsent(group, ignored -> new HashSet<>()).add(recordingGroup + ":" + split);
                     }
                     if (!Set.of("OWNED", "LICENSED", "EXPLICIT_PERMISSION").contains(value(rec, "rightsBasis"))
@@ -133,6 +138,9 @@ public final class AudioCorpusValidator {
                             || !Set.of("LOCAL_RESEARCH", "EXTERNAL_APPROVED").contains(value(rec, "useScope"))
                             || !rec.path("rightsConfirmed").asBoolean(false)) gaps.add("RIGHTS_UNCONFIRMED:" + id);
                     if (!rec.path("manualReviewConfirmed").asBoolean(false)) gaps.add("REVIEW_MISSING:" + id);
+                    if ("HOLDOUT".equals(split) && !rec.path("holdoutIndependentConfirmed").asBoolean(false)) {
+                        gaps.add("HOLDOUT_INDEPENDENCE_UNCONFIRMED:" + id);
+                    }
                 }
                 if (!"AVAILABLE".equals(available)) {
                     gaps.add("SOURCE_UNAVAILABLE:" + id);
