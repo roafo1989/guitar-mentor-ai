@@ -25,7 +25,7 @@ import org.springframework.web.server.ResponseStatusException;
 @RequestMapping("/api/v1/learners/{learnerId}/diagnostic-sessions/{sessionId}/evidence")
 public class DiagnosticEvidenceController {
     private static final Set<String> SAFE_CODES = Set.of("UPLOAD_DISABLED", "INVALID_REQUEST_ID",
-            "SESSION_NOT_FOUND", "INVALID_SESSION_STATE", "MAX_ITEMS_REACHED", "INVALID_TITLE",
+            "SESSION_NOT_FOUND", "EVIDENCE_NOT_FOUND", "INVALID_SESSION_STATE", "MAX_ITEMS_REACHED", "INVALID_TITLE",
             "INVALID_COMPOSER", "INVALID_COMMENT", "MISSING_AUDIO", "INVALID_SCORE_SIZE",
             "UNSUPPORTED_SCORE_FORMAT", "INVALID_SCORE_CONTENT", "STORAGE_UNAVAILABLE",
             "INVALID_AUDIO_SIZE", "INVALID_AUDIO_CONTENT", "UNSUPPORTED_AUDIO_FORMAT");
@@ -40,6 +40,11 @@ public class DiagnosticEvidenceController {
     @GetMapping
     public List<EvidenceView> list(@PathVariable UUID learnerId, @PathVariable UUID sessionId) {
         return service.list(learnerId, sessionId);
+    }
+    @GetMapping("/{evidenceId}")
+    public EvidenceView get(@PathVariable UUID learnerId, @PathVariable UUID sessionId,
+            @PathVariable UUID evidenceId) {
+        return service.get(learnerId, sessionId, evidenceId);
     }
     @PostMapping(consumes="multipart/form-data")
     public ResponseEntity<EvidenceView> upload(@PathVariable UUID learnerId,
