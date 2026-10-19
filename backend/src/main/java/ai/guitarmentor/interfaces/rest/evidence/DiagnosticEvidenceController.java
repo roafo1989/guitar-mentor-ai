@@ -49,9 +49,6 @@ public class DiagnosticEvidenceController {
             @RequestParam(required=false) String comment,
             @RequestPart("audio") MultipartFile audio,
             @RequestPart(value="score",required=false) MultipartFile score) {
-        // Existing request IDs remain safe even when the session has advanced.
-        var existing = service.list(learnerId, sessionId).stream()
-                .filter(v -> false).findFirst(); // no lookup by client-visible title
         var result = service.submit(learnerId, sessionId, requestId, title, composer,
                 comment, audio, score);
         return ResponseEntity.created(URI.create("/api/v1/learners/" + learnerId
