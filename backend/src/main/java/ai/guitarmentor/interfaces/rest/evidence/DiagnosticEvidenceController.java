@@ -59,7 +59,7 @@ public class DiagnosticEvidenceController {
     @ExceptionHandler(ResponseStatusException.class)
     public ResponseEntity<Map<String,String>> onUploadError(ResponseStatusException error) {
         String reason = error.getReason();
-        String code = SAFE_CODES.contains(reason) ? reason : switch (reason == null ? "" : reason) {
+        String code = reason != null && SAFE_CODES.contains(reason) ? reason : switch (reason == null ? "" : reason) {
             case "Audio format does not match the file header" -> "INVALID_AUDIO_CONTENT";
             case "Only .mp3, .wav, .ogg or .webm are supported" -> "UNSUPPORTED_AUDIO_FORMAT";
             case "Audio file must be between 1 byte and 20 MiB" -> "INVALID_AUDIO_SIZE";
