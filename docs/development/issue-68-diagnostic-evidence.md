@@ -27,6 +27,7 @@
 
 GET /capabilities: флаг enabled, форматы и лимиты.
 GET /: список EvidenceView без storage_key/путей/байтов.
+GET /{evidenceId}: один принадлежащий сессии пример по Location после POST.
 POST /: multipart с requestId UUID, title строка до 200, composer опционально, comment опционально, audio file обязательно, score file опционально. Новый пример 201, повтор с прежним requestId 200, без новой записи.
 Ошибки: 400 для форматов/лимитов и обязательных параметров, 403 отключено, 404 чужая сессия, 409 неверное состояние/лимит примеров.
 
