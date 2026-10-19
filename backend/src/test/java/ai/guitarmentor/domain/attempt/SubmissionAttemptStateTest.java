@@ -80,6 +80,19 @@ class SubmissionAttemptStateTest {
         assertEquals(2,attempt.getMediaDeleteAttempts());
         assertEquals(AttemptStatus.PROCESSED,attempt.getStatus());
         assertEquals("test",attempt.getStudentComment());
+        assertEquals("PROCESSED_TTL",attempt.getMediaDeleteReason());
+        assertEquals("DELETED",attempt.getMediaDeleteOutcome());
+    }
+
+    @Test
+    void alreadyAbsentDoesNotOverwriteOriginalRetentionReason() {
+        var attempt=newAttempt();
+        assertThrows(IllegalStateException.class,()->attempt.markDeletePending("UNPROCESSED_TTL"));
+        attempt.expireUnprocessed(java.time.Instant.now());
+        attempt.markDeletePending("UNPROCESSED_TTL");
+        attempt.markDeleted(java.time.Instant.now(),true);
+        assertEquals("UNPROCESSED_TTL",attempt.getMediaDeleteReason());
+        assertEquals("ALREADY_ABSENT",attempt.getMediaDeleteOutcome());
     }
 
     @Test
