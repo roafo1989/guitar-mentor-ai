@@ -217,20 +217,14 @@ class LocalAttemptMediaStoreTest {
     }
 
     @Test
-    void rejectsM4aWithSizeAbove20MiBBeforeOpeningStream() {
+    void rejectsM4aWithSizeAbove20MiBBeforeOpeningStream() throws Exception {
         var store = new LocalAttemptMediaStore(temp.toString());
         var uploaded = mock(org.springframework.web.multipart.MultipartFile.class);
         when(uploaded.getSize()).thenReturn(AttemptMediaStore.MAX_BYTES + 1);
         var rejection = assertThrows(ResponseStatusException.class,
                 () -> store.store(uploaded));
         assertEquals(400, rejection.getStatusCode().value());
-        verifyNoInteractionsWithUploadStream(uploaded);
-    }
-
-    private static void verifyNoInteractionsWithUploadStream(
-            org.springframework.web.multipart.MultipartFile file) {
-        verifyNoInteractions();
-        org.mockito.Mockito.verify(file, org.mockito.Mockito.never()).getInputStream();
+        org.mockito.Mockito.verify(uploaded, org.mockito.Mockito.never()).getInputStream();
     }
 
 }
