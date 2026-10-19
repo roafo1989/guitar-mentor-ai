@@ -183,6 +183,28 @@ class SubmissionAttemptPostgresIntegrationTest {
     }
 
     @Test
+    void realPostgresBatchContinuesBeyondOneHundredRows() {
+        Instant old=Instant.now().minusSeconds(49*3600);
+        // All media keys deliberately point to absent files; ALREADY_ABSENT must be safe.
+        jdbc.update("""
+            INSERT INTO submission_attempts
+             (id,diagnostic_task_id,request_id,attempt_number,submitted_at,status,
+              media_key,media_format,size_bytes,processing_finished_at,processing_finalized_at)
+            SELECT gen_random_uuid(), ?, gen_random_uuid(), n, ?, 'PROCESSED',
+                   gen_random_uuid()::text || '.wav', 'wav', 12, ?, ?
+            FROM generate_series(1, 125) AS n
+            """,taskId,java.sql.Timestamp.from(old),java.sql.Timestamp.from(old),
+            java.sql.Timestamp.from(old));
+        var policy=new MediaRetentionPolicy.Policy(java.time.Duration.ofHours(48),
+            java.time.Duration.ofHours(48),java.time.Duration.ofHours(1));
+        for(int cycle=0;cycle<3;cycle++) cleanupService.runCycle(Instant.now(),policy);
+        assertEquals(125,jdbc.queryForObject(
+            "SELECT count(*) FROM submission_attempts WHERE diagnostic_task_id=? AND media_state='DELETED'",
+            Integer.class,taskId));
+        assertEquals(125,countRows());
+    }
+
+    @Test
     void beforeRetentionBoundaryFileStaysAndAtBoundaryItIsDeleted() throws IOException {
         var view=service.submit(learnerId,sessionId,taskId,UUID.randomUUID(),"boundary",wav());
         String key=jdbc.queryForObject("SELECT media_key FROM submission_attempts WHERE id=?",
