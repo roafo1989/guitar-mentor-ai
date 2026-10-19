@@ -5,7 +5,7 @@ import MicrophoneRecorder from '../attempt/MicrophoneRecorder.vue';
 import { evidenceService } from './evidence.service';
 import type { EvidenceEntry, EvidenceCapabilities } from './evidence.service';
 
-const props = defineProps<{ learnerId: string; sessionId: string }>();
+const props = defineProps<{ learnerId: string; sessionId: string; allowUpload: boolean }>();
 const { t } = useI18n();
 const capabilities = ref<EvidenceCapabilities | null>(null);
 const entries = ref<EvidenceEntry[]>([]);
@@ -115,8 +115,8 @@ onBeforeUnmount(() => {
     <p class="hint">{{ t('evidence.description') }}</p>
     <p v-if="loading" role="status">{{ t('evidence.loading') }}</p>
     <template v-else>
-      <p v-if="!capabilities?.enabled" class="hint">{{ t('evidence.disabled') }}</p>
-      <form v-if="capabilities?.enabled && entries.length < capabilities.maxItems"
+      <p v-if="props.allowUpload && !capabilities?.enabled" class="hint">{{ t('evidence.disabled') }}</p>
+      <form v-if="props.allowUpload && capabilities?.enabled && entries.length < capabilities.maxItems"
         class="homework-form" @submit.prevent="submit">
         <label for="evidence-title">{{ t('evidence.title') }}</label>
         <input id="evidence-title" v-model="title" required maxlength="200"
@@ -147,7 +147,7 @@ onBeforeUnmount(() => {
           {{ uploading ? t('evidence.uploading') : t('evidence.add') }}
         </button>
       </form>
-      <p v-else-if="capabilities?.enabled" class="hint">{{ t('evidence.limitReached') }}</p>
+      <p v-else-if="props.allowUpload && capabilities?.enabled" class="hint">{{ t('evidence.limitReached') }}</p>
       <p v-if="notice" class="saved-status" role="status">{{ notice }}</p>
       <p v-if="error" class="error" role="alert">{{ error }}</p>
       <h4>{{ t('evidence.listHeading') }} ({{ entries.length }})</h4>
