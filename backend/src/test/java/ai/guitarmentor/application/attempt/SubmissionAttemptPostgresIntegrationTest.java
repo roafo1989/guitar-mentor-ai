@@ -251,6 +251,22 @@ class SubmissionAttemptPostgresIntegrationTest {
     }
 
     @Test
+    void unknownPlanAndLegacyTerminalWithoutFinalizationAreNeverDeleted() throws IOException {
+        var legacy=service.submit(learnerId,sessionId,taskId,UUID.randomUUID(),"legacy",wav());
+        var unknown=service.submit(learnerId,sessionId,taskId,UUID.randomUUID(),"unknown",wav());
+        Instant old=Instant.now().minusSeconds(49*3600);
+        jdbc.update("UPDATE submission_attempts SET status='PROCESSED',submitted_at=?,processing_finalized_at=NULL WHERE id=?",
+            java.sql.Timestamp.from(old),legacy.id());
+        jdbc.update("UPDATE submission_attempts SET processing_plan='FUTURE_MULTI_STAGE',submitted_at=? WHERE id=?",
+            java.sql.Timestamp.from(old),unknown.id());
+        cleanupService.runCycle(Instant.now(),new MediaRetentionPolicy.Policy(
+            java.time.Duration.ofHours(48),java.time.Duration.ofHours(48),java.time.Duration.ofHours(1)));
+        assertEquals(2,jdbc.queryForObject("SELECT count(*) FROM submission_attempts WHERE diagnostic_task_id=? AND media_state='AVAILABLE'",
+            Integer.class,taskId));
+        assertEquals(2,fileCount());
+    }
+
+    @Test
     void realPostgresBatchContinuesBeyondOneHundredRows() {
         Instant old=Instant.now().minusSeconds(49*3600);
         // All media keys deliberately point to absent files; ALREADY_ABSENT must be safe.
@@ -308,8 +324,8 @@ class SubmissionAttemptPostgresIntegrationTest {
             "SELECT media_state FROM submission_attempts WHERE id=?",String.class,view.id()));
         assertNotNull(jdbc.queryForObject("SELECT media_deleted_at FROM submission_attempts WHERE id=?",
             java.sql.Timestamp.class,view.id()));
-        assertEquals("MISSING_FILE",jdbc.queryForObject(
-            "SELECT media_delete_reason FROM submission_attempts WHERE id=?",
+        assertEquals("ALREADY_ABSENT",jdbc.queryForObject(
+            "SELECT media_delete_outcome FROM submission_attempts WHERE id=?",
             String.class,view.id()));
         assertEquals("retain",service.list(learnerId,sessionId,taskId).get(0).comment());
     }
