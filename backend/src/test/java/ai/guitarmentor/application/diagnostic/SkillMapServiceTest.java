@@ -48,8 +48,8 @@ class SkillMapServiceTest {
                 new SkillRow("MELODY", "Melody", "Upper voice", "MUSICALITY", 1)));
         when(repository.prerequisites()).thenReturn(Map.of());
         when(repository.signals(instrument.getId())).thenReturn(List.of(
-                new SignalRow("MELODY", "SELF_REPORTED", "RETRACTED", null, Instant.now(), null),
-                new SignalRow("MELODY", "SELF_REPORTED", "CLAIMED", null,
+                new SignalRow(java.util.UUID.randomUUID(), "MELODY", "SELF_REPORTED", "RETRACTED", null, Instant.now(), null),
+                new SignalRow(java.util.UUID.randomUUID(), "MELODY", "SELF_REPORTED", "CLAIMED", null,
                         Instant.now().minusSeconds(60), null)));
         var map = new SkillMapService(learners, repository)
                 .map(learner.getId(), "ACOUSTIC_GUITAR");
@@ -64,6 +64,6 @@ class SkillMapServiceTest {
         when(learners.findById(learner.getId())).thenReturn(Optional.of(learner));
         assertThrows(EntityNotFoundException.class,
                 () -> new SkillMapService(learners, repository)
-                        .history(learner.getId(), "ACOUSTIC_GUITAR", "MELODY", 20));
+                        .history(learner.getId(), "ACOUSTIC_GUITAR", "MELODY", 20, null, null));
     }
 }

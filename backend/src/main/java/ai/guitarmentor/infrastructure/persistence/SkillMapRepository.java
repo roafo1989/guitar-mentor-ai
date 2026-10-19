@@ -19,7 +19,7 @@ public class SkillMapRepository {
     }
 
     public record SkillRow(String code, String title, String description, String category, int displayOrder) {}
-    public record SignalRow(String skillCode, String sourceType, String claimState, Integer level,
+    public record SignalRow(UUID id, String skillCode, String sourceType, String claimState, Integer level,
                             Instant recordedAt, String noteCode) {}
     public record CriterionRow(String code, String skillCode, String label, String observableResult,
                                String assessmentPolicy) {}
@@ -59,22 +59,30 @@ public class SkillMapRepository {
     }
 
     public List<SignalRow> signals(UUID profileId) {
-        return jdbc.query("SELECT skill_code,source_type,claim_state,level,recorded_at,note_code"
-                       + " FROM learner_skill_signal_history WHERE instrument_profile_id=?"
-                       + " ORDER BY recorded_at DESC,id DESC",
-                (rs, n) -> new SignalRow(rs.getString(1), rs.getString(2),
-                        rs.getString(3), rs.getObject(4) == null ? null : ((Number) rs.getObject(4)).intValue(),
-                        rs.getTimestamp(5).toInstant(), rs.getString(6)), profileId);
+        return jdbc.query("SELECT id,skill_code,source_type,claim_state,level,recorded_at,note_code"
+                + " FROM learner_skill_signal_history WHERE instrument_profile_id=?"
+                + " ORDER BY recorded_at DESC,id DESC", (rs,n) -> signal(rs), profileId);
     }
 
-    public List<SignalRow> history(UUID profileId, String code, int limit) {
-        return jdbc.query("SELECT skill_code,source_type,claim_state,level,recorded_at,note_code"
-                        + " FROM learner_skill_signal_history"
-                        + " WHERE instrument_profile_id=? AND skill_code=?"
-                        + " ORDER BY recorded_at DESC,id DESC LIMIT ?",
-                (rs, n) -> new SignalRow(rs.getString(1), rs.getString(2),
-                        rs.getString(3), (Integer) rs.getObject(4),
-                        rs.getTimestamp(5).toInstant(), rs.getString(6)), profileId, code, limit);
+    public List<SignalRow> history(UUID profileId, String code, int limit,
+            Instant beforeRecordedAt, UUID beforeId) {
+        boolean cursor = beforeRecordedAt != null;
+        String sql = "SELECT id,skill_code,source_type,claim_state,level,recorded_at,note_code"
+                + " FROM learner_skill_signal_history WHERE instrument_profile_id=? AND skill_code=?"
+                + (cursor ? " AND (recorded_at,id) < (?,?)" : "")
+                + " ORDER BY recorded_at DESC,id DESC LIMIT ?";
+        Object[] params = cursor
+                ? new Object[]{profileId,code,java.sql.Timestamp.from(beforeRecordedAt),beforeId,limit}
+                : new Object[]{profileId,code,limit};
+        return jdbc.query(sql, (rs,n) -> signal(rs), params);
+    }
+
+    private static SignalRow signal(java.sql.ResultSet rs) throws java.sql.SQLException {
+        Number level = (Number) rs.getObject("level");
+        return new SignalRow((UUID) rs.getObject("id"), rs.getString("skill_code"),
+                rs.getString("source_type"), rs.getString("claim_state"),
+                level == null ? null : level.intValue(),
+                rs.getTimestamp("recorded_at").toInstant(), rs.getString("note_code"));
     }
 
     public void appendOnboardingClaim(UUID profileId, String skill, boolean claimed) {

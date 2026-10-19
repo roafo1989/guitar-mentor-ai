@@ -29,7 +29,7 @@ public class SkillMapService {
     public record SkillView(String skillCode, String title, String description,
             List<String> prerequisites, boolean selfReported, int assessedLevel,
             String evidenceStatus, List<String> unresolvedGaps) {}
-    public record SignalView(String skillCode, String sourceType, String claimState,
+    public record SignalView(UUID id, String skillCode, String sourceType, String claimState,
             Integer level, Instant recordedAt, String noteCode) {}
 
     @Transactional(readOnly = true)
@@ -61,16 +61,19 @@ public class SkillMapService {
 
     @Transactional(readOnly = true)
     public List<SignalView> history(UUID learnerId, String instrumentCode,
-            String skillCode, int limit) {
+            String skillCode, int limit, Instant beforeRecordedAt, UUID beforeId) {
         var profile = ownedProfile(learnerId, instrumentCode);
         if (limit < 1 || limit > 100) {
             throw new IllegalArgumentException("INVALID_LIMIT");
         }
+        if ((beforeRecordedAt == null) != (beforeId == null)) {
+            throw new IllegalArgumentException("INVALID_CURSOR");
+        }
         if (skills.skills().stream().noneMatch(s -> s.code().equals(skillCode))) {
             throw new IllegalArgumentException("INVALID_SKILL_CODE");
         }
-        return skills.history(profile.getId(), skillCode, limit).stream()
-                .map(s -> new SignalView(s.skillCode(), s.sourceType(), s.claimState(),
+        return skills.history(profile.getId(), skillCode, limit, beforeRecordedAt, beforeId).stream()
+                .map(s -> new SignalView(s.id(), s.skillCode(), s.sourceType(), s.claimState(),
                         s.level(), s.recordedAt(), s.noteCode())).toList();
     }
 

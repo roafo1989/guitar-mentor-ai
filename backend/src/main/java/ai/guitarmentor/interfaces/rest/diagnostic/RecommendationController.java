@@ -2,6 +2,7 @@ package ai.guitarmentor.interfaces.rest.diagnostic;
 
 import ai.guitarmentor.application.diagnostic.DiagnosticRecommendationService;
 import ai.guitarmentor.application.diagnostic.SkillMapService;
+import java.time.Instant;
 import java.util.List;
 import java.util.UUID;
 import org.springframework.web.bind.annotation.GetMapping;
@@ -39,7 +40,10 @@ public class RecommendationController {
     @GetMapping("/instruments/{instrumentCode}/skills/history")
     public List<SkillMapService.SignalView> history(@PathVariable UUID learnerId,
             @PathVariable String instrumentCode, @RequestParam String skillCode,
-            @RequestParam(defaultValue = "20") int limit) {
-        return skillMap.history(learnerId, instrumentCode, skillCode, limit);
+            @RequestParam(defaultValue = "20") int limit,
+            @RequestParam(required = false) Instant beforeRecordedAt,
+            @RequestParam(required = false) UUID beforeId) {
+        return skillMap.history(learnerId, instrumentCode, skillCode, limit,
+                beforeRecordedAt, beforeId);
     }
 }
