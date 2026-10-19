@@ -48,7 +48,7 @@ class SkillMapServiceTest {
                 new SkillRow("MELODY", "Melody", "Upper voice", "MUSICALITY", 1)));
         when(repository.prerequisites()).thenReturn(Map.of());
         when(repository.signals(instrument.getId())).thenReturn(List.of(
-                new SignalRow(java.util.UUID.randomUUID(), "MELODY", "SELF_REPORTED", "RETRACTED", null, Instant.now(), null),
+                new SignalRow(java.util.UUID.randomUUID(), "MELODY", "SELF_REPORTED", "RETRACTED", null, null, Instant.now(), null),
                 new SignalRow(java.util.UUID.randomUUID(), "MELODY", "SELF_REPORTED", "CLAIMED", null,
                         Instant.now().minusSeconds(60), null)));
         var map = new SkillMapService(learners, repository)

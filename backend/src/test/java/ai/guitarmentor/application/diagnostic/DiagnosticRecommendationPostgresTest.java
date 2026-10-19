@@ -3,10 +3,20 @@ package ai.guitarmentor.application.diagnostic;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.junit.jupiter.api.Assertions.assertThrows;
+import static org.junit.jupiter.api.Assertions.assertFalse;
 
 import java.sql.Timestamp;
 import java.time.Instant;
 import java.util.UUID;
+import java.util.List;
+import java.util.Set;
+import java.util.concurrent.Executors;
+import java.util.concurrent.TimeUnit;
+import ai.guitarmentor.application.onboarding.OnboardingService;
+import ai.guitarmentor.domain.onboarding.SkillTag;
+import ai.guitarmentor.domain.onboarding.ExperienceLevel;
+import ai.guitarmentor.domain.onboarding.GoalCode;
+import ai.guitarmentor.interfaces.rest.onboarding.OnboardingDtos.BackgroundRequest;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -22,6 +32,7 @@ class DiagnosticRecommendationPostgresTest {
     @Autowired JdbcTemplate jdbc;
     @Autowired DiagnosticRecommendationService recommendations;
     @Autowired SkillMapService skillMap;
+    @Autowired OnboardingService onboarding;
 
     UUID learnerId;
     UUID profileId;
@@ -126,5 +137,58 @@ class DiagnosticRecommendationPostgresTest {
         assertEquals("NO_MATCH", result.status());
         assertEquals("ALL_STYLES_EXCLUDED", result.reasonCode());
         assertEquals(0, assignedCount());
+    }
+
+    @Test
+    void corruptPrerequisiteGraphFailsClosedForRecommendations() {
+        jdbc.update("INSERT INTO skill_prerequisites (skill_code,prerequisite_code)"
+                + " VALUES ('PULSE','SUBDIVISION')");
+        try {
+            assertThrows(InvalidSkillGraphException.class,
+                    () -> recommendations.recommend(learnerId, sessionId, 3));
+            assertEquals(0, assignedCount());
+        } finally {
+            jdbc.update("DELETE FROM skill_prerequisites"
+                    + " WHERE skill_code='PULSE' AND prerequisite_code='SUBDIVISION'");
+        }
+    }
+
+    @Test
+    void validObservedEvidenceIsReadSeparatelyFromSelfReportWithConfidence() {
+        UUID eventId = UUID.randomUUID();
+        jdbc.update("INSERT INTO learner_skill_signal_history"
+                + "(id,instrument_profile_id,skill_code,source_type,level,confidence,"
+                + "source_reference,recorded_at) "
+                + "VALUES (?,?,'PULSE','OBSERVED',3,0.850,'TEST_ASSESSMENT',CURRENT_TIMESTAMP)",
+                eventId, profileId);
+        var pulse = skillMap.map(learnerId, "ACOUSTIC_GUITAR").stream()
+                .filter(v -> v.skillCode().equals("PULSE")).findFirst().orElseThrow();
+        assertEquals(3, pulse.assessedLevel());
+        assertFalse(pulse.selfReported());
+        assertEquals("OBSERVED", pulse.evidenceStatus());
+        var history = skillMap.history(learnerId,"ACOUSTIC_GUITAR","PULSE",20,null,null);
+        assertEquals(eventId, history.getFirst().id());
+        assertEquals(new java.math.BigDecimal("0.850"), history.getFirst().confidence());
+    }
+
+    @Test
+    void concurrentIdenticalOnboardingUpdatesWriteOneClaim() throws Exception {
+        var request = new BackgroundRequest(ExperienceLevel.BEGINNER, 0,
+                Set.of(SkillTag.FINGERSTYLE_MELODY), List.of(), Set.of(GoalCode.FINGERSTYLE),
+                30, 3, "");
+        try (var pool = Executors.newFixedThreadPool(2)) {
+            var go = new java.util.concurrent.CountDownLatch(1);
+            var a = pool.submit(() -> { go.await(); return onboarding.upsert(
+                    learnerId, "ACOUSTIC_GUITAR", request); });
+            var b = pool.submit(() -> { go.await(); return onboarding.upsert(
+                    learnerId, "ACOUSTIC_GUITAR", request); });
+            go.countDown();
+            a.get(15, TimeUnit.SECONDS);
+            b.get(15, TimeUnit.SECONDS);
+        }
+        assertEquals(1, jdbc.queryForObject("SELECT COUNT(*)"
+                        + " FROM learner_skill_signal_history WHERE instrument_profile_id=?"
+                        + " AND skill_code='MELODY' AND claim_state='CLAIMED'",
+                Integer.class, profileId));
     }
 }
