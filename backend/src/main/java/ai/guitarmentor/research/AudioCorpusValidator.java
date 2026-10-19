@@ -145,10 +145,18 @@ public final class AudioCorpusValidator {
                         errors.add("REFERENCE_SCHEMA:" + id);
                     }
                 }
+                if ("REAL".equals(kind) && !"AVAILABLE".equals(available)) {
+                    gaps.add("REAL_NOT_USABLE:" + id);
+                }
                 if ("SYNTHETIC".equals(kind) && !rec.path("transform").isObject()) {
                     errors.add("TRANSFORM_MISSING:" + id);
                 }
                 if ("REAL".equals(kind)) {
+                    if (!nonblank(rec, "referenceRef")) {
+                        gaps.add("REFERENCE_FILE_MISSING:" + id);
+                    } else {
+                        validateReference(root, rec, id, errors);
+                    }
                     if (!nonblank(rec, "annotationRef") || !validSha(value(rec, "annotationSha256"))
                             || !nonblank(rec, "annotationVersion")) {
                         gaps.add("ANNOTATION_MISSING:" + id);
@@ -168,6 +176,49 @@ public final class AudioCorpusValidator {
         }
         String status = !errors.isEmpty() ? "INVALID" : !gaps.isEmpty() ? "INCOMPLETE" : "READY_FOR_POC";
         return new Result(status, List.copyOf(errors), List.copyOf(gaps), realCount);
+    }
+
+    private static void validateReference(Path root, JsonNode rec, String id, List<String> errors) {
+        try {
+            Path path = safePath(root, value(rec, "referenceRef"));
+            if (!hash(path).equals(value(rec, "referenceSha256"))) {
+                errors.add("REFERENCE_INTEGRITY:" + id);
+                return;
+            }
+            JsonNode reference = readBoundedJson(path);
+            if (!value(rec, "referenceId").equals(value(reference, "referenceId"))
+                    || !value(rec, "referenceVersion").equals(value(reference, "referenceVersion"))
+                    || !reference.path("events").isArray()
+                    || reference.path("barCount").asInt(-1) < rec.path("barTo").asInt(0)
+                    || reference.path("bpm").asDouble(-1) <= 0) {
+                errors.add("REFERENCE_CONTENT:" + id);
+                return;
+            }
+            Set<String> eventIds = new HashSet<>();
+            for (JsonNode e : reference.path("events")) {
+                String eventId = value(e, "eventId");
+                if (!validId(eventId) || !eventIds.add(eventId)
+                        || e.path("bar").asInt(0) < 1
+                        || e.path("bar").asInt() > reference.path("barCount").asInt()
+                        || e.path("beat").asDouble(-1) < 0
+                        || e.path("durationBeats").asDouble(-1) <= 0) {
+                    errors.add("REFERENCE_EVENT:" + id);
+                    return;
+                }
+            }
+            Path annotationPath = safePath(root, value(rec, "annotationRef"));
+            if (!hash(annotationPath).equals(value(rec, "annotationSha256"))) return;
+            JsonNode annotation = readBoundedJson(annotationPath);
+            for (JsonNode obs : annotation.path("observations")) {
+                if (!"EXTRA".equals(value(obs, "label"))
+                        && !eventIds.contains(value(obs, "eventId"))) {
+                    errors.add("UNKNOWN_EVENT_ID:" + id);
+                    return;
+                }
+            }
+        } catch (Exception e) {
+            errors.add("REFERENCE_FILE:" + id);
+        }
     }
 
     private static void validateAnnotation(Path root, JsonNode rec, String id, List<String> errors) {
