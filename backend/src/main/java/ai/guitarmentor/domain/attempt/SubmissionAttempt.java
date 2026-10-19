@@ -65,6 +65,21 @@ public class SubmissionAttempt {
 
     @Column(name = "processing_attempts", nullable = false)
     private int processingAttempts;
+    @Column(name = "processing_plan", nullable = false)
+    private String processingPlan = "TECHNICAL_ONLY_V1";
+    @Column(name = "processing_finalized_at")
+    private Instant processingFinalizedAt;
+    @Enumerated(EnumType.STRING)
+    @Column(name = "media_state", nullable = false)
+    private MediaState mediaState = MediaState.AVAILABLE;
+    @Column(name = "media_deleted_at")
+    private Instant mediaDeletedAt;
+    @Column(name = "media_delete_attempts", nullable = false)
+    private int mediaDeleteAttempts;
+    @Column(name = "media_delete_error_code")
+    private String mediaDeleteErrorCode;
+    @Column(name = "media_delete_reason")
+    private String mediaDeleteReason;
 
     protected SubmissionAttempt() {}
 
@@ -76,6 +91,8 @@ public class SubmissionAttempt {
         this.attemptNumber = attemptNumber;
         this.submittedAt = Instant.now();
         this.status = AttemptStatus.UPLOADED;
+        this.processingPlan = "TECHNICAL_ONLY_V1";
+        this.mediaState = MediaState.AVAILABLE;
         this.studentComment = studentComment;
         this.mediaKey = mediaKey;
         this.mediaFormat = mediaFormat;
@@ -98,6 +115,46 @@ public class SubmissionAttempt {
     public String getProcessingErrorCode() { return processingErrorCode; }
     public java.math.BigDecimal getAudioDurationSeconds() { return audioDurationSeconds; }
     public int getProcessingAttempts() { return processingAttempts; }
+    public String getProcessingPlan() { return processingPlan; }
+    public Instant getProcessingFinalizedAt() { return processingFinalizedAt; }
+    public MediaState getMediaState() { return mediaState; }
+    public Instant getMediaDeletedAt() { return mediaDeletedAt; }
+    public void finalizeProcessing(Instant now, String expectedPlan) {
+        if (!processingPlan.equals(expectedPlan) || !"TECHNICAL_ONLY_V1".equals(expectedPlan))
+            throw new IllegalStateException("Unsupported media plan");
+        if (status != AttemptStatus.PROCESSED && status != AttemptStatus.FAILED)
+            throw new IllegalStateException("Not terminal");
+        if (processingFinalizedAt == null) processingFinalizedAt = now;
+    }
+    public void expireUnprocessed(Instant now) {
+        if (status == AttemptStatus.UPLOADED) {
+            status = AttemptStatus.FAILED;
+            processingFinishedAt = now;
+            processingErrorCode = "RETENTION_EXPIRED";
+            finalizeProcessing(now, "TECHNICAL_ONLY_V1");
+        } else if (status == AttemptStatus.PROCESSING) {
+            failTechnicalValidation("RETENTION_EXPIRED");
+        }
+    }
+    public void markDeletePending(String reason) {
+        if (mediaState == MediaState.AVAILABLE) {
+            mediaState = MediaState.DELETE_PENDING;
+            mediaDeleteReason = reason;
+        }
+    }
+    public void markDeleteFailure(String code) {
+        if (mediaState != MediaState.DELETE_PENDING) throw new IllegalStateException("Not pending");
+        mediaDeleteAttempts++;
+        mediaDeleteErrorCode = code;
+    }
+    public void markDeleted(Instant at, boolean alreadyAbsent) {
+        if (mediaState != MediaState.DELETE_PENDING) throw new IllegalStateException("Not pending");
+        mediaDeleteAttempts++;
+        mediaState = MediaState.DELETED;
+        mediaDeletedAt = at;
+        mediaDeleteErrorCode = null;
+        if (alreadyAbsent) mediaDeleteReason = "MISSING_FILE";
+    }
 
     public void startProcessing() {
         if (status != AttemptStatus.UPLOADED) throw new IllegalStateException("Attempt is not queued");
@@ -120,6 +177,7 @@ public class SubmissionAttempt {
                 3, java.math.RoundingMode.HALF_UP);
         status = AttemptStatus.PROCESSED;
         processingFinishedAt = Instant.now();
+        finalizeProcessing(processingFinishedAt, "TECHNICAL_ONLY_V1");
         technicalSha256 = sha256;
         processingErrorCode = null;
     }
@@ -131,6 +189,7 @@ public class SubmissionAttempt {
         }
         status = AttemptStatus.FAILED;
         processingFinishedAt = Instant.now();
+        finalizeProcessing(processingFinishedAt, "TECHNICAL_ONLY_V1");
         processingErrorCode = code;
         technicalSha256 = null;
         audioDurationSeconds = null;
