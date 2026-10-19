@@ -65,8 +65,10 @@ public class DiagnosticEvidenceService {
         return evidence.list(sessionId).stream().map(evidence::view).toList();
     }
 
+    public record SubmitResult(EvidenceView evidence, boolean created) {}
+
     @Transactional
-    public EvidenceView submit(UUID learnerId, UUID sessionId, UUID requestId,
+    public SubmitResult submit(UUID learnerId, UUID sessionId, UUID requestId,
             String title, String composer, String comment,
             MultipartFile file, MultipartFile score) {
         if (!enabled) throw rejected(HttpStatus.FORBIDDEN, "UPLOAD_DISABLED");
@@ -90,7 +92,7 @@ public class DiagnosticEvidenceService {
 
         // Idempotency precedes the state check, so committed retries after continue are safe.
         var existing = evidence.byRequest(sessionId, requestId);
-        if (existing.isPresent()) return evidence.view(existing.get());
+        if (existing.isPresent()) return new SubmitResult(evidence.view(existing.get()), false);
         if (session.getStatus() != DiagnosticStatus.COLLECTING_EVIDENCE)
             throw rejected(HttpStatus.CONFLICT, "INVALID_SESSION_STATE");
         if (evidence.count(sessionId) >= MAX_ITEMS)
@@ -136,7 +138,7 @@ public class DiagnosticEvidenceService {
         evidence.addMedia(id, "AUDIO", stored.key(), stored.format(), stored.size(), "UPLOADED");
         if (storedScore != null) evidence.addMedia(id, "SCORE",
                 storedScore.key(), storedScore.format(), storedScore.bytes(), "PROCESSED");
-        return evidence.view(evidence.byRequest(sessionId, requestId).orElseThrow());
+        return new SubmitResult(evidence.view(evidence.byRequest(sessionId, requestId).orElseThrow()), true);
     }
 
     private static ResponseStatusException rejected(HttpStatus status, String code) {
