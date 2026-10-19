@@ -2,6 +2,7 @@ package ai.guitarmentor.application.diagnostic;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertTrue;
+import static org.junit.jupiter.api.Assertions.assertThrows;
 
 import java.sql.Timestamp;
 import java.time.Instant;
@@ -20,6 +21,7 @@ import org.springframework.jdbc.core.JdbcTemplate;
 class DiagnosticRecommendationPostgresTest {
     @Autowired JdbcTemplate jdbc;
     @Autowired DiagnosticRecommendationService recommendations;
+    @Autowired SkillMapService skillMap;
 
     UUID learnerId;
     UUID profileId;
@@ -84,6 +86,34 @@ class DiagnosticRecommendationPostgresTest {
         assertEquals("0.8B", result.items().getFirst().exerciseVersion());
         assertTrue(result.items().getFirst().skillCodes().contains("PULSE"));
         assertEquals(0, assignedCount());
+    }
+
+    @Test
+    void skillClaimsCanBeReadInStablePagesWithoutGrantingVerifiedLevel() {
+        var older = UUID.randomUUID();
+        var newer = UUID.randomUUID();
+        var oldTime = Timestamp.from(Instant.now().minusSeconds(120));
+        var newTime = Timestamp.from(Instant.now().minusSeconds(30));
+        jdbc.update("INSERT INTO learner_skill_signal_history"
+                + "(id,instrument_profile_id,skill_code,source_type,claim_state,"
+                + "source_reference,recorded_at) VALUES (?,?,'MELODY','SELF_REPORTED',"
+                + "'CLAIMED','ONBOARDING',?)", older, profileId, oldTime);
+        jdbc.update("INSERT INTO learner_skill_signal_history"
+                + "(id,instrument_profile_id,skill_code,source_type,claim_state,"
+                + "source_reference,recorded_at) VALUES (?,?,'MELODY','SELF_REPORTED',"
+                + "'RETRACTED','ONBOARDING',?)", newer, profileId, newTime);
+        var map = skillMap.map(learnerId, "ACOUSTIC_GUITAR");
+        var melody = map.stream().filter(v -> v.skillCode().equals("MELODY")).findFirst().orElseThrow();
+        assertEquals(0, melody.assessedLevel());
+        assertEquals(false, melody.selfReported());
+        var first = skillMap.history(learnerId, "ACOUSTIC_GUITAR", "MELODY", 1, null, null);
+        assertEquals(newer, first.getFirst().id());
+        var next = skillMap.history(learnerId, "ACOUSTIC_GUITAR", "MELODY", 1,
+                first.getFirst().recordedAt(), first.getFirst().id());
+        assertEquals(older, next.getFirst().id());
+        assertThrows(IllegalArgumentException.class,
+                () -> skillMap.history(learnerId, "ACOUSTIC_GUITAR", "MELODY",
+                        1, first.getFirst().recordedAt(), null));
     }
 
     @Test
