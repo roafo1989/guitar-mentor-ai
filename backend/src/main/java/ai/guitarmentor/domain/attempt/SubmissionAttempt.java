@@ -80,6 +80,8 @@ public class SubmissionAttempt {
     private String mediaDeleteErrorCode;
     @Column(name = "media_delete_reason")
     private String mediaDeleteReason;
+    @Column(name = "media_delete_outcome")
+    private String mediaDeleteOutcome;
 
     protected SubmissionAttempt() {}
 
@@ -120,6 +122,8 @@ public class SubmissionAttempt {
     public MediaState getMediaState() { return mediaState; }
     public Instant getMediaDeletedAt() { return mediaDeletedAt; }
     public int getMediaDeleteAttempts() { return mediaDeleteAttempts; }
+    public String getMediaDeleteReason() { return mediaDeleteReason; }
+    public String getMediaDeleteOutcome() { return mediaDeleteOutcome; }
     public void finalizeProcessing(Instant now, String expectedPlan) {
         if (!processingPlan.equals(expectedPlan) || !"TECHNICAL_ONLY_V1".equals(expectedPlan))
             throw new IllegalStateException("Unsupported media plan");
@@ -154,7 +158,7 @@ public class SubmissionAttempt {
         mediaState = MediaState.DELETED;
         mediaDeletedAt = at;
         mediaDeleteErrorCode = null;
-        if (alreadyAbsent) mediaDeleteReason = "MISSING_FILE";
+        mediaDeleteOutcome = alreadyAbsent ? "ALREADY_ABSENT" : "DELETED";
     }
 
     public void startProcessing() {
