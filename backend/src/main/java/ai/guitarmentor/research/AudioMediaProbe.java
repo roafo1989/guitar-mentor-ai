@@ -15,7 +15,7 @@ final class AudioMediaProbe {
 
     static boolean matches(Path source, long durationMs, int sampleRate, int channels) throws IOException {
         // Ensure bounded output is consumed concurrently: ffprobe must never block on a full pipe.
-        Process process = new ProcessBuilder("ffprobe", "-v", "error", "-nostdin",
+        Process process = new ProcessBuilder("ffprobe", "-v", "error",
                 "-protocol_whitelist", "file,pipe", "-select_streams", "a:0",
                 "-show_entries", "stream=sample_rate,channels:format=duration",
                 "-of", "json", source.toString()).redirectErrorStream(true).start();
