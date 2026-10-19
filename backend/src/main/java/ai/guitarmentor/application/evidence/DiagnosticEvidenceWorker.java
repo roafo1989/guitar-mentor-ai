@@ -36,7 +36,7 @@ public class DiagnosticEvidenceWorker {
                 evidence.finishAudio(item.id(),duration,null);
             } catch (IOException failure) {
                 String reason=failure.getMessage();
-                String code=java.util.Set.of("MEDIA_MISSING","SIZE_MISMATCH","INVALID_FORMAT",
+                String code=reason != null && java.util.Set.of("MEDIA_MISSING","SIZE_MISMATCH","INVALID_FORMAT",
                     "INVALID_KEY","INVALID_MEDIA","DURATION_EXCEEDED","PROBE_UNAVAILABLE",
                     "PROBE_TIMEOUT","PROBE_INTERRUPTED").contains(reason)
                         ? reason : "IO_ERROR";
