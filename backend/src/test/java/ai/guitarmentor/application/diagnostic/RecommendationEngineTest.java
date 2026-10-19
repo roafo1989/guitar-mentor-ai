@@ -63,6 +63,30 @@ class RecommendationEngineTest {
         assertEquals("BEGIN-1", r.items().getFirst().exerciseCode());
     }
 
+
+    @Test
+    void likedStyleBeatsNeutralWhenAllOtherSignalsMatch() {
+        var ctx = context(ExperienceLevel.INTERMEDIATE, 40, Set.of(),
+                Map.of("BLUES", PreferenceRating.LIKE, "ROCK", PreferenceRating.NEUTRAL));
+        var neutral = candidate("A-ROCK", "ROCK", "INTERMEDIATE", 20, "PULSE");
+        var liked = candidate("Z-BLUES", "BLUES", "INTERMEDIATE", 20, "PULSE");
+        var selection = engine.select(ctx, List.of(neutral, liked), 2);
+        assertEquals(List.of("Z-BLUES", "A-ROCK"),
+                selection.items().stream().map(RecommendationEngine.Item::exerciseCode).toList());
+        assertTrue(selection.items().getFirst().reasonCodes().contains("PREFERRED_STYLE"));
+    }
+
+    @Test
+    void shortAndLongCandidatesRespectTenMinuteHardLimit() {
+        var ctx = context(ExperienceLevel.BEGINNER, 10, Set.of(), Map.of());
+        var shortTask = candidate("SHORT", "ROCK", "BEGINNER", 10, "PULSE");
+        var longTask = candidate("LONG", "ROCK", "BEGINNER", 30, "PULSE");
+        var selection = engine.select(ctx, List.of(longTask, shortTask), 3);
+        assertEquals(List.of("SHORT"),
+                selection.items().stream().map(RecommendationEngine.Item::exerciseCode).toList());
+        assertEquals(10, selection.items().getFirst().recommendedPracticeMinutes());
+    }
+
     @Test
     void durationFilterDoesNotSilentlyIncreasePracticeTime() {
         var r = engine.select(context(ExperienceLevel.INTERMEDIATE, 10, Set.of(), Map.of()),
