@@ -142,6 +142,11 @@ public class SubmissionAttempt {
         }
     }
     public void markDeletePending(String reason) {
+        if (!"TECHNICAL_ONLY_V1".equals(processingPlan)
+                || processingFinalizedAt == null
+                || (status != AttemptStatus.PROCESSED && status != AttemptStatus.FAILED)) {
+            throw new IllegalStateException("MEDIA_PROCESSING_NOT_FINALIZED");
+        }
         if (mediaState == MediaState.AVAILABLE) {
             mediaState = MediaState.DELETE_PENDING;
             mediaDeleteReason = reason;
