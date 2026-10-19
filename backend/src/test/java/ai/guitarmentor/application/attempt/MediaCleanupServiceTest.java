@@ -37,7 +37,7 @@ class MediaCleanupServiceTest {
             Duration.ofHours(48),Duration.ofHours(48),Duration.ofMinutes(60)));
         var candidate=new AttemptMediaStore.OrphanCandidate(UUID.randomUUID()+".wav",
             now.minus(Duration.ofDays(3)));
-        when(media.scanOlderThan(any(Instant.class),eq(10000))).thenReturn(List.of(candidate));
+        when(media.scanOlderThan(any(Instant.class),eq(256),isNull())).thenReturn(List.of(candidate));
         when(db.isReferenced(candidate.key())).thenThrow(new IllegalStateException("DB offline"));
         var service=new MediaCleanupService(db,policy,media,new MediaUseCoordinator());
         service.tick();
