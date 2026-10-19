@@ -10,7 +10,7 @@
 
 ## 1. Объём и метод проверки
 
-- Прочитаны Issue #29 и история аудита, проект [UC-02](../use-cases/UC-02-initial-diagnostics.md), PlantUML состояний и начала диагностики, ADR-0002/0003, предварительный REST-контракт и AC-D01–D09.
+- Прочитаны Issue #29 и история аудита, проект [UC-02 v0.3 (PR #64)](https://github.com/roafo1989/guitar-mentor-ai/blob/analysis/system-analysis-standard/docs/use-cases/UC-02-initial-diagnostics.md), PlantUML состояний и начала диагностики, ADR-0002/0003, предварительный REST-контракт и AC-D01–D09.
 - Сверены с кодом `main`: `DiagnosticSessionController`, `DiagnosticSessionService`, `DiagnosticStatus`, `DiagnosticTaskController`, `SubmissionAttemptController`, миграция V4 и [системная спецификация в PR #64](https://github.com/roafo1989/guitar-mentor-ai/blob/analysis/system-analysis-standard/docs/specifications/system-specification.md).
 - Проверены границы принятых #20/#30 и будущих #68/#17/#18/#19/#21/#24/#14/#15/#31.
 - **Тип испытания:** статическое документальное ревью + чтение исходников, не запуск CI, PostgreSQL или браузерных сценариев. Никаких новых runtime PASS этим документом не заявляется.
@@ -19,12 +19,12 @@
 
 | ID | Обязательный результат | Результат ревью | Свидетельство и граница |
 | --- | --- | --- | --- |
-| D29-01 | UC-02, основной и альтернативные потоки | **PASS (design)** | [UC-02](../use-cases/UC-02-initial-diagnostics.md): шаги 1–9, альтернативы A1–A9. Это целевой сценарий, не подтверждение всех потоков в UI. |
+| D29-01 | UC-02, основной и альтернативные потоки | **PASS (design)** | [UC-02 v0.3 (PR #64)](https://github.com/roafo1989/guitar-mentor-ai/blob/analysis/system-analysis-standard/docs/use-cases/UC-02-initial-diagnostics.md): шаги 1–9, альтернативы A1–A9. Это целевой сценарий, не подтверждение всех потоков в UI. |
 | D29-02 | PlantUML, жизненный цикл и пересдачи | **PASS (design)** | [Диаграмма состояний](../diagrams/diagnostic-session-states.puml): возврат из REVIEW_READY в AWAITING_SUBMISSION; отдельно [начало intake](../diagrams/diagnostic-intake-sequence.puml). Статусы целевой схемы отличны от кода MVP. |
 | D29-03 | Предметная модель | **PASS (design)** | UC-02: DiagnosticSession, DiagnosticEvidence, DiagnosticTask, PerformanceSubmission, Assessment, StudentDecision, DiagnosticResult и связи с временными медиа. В коде попытка названа SubmissionAttempt; MediaAsset/Assessment/StudentDecision остаются концептуальными моделями и не требуют второй БД-таблицы в #29. |
 | D29-04 | Предварительные API и критерии | **PASS (design)** | UC-02: 7 исходных проектных маршрутов и AC-D01–09. Рабочие start/get/continue, tasks и task attempts отражены в системной спецификации. Старый предварительный `/submissions` не является рабочим endpoint; будущие контракты согласовываются отдельно. |
 | D29-05 | Отличать самооценку и подтверждённые навыки | **PASS (design)** | UC-02: SELF_REPORTED/MEASURED/INFERRED/NOT_ASSESSED; [ADR-0003](../adr/0003-diagnostic-feedback-and-student-decision.md): решение ученика не подменяет оценку и не отмечает навык MASTERED. Музыкальные измерения ещё не валидированы. |
-| D29-06 | Временные медиа вне PostgreSQL | **PASS (design)** | [ADR-0002](../adr/0002-media-storage-and-retention.md): bytes вне БД, приватное хранилище, TTL от завершения всех проверок. После #30 safe delete/rollback в main; автоматическая очистка `system_settings`/TTL относится к #21. |
+| D29-06 | Временные медиа вне PostgreSQL | **PASS (design)** | [ADR-0002 v1.3 (PR #64)](https://github.com/roafo1989/guitar-mentor-ai/blob/analysis/system-analysis-standard/docs/adr/0002-media-storage-and-retention.md): bytes вне БД, приватное хранилище, TTL от завершения всех проверок. После #30 safe delete/rollback в main; автоматическая очистка `system_settings`/TTL относится к #21. |
 
 **Итого: 6/6 PASS по аналитическим артефактам.** `AC-D01–AC-D09` в UC-02 — критерии *целевого пользовательского сценария*, и этот итог **не означает 9/9 runtime PASS**.
 
