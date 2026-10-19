@@ -38,9 +38,9 @@ public class MediaCleanupService {
             return;
         }
         try {
-            lastRun=now;
             runCycle(now,policy);
             reconcileOrphans(now,policy);
+            lastRun=now;
         } catch(RuntimeException problem) {
             log.error("event=MEDIA_CLEANUP_FAILED code=DATABASE_OR_RUNTIME_ERROR");
         } finally {
@@ -67,6 +67,10 @@ public class MediaCleanupService {
         }
     }
     public void runCycle(Instant now,MediaRetentionPolicy.Policy policy) {
+        // Public entry point is also called by recovery and integration tests;
+        // always coordinate filesystem deletion, even outside the scheduler.
+        coordinator.acquire();
+        try {
         for(var item:transactions.claim(now,policy)) {
             try {
                 var result=store.delete(item.key());
@@ -80,5 +84,6 @@ public class MediaCleanupService {
                 }
             }
         }
+        } finally { coordinator.release(); }
     }
 }
