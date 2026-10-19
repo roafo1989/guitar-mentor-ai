@@ -167,6 +167,26 @@ public class LocalAttemptMediaStore implements AttemptMediaStore {
         return target;
     }
 
+    @Override
+    public java.util.List<OrphanCandidate> scanOlderThan(java.time.Instant cutoff,int limit)
+            throws IOException {
+        if (!Files.isDirectory(root, LinkOption.NOFOLLOW_LINKS)) return java.util.List.of();
+        var items = new java.util.ArrayList<OrphanCandidate>();
+        try (var stream = Files.list(root)) {
+            for (var path : (Iterable<Path>) stream::iterator) {
+                if (items.size() >= limit) break;
+                if (!path.getFileName().toString().matches(KEY_PATTERN)) continue;
+                var attributes = Files.readAttributes(path,BasicFileAttributes.class,LinkOption.NOFOLLOW_LINKS);
+                if (!attributes.isRegularFile()) continue;
+                var modified = attributes.lastModifiedTime().toInstant();
+                if (!modified.isAfter(cutoff)) {
+                    items.add(new OrphanCandidate(path.getFileName().toString(),modified));
+                }
+            }
+        }
+        return items;
+    }
+
     /** Idempotent deletion with explicit errors. No recursion and no symlink following. */
     @Override
     public DeleteOutcome delete(String key) throws IOException {
