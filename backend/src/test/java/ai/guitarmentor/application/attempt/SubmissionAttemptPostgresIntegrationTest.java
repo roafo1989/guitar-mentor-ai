@@ -183,6 +183,27 @@ class SubmissionAttemptPostgresIntegrationTest {
     }
 
     @Test
+    void restartAfterFileDeletionResumesPendingAndRetainsHistory() throws IOException {
+        UUID requestId=UUID.randomUUID();
+        var view=service.submit(learnerId,sessionId,taskId,requestId,"retain",wav());
+        String key=jdbc.queryForObject("SELECT media_key FROM submission_attempts WHERE id=?",
+            String.class,view.id());
+        jdbc.update("UPDATE submission_attempts SET media_state='DELETE_PENDING' WHERE id=?",view.id());
+        Files.delete(MEDIA_ROOT.resolve(key)); // crash window: physical delete, no DB confirmation
+        cleanupService.runCycle(Instant.now(),new MediaRetentionPolicy.Policy(
+            java.time.Duration.ofHours(48),java.time.Duration.ofHours(48),
+            java.time.Duration.ofHours(1)));
+        assertEquals("DELETED",jdbc.queryForObject(
+            "SELECT media_state FROM submission_attempts WHERE id=?",String.class,view.id()));
+        assertNotNull(jdbc.queryForObject("SELECT media_deleted_at FROM submission_attempts WHERE id=?",
+            java.sql.Timestamp.class,view.id()));
+        assertEquals("MISSING_FILE",jdbc.queryForObject(
+            "SELECT media_delete_reason FROM submission_attempts WHERE id=?",
+            String.class,view.id()));
+        assertEquals("retain",service.list(learnerId,sessionId,taskId).get(0).comment());
+    }
+
+    @Test
     void realPostgresCleanupExpiresOldUnprocessedAttempt() throws IOException {
         var view=service.submit(learnerId,sessionId,taskId,UUID.randomUUID(),"expired",wav());
         Instant old=Instant.now().minusSeconds(49*3600);
