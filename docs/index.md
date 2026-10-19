@@ -6,12 +6,15 @@
 
 [Задачи](https://github.com/users/roafo1989/projects/1/views/3) · [Стори](https://github.com/users/roafo1989/projects/1/views/4) · [Эпики](https://github.com/users/roafo1989/projects/1/views/5) · [Иерархия](https://github.com/users/roafo1989/projects/1/views/2)
 
-- [Жизненный цикл задачи 1.2](project/development-workflow.md)
+- [Жизненный цикл задачи 1.3](project/development-workflow.md)
+- [Стандарт спецификаций 1.0: Full / Standard / Design / Light](project/specification-standard.md)
+- [Шаблон спецификации изменения](templates/change-specification.md)
+- [Протокол настройки досок 19.10.2026](project/board-standard-migration-2026-10-19.md)
 - [Поля и переходы Kanban](project/kanban-workflow.md)
-- [Регламент бизнес-анализа 1.2](project/business-analysis-workflow.md)
-- [Регламент системного анализа 1.5](project/system-analysis-workflow.md)
-- [Регламент тестирования 1.0](project/testing-workflow.md)
-- [Реестр иерархии 0.8](project/issue-hierarchy.md)
+- [Регламент бизнес-анализа 1.3](project/business-analysis-workflow.md)
+- [Регламент системного анализа 1.6](project/system-analysis-workflow.md)
+- [Регламент тестирования 1.1](project/testing-workflow.md)
+- [Реестр иерархии 0.9](project/issue-hierarchy.md)
 
 ## Требования и спецификации
 
