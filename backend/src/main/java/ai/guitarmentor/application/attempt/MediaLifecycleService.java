@@ -11,6 +11,7 @@ import org.springframework.transaction.annotation.Transactional;
 public class MediaLifecycleService {
     private final SubmissionAttemptRepository attempts;
     private final Clock clock;
+    @org.springframework.beans.factory.annotation.Autowired
     public MediaLifecycleService(SubmissionAttemptRepository attempts) {
         this(attempts,Clock.systemUTC());
     }
