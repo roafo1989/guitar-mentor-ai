@@ -26,3 +26,6 @@ Reject URI/scheme strings, absolute paths (POSIX, Windows, UNC), any `..` segmen
 
 ## Readiness status
 `INVALID`: unsafe reference, malformed schema, damaged/hash-mismatched source, inconsistent event/time fields. `INCOMPLETE`: missing/withdrawn source, absent/unconfirmed rights or annotations, insufficient independent REAL coverage. `READY_FOR_POC`: all structural checks and manual attestation flags exist, six+ independent REAL takes are present, and independent CALIBRATION/HOLDOUT coverage holds. This means **ready to measure**, not “accurate”.
+
+## Explicit manual attestation (validator contract)
+A real annotation JSON must set `manualConfirmed: true` only after a human has actually listened to the take and reviewed the observations. This is a **declaration**, not evidence that automated tools can authenticate. Test fixtures may set the flag solely to exercise code paths and must never be relabeled as genuine REAL recordings. Only CALIBRATION or HOLDOUT recordings count toward independent coverage; DIAGNOSTIC_ONLY remains excluded.
