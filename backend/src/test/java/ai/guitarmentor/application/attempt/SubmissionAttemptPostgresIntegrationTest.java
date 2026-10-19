@@ -183,6 +183,27 @@ class SubmissionAttemptPostgresIntegrationTest {
     }
 
     @Test
+    void beforeRetentionBoundaryFileStaysAndAtBoundaryItIsDeleted() throws IOException {
+        var view=service.submit(learnerId,sessionId,taskId,UUID.randomUUID(),"boundary",wav());
+        String key=jdbc.queryForObject("SELECT media_key FROM submission_attempts WHERE id=?",
+            String.class,view.id());
+        Instant now=Instant.now();
+        Instant due=now.minusSeconds(48*3600);
+        jdbc.update("""
+            UPDATE submission_attempts SET status='PROCESSED',
+              processing_finished_at=?,processing_finalized_at=? WHERE id=?
+            """,java.sql.Timestamp.from(due),java.sql.Timestamp.from(due),view.id());
+        var policy=new MediaRetentionPolicy.Policy(java.time.Duration.ofHours(48),
+            java.time.Duration.ofHours(48),java.time.Duration.ofHours(1));
+        cleanupService.runCycle(now.minusNanos(1_000_000),policy);
+        assertTrue(Files.exists(MEDIA_ROOT.resolve(key)));
+        cleanupService.runCycle(now,policy);
+        assertFalse(Files.exists(MEDIA_ROOT.resolve(key)));
+        assertEquals("DELETED",jdbc.queryForObject("SELECT media_state FROM submission_attempts WHERE id=?",
+            String.class,view.id()));
+    }
+
+    @Test
     void restartAfterFileDeletionResumesPendingAndRetainsHistory() throws IOException {
         UUID requestId=UUID.randomUUID();
         var view=service.submit(learnerId,sessionId,taskId,requestId,"retain",wav());
