@@ -21,6 +21,12 @@
     </properties>
 
     <dependencies>
+        <!-- Offline audio research tool uses Jackson 2 independently of Spring MVC JSON defaults. -->
+        <dependency>
+            <groupId>com.fasterxml.jackson.core</groupId>
+            <artifactId>jackson-databind</artifactId>
+            <version>2.20.1</version>
+        </dependency>
         <dependency>
             <groupId>org.springframework.boot</groupId>
             <artifactId>spring-boot-starter-webmvc</artifactId>
