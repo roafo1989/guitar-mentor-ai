@@ -78,6 +78,19 @@ class AudioCorpusReadinessTest {
         assertEquals("READY_FOR_POC", result.status(), result.toString());
         assertEquals(6, result.realCount());
         assertEquals(0, result.exitCode());
+        // A consent/review checkbox in the manifest is not sufficient by itself.
+        ObjectNode firstAnnotation = (ObjectNode) mapper.readTree(
+                Files.readString(root.resolve("annotation-1.json")));
+        firstAnnotation.put("manualConfirmed", false);
+        String unconfirmedHash = writeJson("annotation-1.json", firstAnnotation);
+        ((ObjectNode)recordings.get(0)).put("annotationSha256", unconfirmedHash);
+        writeJson("manifest.json", manifest);
+        var unconfirmed = AudioCorpusValidator.validate(root, "manifest.json");
+        assertEquals("INVALID", unconfirmed.status());
+        assertTrue(unconfirmed.errors().stream().anyMatch(e -> e.startsWith("ANNOTATION_SCHEMA")));
+        firstAnnotation.put("manualConfirmed", true);
+        ((ObjectNode)recordings.get(0)).put("annotationSha256", writeJson("annotation-1.json", firstAnnotation));
+
 
         ObjectNode first = (ObjectNode) recordings.get(0);
         ObjectNode second = (ObjectNode) recordings.get(1);
