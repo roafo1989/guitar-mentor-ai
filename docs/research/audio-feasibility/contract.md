@@ -29,3 +29,6 @@ Reject URI/scheme strings, absolute paths (POSIX, Windows, UNC), any `..` segmen
 
 ## Explicit manual attestation (validator contract)
 A real annotation JSON must set `manualConfirmed: true` only after a human has actually listened to the take and reviewed the observations. This is a **declaration**, not evidence that automated tools can authenticate. Test fixtures may set the flag solely to exercise code paths and must never be relabeled as genuine REAL recordings. Only CALIBRATION or HOLDOUT recordings count toward independent coverage; DIAGNOSTIC_ONLY remains excluded.
+
+## Independent holdout declaration
+For a REAL entry assigned to HOLDOUT, `holdoutIndependentConfirmed: true` is a required human assertion that the performance is a distinct take, not a conversion or excerpt from CALIBRATION. The validator checks file hashes and group IDs, but cannot prove that two different audio files are from different physical performances. Missing attestation produces INCOMPLETE; an assertion alone never proves independence. The generated integration harness uses a test-only declaration and must not be treated as human evidence.
