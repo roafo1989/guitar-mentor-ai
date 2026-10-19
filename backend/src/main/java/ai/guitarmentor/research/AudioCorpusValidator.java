@@ -23,6 +23,7 @@ import java.util.Set;
 public final class AudioCorpusValidator {
     private static final long MAX_BYTES = 20L * 1024 * 1024;
     private static final long MAX_MS = 120_000;
+    private static final long MAX_JSON_BYTES = 1024 * 1024;
     private static final Set<String> KINDS = Set.of("REAL", "SYNTHETIC", "QUALITY");
     private static final Set<String> GROUPS = Set.of("REAL-BASS", "REAL-TIMING", "REAL-POLY",
             "SYNTHETIC-CONTROL", "QUALITY-CONTROL");
@@ -55,8 +56,9 @@ public final class AudioCorpusValidator {
             }
             Result result = validate(root, args[3]);
             // CREATE_NEW guarantees a previous result is never overwritten.
-            JSON.writerWithDefaultPrettyPrinter().writeValue(
-                    Files.newOutputStream(report, java.nio.file.StandardOpenOption.CREATE_NEW), result);
+            try (var output = Files.newOutputStream(report, java.nio.file.StandardOpenOption.CREATE_NEW)) {
+                JSON.writerWithDefaultPrettyPrinter().writeValue(output, result);
+            }
             System.out.println(result.status());
             System.exit(result.exitCode());
         } catch (Exception e) {
@@ -72,7 +74,7 @@ public final class AudioCorpusValidator {
         int realCount = 0;
         try {
             Path manifest = safePath(root, manifestRef);
-            JsonNode dataset = JSON.readTree(Files.newInputStream(manifest));
+            JsonNode dataset = readBoundedJson(manifest);
             if (dataset == null || dataset.path("schemaVersion").asInt(-1) != 1
                     || !nonblank(dataset, "datasetId") || !nonblank(dataset, "datasetVersion")
                     || !nonblank(dataset, "createdAt") || !nonblank(dataset, "sourceCommit")
@@ -107,7 +109,11 @@ public final class AudioCorpusValidator {
                     }
                     String oldSplit = groupSplits.putIfAbsent(recordingGroup, split);
                     if (oldSplit != null && !oldSplit.equals(split)) errors.add("SPLIT_LEAK:" + id);
-                    coverage.computeIfAbsent(group, ignored -> new HashSet<>()).add(recordingGroup + ":" + split);
+                    // Do not count withdrawn, absent or unreviewed samples as usable holdout.
+                    if ("AVAILABLE".equals(available) && rec.path("rightsConfirmed").asBoolean(false)
+                            && rec.path("manualReviewConfirmed").asBoolean(false)) {
+                        coverage.computeIfAbsent(group, ignored -> new HashSet<>()).add(recordingGroup + ":" + split);
+                    }
                     if (!Set.of("OWNED", "LICENSED", "EXPLICIT_PERMISSION").contains(value(rec, "rightsBasis"))
                             || !validId(value(rec, "consentRef"))
                             || !Set.of("LOCAL_RESEARCH", "EXTERNAL_APPROVED").contains(value(rec, "useScope"))
@@ -171,7 +177,7 @@ public final class AudioCorpusValidator {
                 errors.add("ANNOTATION_INTEGRITY:" + id);
                 return;
             }
-            JsonNode a = JSON.readTree(Files.newInputStream(path));
+            JsonNode a = readBoundedJson(path);
             if (!id.equals(value(a, "recordingId"))
                     || !value(rec, "sourceSha256").equals(value(a, "sourceSha256"))
                     || !a.path("observations").isArray()
@@ -194,6 +200,13 @@ public final class AudioCorpusValidator {
                 }
             }
         } catch (Exception e) { errors.add("ANNOTATION_REFERENCE:" + id); }
+    }
+
+    private static JsonNode readBoundedJson(Path file) throws IOException {
+        if (Files.size(file) > MAX_JSON_BYTES) throw new IOException("json too large");
+        try (var input = Files.newInputStream(file)) {
+            return JSON.readTree(input);
+        }
     }
 
     public static Path safePath(Path root, String ref) throws IOException {
