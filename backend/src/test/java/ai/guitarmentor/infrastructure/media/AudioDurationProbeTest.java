@@ -30,4 +30,62 @@ class AudioDurationProbeTest {
             throw new AssertionError(problem);
         }
     }
+    @Test
+    void acceptsM4aOnlyWhenMovFamilyAndAacAudioStreamPresent() throws Exception {
+        AudioDurationProbe.validateM4aStreams(List.of(
+                "codec_name=aac|codec_type=audio",
+                "format_name=mov,mp4,m4a,3gp,3g2,mj2"));
+    }
+
+    @Test
+    void rejectsM4aVideoSubtitlesWrongCodecMissingAudioAndMissingContainer() {
+        for (List<String> output : List.of(
+                List.of("codec_name=aac|codec_type=audio",
+                        "codec_name=h264|codec_type=video",
+                        "format_name=mov,mp4,m4a,3gp,3g2,mj2"),
+                List.of("codec_name=h264|codec_type=video",
+                        "format_name=mov,mp4,m4a,3gp,3g2,mj2"),
+                List.of("codec_name=alac|codec_type=audio",
+                        "format_name=mov,mp4,m4a,3gp,3g2,mj2"),
+                List.of("codec_name=aac|codec_type=audio",
+                        "codec_name=bin_data|codec_type=data",
+                        "format_name=mov,mp4,m4a,3gp,3g2,mj2"),
+                List.of("codec_name=aac|codec_type=audio"),
+                List.of("format_name=mov,mp4,m4a,3gp,3g2,mj2"),
+                List.of("codec_name=aac|codec_type=audio", "format_name=matroska,webm")
+        )) {
+            var rejected = assertThrows(IOException.class,
+                    () -> AudioDurationProbe.validateM4aStreams(output));
+            assertEquals("INVALID_MEDIA", rejected.getMessage());
+        }
+    }
+
+    @Test
+    void inspectsGenerated3gp4M4aAacWithRealFfprobeIfAvailable(
+            @org.junit.jupiter.api.io.TempDir java.nio.file.Path temp) throws Exception {
+        var media = temp.resolve("generated.m4a");
+        Process encoder;
+        try {
+            encoder = new ProcessBuilder("ffmpeg", "-nostdin", "-hide_banner",
+                    "-loglevel", "error", "-f", "lavfi", "-i",
+                    "anullsrc=channel_layout=mono:sample_rate=44100", "-t", "0.5",
+                    "-c:a", "aac", "-b:a", "64k", "-brand", "3gp4",
+                    "-y", media.toString()).start();
+        } catch (IOException absent) {
+            org.junit.jupiter.api.Assumptions.assumeTrue(false, "ffmpeg unavailable");
+            return;
+        }
+        assertEquals(0, encoder.waitFor());
+        var probe = new AudioDurationProbe("ffprobe");
+        try {
+            probe.inspectM4a(media);
+        } catch (IOException unavailable) {
+            if ("PROBE_UNAVAILABLE".equals(unavailable.getMessage())) {
+                org.junit.jupiter.api.Assumptions.assumeTrue(false, "ffprobe unavailable");
+            }
+            throw unavailable;
+        }
+        assertEquals(0.5, probe.measure(media), 0.05);
+    }
+
 }
