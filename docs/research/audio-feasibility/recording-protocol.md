@@ -1,0 +1,12 @@
+# Private recording protocol — human checklist
+
+1. Choose self-authored or otherwise demonstrably permitted score fragments, version and hash the reference; GM-EB01 v0.8B bars 1–4 may be considered only after validating musical provenance and rights. Notation, JSON and synthesized playback do **not** stand in for real playing.
+2. Record 2 different takes of alternating bass (`REAL-BASS`, optionally 60 and 80 BPM); 2 takes with deliberate pause or tempo variation (`REAL-TIMING`); 2 takes of melody + bass including a deliberately flawed version (`REAL-POLY`). Prefer uncompressed WAV. Smartphone vs computer capture comparison is optional; if missing, report NOT_AVAILABLE.
+3. Before recording, log only private pseudonyms and instrument/tuning, intended beats, meter/BPM, microphone/device distance, environment, selected bars and audible click count-in. Capture and retain original bytes locally **outside repository**. No uploads to production/media storage.
+4. For each source, compute SHA-256, byte count, actual duration, sample rate and channels. Record consent/ownership and permitted local use. Do not put consent or private annotations into issues or Git.
+5. Listen to every take. Mark actual onset and tolerances relative to **the decoded file's time zero**, departures/extra notes/rests/pauses/bass mistakes, UNKNOWN/AMBIGUOUS as appropriate. Review manually; note reviewer limitations. An intended mistake may fail to occur.
+6. Assign independent takes to CALIBRATION and HOLDOUT **before** running #15. All derivations of the same take share recordingGroupId and split. No real recordings or their transformations in public fixtures.
+7. Validate locally, check unchanged source hashes and public diff/console for leaks. Without six confirmed takes and holdout, return INCOMPLETE.
+8. When a participant withdraws consent or a source disappears, mark WITHDRAWN/MISSING and invalidate the dataset version; do not attempt recovery from application TTL storage.
+
+**Operator prerequisite:** at present, no user-provided real corpus or agreed local access path has been supplied. Do not fabricate recordings, timestamps, approvals or human listening results.
