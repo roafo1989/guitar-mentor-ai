@@ -227,4 +227,23 @@ class LocalAttemptMediaStoreTest {
         org.mockito.Mockito.verify(uploaded, org.mockito.Mockito.never()).getInputStream();
     }
 
+    @Test
+    void rejectsOversizedStreamEvenIfMultipartClaimsSmallSize() throws Exception {
+        var store = new LocalAttemptMediaStore(temp.toString());
+        byte[] data = new byte[(int) AttemptMediaStore.MAX_BYTES + 1];
+        byte[] ftyp = isoFtyp("M4A ");
+        System.arraycopy(ftyp, 0, data, 0, ftyp.length);
+        var uploaded = mock(org.springframework.web.multipart.MultipartFile.class);
+        when(uploaded.getSize()).thenReturn(100L);
+        when(uploaded.getOriginalFilename()).thenReturn("underreported.m4a");
+        when(uploaded.getInputStream()).thenAnswer(
+                call -> new java.io.ByteArrayInputStream(data));
+        var rejected = assertThrows(ResponseStatusException.class,
+                () -> store.store(uploaded));
+        assertEquals(400, rejected.getStatusCode().value());
+        try (var files = Files.list(temp)) {
+            assertEquals(0, files.count(), "partially persisted file must be deleted");
+        }
+    }
+
 }
