@@ -79,6 +79,17 @@ class AudioCorpusReadinessTest {
         assertEquals(6, result.realCount());
         assertEquals(0, result.exitCode());
 
+        ObjectNode first = (ObjectNode) recordings.get(0);
+        ObjectNode second = (ObjectNode) recordings.get(1);
+        String secondHash = second.path("sourceSha256").asText();
+        second.put("sourceSha256", first.path("sourceSha256").asText());
+        writeJson("manifest.json", manifest);
+        var duplicate = AudioCorpusValidator.validate(root, "manifest.json");
+        assertEquals("INVALID", duplicate.status());
+        assertTrue(duplicate.errors().stream().anyMatch(e -> e.startsWith("DUPLICATE_REAL_SOURCE")));
+        second.put("sourceSha256", secondHash);
+
+
         // A reference to a nonexistent notation event must fail.
         ObjectNode bad = (ObjectNode) mapper.readTree(Files.readString(root.resolve("annotation-1.json")));
         ((ObjectNode)bad.withArray("observations").get(0)).put("eventId", "NONEXISTENT");
