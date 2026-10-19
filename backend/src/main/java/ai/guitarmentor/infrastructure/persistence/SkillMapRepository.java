@@ -45,7 +45,9 @@ public class SkillMapRepository {
     public Map<String, String> exerciseRoles(UUID exerciseId) {
         var result = new HashMap<String, String>();
         jdbc.query("SELECT skill_code,target_role FROM exercise_skills WHERE exercise_id=?",
-                rs -> result.put(rs.getString(1), rs.getString(2)), exerciseId);
+                (org.springframework.jdbc.core.RowCallbackHandler) rs -> {
+                    result.put(rs.getString(1), rs.getString(2));
+                }, exerciseId);
         return result;
     }
 
