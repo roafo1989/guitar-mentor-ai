@@ -18,9 +18,9 @@ public class MediaCleanupTransactions {
 
     @Transactional
     public List<Candidate> claim(Instant now,MediaRetentionPolicy.Policy policy) {
-        var pending=attempts.findTop100ByMediaStateOrderBySubmittedAtAsc(MediaState.DELETE_PENDING)
+        var pending=attempts.findTop50ByMediaStateOrderByMediaDeleteAttemptsAscSubmittedAtAsc(MediaState.DELETE_PENDING)
             .stream().map(a -> new Candidate(a.getId(),a.getMediaKey())).toList();
-        if (!pending.isEmpty()) return pending;
+
         var selected=attempts.findEligibleForCleanup(
             now.minus(policy.afterFinal()),now.minus(policy.maxUnprocessed()));
         for(var a:selected) {
@@ -29,7 +29,9 @@ public class MediaCleanupTransactions {
             a.markDeletePending(finalized ? "PROCESSED_TTL" : "UNPROCESSED_TTL");
         }
         attempts.flush();
-        return selected.stream().map(a->new Candidate(a.getId(),a.getMediaKey())).toList();
+        var all=new java.util.ArrayList<>(pending);
+        all.addAll(selected.stream().map(a->new Candidate(a.getId(),a.getMediaKey())).toList());
+        return all;
     }
     @Transactional
     public void deleted(UUID id,Instant now,boolean absent) {
