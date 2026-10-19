@@ -136,11 +136,12 @@ async function assign(exerciseCode: string): Promise<void> {
       <div v-if="session" class="saved-status" role="status">
         {{ t('diagnostic.session') }}: {{ session.id }}
       </div>
+      <DiagnosticEvidencePanel v-if="session && learnerStore.learner"
+        :learner-id="learnerStore.learner.id" :session-id="session.id"
+        :allow-upload="session.status === 'COLLECTING_EVIDENCE'" />
       <template v-if="!session">
         <h2>{{ t('diagnostic.startTitle') }}</h2>
         <p>{{ t('diagnostic.startDescription') }}</p>
-        <DiagnosticEvidencePanel v-if="learnerStore.learner"
-          :learner-id="learnerStore.learner.id" :session-id="session.id" />
         <div class="form-actions">
           <button type="button" class="action-button" :disabled="busy" @click="start">
             {{ busy ? t('diagnostic.working') : t('diagnostic.start') }}
