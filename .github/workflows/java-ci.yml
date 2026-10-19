@@ -279,27 +279,27 @@ jobs:
               # Regression P2: construct a playable AAC M4A with a 288-byte ftyp.
               # Preserve sample offsets after expanding the compatible-brand table.
               python3 - <<'PY'
-              import struct
-              data = bytearray(open("default.m4a", "rb").read())
-              old = struct.unpack_from(">I", data, 0)[0]
-              assert data[4:8] == b"ftyp" and old >= 16 and old <= 288 and (288 - old) % 4 == 0
-              shift = 288 - old
-              output = bytearray(struct.pack(">I", 288) + data[4:old] + b"isom" * (shift // 4) + data[old:])
-              offset_boxes = 0
-              cursor = 0
-              while True:
-                  index = output.find(b"stco", cursor)
-                  if index < 0:
-                      break
-                  count = struct.unpack_from(">I", output, index + 8)[0]
-                  for i in range(count):
-                      pos = index + 12 + i * 4
-                      struct.pack_into(">I", output, pos, struct.unpack_from(">I", output, pos)[0] + shift)
-                  offset_boxes += 1
-                  cursor = index + 4
-              assert offset_boxes > 0, "Missing stco box in generated M4A"
-              open("large-ftyp.m4a", "wb").write(output)
-              PY
+          import struct
+          data = bytearray(open("default.m4a", "rb").read())
+          old = struct.unpack_from(">I", data, 0)[0]
+          assert data[4:8] == b"ftyp" and old >= 16 and old <= 288 and (288 - old) % 4 == 0
+          shift = 288 - old
+          output = bytearray(struct.pack(">I", 288) + data[4:old] + b"isom" * (shift // 4) + data[old:])
+          offset_boxes = 0
+          cursor = 0
+          while True:
+              index = output.find(b"stco", cursor)
+              if index < 0:
+                  break
+              count = struct.unpack_from(">I", output, index + 8)[0]
+              for i in range(count):
+                  pos = index + 12 + i * 4
+                  struct.pack_into(">I", output, pos, struct.unpack_from(">I", output, pos)[0] + shift)
+              offset_boxes += 1
+              cursor = index + 4
+          assert offset_boxes > 0, "Missing stco box in generated M4A"
+          open("large-ftyp.m4a", "wb").write(output)
+          PY
               ffprobe -v error -show_entries stream=codec_name \
                 -of default=nw=1 large-ftyp.m4a | grep -q 'codec_name=aac'
               curl --fail --silent --show-error -X POST "$attempts_base" \
