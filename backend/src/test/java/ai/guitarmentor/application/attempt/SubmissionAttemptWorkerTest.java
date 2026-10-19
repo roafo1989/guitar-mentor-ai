@@ -72,4 +72,35 @@ class SubmissionAttemptWorkerTest {
         new SubmissionAttemptWorker(processor, media, probe).poll();
         verify(processor).failure(id, "MEDIA_MISSING");
     }
+    @Test
+    void m4aMustPassAacOnlyInspectionBeforeItIsMarkedProcessed() throws Exception {
+        var id = UUID.randomUUID();
+        var job = new ProcessingJob(id, UUID.randomUUID() + ".m4a", 500);
+        var path = Path.of("phone.m4a");
+        when(processor.claimNext()).thenReturn(Optional.of(job));
+        when(media.verifyAndHash(job.key(), job.size())).thenReturn("c".repeat(64));
+        when(media.resolveForInspection(job.key())).thenReturn(path);
+        when(probe.measure(path)).thenReturn(17.6);
+        new SubmissionAttemptWorker(processor, media, probe).poll();
+        var order = org.mockito.Mockito.inOrder(probe, processor);
+        order.verify(probe).inspectM4a(path);
+        order.verify(probe).measure(path);
+        order.verify(processor).success(id, "c".repeat(64), 17.6);
+    }
+
+    @Test
+    void videoInsideM4aCannotBecomeProcessed() throws Exception {
+        var id = UUID.randomUUID();
+        var job = new ProcessingJob(id, UUID.randomUUID() + ".m4a", 500);
+        var path = Path.of("video-renamed.m4a");
+        when(processor.claimNext()).thenReturn(Optional.of(job));
+        when(media.verifyAndHash(job.key(), job.size())).thenReturn("d".repeat(64));
+        when(media.resolveForInspection(job.key())).thenReturn(path);
+        org.mockito.Mockito.doThrow(new IOException("INVALID_MEDIA"))
+                .when(probe).inspectM4a(path);
+        new SubmissionAttemptWorker(processor, media, probe).poll();
+        verify(processor).failure(id, "INVALID_MEDIA");
+        org.mockito.Mockito.verify(probe, org.mockito.Mockito.never()).measure(path);
+    }
+
 }

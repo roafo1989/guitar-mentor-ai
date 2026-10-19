@@ -206,4 +206,123 @@ class LocalAttemptMediaStoreTest {
         assertTrue(Files.exists(target));
     }
 
+    private static byte[] isoFtyp(String major, String... compatible) {
+        var bytes = java.nio.ByteBuffer.allocate(16 + 4 * compatible.length);
+        bytes.putInt(bytes.capacity());
+        bytes.put("ftyp".getBytes(java.nio.charset.StandardCharsets.US_ASCII));
+        bytes.put(major.getBytes(java.nio.charset.StandardCharsets.US_ASCII));
+        bytes.putInt(0);
+        for (String brand : compatible) {
+            bytes.put(brand.getBytes(java.nio.charset.StandardCharsets.US_ASCII));
+        }
+        return bytes.array();
+    }
+
+    @Test
+    void storesDictaphone3gp4AacM4aAndDeletesByUuidKey() throws Exception {
+        var store = new LocalAttemptMediaStore(temp.toString());
+        byte[] ftyp = isoFtyp("3gp4", "isom", "3gp4");
+        var item = store.store(new MockMultipartFile(
+                "file", "recording(1).M4A", "audio/mp4", ftyp));
+        assertTrue(item.key().matches("[0-9a-f-]{36}\\.m4a"));
+        assertEquals("m4a", item.format());
+        assertEquals(64, store.verifyAndHash(item.key(), ftyp.length).length());
+        assertEquals(AttemptMediaStore.DeleteOutcome.DELETED, store.delete(item.key()));
+        assertEquals(AttemptMediaStore.DeleteOutcome.ALREADY_ABSENT, store.delete(item.key()));
+    }
+
+    @Test
+    void acceptsStandardM4aBrandAndCompatibleIsomWithoutTrustingMime() throws Exception {
+        var store = new LocalAttemptMediaStore(temp.toString());
+        for (byte[] ftyp : new byte[][] { isoFtyp("M4A ", "isom"),
+                isoFtyp("xxxx", "isom", "mp42") }) {
+            var item = store.store(new MockMultipartFile("file", "a.m4a",
+                    "application/octet-stream", ftyp));
+            assertTrue(Files.exists(store.resolveForInspection(item.key())));
+            store.delete(item.key());
+        }
+    }
+
+
+    @Test
+    void acceptsValid288ByteFtypAndRevalidatesStoredFile() throws Exception {
+        var media = new LocalAttemptMediaStore(temp.toString());
+        // 16 byte prefix + 68 compatible brands: deliberately larger than 256 bytes.
+        String[] brands = new String[68];
+        java.util.Arrays.fill(brands, "isom");
+        byte[] ftyp = isoFtyp("3gp4", brands);
+        assertEquals(288, ftyp.length);
+        var stored = media.store(new MockMultipartFile(
+                "file", "long-brands.M4A", "audio/mp4", ftyp));
+        assertEquals(64, media.verifyAndHash(stored.key(), ftyp.length).length());
+        assertEquals(AttemptMediaStore.DeleteOutcome.DELETED, media.delete(stored.key()));
+    }
+
+    @Test
+    void rejectsTruncatedOversizedAndMisalignedFtypBoxes() throws Exception {
+        var media = new LocalAttemptMediaStore(temp.toString());
+        byte[] large = isoFtyp("isom");
+        // Declaring 65540 (>64 KiB) must not allocate or read an unbounded box.
+        java.nio.ByteBuffer.wrap(large).putInt(65540);
+        byte[] truncated = isoFtyp("isom", "isom");
+        java.nio.ByteBuffer.wrap(truncated).putInt(288);
+        byte[] misaligned = isoFtyp("isom");
+        java.nio.ByteBuffer.wrap(misaligned).putInt(17);
+        for (byte[] bad : new byte[][] { large, truncated, misaligned }) {
+            assertEquals(400, assertThrows(ResponseStatusException.class,
+                    () -> media.store(new MockMultipartFile(
+                            "file", "bad.m4a", "audio/mp4", bad))).getStatusCode().value());
+        }
+    }
+
+    @Test
+    void rejectsBrokenFtypAndRenamedNonM4aContent() {
+        var store = new LocalAttemptMediaStore(temp.toString());
+        byte[] brokenSize = isoFtyp("isom");
+        brokenSize[3] = 100;
+        for (byte[] fake : new byte[][] {
+                new byte[] {'I', 'D', '3', 0, 0, 0},
+                new byte[] {0, 0, 0, 8, 'f', 't', 'y', 'p', 'i', 's', 'o', 'm'},
+                isoFtyp("zzzz"), brokenSize
+        }) {
+            var rejection = assertThrows(ResponseStatusException.class,
+                    () -> store.store(new MockMultipartFile("file", "fake.m4a",
+                            "audio/mp4", fake)));
+            assertEquals(400, rejection.getStatusCode().value());
+        }
+        assertThrows(ResponseStatusException.class,
+                () -> store.store(new MockMultipartFile("file", "video.mp4",
+                        "video/mp4", isoFtyp("isom"))));
+    }
+
+    @Test
+    void rejectsM4aWithSizeAbove20MiBBeforeOpeningStream() throws Exception {
+        var store = new LocalAttemptMediaStore(temp.toString());
+        var uploaded = mock(org.springframework.web.multipart.MultipartFile.class);
+        when(uploaded.getSize()).thenReturn(AttemptMediaStore.MAX_BYTES + 1);
+        var rejection = assertThrows(ResponseStatusException.class,
+                () -> store.store(uploaded));
+        assertEquals(400, rejection.getStatusCode().value());
+        org.mockito.Mockito.verify(uploaded, org.mockito.Mockito.never()).getInputStream();
+    }
+
+    @Test
+    void rejectsOversizedStreamEvenIfMultipartClaimsSmallSize() throws Exception {
+        var store = new LocalAttemptMediaStore(temp.toString());
+        byte[] data = new byte[(int) AttemptMediaStore.MAX_BYTES + 1];
+        byte[] ftyp = isoFtyp("M4A ");
+        System.arraycopy(ftyp, 0, data, 0, ftyp.length);
+        var uploaded = mock(org.springframework.web.multipart.MultipartFile.class);
+        when(uploaded.getSize()).thenReturn(100L);
+        when(uploaded.getOriginalFilename()).thenReturn("underreported.m4a");
+        when(uploaded.getInputStream()).thenAnswer(
+                call -> new java.io.ByteArrayInputStream(data));
+        var rejected = assertThrows(ResponseStatusException.class,
+                () -> store.store(uploaded));
+        assertEquals(400, rejected.getStatusCode().value());
+        try (var files = Files.list(temp)) {
+            assertEquals(0, files.count(), "partially persisted file must be deleted");
+        }
+    }
+
 }

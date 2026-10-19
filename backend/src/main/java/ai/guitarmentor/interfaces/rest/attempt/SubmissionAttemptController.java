@@ -34,7 +34,7 @@ public class SubmissionAttemptController {
             @PathVariable UUID sessionId, @PathVariable UUID taskId) {
         service.list(learnerId, sessionId, taskId); // Verify the task belongs to this learner.
         return new UploadCapabilities(service.isEnabled(), AttemptMediaStore.MAX_BYTES,
-                new String[] {"mp3", "wav", "ogg", "webm"});
+                new String[] {"mp3", "wav", "ogg", "webm", "m4a"});
     }
 
     @GetMapping
@@ -51,7 +51,7 @@ public class SubmissionAttemptController {
     public ResponseEntity<Map<String, String>> uploadError(ResponseStatusException problem) {
         String code = switch (problem.getReason() == null ? "" : problem.getReason()) {
             case "Audio format does not match the file header" -> "INVALID_AUDIO_CONTENT";
-            case "Only .mp3, .wav, .ogg or .webm are supported" -> "UNSUPPORTED_AUDIO_FORMAT";
+            case "Only .mp3, .wav, .ogg, .webm or .m4a are supported" -> "UNSUPPORTED_AUDIO_FORMAT";
             case "Audio file must be between 1 byte and 20 MiB" -> "INVALID_AUDIO_SIZE";
             case "Audio filename is missing" -> "MISSING_AUDIO_FILENAME";
             case "Comment too long" -> "COMMENT_TOO_LONG";

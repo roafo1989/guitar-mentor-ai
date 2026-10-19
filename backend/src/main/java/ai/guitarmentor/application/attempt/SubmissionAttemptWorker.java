@@ -40,7 +40,11 @@ public class SubmissionAttemptWorker {
         var item = job.get();
         try {
             var digest = media.verifyAndHash(item.key(), item.size());
-            double duration = probe.measure(media.resolveForInspection(item.key()));
+            var inspected = media.resolveForInspection(item.key());
+            if (item.key().endsWith(".m4a")) {
+                probe.inspectM4a(inspected);
+            }
+            double duration = probe.measure(inspected);
             processor.success(item.id(), digest, duration);
         } catch (IOException failure) {
             // Only stable error codes enter the database; never expose disk locations.
