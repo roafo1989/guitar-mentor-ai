@@ -28,6 +28,36 @@ class MediaCleanupServiceTest {
         verify(db,never()).failed(any());
     }
 
+    @Test void concurrentWorkerGuardPreventsScheduledDeletion() throws Exception {
+        var db=mock(MediaCleanupTransactions.class);
+        var policy=mock(MediaRetentionPolicy.class);
+        var media=mock(AttemptMediaStore.class);
+        var guard=new MediaUseCoordinator();
+        var service=new MediaCleanupService(db,policy,media,guard);
+        when(policy.read()).thenReturn(new MediaRetentionPolicy.Policy(
+            Duration.ofHours(48),Duration.ofHours(48),Duration.ofMinutes(60)));
+        var acquired=new java.util.concurrent.CountDownLatch(1);
+        var release=new java.util.concurrent.CountDownLatch(1);
+        var worker=java.util.concurrent.Executors.newSingleThreadExecutor();
+        try {
+            var future=worker.submit(()->{
+                guard.acquire();
+                try {
+                    acquired.countDown();
+                    release.await(5,java.util.concurrent.TimeUnit.SECONDS);
+                } finally { guard.release(); }
+                return true;
+            });
+            assertTrue(acquired.await(5,java.util.concurrent.TimeUnit.SECONDS));
+            service.tick();
+            verifyNoInteractions(db,media);
+            release.countDown();
+            assertTrue(future.get(5,java.util.concurrent.TimeUnit.SECONDS));
+            service.tick();
+            verify(db).claim(any(Instant.class),any(MediaRetentionPolicy.Policy.class));
+        } finally { release.countDown(); worker.shutdownNow(); }
+    }
+
     @Test void ioErrorCannotRecordSuccessfulDeletion() throws Exception {
         var db=mock(MediaCleanupTransactions.class);
         var service=new MediaCleanupService(db,mock(MediaRetentionPolicy.class),
