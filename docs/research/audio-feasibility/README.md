@@ -11,6 +11,7 @@ Six private human-performed takes have been received and their WAV derivatives t
 - `contract.md`: recording, reference, annotation and versioning data contract.
 - `metrics.md`: planned calculation and abstention rules for future #15.
 - `recording-protocol.md`: human-controlled acquisition and review steps.
+- `independent-review.md`: independent listening, score alignment, metronome discrimination, uncertainty and strict real-corpus acceptance gate.
 - `fixtures/`: non-audio, synthetic, schema-shape demonstration.
 - #15 implements onset/tempo/pause/bass extraction and measures runtime accuracy. #31 decides GO/LIMITED/NO-GO. #22/#23 integrate production feedback.
 
@@ -52,3 +53,9 @@ The research handoff to #15 must include frozen corpus/reference/annotation vers
 ## CI execution evidence
 
 The standard Java backend CI may run the Maven tests **before ffprobe is installed**; its overall green status does not prove the integration test actually ran. The dedicated `.github/workflows/audio-benchmark-ci.yml` installs ffprobe first, runs both validator test classes and fails if the positive `AudioCorpusReadinessTest` JUnit report records a skipped test. Only a completed successful run of that dedicated job confirms the ffprobe integration path. This still does not substitute for genuine human-performed recordings.
+
+## Private pilot progress and remaining handoff (2026-10-20)
+
+Six private source recordings and decoded WAV files are present and technically inventoried. A **private diagnostic** review package contains reproducible original/derivative checks, short listening clips, spectral bass spot-checks, score section hints, and a local offline reviewer page. No private artifacts are included in this public repository. An exploratory comparison of two fingerstyle takes highlights candidate dissimilarities, but no intentionally incorrect bass note has been verified by an independent reviewer. The printed sheet tempo is explicitly *not* assumed to be the performed BPM; two metronome-assisted takes use known 60/80 BPM, while the remaining takes were performed without a metronome. This is recording-condition metadata, not a musical correctness assertion.
+
+The partial private manifest is intentionally `INCOMPLETE` / `DIAGNOSTIC_ONLY`; manual score-to-audio event alignment, scope-limited rights confirmation, review attestation and independent split proof have not been completed. Running an independent algorithmic comparison more times cannot substitute for human ground truth. Consult [independent-review.md](independent-review.md) for the bounded next steps. CI success validates synthetic structural fixtures and does not indicate the real pilot was accepted. Do not merge Draft PR #73 until the stated controls and AC evidence are completed.
