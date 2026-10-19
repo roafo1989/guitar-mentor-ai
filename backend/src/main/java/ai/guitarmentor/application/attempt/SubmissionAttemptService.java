@@ -26,6 +26,8 @@ public class SubmissionAttemptService {
     private final AttemptMediaStore media;
     private final MediaTransactionGuard transactions;
     private final boolean enabled;
+    @org.springframework.beans.factory.annotation.Autowired(required = false)
+    private MediaUseCoordinator mediaCoordinator;
 
     public SubmissionAttemptService(DiagnosticTaskService taskService, DiagnosticTaskRepository tasks,
             DiagnosticSessionRepository sessions, SubmissionAttemptRepository attempts,
@@ -55,6 +57,20 @@ public class SubmissionAttemptService {
         if (!enabled) {
             throw new ResponseStatusException(HttpStatus.FORBIDDEN,
                     "Uploads are disabled. Enable them only for local test files.");
+        }
+        if (mediaCoordinator != null) {
+            mediaCoordinator.acquire();
+            try {
+                org.springframework.transaction.support.TransactionSynchronizationManager.registerSynchronization(
+                    new org.springframework.transaction.support.TransactionSynchronization() {
+                        @Override public void afterCompletion(int status) {
+                            mediaCoordinator.release();
+                        }
+                    });
+            } catch (RuntimeException failure) {
+                mediaCoordinator.release();
+                throw failure;
+            }
         }
         checkOwnership(learnerId, sessionId, taskId);
         // Lock the session to serialize attempt numbers and idempotent upload keys.

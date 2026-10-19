@@ -50,6 +50,9 @@ class SubmissionAttemptPostgresIntegrationTest {
     @Autowired JdbcTemplate jdbc;
     @Autowired PlatformTransactionManager txManager;
     @Autowired SubmissionAttemptService service;
+    @Autowired MediaCleanupTransactions cleanupTransactions;
+    @Autowired MediaCleanupService cleanupService;
+    @Autowired MediaUseCoordinator coordinator;
 
     private UUID learnerId;
     private UUID profileId;
@@ -151,6 +154,197 @@ class SubmissionAttemptPostgresIntegrationTest {
             jdbc.execute("ALTER TABLE submission_attempts "
                     + "DROP CONSTRAINT IF EXISTS d30_test_reject_flush");
         }
+    }
+
+    @Test
+    void realPostgresCleanupPreservesHistoryAndIdempotency() throws IOException {
+        UUID requestId=UUID.randomUUID();
+        var view=service.submit(learnerId,sessionId,taskId,requestId,"keep history",wav());
+        var key=jdbc.queryForObject("SELECT media_key FROM submission_attempts WHERE id=?",
+            String.class,view.id());
+        Instant previous=Instant.now().minusSeconds(49*3600);
+        jdbc.update("""
+            UPDATE submission_attempts SET status='PROCESSED',
+              processing_finished_at=?,processing_finalized_at=?
+            WHERE id=?
+            """,java.sql.Timestamp.from(previous),java.sql.Timestamp.from(previous),view.id());
+        var now=Instant.now();
+        var policy=new MediaRetentionPolicy.Policy(java.time.Duration.ofHours(48),
+            java.time.Duration.ofHours(48),java.time.Duration.ofHours(1));
+        cleanupService.runCycle(now,policy);
+        assertFalse(Files.exists(MEDIA_ROOT.resolve(key)));
+        assertEquals("DELETED",jdbc.queryForObject(
+            "SELECT media_state FROM submission_attempts WHERE id=?",String.class,view.id()));
+        assertEquals(1,countRows());
+        var retry=service.submit(learnerId,sessionId,taskId,requestId,"repeat",wav());
+        assertEquals(view.id(),retry.id());
+        assertEquals("DELETED",retry.mediaState());
+        assertEquals(1,countRows());
+        assertFalse(Files.exists(MEDIA_ROOT.resolve(key)));
+    }
+
+    @Test
+    void concurrentUncommittedUploadCannotBeClaimedByCleanup() throws Exception {
+        var stored=new java.util.concurrent.atomic.AtomicReference<String>();
+        var entered=new java.util.concurrent.CountDownLatch(1);
+        var release=new java.util.concurrent.CountDownLatch(1);
+        var worker=java.util.concurrent.Executors.newSingleThreadExecutor();
+        try {
+            var transaction=worker.submit(()->{
+                new TransactionTemplate(txManager).executeWithoutResult(tx->{
+                    var view=service.submit(learnerId,sessionId,taskId,
+                        UUID.randomUUID(),"concurrent rollback",wav());
+                    stored.set(jdbc.queryForObject(
+                        "SELECT media_key FROM submission_attempts WHERE id=?",
+                        String.class,view.id()));
+                    entered.countDown();
+                    try {
+                        if(!release.await(10,java.util.concurrent.TimeUnit.SECONDS))
+                            throw new IllegalStateException("test synchronization timeout");
+                    } catch(InterruptedException interrupted) {
+                        Thread.currentThread().interrupt();
+                        throw new IllegalStateException(interrupted);
+                    }
+                    tx.setRollbackOnly();
+                });
+                return true;
+            });
+            assertTrue(entered.await(10,java.util.concurrent.TimeUnit.SECONDS));
+            assertNotNull(stored.get());
+            assertTrue(Files.exists(MEDIA_ROOT.resolve(stored.get())));
+            assertFalse(coordinator.tryAcquire(),
+                "Cleanup must not acquire guard before upload transaction completion");
+            release.countDown();
+            assertTrue(transaction.get(10,java.util.concurrent.TimeUnit.SECONDS));
+            assertFalse(Files.exists(MEDIA_ROOT.resolve(stored.get())));
+            assertEquals(0,countRows());
+            assertTrue(coordinator.tryAcquire());
+            coordinator.release();
+        } finally { release.countDown();worker.shutdownNow(); }
+    }
+
+    @Test
+    void realDatabaseRejectionOfDeletedStateRemainsRetryable() throws IOException {
+        var view=service.submit(learnerId,sessionId,taskId,UUID.randomUUID(),"db-failure",wav());
+        String key=jdbc.queryForObject("SELECT media_key FROM submission_attempts WHERE id=?",
+            String.class,view.id());
+        jdbc.update("UPDATE submission_attempts SET media_state='DELETE_PENDING' WHERE id=?",view.id());
+        jdbc.execute("ALTER TABLE submission_attempts ADD CONSTRAINT d21_reject_deleted_state "
+            + "CHECK (media_state <> 'DELETED')");
+        var policy=new MediaRetentionPolicy.Policy(java.time.Duration.ofHours(48),
+            java.time.Duration.ofHours(48),java.time.Duration.ofHours(1));
+        try {
+            cleanupService.runCycle(Instant.now(),policy);
+            assertFalse(Files.exists(MEDIA_ROOT.resolve(key)));
+            assertEquals("DELETE_PENDING",jdbc.queryForObject(
+                "SELECT media_state FROM submission_attempts WHERE id=?",String.class,view.id()));
+            assertEquals(null,jdbc.queryForObject(
+                "SELECT media_deleted_at FROM submission_attempts WHERE id=?",java.sql.Timestamp.class,view.id()));
+        } finally {
+            jdbc.execute("ALTER TABLE submission_attempts DROP CONSTRAINT IF EXISTS d21_reject_deleted_state");
+        }
+        cleanupService.runCycle(Instant.now(),policy);
+        assertEquals("DELETED",jdbc.queryForObject(
+            "SELECT media_state FROM submission_attempts WHERE id=?",String.class,view.id()));
+        assertNotNull(jdbc.queryForObject(
+            "SELECT media_deleted_at FROM submission_attempts WHERE id=?",java.sql.Timestamp.class,view.id()));
+    }
+
+    @Test
+    void unknownPlanAndLegacyTerminalWithoutFinalizationAreNeverDeleted() throws IOException {
+        var legacy=service.submit(learnerId,sessionId,taskId,UUID.randomUUID(),"legacy",wav());
+        var unknown=service.submit(learnerId,sessionId,taskId,UUID.randomUUID(),"unknown",wav());
+        Instant old=Instant.now().minusSeconds(49*3600);
+        jdbc.update("UPDATE submission_attempts SET status='PROCESSED',submitted_at=?,processing_finalized_at=NULL WHERE id=?",
+            java.sql.Timestamp.from(old),legacy.id());
+        jdbc.update("UPDATE submission_attempts SET processing_plan='FUTURE_MULTI_STAGE',submitted_at=? WHERE id=?",
+            java.sql.Timestamp.from(old),unknown.id());
+        cleanupService.runCycle(Instant.now(),new MediaRetentionPolicy.Policy(
+            java.time.Duration.ofHours(48),java.time.Duration.ofHours(48),java.time.Duration.ofHours(1)));
+        assertEquals(2,jdbc.queryForObject("SELECT count(*) FROM submission_attempts WHERE diagnostic_task_id=? AND media_state='AVAILABLE'",
+            Integer.class,taskId));
+        assertEquals(2,fileCount());
+    }
+
+    @Test
+    void realPostgresBatchContinuesBeyondOneHundredRows() {
+        Instant old=Instant.now().minusSeconds(49*3600);
+        // All media keys deliberately point to absent files; ALREADY_ABSENT must be safe.
+        jdbc.update("""
+            INSERT INTO submission_attempts
+             (id,diagnostic_task_id,request_id,attempt_number,submitted_at,status,
+              media_key,media_format,size_bytes,processing_finished_at,processing_finalized_at)
+            SELECT gen_random_uuid(), ?, gen_random_uuid(), n, ?, 'PROCESSED',
+                   gen_random_uuid()::text || '.wav', 'wav', 12, ?, ?
+            FROM generate_series(1, 125) AS n
+            """,taskId,java.sql.Timestamp.from(old),java.sql.Timestamp.from(old),
+            java.sql.Timestamp.from(old));
+        var policy=new MediaRetentionPolicy.Policy(java.time.Duration.ofHours(48),
+            java.time.Duration.ofHours(48),java.time.Duration.ofHours(1));
+        for(int cycle=0;cycle<3;cycle++) cleanupService.runCycle(Instant.now(),policy);
+        assertEquals(125,jdbc.queryForObject(
+            "SELECT count(*) FROM submission_attempts WHERE diagnostic_task_id=? AND media_state='DELETED'",
+            Integer.class,taskId));
+        assertEquals(125,countRows());
+    }
+
+    @Test
+    void beforeRetentionBoundaryFileStaysAndAtBoundaryItIsDeleted() throws IOException {
+        var view=service.submit(learnerId,sessionId,taskId,UUID.randomUUID(),"boundary",wav());
+        String key=jdbc.queryForObject("SELECT media_key FROM submission_attempts WHERE id=?",
+            String.class,view.id());
+        Instant now=Instant.now();
+        Instant due=now.minusSeconds(48*3600);
+        jdbc.update("""
+            UPDATE submission_attempts SET status='PROCESSED',
+              processing_finished_at=?,processing_finalized_at=? WHERE id=?
+            """,java.sql.Timestamp.from(due),java.sql.Timestamp.from(due),view.id());
+        var policy=new MediaRetentionPolicy.Policy(java.time.Duration.ofHours(48),
+            java.time.Duration.ofHours(48),java.time.Duration.ofHours(1));
+        cleanupService.runCycle(now.minusNanos(1_000_000),policy);
+        assertTrue(Files.exists(MEDIA_ROOT.resolve(key)));
+        cleanupService.runCycle(now,policy);
+        assertFalse(Files.exists(MEDIA_ROOT.resolve(key)));
+        assertEquals("DELETED",jdbc.queryForObject("SELECT media_state FROM submission_attempts WHERE id=?",
+            String.class,view.id()));
+    }
+
+    @Test
+    void restartAfterFileDeletionResumesPendingAndRetainsHistory() throws IOException {
+        UUID requestId=UUID.randomUUID();
+        var view=service.submit(learnerId,sessionId,taskId,requestId,"retain",wav());
+        String key=jdbc.queryForObject("SELECT media_key FROM submission_attempts WHERE id=?",
+            String.class,view.id());
+        jdbc.update("UPDATE submission_attempts SET media_state='DELETE_PENDING' WHERE id=?",view.id());
+        Files.delete(MEDIA_ROOT.resolve(key)); // crash window: physical delete, no DB confirmation
+        cleanupService.runCycle(Instant.now(),new MediaRetentionPolicy.Policy(
+            java.time.Duration.ofHours(48),java.time.Duration.ofHours(48),
+            java.time.Duration.ofHours(1)));
+        assertEquals("DELETED",jdbc.queryForObject(
+            "SELECT media_state FROM submission_attempts WHERE id=?",String.class,view.id()));
+        assertNotNull(jdbc.queryForObject("SELECT media_deleted_at FROM submission_attempts WHERE id=?",
+            java.sql.Timestamp.class,view.id()));
+        assertEquals("ALREADY_ABSENT",jdbc.queryForObject(
+            "SELECT media_delete_outcome FROM submission_attempts WHERE id=?",
+            String.class,view.id()));
+        assertEquals("retain",service.list(learnerId,sessionId,taskId).get(0).comment());
+    }
+
+    @Test
+    void realPostgresCleanupExpiresOldUnprocessedAttempt() throws IOException {
+        var view=service.submit(learnerId,sessionId,taskId,UUID.randomUUID(),"expired",wav());
+        Instant old=Instant.now().minusSeconds(49*3600);
+        jdbc.update("UPDATE submission_attempts SET submitted_at=? WHERE id=?",
+            java.sql.Timestamp.from(old),view.id());
+        cleanupService.runCycle(Instant.now(),new MediaRetentionPolicy.Policy(
+            java.time.Duration.ofHours(48),java.time.Duration.ofHours(48),
+            java.time.Duration.ofHours(1)));
+        assertEquals("FAILED",jdbc.queryForObject(
+            "SELECT status FROM submission_attempts WHERE id=?",String.class,view.id()));
+        assertEquals("RETENTION_EXPIRED",jdbc.queryForObject(
+            "SELECT processing_error_code FROM submission_attempts WHERE id=?",String.class,view.id()));
+        assertEquals("DELETED",jdbc.queryForObject(
+            "SELECT media_state FROM submission_attempts WHERE id=?",String.class,view.id()));
     }
 
     @Test

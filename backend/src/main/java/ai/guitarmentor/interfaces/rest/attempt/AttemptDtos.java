@@ -13,14 +13,15 @@ public final class AttemptDtos {
             String status, String comment, String format, long bytes,
             boolean assessmentAvailable, Instant processingStartedAt,
             Instant processingFinishedAt, String processingErrorCode,
-            java.math.BigDecimal audioDurationSeconds) {
+            java.math.BigDecimal audioDurationSeconds, String mediaState, Instant mediaDeletedAt) {
         public static AttemptView from(SubmissionAttempt attempt) {
             return new AttemptView(attempt.getId(), attempt.getTask().getId(),
                     attempt.getAttemptNumber(), attempt.getSubmittedAt(),
                     attempt.getStatus().name(), attempt.getStudentComment(),
                     attempt.getMediaFormat(), attempt.getSizeBytes(), false,
                     attempt.getProcessingStartedAt(), attempt.getProcessingFinishedAt(),
-                    attempt.getProcessingErrorCode(), attempt.getAudioDurationSeconds());
+                    attempt.getProcessingErrorCode(), attempt.getAudioDurationSeconds(),
+                    attempt.getMediaState().name(), attempt.getMediaDeletedAt());
         }
     }
 }

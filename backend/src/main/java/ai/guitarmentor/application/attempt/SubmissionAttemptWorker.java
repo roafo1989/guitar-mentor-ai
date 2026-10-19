@@ -20,6 +20,8 @@ public class SubmissionAttemptWorker {
     private final SubmissionAttemptProcessor processor;
     private final AttemptMediaStore media;
     private final AudioDurationProbe probe;
+    @org.springframework.beans.factory.annotation.Autowired(required = false)
+    private MediaUseCoordinator mediaCoordinator;
 
     public SubmissionAttemptWorker(SubmissionAttemptProcessor processor,
             AttemptMediaStore media, AudioDurationProbe probe) {
@@ -30,6 +32,8 @@ public class SubmissionAttemptWorker {
 
     @Scheduled(fixedDelayString = "${guitar-mentor.submissions.poll-delay-ms:3000}")
     public void poll() {
+        if (mediaCoordinator != null && !mediaCoordinator.tryAcquire()) return;
+        try {
         processor.recoverInterrupted();
         var job = processor.claimNext();
         if (job.isEmpty()) return;
@@ -53,5 +57,6 @@ public class SubmissionAttemptWorker {
         } catch (RuntimeException unexpected) {
             processor.failure(item.id(), "TECHNICAL_ERROR");
         }
+        } finally { if (mediaCoordinator != null) mediaCoordinator.release(); }
     }
 }

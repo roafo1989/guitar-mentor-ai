@@ -26,6 +26,8 @@ public class MediaTransactionGuard {
         }
         try {
             TransactionSynchronizationManager.registerSynchronization(new TransactionSynchronization() {
+                // Rollback compensation must finish before the upload releases its media guard.
+                @Override public int getOrder() { return Integer.MAX_VALUE - 1; }
                 @Override
                 public void afterCompletion(int status) {
                     if (status == STATUS_ROLLED_BACK) {
