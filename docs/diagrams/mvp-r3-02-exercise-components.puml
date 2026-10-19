@@ -1,0 +1,42 @@
+@startuml
+title #17 — каталог учебных материалов и метроном (целевая схема)
+skinparam componentStyle rectangle
+actor "Ученик" as Student
+package "Frontend Vue 3" {
+  [DiagnosticView] as UI
+  [ExercisePreview] as Preview
+  [Metronome (new)] as Metro
+}
+package "Backend Java / Spring Boot" {
+  [ExerciseController] as Controller
+  [ExerciseCatalogService] as Catalog
+  [ExerciseMediaService] as Media
+  [DiagnosticTaskService] as Assign
+}
+database "PostgreSQL\nexercises / exercise_skills / diagnostic_tasks" as DB
+folder "Java classpath\nMusicXML + JSON" as Scores
+folder "Versioned PDF/MP3\nlocal media pack" as Pack
+component "Browser Web Audio API" as Audio
+
+Student --> UI
+UI --> Preview
+UI --> Metro : Start/Stop/BPM
+Metro --> Audio : click / accent 1
+UI --> Controller : GET exercises
+UI --> Assign : POST assignment via REST
+Controller --> Catalog
+Controller --> Media
+Catalog --> DB
+Assign --> DB
+Catalog --> Scores : score/events
+Media --> Pack : preview PDF/MP3
+Preview --> Controller : same-origin URLs
+note right of Audio
+  No server timer, no microphone,
+  no automatic performance assessment.
+end note
+note right of Pack
+  Binaries may be absent on clean checkout.
+  Missing assets => HTTP 404 + UI fallback.
+end note
+@enduml
