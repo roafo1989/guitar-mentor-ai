@@ -20,4 +20,11 @@ public interface AttemptMediaStore {
             throws IOException { return false; }
     default java.util.List<OrphanCandidate> scanOlderThan(java.time.Instant cutoff, int limit)
             throws IOException { return java.util.List.of(); }
+    /** Sorted keyset page; stable progress past referenced files without a fixed prefix cap. */
+    default java.util.List<OrphanCandidate> scanOlderThan(java.time.Instant cutoff, int limit,
+            String afterKey) throws IOException {
+        return scanOlderThan(cutoff, limit).stream()
+            .filter(item -> afterKey == null || item.key().compareTo(afterKey) > 0)
+            .toList();
+    }
 }
