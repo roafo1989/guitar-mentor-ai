@@ -1,0 +1,77 @@
+package ai.guitarmentor.application.diagnostic;
+
+import ai.guitarmentor.domain.diagnostic.DiagnosticStatus;
+import ai.guitarmentor.domain.learner.PreferenceRating;
+import ai.guitarmentor.domain.onboarding.GoalCode;
+import ai.guitarmentor.infrastructure.persistence.DiagnosticSessionRepository;
+import ai.guitarmentor.infrastructure.persistence.ExerciseRepository;
+import ai.guitarmentor.infrastructure.persistence.LearnerRepository;
+import ai.guitarmentor.infrastructure.persistence.LearningBackgroundRepository;
+import ai.guitarmentor.infrastructure.persistence.SkillMapRepository;
+import jakarta.persistence.EntityNotFoundException;
+import java.util.HashMap;
+import java.util.Map;
+import java.util.Set;
+import java.util.UUID;
+import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
+
+@Service
+public class DiagnosticRecommendationService {
+    private final DiagnosticSessionRepository sessions;
+    private final LearnerRepository learners;
+    private final LearningBackgroundRepository backgrounds;
+    private final ExerciseRepository exercises;
+    private final SkillMapRepository skills;
+    private final RecommendationEngine engine = new RecommendationEngine();
+
+    public DiagnosticRecommendationService(DiagnosticSessionRepository sessions,
+            LearnerRepository learners, LearningBackgroundRepository backgrounds,
+            ExerciseRepository exercises, SkillMapRepository skills) {
+        this.sessions = sessions;
+        this.learners = learners;
+        this.backgrounds = backgrounds;
+        this.exercises = exercises;
+        this.skills = skills;
+    }
+
+    public record RecommendationView(UUID sessionId, String algorithmVersion,
+            String status, String reasonCode, java.util.List<RecommendationEngine.Item> items) {}
+
+    @Transactional(readOnly = true)
+    public RecommendationView recommend(UUID learnerId, UUID sessionId, int limit) {
+        if (limit < 1 || limit > 3) throw new IllegalArgumentException("INVALID_LIMIT");
+        var session = sessions.findById(sessionId)
+                .orElseThrow(() -> new EntityNotFoundException("Diagnostic session not found"));
+        var learner = learners.findById(learnerId)
+                .orElseThrow(() -> new EntityNotFoundException("Diagnostic session not found"));
+        var profile = session.getInstrumentProfile();
+        if (learner.getInstrumentProfiles().stream().noneMatch(p -> p.getId().equals(profile.getId()))) {
+            throw new EntityNotFoundException("Diagnostic session not found");
+        }
+        if (session.getStatus() != DiagnosticStatus.READY_FOR_TASK) {
+            throw new IllegalStateException(session.getStatus() == DiagnosticStatus.TASK_ASSIGNED
+                    ? "TASK_ALREADY_ASSIGNED" : "DIAGNOSTIC_NOT_READY");
+        }
+
+        var background = backgrounds.findByInstrumentProfile_Id(profile.getId());
+        var minutes = background.map(b -> b.getPracticeMinutes()).orElse(10);
+        var experience = background.map(b -> b.getExperienceLevel()).orElse(null);
+        var goals = background.<Set<GoalCode>>map(b -> b.getGoals()).orElse(Set.of());
+        var preferences = new HashMap<String, PreferenceRating>();
+        profile.getPreferences().forEach(p -> preferences.put(p.getStyleCode(), p.getRating()));
+        var candidates = exercises
+                .findByInstrumentCodeAndTechniqueCodeAndCurrentTrueOrderByCode(
+                        profile.getInstrumentCode(), profile.getTechniqueCode()).stream()
+                .filter(e -> e.getRecommendedPracticeMinutes() != null)
+                .map(e -> new RecommendationEngine.Candidate(e.getCode(), e.getVersion(),
+                        e.getTitle(), e.getStyleCode(), e.getDifficulty(),
+                        e.getLicense(), e.getReviewStatus(),
+                        e.getRecommendedPracticeMinutes(), skills.exerciseRoles(e.getId())))
+                .toList();
+        var selected = engine.select(new RecommendationEngine.Context(experience, minutes,
+                goals, Map.copyOf(preferences)), candidates, limit);
+        return new RecommendationView(sessionId, RecommendationEngine.VERSION,
+                selected.status(), selected.reasonCode(), selected.items());
+    }
+}
