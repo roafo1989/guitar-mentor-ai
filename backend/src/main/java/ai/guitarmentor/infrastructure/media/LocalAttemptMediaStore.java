@@ -75,14 +75,23 @@ public class LocalAttemptMediaStore implements AttemptMediaStore {
             try (var in = file.getInputStream();
                     var out = Files.newOutputStream(destination, StandardOpenOption.CREATE_NEW,
                             StandardOpenOption.WRITE)) {
-                in.transferTo(out);
-            } catch (IOException problem) {
+                byte[] chunk = new byte[8192];
+                long written = 0;
+                int count;
+                while ((count = in.read(chunk)) != -1) {
+                    written += count;
+                    if (written > MAX_BYTES) {
+                        throw new ResponseStatusException(HttpStatus.BAD_REQUEST,
+                                "Audio file must be between 1 byte and 20 MiB");
+                    }
+                    out.write(chunk, 0, count);
+                }
+                if (written != size) {
+                    throw new IOException("Uploaded size differs from the reported size");
+                }
+            } catch (IOException | ResponseStatusException problem) {
                 Files.deleteIfExists(destination);
                 throw problem;
-            }
-            if (Files.size(destination) != size) {
-                Files.deleteIfExists(destination);
-                throw new IOException("Uploaded size differs from the reported size");
             }
             return new StoredMedia(key, format, size);
         } catch (IOException problem) {
