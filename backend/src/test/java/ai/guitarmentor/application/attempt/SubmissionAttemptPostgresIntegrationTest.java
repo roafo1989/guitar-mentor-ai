@@ -50,6 +50,8 @@ class SubmissionAttemptPostgresIntegrationTest {
     @Autowired JdbcTemplate jdbc;
     @Autowired PlatformTransactionManager txManager;
     @Autowired SubmissionAttemptService service;
+    @Autowired MediaCleanupTransactions cleanupTransactions;
+    @Autowired MediaCleanupService cleanupService;
 
     private UUID learnerId;
     private UUID profileId;
@@ -151,6 +153,50 @@ class SubmissionAttemptPostgresIntegrationTest {
             jdbc.execute("ALTER TABLE submission_attempts "
                     + "DROP CONSTRAINT IF EXISTS d30_test_reject_flush");
         }
+    }
+
+    @Test
+    void realPostgresCleanupPreservesHistoryAndIdempotency() throws IOException {
+        UUID requestId=UUID.randomUUID();
+        var view=service.submit(learnerId,sessionId,taskId,requestId,"keep history",wav());
+        var key=jdbc.queryForObject("SELECT media_key FROM submission_attempts WHERE id=?",
+            String.class,view.id());
+        Instant previous=Instant.now().minusSeconds(49*3600);
+        jdbc.update("""
+            UPDATE submission_attempts SET status='PROCESSED',
+              processing_finished_at=?,processing_finalized_at=?
+            WHERE id=?
+            """,java.sql.Timestamp.from(previous),java.sql.Timestamp.from(previous),view.id());
+        var now=Instant.now();
+        var policy=new MediaRetentionPolicy.Policy(java.time.Duration.ofHours(48),
+            java.time.Duration.ofHours(48),java.time.Duration.ofHours(1));
+        cleanupService.runCycle(now,policy);
+        assertFalse(Files.exists(MEDIA_ROOT.resolve(key)));
+        assertEquals("DELETED",jdbc.queryForObject(
+            "SELECT media_state FROM submission_attempts WHERE id=?",String.class,view.id()));
+        assertEquals(1,countRows());
+        var retry=service.submit(learnerId,sessionId,taskId,requestId,"repeat",wav());
+        assertEquals(view.id(),retry.id());
+        assertEquals("DELETED",retry.mediaState());
+        assertEquals(1,countRows());
+        assertFalse(Files.exists(MEDIA_ROOT.resolve(key)));
+    }
+
+    @Test
+    void realPostgresCleanupExpiresOldUnprocessedAttempt() throws IOException {
+        var view=service.submit(learnerId,sessionId,taskId,UUID.randomUUID(),"expired",wav());
+        Instant old=Instant.now().minusSeconds(49*3600);
+        jdbc.update("UPDATE submission_attempts SET submitted_at=? WHERE id=?",
+            java.sql.Timestamp.from(old),view.id());
+        cleanupService.runCycle(Instant.now(),new MediaRetentionPolicy.Policy(
+            java.time.Duration.ofHours(48),java.time.Duration.ofHours(48),
+            java.time.Duration.ofHours(1)));
+        assertEquals("FAILED",jdbc.queryForObject(
+            "SELECT status FROM submission_attempts WHERE id=?",String.class,view.id()));
+        assertEquals("RETENTION_EXPIRED",jdbc.queryForObject(
+            "SELECT processing_error_code FROM submission_attempts WHERE id=?",String.class,view.id()));
+        assertEquals("DELETED",jdbc.queryForObject(
+            "SELECT media_state FROM submission_attempts WHERE id=?",String.class,view.id()));
     }
 
     @Test
