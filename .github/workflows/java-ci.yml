@@ -222,8 +222,62 @@ jobs:
                 test "$processed" = true
                 echo "Format $format upload and technical worker: OK"
               done
+              # #94: both ordinary M4A and 3gp4-branded smartphone-dictaphone M4A.
+              capability=$(curl --fail --silent --show-error "$attempts_base/capabilities")
+              printf '%s' "$capability" | python3 -c 'import json,sys; assert "m4a" in json.load(sys.stdin)["formats"]'
+              for brand in 3gp4 default; do
+                if [ "$brand" = 3gp4 ]; then
+                  brand_opt='-brand 3gp4'
+                  m4a_id=123e4567-e89b-12d3-a456-426614174006
+                else
+                  brand_opt=''
+                  m4a_id=123e4567-e89b-12d3-a456-426614174007
+                fi
+                # Shell splitting is intentional here: -brand is either an option pair or empty.
+                ffmpeg -nostdin -hide_banner -loglevel error \
+                  -f lavfi -i anullsrc=channel_layout=mono:sample_rate=44100 \
+                  -t 0.5 -c:a aac $brand_opt -y "$brand.m4a"
+                uploaded=$(curl --fail --silent --show-error -X POST "$attempts_base" \
+                  -F "file=@$brand.m4a;type=audio/mp4" -F "requestId=$m4a_id")
+                printf '%s' "$uploaded" | python3 -c 'import json,sys; assert json.load(sys.stdin)["format"]=="m4a"'
+                processed=false
+                for check in $(seq 1 30); do
+                  latest_m4a=$(curl --fail --silent --show-error "$attempts_base")
+                  if printf '%s' "$latest_m4a" | python3 -c 'import json,sys; a=json.load(sys.stdin); assert a[0]["format"]=="m4a" and a[0]["status"]=="PROCESSED" and 0.4 <= a[0]["audioDurationSeconds"] <= 0.6'; then
+                    processed=true; break
+                  fi
+                  sleep 1
+                done
+                test "$processed" = true
+                echo "M4A brand $brand AAC upload: OK"
+              done
+              # A real MP4 video renamed to .m4a must never become PROCESSED.
+              ffmpeg -nostdin -hide_banner -loglevel error \
+                -f lavfi -i color=c=blue:s=32x32:r=5 \
+                -f lavfi -i anullsrc=channel_layout=mono:sample_rate=44100 \
+                -t 0.5 -c:v mpeg4 -c:a aac -y video.mp4
+              cp video.mp4 video-renamed.m4a
+              curl --fail --silent --show-error -X POST "$attempts_base" \
+                -F "file=@video-renamed.m4a;type=audio/mp4" \
+                -F "requestId=123e4567-e89b-12d3-a456-426614174008" -o /dev/null
+              rejected_video=false
+              for check in $(seq 1 30); do
+                latest_video=$(curl --fail --silent --show-error "$attempts_base")
+                if printf '%s' "$latest_video" | python3 -c 'import json,sys; a=json.load(sys.stdin); assert a[0]["status"]=="FAILED" and a[0]["processingErrorCode"]=="INVALID_MEDIA"'; then
+                  rejected_video=true; break
+                fi
+                sleep 1
+              done
+              test "$rejected_video" = true
+              printf 'not an ISO container' >broken.m4a
+              bad_m4a_status=$(curl --silent --output invalid-m4a.json --write-out '%{http_code}' \
+                -X POST "$attempts_base" -F "file=@broken.m4a;type=audio/mp4" \
+                -F "requestId=123e4567-e89b-12d3-a456-426614174009")
+              test "$bad_m4a_status" = '400'
+              python3 -c 'import json; assert json.load(open("invalid-m4a.json"))["code"]=="INVALID_AUDIO_CONTENT"'
+              echo "MP4 video disguise and fake M4A rejection: OK"
               all_formats=$(curl --fail --silent --show-error "$attempts_base")
-              printf '%s' "$all_formats" | python3 -c 'import json,sys; a=json.load(sys.stdin); assert len(a)==5 and a[-1]["number"]==1 and a[-1]["status"]=="PROCESSED" and a[-2]["number"]==2 and a[-2]["processingErrorCode"]=="DURATION_EXCEEDED"'
+              printf '%s' "$all_formats" | python3 -c 'import json,sys; a=json.load(sys.stdin); assert len(a)==8 and a[-1]["number"]==1 and a[-1]["status"]=="PROCESSED" and a[-2]["number"]==2 and a[-2]["processingErrorCode"]=="DURATION_EXCEEDED"'
               exit 0
             fi
             if ! kill -0 "$app_pid" 2>/dev/null; then
