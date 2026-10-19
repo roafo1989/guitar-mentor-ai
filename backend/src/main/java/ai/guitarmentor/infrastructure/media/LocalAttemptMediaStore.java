@@ -181,21 +181,28 @@ public class LocalAttemptMediaStore implements AttemptMediaStore {
     @Override
     public java.util.List<OrphanCandidate> scanOlderThan(java.time.Instant cutoff,int limit)
             throws IOException {
-        if (!Files.isDirectory(root, LinkOption.NOFOLLOW_LINKS)) return java.util.List.of();
-        var items = new java.util.ArrayList<OrphanCandidate>();
-        try (var stream = Files.list(root)) {
-            for (var path : (Iterable<Path>) stream::iterator) {
-                if (items.size() >= limit) break;
-                if (!path.getFileName().toString().matches(KEY_PATTERN)) continue;
-                var attributes = Files.readAttributes(path,BasicFileAttributes.class,LinkOption.NOFOLLOW_LINKS);
-                if (!attributes.isRegularFile()) continue;
-                var modified = attributes.lastModifiedTime().toInstant();
-                if (!modified.isAfter(cutoff)) {
-                    items.add(new OrphanCandidate(path.getFileName().toString(),modified));
-                }
+        return scanOlderThan(cutoff,limit,null);
+    }
+
+    @Override
+    public java.util.List<OrphanCandidate> scanOlderThan(java.time.Instant cutoff,int limit,
+            String afterKey) throws IOException {
+        if (limit <= 0 || !Files.isDirectory(root,LinkOption.NOFOLLOW_LINKS)) return java.util.List.of();
+        // Bound memory to the requested page, irrespective of directory size.
+        var page=new java.util.TreeMap<String,OrphanCandidate>();
+        try (var stream=Files.list(root)) {
+            for (var path:(Iterable<Path>)stream::iterator) {
+                String key=path.getFileName().toString();
+                if (!key.matches(KEY_PATTERN) || (afterKey!=null && key.compareTo(afterKey)<=0)) continue;
+                var attr=Files.readAttributes(path,BasicFileAttributes.class,LinkOption.NOFOLLOW_LINKS);
+                if (!attr.isRegularFile()) continue;
+                var modified=attr.lastModifiedTime().toInstant();
+                if (modified.isAfter(cutoff)) continue;
+                page.put(key,new OrphanCandidate(key,modified));
+                if (page.size()>limit) page.pollLastEntry();
             }
         }
-        return items;
+        return java.util.List.copyOf(page.values());
     }
 
     /** Idempotent deletion with explicit errors. No recursion and no symlink following. */
