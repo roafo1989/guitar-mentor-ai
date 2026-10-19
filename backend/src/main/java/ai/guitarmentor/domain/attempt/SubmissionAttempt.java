@@ -119,6 +119,7 @@ public class SubmissionAttempt {
     public Instant getProcessingFinalizedAt() { return processingFinalizedAt; }
     public MediaState getMediaState() { return mediaState; }
     public Instant getMediaDeletedAt() { return mediaDeletedAt; }
+    public int getMediaDeleteAttempts() { return mediaDeleteAttempts; }
     public void finalizeProcessing(Instant now, String expectedPlan) {
         if (!processingPlan.equals(expectedPlan) || !"TECHNICAL_ONLY_V1".equals(expectedPlan))
             throw new IllegalStateException("Unsupported media plan");
