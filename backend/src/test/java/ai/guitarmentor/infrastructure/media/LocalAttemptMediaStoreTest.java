@@ -140,6 +140,28 @@ class LocalAttemptMediaStoreTest {
     }
 
     @Test
+    void orphanScanOnlyReturnsOldRegularFilesWithServerGeneratedKeys() throws Exception {
+        var media=new LocalAttemptMediaStore(temp.toString());
+        var old=temp.resolve(java.util.UUID.randomUUID()+".wav");
+        var fresh=temp.resolve(java.util.UUID.randomUUID()+".wav");
+        var foreign=temp.resolve("personal.wav");
+        var directory=temp.resolve(java.util.UUID.randomUUID()+".wav");
+        Files.write(old,new byte[]{1});
+        Files.write(fresh,new byte[]{1});
+        Files.write(foreign,new byte[]{1});
+        Files.createDirectory(directory);
+        var cutoff=java.time.Instant.now().minusSeconds(48*3600);
+        Files.setLastModifiedTime(old,java.nio.file.attribute.FileTime.from(cutoff.minusSeconds(60)));
+        var candidates=media.scanOlderThan(cutoff,100);
+        assertEquals(1,candidates.size());
+        assertEquals(old.getFileName().toString(),candidates.get(0).key());
+        assertTrue(media.isUnreferencedCandidateOld(old.getFileName().toString(),cutoff));
+        assertFalse(media.isUnreferencedCandidateOld(fresh.getFileName().toString(),cutoff));
+        assertFalse(media.isUnreferencedCandidateOld(directory.getFileName().toString(),cutoff));
+        assertTrue(Files.exists(foreign));
+    }
+
+    @Test
     void filesystemDeletionFailureIsNotMistakenForAbsentFile() throws Exception {
         var media = new LocalAttemptMediaStore(temp.toString());
         Path target = temp.resolve(java.util.UUID.randomUUID() + ".wav");
