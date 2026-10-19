@@ -1,4 +1,4 @@
-import type { DiagnosticSession, DiagnosticTask, Exercise, ScoreEvents } from '../../shared/model/diagnostic.model';
+import type { DiagnosticSession, DiagnosticTask, Exercise, ScoreEvents, DiagnosticRecommendation, SkillSnapshot } from '../../shared/model/diagnostic.model';
 
 function baseUrl(learnerId: string): string {
   return '/api/v1/learners/' + encodeURIComponent(learnerId) + '/diagnostic-sessions';
@@ -43,6 +43,14 @@ export const diagnosticService = {
   },
   listExercises() {
     return request<Exercise[]>('/api/v1/exercises?instrumentCode=ACOUSTIC_GUITAR&techniqueCode=FINGERSTYLE');
+  },
+  recommendations(learnerId: string, sessionId: string) {
+    return request<DiagnosticRecommendation>(baseUrl(learnerId) + '/' +
+      encodeURIComponent(sessionId) + '/exercise-recommendations');
+  },
+  skillMap(learnerId: string, instrumentCode: string) {
+    return request<SkillSnapshot[]>('/api/v1/learners/' + encodeURIComponent(learnerId) +
+      '/instruments/' + encodeURIComponent(instrumentCode) + '/skills');
   },
   currentTask(learnerId: string, sessionId: string) {
     return request<DiagnosticTask | null>(baseUrl(learnerId) + '/' +

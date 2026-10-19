@@ -5,7 +5,7 @@ import { useLearnerStore } from '../../stores/learner.store';
 import { diagnosticService } from './diagnostic.service';
 import ExercisePreview from './ExercisePreview.vue';
 import SubmissionPanel from '../attempt/SubmissionPanel.vue';
-import type { DiagnosticSession, DiagnosticTask, Exercise } from '../../shared/model/diagnostic.model';
+import type { DiagnosticSession, DiagnosticTask, Exercise, DiagnosticRecommendation } from '../../shared/model/diagnostic.model';
 
 const { t } = useI18n();
 const learnerStore = useLearnerStore();
@@ -15,6 +15,9 @@ const busy = ref(false);
 const error = ref('');
 const catalogBusy = ref(false);
 const exercises = ref<Exercise[]>([]);
+const recommendation = ref<DiagnosticRecommendation | null>(null);
+const recommendationBusy = ref(false);
+const recommendationError = ref('');
 const task = ref<DiagnosticTask | null>(null);
 
 async function loadTask(learnerId: string, diagnosticId: string): Promise<void> {
@@ -32,6 +35,22 @@ async function loadCatalog(): Promise<void> {
       ? t('diagnostic.catalogApiMissing') : showError(cause);
   } finally {
     catalogBusy.value = false;
+  }
+  await loadRecommendations();
+}
+
+async function loadRecommendations(): Promise<void> {
+  const id = learnerStore.learner?.id;
+  if (!id || !session.value || session.value.status !== 'READY_FOR_TASK') return;
+  recommendationBusy.value = true;
+  recommendationError.value = '';
+  try {
+    recommendation.value = await diagnosticService.recommendations(id, session.value.id);
+  } catch (cause) {
+    recommendation.value = null;
+    recommendationError.value = showError(cause);
+  } finally {
+    recommendationBusy.value = false;
   }
 }
 const instrumentCode = 'ACOUSTIC_GUITAR';
@@ -159,6 +178,31 @@ async function assign(exerciseCode: string): Promise<void> {
       <template v-else-if="session.status === 'READY_FOR_TASK'">
         <h2>{{ t('diagnostic.readyTitle') }}</h2>
         <p>{{ t('diagnostic.chooseStudy') }}</p>
+        <section class="recommendation-panel" aria-labelledby="recommended-heading">
+          <h3 id="recommended-heading">{{ t('diagnostic.recommendationTitle') }}</h3>
+          <p v-if="recommendationBusy" role="status">{{ t('diagnostic.recommendationLoading') }}</p>
+          <div v-else-if="recommendationError" role="alert">
+            <p>{{ t('diagnostic.recommendationUnavailable') }}</p>
+            <button class="action-button secondary-button" type="button"
+              :disabled="recommendationBusy" @click="loadRecommendations">
+              {{ t('diagnostic.retryRecommendations') }}
+            </button>
+          </div>
+          <p v-else-if="recommendation?.status === 'NO_MATCH'" role="status">
+            {{ t('diagnostic.noRecommendation.' + recommendation.reasonCode) }}
+            {{ t('diagnostic.manualChoice') }}
+          </p>
+          <article v-for="item in recommendation?.items ?? []" :key="item.exerciseCode"
+            class="exercise-card">
+            <h4>{{ item.title }}</h4>
+            <p>{{ t('diagnostic.practiceDuration', { minutes: item.recommendedPracticeMinutes }) }}</p>
+            <p>{{ item.skillCodes.join(', ') }}</p>
+            <p class="hint">{{ item.reasonCodes.map(code => t('diagnostic.recommendationReason.' + code)).join(' · ') }}</p>
+            <button type="button" class="action-button" :disabled="busy"
+              @click="assign(item.exerciseCode)">{{ t('diagnostic.assignRecommended') }}</button>
+          </article>
+        </section>
+        <h3>{{ t('diagnostic.catalogAll') }}</h3>
         <p v-if="catalogBusy" class="hint">{{ t('diagnostic.catalogLoading') }}</p>
         <p v-else-if="!error && exercises.length === 0" class="hint">{{ t('diagnostic.noExercises') }}</p>
         <button v-if="error" type="button" class="action-button secondary-button" :disabled="catalogBusy" @click="loadCatalog">
