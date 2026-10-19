@@ -88,6 +88,7 @@ public final class AudioCorpusValidator {
             Map<String, String> groupSplits = new HashMap<>();
             Map<String, String> groupKinds = new HashMap<>();
             Map<String, Set<String>> coverage = new HashMap<>();
+            Set<String> sourceHashes = new HashSet<>();
             for (JsonNode rec : dataset.path("recordings")) {
                 String id = value(rec, "recordingId");
                 if (!validId(id) || !ids.add(id)) {
@@ -110,6 +111,10 @@ public final class AudioCorpusValidator {
                     if (!validId(recordingGroup) || !validId(value(rec, "performerId"))
                             || !validId(value(rec, "sessionId")) || !validId(value(rec, "deviceId"))) {
                         errors.add("REAL_METADATA:" + id);
+                    }
+                    String sourceKey = value(rec, "sourceSha256");
+                    if (validSha(sourceKey) && !sourceHashes.add(sourceKey)) {
+                        errors.add("DUPLICATE_REAL_SOURCE:" + id);
                     }
                     String oldKind = groupKinds.putIfAbsent(recordingGroup, group);
                     if (oldKind != null && !oldKind.equals(group)) errors.add("GROUP_REUSED_ACROSS_TYPES:" + id);
