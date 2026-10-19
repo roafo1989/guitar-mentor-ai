@@ -10,7 +10,7 @@ import org.springframework.stereotype.Component;
 
 /**
  * Reads audio packet timestamps with ffprobe (FFmpeg), never decodes or grades music.
- * Works with the four uploaded containers, including MediaRecorder WebM missing Duration metadata.
+ * Works with the supported audio containers, including MediaRecorder WebM missing Duration metadata.
  */
 @Component
 public class AudioDurationProbe {
@@ -62,6 +62,71 @@ public class AudioDurationProbe {
         } finally {
             Files.deleteIfExists(output);
         }
+    }
+
+
+    /**
+     * M4A is an MP4-family container, so its ftyp header alone cannot prove audio-only
+     * content. Reject video, subtitle, data, unknown streams and non-AAC codecs.
+     */
+    public void inspectM4a(Path file) throws IOException {
+        Path output = Files.createTempFile("guitar-m4a-streams-", ".txt");
+        try {
+            Process process;
+            try {
+                process = new ProcessBuilder(command, "-v", "error",
+                        "-show_entries", "stream=codec_name,codec_type:format=format_name",
+                        "-of", "compact=p=0:nk=0", file.toAbsolutePath().toString())
+                        .redirectError(ProcessBuilder.Redirect.DISCARD)
+                        .redirectOutput(output.toFile()).start();
+            } catch (IOException unavailable) {
+                throw new IOException("PROBE_UNAVAILABLE");
+            }
+            try {
+                if (!process.waitFor(TIMEOUT_SECONDS, TimeUnit.SECONDS)) {
+                    process.destroyForcibly();
+                    throw new IOException("PROBE_TIMEOUT");
+                }
+            } catch (InterruptedException interrupted) {
+                process.destroyForcibly();
+                Thread.currentThread().interrupt();
+                throw new IOException("PROBE_INTERRUPTED", interrupted);
+            }
+            if (process.exitValue() != 0 || Files.size(output) > MAX_OUTPUT_BYTES) {
+                throw new IOException("INVALID_MEDIA");
+            }
+            validateM4aStreams(Files.readAllLines(output));
+        } finally {
+            Files.deleteIfExists(output);
+        }
+    }
+
+    /** Package-visible to test malformed probe metadata without committing recordings. */
+    static void validateM4aStreams(Iterable<String> lines) throws IOException {
+        boolean validContainer = false;
+        boolean foundAudio = false;
+        int lineCount = 0;
+        for (String line : lines) {
+            if (++lineCount > 1000) throw new IOException("INVALID_MEDIA");
+            if (line.startsWith("format_name=")) {
+                String name = line.substring("format_name=".length());
+                if (java.util.Arrays.asList(name.split(",")).contains("mov")) {
+                    validContainer = true;
+                }
+                continue;
+            }
+            String codec = null;
+            String type = null;
+            for (String field : line.split("\\|")) {
+                if (field.startsWith("codec_name=")) codec = field.substring("codec_name=".length());
+                if (field.startsWith("codec_type=")) type = field.substring("codec_type=".length());
+            }
+            if (!"audio".equals(type) || !"aac".equals(codec)) {
+                throw new IOException("INVALID_MEDIA");
+            }
+            foundAudio = true;
+        }
+        if (!validContainer || !foundAudio) throw new IOException("INVALID_MEDIA");
     }
 
     /** Returns the maximum audio packet end timestamp, including short last frames. */
