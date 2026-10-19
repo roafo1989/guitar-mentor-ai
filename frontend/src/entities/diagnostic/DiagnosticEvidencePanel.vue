@@ -32,6 +32,7 @@ function clearPreview(): void {
 function chooseAudio(file: File | null): void {
   clearPreview();
   audio.value = file;
+  if (!file && audioInput.value) audioInput.value.value = '';
   if (file) preview.value = URL.createObjectURL(file);
 }
 function onAudioInput(event: Event): void {
