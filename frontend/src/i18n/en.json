@@ -222,5 +222,32 @@
     "uploadNetworkError": "Could not connect to the server. Check your connection and try again.",
     "uploadServerError": "The server could not accept this recording. Please retry.",
     "historyLoadError": "Could not load attempt history. Refresh the page and check the connection."
+  },
+  "evidence": {
+    "heading": "My performances (optional)",
+    "description": "Add a familiar piece before diagnostic exercises. You can skip this step.",
+    "loading": "Loading performances...",
+    "disabled": "Uploads are disabled in this local prototype. You can continue without a recording.",
+    "title": "Piece title",
+    "titleExample": "For example, Yesterday",
+    "titleInvalid": "Enter a piece title (up to 200 characters).",
+    "composer": "Composer / artist (optional)",
+    "audio": "My audio recording",
+    "score": "Score / tabs (optional)",
+    "listen": "Listen before sending",
+    "discard": "Discard recording",
+    "limits": "MP3, WAV, OGG, WebM · up to 20 MiB / 120 seconds. Score: one PDF, JPG or PNG up to 10 MiB.",
+    "comment": "Comments (optional)",
+    "uploading": "Uploading...",
+    "add": "Add performance",
+    "saved": "Performance saved. You may add another or continue.",
+    "limitReached": "Maximum 10 performances per session.",
+    "listHeading": "Added performances",
+    "empty": "No recordings yet. This will not lower your skill level.",
+    "sizeError": "One of the files is too large.",
+    "technicalFailed": "Audio technical validation failed",
+    "technicalStatus": "Technical status",
+    "deleted": "Original file deleted according to retention policy; history remains.",
+    "notAssessed": "No musical skill assessment has been made."
   }
 }
