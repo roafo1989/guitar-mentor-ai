@@ -25,7 +25,7 @@ import org.springframework.web.server.ResponseStatusException;
 @Component
 public class LocalAttemptMediaStore implements AttemptMediaStore {
     private static final String KEY_PATTERN =
-            "[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}\\.(mp3|wav|ogg|webm)";
+            "[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}\\.(mp3|wav|ogg|webm|m4a)";
 
     private final Path root;
 
@@ -47,7 +47,7 @@ public class LocalAttemptMediaStore implements AttemptMediaStore {
         }
         var lower = filename.toLowerCase(Locale.ROOT);
         String format = null;
-        for (var allowed : new String[] {"mp3", "wav", "ogg", "webm"}) {
+        for (var allowed : new String[] {"mp3", "wav", "ogg", "webm", "m4a"}) {
             if (lower.endsWith("." + allowed)) {
                 format = allowed;
                 break;
@@ -55,12 +55,12 @@ public class LocalAttemptMediaStore implements AttemptMediaStore {
         }
         if (format == null) {
             throw new ResponseStatusException(HttpStatus.BAD_REQUEST,
-                    "Only .mp3, .wav, .ogg or .webm are supported");
+                    "Only .mp3, .wav, .ogg, .webm or .m4a are supported");
         }
         try {
             byte[] prefix;
             try (var in = file.getInputStream()) {
-                prefix = in.readNBytes(16);
+                prefix = in.readNBytes(256);
             }
             if (!matchesHeader(format, prefix)) {
                 throw new ResponseStatusException(HttpStatus.BAD_REQUEST,
@@ -104,6 +104,37 @@ public class LocalAttemptMediaStore implements AttemptMediaStore {
                     && prefix[2] == 'g' && prefix[3] == 'S';
             case "webm" -> (prefix[0] & 0xff) == 0x1a && (prefix[1] & 0xff) == 0x45
                     && (prefix[2] & 0xff) == 0xdf && (prefix[3] & 0xff) == 0xa3;
+            case "m4a" -> matchesM4aHeader(prefix);
+            default -> false;
+        };
+    }
+
+    /**
+     * ISO BMFF begins with a complete ftyp box: size, "ftyp", major brand,
+     * minor version, then zero or more compatible four-character brands.
+     * Audio-only/AAC and absence of video are verified separately by ffprobe.
+     */
+    private static boolean matchesM4aHeader(byte[] prefix) {
+        if (prefix.length < 16 || prefix[4] != 'f' || prefix[5] != 't'
+                || prefix[6] != 'y' || prefix[7] != 'p') return false;
+        long boxLength = ((long) (prefix[0] & 0xff) << 24)
+                | ((long) (prefix[1] & 0xff) << 16)
+                | ((long) (prefix[2] & 0xff) << 8) | (prefix[3] & 0xff);
+        if (boxLength < 16 || boxLength > prefix.length || (boxLength - 16) % 4 != 0) {
+            return false;
+        }
+        if (allowedM4aBrand(prefix, 8)) return true;
+        for (int offset = 16; offset < boxLength; offset += 4) {
+            if (allowedM4aBrand(prefix, offset)) return true;
+        }
+        return false;
+    }
+
+    private static boolean allowedM4aBrand(byte[] prefix, int offset) {
+        String brand = new String(prefix, offset, 4, java.nio.charset.StandardCharsets.US_ASCII);
+        return switch (brand) {
+            case "M4A ", "isom", "iso2", "iso5", "iso6",
+                    "3gp4", "3gp5", "3gp6", "mp41", "mp42" -> true;
             default -> false;
         };
     }
@@ -121,7 +152,7 @@ public class LocalAttemptMediaStore implements AttemptMediaStore {
         String format = key.substring(key.lastIndexOf('.') + 1);
         byte[] header;
         try (var in = Files.newInputStream(target)) {
-            header = in.readNBytes(16);
+            header = in.readNBytes(256);
         }
         if (!matchesHeader(format, header)) {
             throw new IOException("INVALID_FORMAT");
