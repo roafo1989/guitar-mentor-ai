@@ -18,4 +18,9 @@ public interface SubmissionAttemptRepository extends JpaRepository<SubmissionAtt
     List<SubmissionAttempt> findByStatusAndProcessingStartedAtBefore(
             AttemptStatus status, java.time.Instant before);
 
+    boolean existsByMediaKey(String mediaKey);
+    java.util.List<SubmissionAttempt> findTop100ByMediaStateOrderBySubmittedAtAsc(
+        ai.guitarmentor.domain.attempt.MediaState state);
+    java.util.List<SubmissionAttempt> findTop100ByMediaStateAndSubmittedAtBeforeOrderBySubmittedAtAsc(
+        ai.guitarmentor.domain.attempt.MediaState state, java.time.Instant cutoff);
 }
