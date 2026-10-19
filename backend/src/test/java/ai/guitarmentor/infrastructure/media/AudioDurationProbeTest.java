@@ -60,6 +60,45 @@ class AudioDurationProbeTest {
         }
     }
 
+
+    @Test
+    void rejectsM4aWhenSecondAacTrackIsLongerThan120Seconds(
+            @org.junit.jupiter.api.io.TempDir java.nio.file.Path temp) throws Exception {
+        var media = temp.resolve("multitrack.m4a");
+        Process encoder;
+        try {
+            encoder = new ProcessBuilder("ffmpeg", "-nostdin", "-hide_banner",
+                    "-loglevel", "error",
+                    "-f", "lavfi", "-t", "1", "-i",
+                    "anullsrc=channel_layout=mono:sample_rate=16000",
+                    "-f", "lavfi", "-t", "125", "-i",
+                    "anullsrc=channel_layout=mono:sample_rate=16000",
+                    "-map", "0:a:0", "-map", "1:a:0",
+                    "-c:a", "aac", "-b:a", "16k",
+                    "-y", media.toString())
+                    .redirectError(ProcessBuilder.Redirect.DISCARD).start();
+        } catch (IOException absent) {
+            org.junit.jupiter.api.Assumptions.assumeTrue(false, "ffmpeg unavailable");
+            return;
+        }
+        boolean finished = encoder.waitFor(30, java.util.concurrent.TimeUnit.SECONDS);
+        if (!finished) encoder.destroyForcibly();
+        org.junit.jupiter.api.Assertions.assertTrue(finished, "ffmpeg generation timed out");
+        assertEquals(0, encoder.exitValue());
+        var probe = new AudioDurationProbe("ffprobe");
+        try {
+            probe.inspectM4a(media); // Two AAC audio streams are allowed.
+        } catch (IOException unavailable) {
+            if ("PROBE_UNAVAILABLE".equals(unavailable.getMessage())) {
+                org.junit.jupiter.api.Assumptions.assumeTrue(false, "ffprobe unavailable");
+            }
+            throw unavailable;
+        }
+        var rejected = assertThrows(IOException.class, () -> probe.measure(media));
+        assertEquals("DURATION_EXCEEDED", rejected.getMessage(),
+                "The first audio track is 1s, but another is 125s");
+    }
+
     @Test
     void inspectsGenerated3gp4M4aAacWithRealFfprobeIfAvailable(
             @org.junit.jupiter.api.io.TempDir java.nio.file.Path temp) throws Exception {
