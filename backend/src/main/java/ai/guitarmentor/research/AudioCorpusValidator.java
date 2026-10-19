@@ -190,7 +190,8 @@ public final class AudioCorpusValidator {
                     || !value(rec, "referenceVersion").equals(value(reference, "referenceVersion"))
                     || !reference.path("events").isArray()
                     || reference.path("barCount").asInt(-1) < rec.path("barTo").asInt(0)
-                    || reference.path("bpm").asDouble(-1) <= 0) {
+                    || reference.path("bpm").asDouble(-1) <= 0
+                    || reference.path("events").isEmpty()) {
                 errors.add("REFERENCE_CONTENT:" + id);
                 return;
             }
@@ -201,7 +202,8 @@ public final class AudioCorpusValidator {
                         || e.path("bar").asInt(0) < 1
                         || e.path("bar").asInt() > reference.path("barCount").asInt()
                         || e.path("beat").asDouble(-1) < 0
-                        || e.path("durationBeats").asDouble(-1) <= 0) {
+                        || e.path("durationBeats").asDouble(-1) <= 0
+                        || !e.path("notes").isArray() || e.path("notes").isEmpty()) {
                     errors.add("REFERENCE_EVENT:" + id);
                     return;
                 }
@@ -236,6 +238,10 @@ public final class AudioCorpusValidator {
                     || !nonblank(a, "annotationId") || !nonblank(a, "annotationVersion")
                     || !validId(value(a, "annotatorId"))) {
                 errors.add("ANNOTATION_SCHEMA:" + id);
+                return;
+            }
+            if (a.path("observations").isEmpty()) {
+                errors.add("ANNOTATION_EMPTY:" + id);
                 return;
             }
             long duration = rec.path("durationMs").asLong();
