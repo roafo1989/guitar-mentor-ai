@@ -81,8 +81,12 @@ public final class AudioCorpusValidator {
                     || !dataset.path("recordings").isArray()) {
                 return new Result("INVALID", List.of("MANIFEST_SCHEMA"), List.of(), 0);
             }
+            if (dataset.path("recordings").size() > 1000) {
+                return new Result("INVALID", List.of("TOO_MANY_RECORDINGS"), List.of(), 0);
+            }
             Set<String> ids = new HashSet<>();
             Map<String, String> groupSplits = new HashMap<>();
+            Map<String, String> groupKinds = new HashMap<>();
             Map<String, Set<String>> coverage = new HashMap<>();
             for (JsonNode rec : dataset.path("recordings")) {
                 String id = value(rec, "recordingId");
@@ -107,11 +111,15 @@ public final class AudioCorpusValidator {
                             || !validId(value(rec, "sessionId")) || !validId(value(rec, "deviceId"))) {
                         errors.add("REAL_METADATA:" + id);
                     }
+                    String oldKind = groupKinds.putIfAbsent(recordingGroup, group);
+                    if (oldKind != null && !oldKind.equals(group)) errors.add("GROUP_REUSED_ACROSS_TYPES:" + id);
                     String oldSplit = groupSplits.putIfAbsent(recordingGroup, split);
                     if (oldSplit != null && !oldSplit.equals(split)) errors.add("SPLIT_LEAK:" + id);
                     // Do not count withdrawn, absent or unreviewed samples as usable holdout.
                     if ("AVAILABLE".equals(available) && rec.path("rightsConfirmed").asBoolean(false)
-                            && rec.path("manualReviewConfirmed").asBoolean(false)) {
+                            && rec.path("manualReviewConfirmed").asBoolean(false)
+                            && nonblank(rec, "annotationRef") && validSha(value(rec, "annotationSha256"))
+                            && nonblank(rec, "referenceRef") && validSha(value(rec, "referenceSha256"))) {
                         coverage.computeIfAbsent(group, ignored -> new HashSet<>()).add(recordingGroup + ":" + split);
                     }
                     if (!Set.of("OWNED", "LICENSED", "EXPLICIT_PERMISSION").contains(value(rec, "rightsBasis"))
@@ -245,8 +253,13 @@ public final class AudioCorpusValidator {
                     || !value(rec, "sourceSha256").equals(value(a, "sourceSha256"))
                     || !a.path("observations").isArray()
                     || !nonblank(a, "annotationId") || !nonblank(a, "annotationVersion")
+                    || !value(rec, "annotationVersion").equals(value(a, "annotationVersion"))
                     || !validId(value(a, "annotatorId"))) {
                 errors.add("ANNOTATION_SCHEMA:" + id);
+                return;
+            }
+            if (a.path("observations").size() > 10000) {
+                errors.add("TOO_MANY_OBSERVATIONS:" + id);
                 return;
             }
             if (a.path("observations").isEmpty()) {
