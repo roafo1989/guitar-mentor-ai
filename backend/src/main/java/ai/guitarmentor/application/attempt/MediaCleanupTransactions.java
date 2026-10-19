@@ -22,7 +22,7 @@ public class MediaCleanupTransactions {
             .stream().map(a -> new Candidate(a.getId(),a.getMediaKey())).toList();
         if (!pending.isEmpty()) return pending;
         var selected=attempts.findEligibleForCleanup(
-            now.minus(policy.afterFinal()),now.minus(policy.maxUnprocessedAge()));
+            now.minus(policy.afterFinal()),now.minus(policy.maxUnprocessed()));
         for(var a:selected) {
             boolean finalized=a.getProcessingFinalizedAt()!=null;
             if(!finalized) a.expireUnprocessed(now);
