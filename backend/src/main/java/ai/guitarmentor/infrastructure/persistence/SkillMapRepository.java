@@ -61,7 +61,7 @@ public class SkillMapRepository {
                        + " FROM learner_skill_signal_history WHERE instrument_profile_id=?"
                        + " ORDER BY recorded_at DESC,id DESC",
                 (rs, n) -> new SignalRow(rs.getString(1), rs.getString(2),
-                        rs.getString(3), (Integer) rs.getObject(4),
+                        rs.getString(3), rs.getObject(4) == null ? null : ((Number) rs.getObject(4)).intValue(),
                         rs.getTimestamp(5).toInstant(), rs.getString(6)), profileId);
     }
 

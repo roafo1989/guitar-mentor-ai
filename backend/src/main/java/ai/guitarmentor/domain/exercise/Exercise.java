@@ -52,6 +52,9 @@ public class Exercise {
     @Column(name = "events_resource", nullable = false)
     private String eventsResource;
 
+    @Column(name = "recommended_practice_minutes")
+    private Integer recommendedPracticeMinutes;
+
     @Column(name = "preview_audio_resource")
     private String previewAudioResource;
     @Column(name = "preview_pdf_resource")
@@ -82,6 +85,7 @@ public class Exercise {
     public String getDescription() { return description; }
     public String getScoreResource() { return scoreResource; }
     public String getEventsResource() { return eventsResource; }
+    public Integer getRecommendedPracticeMinutes() { return recommendedPracticeMinutes; }
     public String getPreviewAudioResource() { return previewAudioResource; }
     public String getPreviewPdfResource() { return previewPdfResource; }
     public Set<String> getSkillCodes() { return Set.copyOf(skillCodes); }

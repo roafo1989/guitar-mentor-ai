@@ -9,12 +9,18 @@ import org.springframework.web.bind.annotation.ExceptionHandler;
 import org.springframework.web.bind.annotation.RestControllerAdvice;
 
 @RestControllerAdvice(assignableTypes = {
-        DiagnosticSessionController.class, DiagnosticTaskController.class, ExerciseController.class})
+        DiagnosticSessionController.class, DiagnosticTaskController.class,
+        RecommendationController.class, ExerciseController.class})
 public class DiagnosticSessionExceptionHandler {
 
     @ExceptionHandler(EntityNotFoundException.class)
     public ResponseEntity<Map<String, String>> notFound(EntityNotFoundException error) {
         return ResponseEntity.status(HttpStatus.NOT_FOUND).body(Map.of("error", error.getMessage()));
+    }
+
+    @ExceptionHandler(IllegalArgumentException.class)
+    public ResponseEntity<Map<String, String>> invalidRequest(IllegalArgumentException error) {
+        return ResponseEntity.badRequest().body(Map.of("error", error.getMessage()));
     }
 
     @ExceptionHandler(IllegalStateException.class)
