@@ -9,6 +9,7 @@ import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Component;
 
 @Component
+@org.springframework.scheduling.annotation.EnableScheduling
 public class MediaCleanupService {
     private static final Logger log=LoggerFactory.getLogger(MediaCleanupService.class);
     private final MediaCleanupTransactions transactions;
