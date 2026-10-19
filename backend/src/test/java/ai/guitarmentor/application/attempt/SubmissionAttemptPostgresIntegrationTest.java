@@ -52,6 +52,7 @@ class SubmissionAttemptPostgresIntegrationTest {
     @Autowired SubmissionAttemptService service;
     @Autowired MediaCleanupTransactions cleanupTransactions;
     @Autowired MediaCleanupService cleanupService;
+    @Autowired MediaUseCoordinator coordinator;
 
     private UUID learnerId;
     private UUID profileId;
@@ -180,6 +181,46 @@ class SubmissionAttemptPostgresIntegrationTest {
         assertEquals("DELETED",retry.mediaState());
         assertEquals(1,countRows());
         assertFalse(Files.exists(MEDIA_ROOT.resolve(key)));
+    }
+
+    @Test
+    void concurrentUncommittedUploadCannotBeClaimedByCleanup() throws Exception {
+        var stored=new java.util.concurrent.atomic.AtomicReference<String>();
+        var entered=new java.util.concurrent.CountDownLatch(1);
+        var release=new java.util.concurrent.CountDownLatch(1);
+        var worker=java.util.concurrent.Executors.newSingleThreadExecutor();
+        try {
+            var transaction=worker.submit(()->{
+                new TransactionTemplate(txManager).executeWithoutResult(tx->{
+                    var view=service.submit(learnerId,sessionId,taskId,
+                        UUID.randomUUID(),"concurrent rollback",wav());
+                    stored.set(jdbc.queryForObject(
+                        "SELECT media_key FROM submission_attempts WHERE id=?",
+                        String.class,view.id()));
+                    entered.countDown();
+                    try {
+                        if(!release.await(10,java.util.concurrent.TimeUnit.SECONDS))
+                            throw new IllegalStateException("test synchronization timeout");
+                    } catch(InterruptedException interrupted) {
+                        Thread.currentThread().interrupt();
+                        throw new IllegalStateException(interrupted);
+                    }
+                    tx.setRollbackOnly();
+                });
+                return true;
+            });
+            assertTrue(entered.await(10,java.util.concurrent.TimeUnit.SECONDS));
+            assertNotNull(stored.get());
+            assertTrue(Files.exists(MEDIA_ROOT.resolve(stored.get())));
+            assertFalse(coordinator.tryAcquire(),
+                "Cleanup must not acquire guard before upload transaction completion");
+            release.countDown();
+            assertTrue(transaction.get(10,java.util.concurrent.TimeUnit.SECONDS));
+            assertFalse(Files.exists(MEDIA_ROOT.resolve(stored.get())));
+            assertEquals(0,countRows());
+            assertTrue(coordinator.tryAcquire());
+            coordinator.release();
+        } finally { release.countDown();worker.shutdownNow(); }
     }
 
     @Test
