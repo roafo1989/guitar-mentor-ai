@@ -16,6 +16,8 @@ public interface AttemptMediaStore {
     Path resolveForInspection(String key) throws IOException;
     DeleteOutcome delete(String key) throws IOException;
     record OrphanCandidate(String key, java.time.Instant modifiedAt) {}
+    default boolean isUnreferencedCandidateOld(String key,java.time.Instant cutoff)
+            throws IOException { return false; }
     default java.util.List<OrphanCandidate> scanOlderThan(java.time.Instant cutoff, int limit)
             throws IOException { return java.util.List.of(); }
 }
