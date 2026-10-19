@@ -56,8 +56,7 @@ public class MediaCleanupService {
                 if (transactions.isReferenced(orphan.key())) continue;
                 // Re-evaluate mtime, storage key and DB reference under the same local guard
                 // held by upload, worker and cleanup.
-                boolean stillOld=store.scanOlderThan(cutoff,10000).stream()
-                    .anyMatch(candidate->candidate.key().equals(orphan.key()));
+                boolean stillOld=store.isUnreferencedCandidateOld(orphan.key(),cutoff);
                 if (stillOld && !transactions.isReferenced(orphan.key())) {
                     store.delete(orphan.key());
                     deleted++;
