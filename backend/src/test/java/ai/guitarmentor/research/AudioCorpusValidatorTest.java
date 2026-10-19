@@ -122,4 +122,18 @@ class AudioCorpusValidatorTest {
         assertTrue(result.gaps().contains("NO_INDEPENDENT_HOLDOUT:REAL-BASS"));
     }
 
+    @Test
+    void rejectsExcessiveRecordingCount() throws Exception {
+        var rootJson = new com.fasterxml.jackson.databind.ObjectMapper().createObjectNode();
+        rootJson.put("schemaVersion", 1).put("datasetId", "BOUND")
+                .put("datasetVersion", "1").put("createdAt", "2026-10-19T00:00:00Z")
+                .put("sourceCommit", "test");
+        var recordings = rootJson.putArray("recordings");
+        for (int i = 0; i < 1001; i++) recordings.addObject().put("recordingId", "R-" + i);
+        Files.writeString(root.resolve("manifest.json"), rootJson.toString());
+        var result = AudioCorpusValidator.validate(root, "manifest.json");
+        assertEquals("INVALID", result.status());
+        assertTrue(result.errors().contains("TOO_MANY_RECORDINGS"));
+    }
+
 }
