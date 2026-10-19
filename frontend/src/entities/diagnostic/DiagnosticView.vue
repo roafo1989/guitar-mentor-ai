@@ -4,6 +4,7 @@ import { useI18n } from 'vue-i18n';
 import { useLearnerStore } from '../../stores/learner.store';
 import { diagnosticService } from './diagnostic.service';
 import ExercisePreview from './ExercisePreview.vue';
+import SubmissionPanel from '../attempt/SubmissionPanel.vue';
 import type { DiagnosticSession, DiagnosticTask, Exercise } from '../../shared/model/diagnostic.model';
 
 const { t } = useI18n();
@@ -188,6 +189,9 @@ async function assign(exerciseCode: string): Promise<void> {
         <p>{{ t('diagnostic.practiceTips') }}</p>
         <p class="hint">{{ t('diagnostic.draftWarning') }}</p>
         <ExercisePreview :exercise="task.exercise" assigned />
+        <SubmissionPanel v-if="learnerStore.learner"
+          :learner-id="learnerStore.learner.id"
+          :session-id="session.id" :task-id="task.id" />
         <p class="hint">{{ t('diagnostic.noAssessment') }}</p>
       </template>
       <p v-if="error" role="alert" class="error">{{ error }}</p>

@@ -9,11 +9,11 @@
 ```powershell
 Set-Location D:\Development\guitar-mentor-ai
 git fetch origin
-git switch --track origin/feature/dev-01-java-bootstrap
+git switch main
+git pull --ff-only
 git status
 ```
 
-Если локальная ветка `feature/dev-01-java-bootstrap` уже существует, используйте `git switch feature/dev-01-java-bootstrap`, затем `git pull --ff-only`.
 
 Проверьте наличие `backend/pom.xml` и `backend/mvnw.cmd`. В VS Code команда **Java: Configure Java Runtime** после импорта Maven проекта должна распознать JDK 21.
 
@@ -29,8 +29,8 @@ git status
 
 **Важно:** если CI GitHub ещё не завершён — сообщите результат локальной сборки. Не меняйте PostgreSQL-роль на администратора, не сохраняйте пароль в git.
 
-## Что дальше
+## Состояние после последующих инкрементов
 
-В отдельном PR добавим сущности, сервисы и REST API для реальных учебных сценариев. Затем Vue 3/TypeScript фронтенд в стиле JHipster: `entities`, `service`, `router`, `shared/model`, `i18n`.
+В main уже есть сущности, REST API, PostgreSQL V1–V9 и Vue. Этот документ проверяет исходный каркас, не приёмку полного приложения; [текущее состояние](../project/current-state.md).
 
 Архитектура: [ADR-0001](../adr/0001-java-vue-postgresql.md).

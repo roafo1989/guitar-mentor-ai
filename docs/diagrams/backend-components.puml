@@ -4,8 +4,8 @@ component "REST / DTO" as R
 component "Application services" as A
 component "Domain" as D
 component "Persistence adapters" as P
-component "Storage / cleanup
-целевые" as S
+component "LocalAttemptMediaStore
+worker / ffprobe — main #20" as S
 component "Audio / AI adapters
 целевые" as I
 database "PostgreSQL" as DB
@@ -13,12 +13,13 @@ folder "Приватные файлы" as F
 R --> A
 A --> D
 A --> P
-A ..> S
+A --> S : существующий контур
 A ..> I
 P --> DB
 S --> F
 note bottom of A
   Переходы, транзакции и права — серверная ответственность.
   ИИ не закрывает задания и не подтверждает навыки переходом.
+  Порт/rollback #30 — PR #69; TTL/cleanup #21 ещё проект.
 end note
 @enduml

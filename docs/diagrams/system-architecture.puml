@@ -5,15 +5,16 @@ node "Windows: loopback" {
   component "Локальный Caddy / Vue" as UI
   component "Spring Boot: модульный монолит" as A
   database "PostgreSQL: метаданные и история" as DB
-  folder "Приватные временные файлы
-целевой компонент" as S
+  folder "Приватные аудиофайлы
+существуют в main #20" as S
   component "Audio / AI adapters
 целевые компоненты" as AI
 }
 U --> UI
 UI --> A : REST
 A --> DB
-A ..> S : StorageService
+A --> S : LocalAttemptMediaStore / ffprobe
+A ..> S : TTL #21 — проект
 A ..> AI
 note bottom of A
   Текущий прототип без авторизации — только локально.

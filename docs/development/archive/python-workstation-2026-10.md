@@ -23,7 +23,7 @@
 Установите три программы в указанном порядке. Ссылки ведут на официальные сайты.
 
 | Программа | Откуда скачать | Что выбрать при установке |
-|---|---|---|
+| --- | --- | --- |
 | **Visual Studio Code** | https://code.visualstudio.com/download | **Windows User Installer x64** (`VSCodeUserSetup-x64`), если используется обычный ПК x64 |
 | **Git for Windows** | https://git-scm.com/install/windows | **Git for Windows/x64 Setup**. Разрешить Git из командной строки и сторонних программ; **Git Credential Manager** оставить помощником для входа |
 | **Python 3.13.16** | https://www.python.org/downloads/release/python-31316/ | **Windows installer (64-bit)**, обычный установщик (не Python Install Manager). Отметить **Add python.exe to PATH**; оставить установку **Python Launcher** |
@@ -175,7 +175,7 @@ OK: Guitar Mentor AI bootstrap is ready.
 В репозитории есть `.env.example` со списком будущих параметров:
 
 | Имя | Для чего |
-|---|---|
+| --- | --- |
 | `TELEGRAM_BOT_TOKEN` | Токен Telegram-бота |
 | `OPENAI_API_KEY` | Ключ доступа к OpenAI API |
 | `GUITAR_MENTOR_DATA_DIR` | Локальная папка данных (по умолчанию `./data`) |
@@ -218,7 +218,7 @@ git pull --ff-only
 ## 9. Частые проблемы
 
 | Симптом | Что проверить |
-|---|---|
+| --- | --- |
 | `git` не распознаётся | Переоткрыть PowerShell/VS Code после установки Git; убедиться, что Git добавлен в PATH |
 | `py -3.13` не найден | Проверить наличие Python 3.13 и Python Launcher; при необходимости повторить установку Python |
 | `python` запускает Microsoft Store или другую версию | Для проекта пользоваться `py -3.13` и затем `.\.venv\Scripts\python.exe` |

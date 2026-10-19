@@ -58,7 +58,7 @@ guitar-mentor-ai/
 - Доменные правила и права на переход реализуются в Java/application service; LLM только предлагает оценку или следующее упражнение. Учитывать повторные попытки и полную историю.
 - Web и Telegram должны работать с одной идентичностью ученика (после безопасного связывания учётных записей) и единой историей.
 
-## Следующий план
+## Исторический план принятия стека (18.10.2026)
 
 1. **DEV-01-JAVA:** создать рабочий Spring Boot каркас на Java 21 в отдельной ветке: Maven Wrapper, health endpoint, JUnit, lint/CI, PostgreSQL JDBC + Flyway, чистая конфигурация без секретов и инструкция запуска Windows 10.
 2. **DEV-02:** ученики, задания и попытки, первая миграция БД, CRUD / REST API, бизнес-правила.
@@ -74,3 +74,7 @@ guitar-mentor-ai/
 - Hibernate dialects: https://docs.hibernate.org/stable/orm/dialect/
 - SQLite — where appropriate: https://www.sqlite.org/whentouse.html
 - PostgreSQL: https://www.postgresql.org/
+
+## Сверка реализации 19.10.2026
+
+Java/Vue и слои backend уже созданы; main содержит V1–V9 и принятую #20. Прежний пункт DEV-04 про LLM — исторический план, фактическая DEV-04/#11 реализует onboarding; LLM остаётся #23/#24. Реальная Vue-структура без src/app: core/entities/router/shared/stores, i18n/ru.json и en.json. TTL — 48h после финализации всех проверок по ADR-0002, пока не реализован. Текущие API и доказательства — в [спецификации](../specifications/system-specification.md) и [снимке](../project/current-state.md).

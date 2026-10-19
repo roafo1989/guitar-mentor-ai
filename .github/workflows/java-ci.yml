@@ -42,12 +42,21 @@ jobs:
           cache-dependency-path: backend/pom.xml
       - name: Run unit tests and package
         run: ./mvnw --batch-mode verify
+      - name: Ensure FFprobe is present for real audio-duration verification
+        run: |
+          if ! command -v ffprobe >/dev/null; then
+            sudo apt-get update
+            sudo apt-get install -y ffmpeg
+          fi
+          ffprobe -version
       - name: Launch app and verify PostgreSQL migration and HTTP
         shell: bash
         env:
           SPRING_DATASOURCE_URL: jdbc:postgresql://localhost:5432/guitar_mentor
           SPRING_DATASOURCE_USERNAME: guitar_mentor_app
           SPRING_DATASOURCE_PASSWORD: ci_only_password
+          GUITAR_MENTOR_ENABLE_UPLOADS: 'true'
+          GUITAR_MENTOR_MEDIA_PATH: ./target/ci-attempts
         run: |
           set -euo pipefail
           ./mvnw --batch-mode spring-boot:run > boot.log 2>&1 &
@@ -123,6 +132,65 @@ jobs:
                 "http://localhost:8080/api/v1/learners/$learner_id/diagnostic-sessions/$session_id/tasks" \
                 | grep -q '"code":"GM-EB01"'
               echo "Exercise catalog and diagnostic assignment HTTP smoke: OK"
+              attempts_base="http://localhost:8080/api/v1/learners/$learner_id/diagnostic-sessions/$session_id/tasks/$task_id/attempts"
+              capability=$(curl --fail --silent --show-error "$attempts_base/capabilities")
+              echo "$capability" | grep -q '"enabled":true'
+              initial=$(curl --fail --silent --show-error "$attempts_base")
+              test "$initial" = '[]'
+              python3 -c 'import wave; f=wave.open("sample.wav", "wb"); f.setnchannels(1); f.setsampwidth(2); f.setframerate(8000); f.writeframes(bytes(1600)); f.close()'
+              submission_id=123e4567-e89b-12d3-a456-426614174000
+              attempt=$(curl --fail --silent --show-error -X POST "$attempts_base" \
+                -F "file=@sample.wav;type=audio/wav" -F "comment=CI test" \
+                -F "requestId=$submission_id")
+              printf '%s' "$attempt" | python3 -c 'import json,sys; a=json.load(sys.stdin); assert a["status"] in ("UPLOADED","PROCESSING","PROCESSED")'
+              echo "$attempt" | grep -q '"number":1'
+              attempt_id=$(printf '%s' "$attempt" | python3 -c 'import json,sys;print(json.load(sys.stdin)["id"])')
+              duplicate=$(curl --fail --silent --show-error -X POST "$attempts_base" \
+                -F "file=@sample.wav;type=audio/wav" -F "requestId=$submission_id")
+              echo "$duplicate" | grep -q "\"id\":\"$attempt_id\""
+              history=$(curl --fail --silent --show-error "$attempts_base")
+              printf '%s' "$history" | python3 -c \
+                'import json,sys; a=json.load(sys.stdin); assert len(a)==1 and a[0]["number"]==1'
+              # Await the local background technical worker, without confusing it with music assessment.
+              validated=false
+              for check in $(seq 1 30); do
+                latest=$(curl --fail --silent --show-error "$attempts_base")
+                if printf '%s' "$latest" | python3 -c 'import json,sys; a=json.load(sys.stdin); assert len(a)==1 and a[0]["status"]=="PROCESSED" and a[0]["assessmentAvailable"] is False and a[0]["processingFinishedAt"] and not a[0]["processingErrorCode"]'; then
+                  validated=true
+                  break
+                fi
+                sleep 1
+              done
+              test "$validated" = true
+              echo "Asynchronous file integrity verification: OK"
+              printf '%s' "$latest" | python3 -c 'import json,sys; a=json.load(sys.stdin); assert abs(a[0]["audioDurationSeconds"]-0.1) < 0.02'
+              # A valid 125-second WAV stays below the 20-MiB limit,
+              # but must fail the server-side duration check.
+              python3 -c 'import wave; f=wave.open("too-long.wav", "wb"); f.setnchannels(1); f.setsampwidth(2); f.setframerate(8000); f.writeframes(bytes(125*8000*2)); f.close()'
+              long_upload=$(curl --fail --silent --show-error -X POST "$attempts_base" \
+                -F "file=@too-long.wav;type=audio/wav" \
+                -F "requestId=123e4567-e89b-12d3-a456-426614174002")
+              echo "$long_upload" | grep -q '"number":2'
+              rejected_long=false
+              for check in $(seq 1 30); do
+                latest_long=$(curl --fail --silent --show-error "$attempts_base")
+                if printf '%s' "$latest_long" | python3 -c 'import json,sys; a=json.load(sys.stdin); assert len(a)==2 and a[0]["status"]=="FAILED" and a[0]["processingErrorCode"]=="DURATION_EXCEEDED" and a[1]["status"]=="PROCESSED"'; then
+                  rejected_long=true
+                  break
+                fi
+                sleep 1
+              done
+              test "$rejected_long" = true
+              echo "Overlong audio and previous attempt history: OK"
+              printf '%s' 'not an mp3' >invalid.mp3
+              bad_status=$(curl --silent --output invalid-response.json --write-out '%{http_code}' \
+                -X POST "$attempts_base" -F "file=@invalid.mp3;type=audio/mpeg" \
+                -F "requestId=123e4567-e89b-12d3-a456-426614174001")
+              test "$bad_status" = '400'
+              python3 -c 'import json; p=json.load(open("invalid-response.json")); assert p["code"]=="INVALID_AUDIO_CONTENT"'
+              after_rejection=$(curl --fail --silent --show-error "$attempts_base")
+              printf '%s' "$after_rejection" | python3 -c 'import json,sys; a=json.load(sys.stdin); assert len(a)==2 and a[0]["number"]==2 and a[1]["number"]==1'
+              echo "Attempt upload, idempotency, structured rejection and unchanged history HTTP smoke: OK"
               exit 0
             fi
             if ! kill -0 "$app_pid" 2>/dev/null; then
