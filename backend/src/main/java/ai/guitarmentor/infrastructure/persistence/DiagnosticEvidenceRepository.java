@@ -173,9 +173,9 @@ public class DiagnosticEvidenceRepository {
                 """, id);
     }
     public boolean existsByKey(String key) {
-        Integer count = db.queryForObject(
+        Long count = db.queryForObject(
                 "SELECT count(*) FROM diagnostic_evidence_media WHERE storage_key=?",
-                Integer.class, key);
+                Long.class, key);
         return count != null && count > 0;
     }
 }
