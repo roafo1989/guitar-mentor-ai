@@ -37,6 +37,9 @@ public class MediaCleanupTransactions {
             if(a.getMediaState()==MediaState.DELETE_PENDING) a.markDeleted(now,absent);
         });
     }
+    @Transactional(readOnly=true)
+    public boolean isReferenced(String key) { return attempts.existsByMediaKey(key); }
+
     @Transactional
     public void failed(UUID id) {
         attempts.findById(id).ifPresent(a->{
