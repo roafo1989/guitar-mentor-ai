@@ -276,8 +276,66 @@ jobs:
               test "$bad_m4a_status" = '400'
               python3 -c 'import json; assert json.load(open("invalid-m4a.json"))["code"]=="INVALID_AUDIO_CONTENT"'
               echo "MP4 video disguise and fake M4A rejection: OK"
+              # Regression P2: construct a playable AAC M4A with a 288-byte ftyp.
+              # Preserve sample offsets after expanding the compatible-brand table.
+              python3 - <<'PY'
+              import struct
+              data = bytearray(open("default.m4a", "rb").read())
+              old = struct.unpack_from(">I", data, 0)[0]
+              assert data[4:8] == b"ftyp" and old >= 16 and old <= 288 and (288 - old) % 4 == 0
+              shift = 288 - old
+              output = bytearray(struct.pack(">I", 288) + data[4:old] + b"isom" * (shift // 4) + data[old:])
+              offset_boxes = 0
+              cursor = 0
+              while True:
+                  index = output.find(b"stco", cursor)
+                  if index < 0:
+                      break
+                  count = struct.unpack_from(">I", output, index + 8)[0]
+                  for i in range(count):
+                      pos = index + 12 + i * 4
+                      struct.pack_into(">I", output, pos, struct.unpack_from(">I", output, pos)[0] + shift)
+                  offset_boxes += 1
+                  cursor = index + 4
+              assert offset_boxes > 0, "Missing stco box in generated M4A"
+              open("large-ftyp.m4a", "wb").write(output)
+              PY
+              ffprobe -v error -show_entries stream=codec_name \
+                -of default=nw=1 large-ftyp.m4a | grep -q 'codec_name=aac'
+              curl --fail --silent --show-error -X POST "$attempts_base" \
+                -F "file=@large-ftyp.m4a;type=audio/mp4" \
+                -F "requestId=123e4567-e89b-12d3-a456-426614174010" -o /dev/null
+              long_ftyp_validated=false
+              for check in $(seq 1 30); do
+                result=$(curl --fail --silent --show-error "$attempts_base")
+                if printf '%s' "$result" | python3 -c 'import json,sys; a=json.load(sys.stdin); assert a[0]["format"]=="m4a" and a[0]["status"]=="PROCESSED"'; then
+                  long_ftyp_validated=true; break
+                fi
+                sleep 1
+              done
+              test "$long_ftyp_validated" = true
+              echo "M4A with valid 288-byte ftyp: OK"
+              # Regression P1: two valid AAC streams, first 1s and second 125s.
+              # Whole recording exceeds the 120s limit despite the short first stream.
+              ffmpeg -nostdin -hide_banner -loglevel error \
+                -f lavfi -t 1 -i anullsrc=channel_layout=mono:sample_rate=16000 \
+                -f lavfi -t 125 -i anullsrc=channel_layout=mono:sample_rate=16000 \
+                -map 0:a:0 -map 1:a:0 -c:a aac -b:a 16k -y multi-track.m4a
+              curl --fail --silent --show-error -X POST "$attempts_base" \
+                -F "file=@multi-track.m4a;type=audio/mp4" \
+                -F "requestId=123e4567-e89b-12d3-a456-426614174011" -o /dev/null
+              multitrack_rejected=false
+              for check in $(seq 1 30); do
+                result=$(curl --fail --silent --show-error "$attempts_base")
+                if printf '%s' "$result" | python3 -c 'import json,sys; a=json.load(sys.stdin); assert a[0]["format"]=="m4a" and a[0]["status"]=="FAILED" and a[0]["processingErrorCode"]=="DURATION_EXCEEDED"'; then
+                  multitrack_rejected=true; break
+                fi
+                sleep 1
+              done
+              test "$multitrack_rejected" = true
+              echo "Multi-AAC 1s + 125s correctly rejected: OK"
               all_formats=$(curl --fail --silent --show-error "$attempts_base")
-              printf '%s' "$all_formats" | python3 -c 'import json,sys; a=json.load(sys.stdin); assert len(a)==8 and a[-1]["number"]==1 and a[-1]["status"]=="PROCESSED" and a[-2]["number"]==2 and a[-2]["processingErrorCode"]=="DURATION_EXCEEDED"'
+              printf '%s' "$all_formats" | python3 -c 'import json,sys; a=json.load(sys.stdin); assert len(a)==10 and a[-1]["number"]==1 and a[-1]["status"]=="PROCESSED" and a[-2]["number"]==2 and a[-2]["processingErrorCode"]=="DURATION_EXCEEDED"'
               exit 0
             fi
             if ! kill -0 "$app_pid" 2>/dev/null; then
