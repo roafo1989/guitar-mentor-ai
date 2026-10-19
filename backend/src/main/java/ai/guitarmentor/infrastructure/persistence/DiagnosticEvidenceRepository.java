@@ -4,6 +4,7 @@ import ai.guitarmentor.application.evidence.EvidenceDtos.EvidenceView;
 import ai.guitarmentor.application.evidence.EvidenceDtos.MediaView;
 import java.math.BigDecimal;
 import java.sql.ResultSet;
+import java.sql.Timestamp;
 import java.sql.SQLException;
 import java.time.Instant;
 import java.util.ArrayList;
@@ -124,14 +125,14 @@ public class DiagnosticEvidenceRepository {
                     processing_started_at=NULL
                 WHERE kind='AUDIO' AND status='PROCESSING' AND
                     processing_started_at<? AND processing_attempts<3 AND media_state='AVAILABLE'
-                """, cutoff);
+                """, Timestamp.from(cutoff));
         var exhausted = db.query("""
                 UPDATE diagnostic_evidence_media SET status='FAILED',
                     processing_error_code='PROCESSING_INTERRUPTED', finalized_at=CURRENT_TIMESTAMP
                 WHERE kind='AUDIO' AND status='PROCESSING' AND processing_started_at<?
                   AND processing_attempts>=3 AND media_state='AVAILABLE'
                 RETURNING evidence_id
-                """, (rs,i) -> uuid(rs,"evidence_id"), cutoff);
+                """, (rs,i) -> uuid(rs,"evidence_id"), Timestamp.from(cutoff));
         for (UUID e : exhausted) db.update("""
                 UPDATE diagnostic_evidence_media SET finalized_at=CURRENT_TIMESTAMP
                 WHERE kind='SCORE' AND evidence_id=? AND finalized_at IS NULL
@@ -149,7 +150,7 @@ public class DiagnosticEvidenceRepository {
                         OR (m.finalized_at IS NULL AND e.submitted_at<=?)))
                 ORDER BY e.submitted_at,m.id LIMIT 50 FOR UPDATE OF m SKIP LOCKED
                 """, (rs,i) -> new Expired(uuid(rs,"id"),rs.getString("kind"),
-                        rs.getString("storage_key")), finishedCutoff, staleCutoff);
+                        rs.getString("storage_key")), Timestamp.from(finishedCutoff), Timestamp.from(staleCutoff));
         for (Expired item : candidates) {
             db.update("""
                     UPDATE diagnostic_evidence_media SET media_state='DELETE_PENDING'
