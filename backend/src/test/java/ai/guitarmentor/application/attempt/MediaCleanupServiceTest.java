@@ -28,6 +28,28 @@ class MediaCleanupServiceTest {
         verify(db,never()).failed(any());
     }
 
+    @Test void cleanupHandlesFullBatchAndContinuesNextCycle() throws Exception {
+        var db=mock(MediaCleanupTransactions.class);
+        var media=mock(AttemptMediaStore.class);
+        var service=new MediaCleanupService(db,mock(MediaRetentionPolicy.class),media,
+            new MediaUseCoordinator());
+        var now=Instant.parse("2026-10-19T12:00:00Z");
+        var policy=new MediaRetentionPolicy.Policy(Duration.ofHours(48),
+            Duration.ofHours(48),Duration.ofMinutes(60));
+        var batch=new java.util.ArrayList<MediaCleanupTransactions.Candidate>();
+        for (int i=0;i<100;i++) batch.add(new MediaCleanupTransactions.Candidate(
+            UUID.randomUUID(),UUID.randomUUID()+".wav"));
+        var next=new MediaCleanupTransactions.Candidate(UUID.randomUUID(),
+            UUID.randomUUID()+".wav");
+        when(db.claim(now,policy)).thenReturn(batch).thenReturn(List.of(next));
+        when(media.delete(anyString())).thenReturn(AttemptMediaStore.DeleteOutcome.DELETED);
+        service.runCycle(now,policy);
+        verify(media,times(100)).delete(anyString());
+        service.runCycle(now,policy);
+        verify(media,times(101)).delete(anyString());
+        verify(db,times(101)).deleted(any(UUID.class),any(Instant.class),eq(false));
+    }
+
     @Test void databaseConfirmationFailureIsRetryableAndCannotReportSuccess() throws Exception {
         var db=mock(MediaCleanupTransactions.class);
         var media=mock(AttemptMediaStore.class);
