@@ -28,6 +28,29 @@ class MediaCleanupServiceTest {
         verify(db,never()).failed(any());
     }
 
+    @Test void databaseConfirmationFailureIsRetryableAndCannotReportSuccess() throws Exception {
+        var db=mock(MediaCleanupTransactions.class);
+        var media=mock(AttemptMediaStore.class);
+        var service=new MediaCleanupService(db,mock(MediaRetentionPolicy.class),media,
+            new MediaUseCoordinator());
+        var id=UUID.randomUUID();
+        var now=Instant.parse("2026-10-19T12:00:00Z");
+        var policy=new MediaRetentionPolicy.Policy(Duration.ofHours(48),
+            Duration.ofHours(48),Duration.ofMinutes(60));
+        when(db.claim(now,policy)).thenReturn(List.of(
+            new MediaCleanupTransactions.Candidate(id,"test.wav")));
+        when(media.delete("test.wav"))
+            .thenReturn(AttemptMediaStore.DeleteOutcome.DELETED)
+            .thenReturn(AttemptMediaStore.DeleteOutcome.ALREADY_ABSENT);
+        doThrow(new IllegalStateException("DB unavailable")).doNothing()
+            .when(db).deleted(eq(id),any(Instant.class),anyBoolean());
+        service.runCycle(now,policy);
+        verify(db).failed(id);
+        service.runCycle(now,policy);
+        verify(db,times(2)).deleted(eq(id),any(Instant.class),anyBoolean());
+        verify(media,times(2)).delete("test.wav");
+    }
+
     @Test void invalidPolicyNeverTouchesStorageOrDatabase() {
         var db=mock(MediaCleanupTransactions.class);
         var policy=mock(MediaRetentionPolicy.class);
