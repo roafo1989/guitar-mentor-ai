@@ -1,6 +1,6 @@
 package ai.guitarmentor.application.attempt;
 
-import ai.guitarmentor.infrastructure.media.LocalAttemptMediaStore;
+import ai.guitarmentor.application.attempt.AttemptMediaStore;
 import ai.guitarmentor.infrastructure.media.AudioDurationProbe;
 import java.io.IOException;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
@@ -18,11 +18,11 @@ import org.springframework.scheduling.annotation.Scheduled;
         name = "enabled", havingValue = "true")
 public class SubmissionAttemptWorker {
     private final SubmissionAttemptProcessor processor;
-    private final LocalAttemptMediaStore media;
+    private final AttemptMediaStore media;
     private final AudioDurationProbe probe;
 
     public SubmissionAttemptWorker(SubmissionAttemptProcessor processor,
-            LocalAttemptMediaStore media, AudioDurationProbe probe) {
+            AttemptMediaStore media, AudioDurationProbe probe) {
         this.processor = processor;
         this.media = media;
         this.probe = probe;

@@ -3,6 +3,10 @@ package ai.guitarmentor.infrastructure.media;
 import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.Path;
+import java.nio.file.LinkOption;
+import java.nio.file.NoSuchFileException;
+import java.nio.file.attribute.BasicFileAttributes;
+import ai.guitarmentor.application.attempt.AttemptMediaStore;
 import java.nio.file.StandardOpenOption;
 import java.security.DigestInputStream;
 import java.security.MessageDigest;
@@ -19,8 +23,9 @@ import org.springframework.web.server.ResponseStatusException;
 /** Developer-only, private, on-disk storage. Never expose a media download endpoint
  * until user authentication and authorization are implemented. */
 @Component
-public class LocalAttemptMediaStore {
-    public static final long MAX_BYTES = 20L * 1024L * 1024L;
+public class LocalAttemptMediaStore implements AttemptMediaStore {
+    private static final String KEY_PATTERN =
+            "[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}\\.(mp3|wav|ogg|webm)";
 
     private final Path root;
 
@@ -29,8 +34,7 @@ public class LocalAttemptMediaStore {
         this.root = Path.of(path).toAbsolutePath().normalize();
     }
 
-    public record StoredMedia(String key, String format, long size) {}
-
+    @Override
     public StoredMedia store(MultipartFile file) {
         long size = file.getSize();
         if (size <= 0 || size > MAX_BYTES) {
@@ -108,15 +112,9 @@ public class LocalAttemptMediaStore {
      * Technical inspection only: checks stored length, container signature and SHA-256.
      * Does not decode audio, establish its duration or assess musical performance.
      */
+    @Override
     public String verifyAndHash(String key, long expectedSize) throws IOException {
-        if (key == null || !key.matches(
-                "[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}\\.(mp3|wav|ogg|webm)")) {
-            throw new IOException("INVALID_KEY");
-        }
         Path target = resolveForInspection(key);
-        if (!Files.isRegularFile(target)) {
-            throw new IOException("MEDIA_MISSING");
-        }
         if (Files.size(target) != expectedSize) {
             throw new IOException("SIZE_MISMATCH");
         }
@@ -142,22 +140,46 @@ public class LocalAttemptMediaStore {
         }
     }
 
-    /** Safe internal path for the FFmpeg probe; it is never returned by HTTP endpoints. */
-    public Path resolveForInspection(String key) throws IOException {
-        if (key == null || !key.matches(
-                "[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}\\.(mp3|wav|ogg|webm)")) {
-            throw new IOException("INVALID_KEY");
-        }
+    /** A single storage-key and root-boundary validation for reads, inspections and deletes. */
+    private Path checkedPath(String key) throws IOException {
+        if (key == null || !key.matches(KEY_PATTERN)) throw new IOException("INVALID_KEY");
         Path target = root.resolve(key).normalize();
-        if (!target.getParent().equals(root)) throw new IOException("INVALID_KEY");
+        if (!root.equals(target.getParent())) throw new IOException("INVALID_KEY");
         return target;
     }
 
-    public void deleteQuietly(String key) {
+    private BasicFileAttributes attributes(Path target) throws IOException {
+        return Files.readAttributes(target, BasicFileAttributes.class, LinkOption.NOFOLLOW_LINKS);
+    }
+
+    /** Never return a directory or symbolic link to an external audio probe. */
+    @Override
+    public Path resolveForInspection(String key) throws IOException {
+        Path target = checkedPath(key);
         try {
-            Files.deleteIfExists(root.resolve(key).normalize());
-        } catch (IOException ignored) {
-            // TTL and reconciliation in R5 will handle persistent deletion failures.
+            if (!attributes(target).isRegularFile()) throw new IOException("INVALID_MEDIA");
+        } catch (NoSuchFileException missing) {
+            throw new IOException("MEDIA_MISSING");
+        } catch (IOException problem) {
+            if ("INVALID_MEDIA".equals(problem.getMessage())) throw problem;
+            throw new IOException("IO_ERROR");
+        }
+        return target;
+    }
+
+    /** Idempotent deletion with explicit errors. No recursion and no symlink following. */
+    @Override
+    public DeleteOutcome delete(String key) throws IOException {
+        Path target = checkedPath(key);
+        try {
+            if (!attributes(target).isRegularFile()) throw new IOException("INVALID_MEDIA");
+            Files.delete(target);
+            return DeleteOutcome.DELETED;
+        } catch (NoSuchFileException missing) {
+            return DeleteOutcome.ALREADY_ABSENT;
+        } catch (IOException problem) {
+            if ("INVALID_MEDIA".equals(problem.getMessage())) throw problem;
+            throw new IOException("DELETE_IO_ERROR");
         }
     }
 }

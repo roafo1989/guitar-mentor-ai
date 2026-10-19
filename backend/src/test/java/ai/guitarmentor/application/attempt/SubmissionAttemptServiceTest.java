@@ -11,7 +11,7 @@ import ai.guitarmentor.application.diagnostic.DiagnosticTaskService;
 import ai.guitarmentor.domain.attempt.SubmissionAttempt;
 import ai.guitarmentor.domain.diagnostic.DiagnosticSession;
 import ai.guitarmentor.domain.diagnostic.DiagnosticTask;
-import ai.guitarmentor.infrastructure.media.LocalAttemptMediaStore;
+import ai.guitarmentor.application.attempt.AttemptMediaStore;
 import ai.guitarmentor.infrastructure.persistence.DiagnosticSessionRepository;
 import ai.guitarmentor.infrastructure.persistence.DiagnosticTaskRepository;
 import ai.guitarmentor.infrastructure.persistence.SubmissionAttemptRepository;
@@ -35,7 +35,8 @@ class SubmissionAttemptServiceTest {
     @Mock DiagnosticTaskRepository tasks;
     @Mock DiagnosticSessionRepository sessions;
     @Mock SubmissionAttemptRepository attempts;
-    @Mock LocalAttemptMediaStore media;
+    @Mock AttemptMediaStore media;
+    @Mock MediaTransactionGuard guard;
     @Mock DiagnosticTask task;
     @Mock DiagnosticSession session;
 
@@ -54,7 +55,7 @@ class SubmissionAttemptServiceTest {
     }
 
     private SubmissionAttemptService create(boolean enabled) {
-        return new SubmissionAttemptService(taskService, tasks, sessions, attempts, media, enabled);
+        return new SubmissionAttemptService(taskService, tasks, sessions, attempts, media, guard, enabled);
     }
 
     @Test
@@ -84,7 +85,7 @@ class SubmissionAttemptServiceTest {
         when(attempts.findByTask_IdAndRequestId(taskId, requestId))
                 .thenAnswer(i -> Optional.ofNullable(created.get()));
         when(attempts.countByTask_Id(taskId)).thenReturn(0L);
-        when(media.store(file)).thenReturn(new LocalAttemptMediaStore.StoredMedia(
+        when(media.store(file)).thenReturn(new AttemptMediaStore.StoredMedia(
                 "generated.wav", "wav", file.getSize()));
         when(attempts.saveAndFlush(any(SubmissionAttempt.class))).thenAnswer(invocation -> {
             var attempt = invocation.<SubmissionAttempt>getArgument(0);
