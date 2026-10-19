@@ -50,7 +50,8 @@ public final class AudioCorpusValidator {
             Path root = Path.of(args[1]).toAbsolutePath().normalize();
             Path report = Path.of(args[5]).toAbsolutePath().normalize();
             if (!Files.isDirectory(root, LinkOption.NOFOLLOW_LINKS) || Files.isSymbolicLink(root)
-                    || report.startsWith(root) || Files.exists(report)
+                    || report.startsWith(root) || Files.exists(report, LinkOption.NOFOLLOW_LINKS)
+                    || Files.isSymbolicLink(report.getParent())
                     || !Files.isDirectory(report.getParent())) {
                 throw new IllegalArgumentException("Invalid root or report location");
             }
