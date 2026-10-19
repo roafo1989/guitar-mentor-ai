@@ -168,6 +168,17 @@ public class LocalAttemptMediaStore implements AttemptMediaStore {
     }
 
     @Override
+    public boolean isUnreferencedCandidateOld(String key,java.time.Instant cutoff)
+            throws IOException {
+        Path file=checkedPath(key);
+        try {
+            var attr=Files.readAttributes(file,BasicFileAttributes.class,LinkOption.NOFOLLOW_LINKS);
+            return attr.isRegularFile() && !attr.lastModifiedTime().toInstant().isAfter(cutoff);
+        } catch(NoSuchFileException missing) {
+            return false;
+        }
+    }
+    @Override
     public java.util.List<OrphanCandidate> scanOlderThan(java.time.Instant cutoff,int limit)
             throws IOException {
         if (!Files.isDirectory(root, LinkOption.NOFOLLOW_LINKS)) return java.util.List.of();
