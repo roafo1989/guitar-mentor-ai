@@ -9,7 +9,7 @@ import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Component;
 
 /**
- * Reads audio packet timestamps with ffprobe (FFmpeg), never decodes or grades music.
+ * Reads packet timestamps of ALL audio streams with ffprobe (FFmpeg), never decodes or grades music.
  * Works with the supported audio containers, including MediaRecorder WebM missing Duration metadata.
  */
 @Component
@@ -30,7 +30,7 @@ public class AudioDurationProbe {
             Process process;
             try {
                 process = new ProcessBuilder(command, "-v", "error",
-                        "-select_streams", "a:0",
+                        "-select_streams", "a",
                         "-show_entries", "packet=pts_time,duration_time",
                         "-of", "csv=p=0", file.toAbsolutePath().toString())
                         .redirectError(ProcessBuilder.Redirect.DISCARD)
@@ -129,7 +129,7 @@ public class AudioDurationProbe {
         if (!validContainer || !foundAudio) throw new IOException("INVALID_MEDIA");
     }
 
-    /** Returns the maximum audio packet end timestamp, including short last frames. */
+    /** Returns the maximum end timestamp across all selected audio packets/streams. */
     static double parsePacketDuration(Iterable<String> lines) throws IOException {
         double end = -1;
         int count = 0;
