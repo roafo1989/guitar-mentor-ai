@@ -33,6 +33,7 @@ class DiagnosticRecommendationPostgresTest {
     @Autowired DiagnosticRecommendationService recommendations;
     @Autowired SkillMapService skillMap;
     @Autowired OnboardingService onboarding;
+    @Autowired DiagnosticTaskService tasks;
 
     UUID learnerId;
     UUID profileId;
@@ -190,5 +191,51 @@ class DiagnosticRecommendationPostgresTest {
                         + " FROM learner_skill_signal_history WHERE instrument_profile_id=?"
                         + " AND skill_code='MELODY' AND claim_state='CLAIMED'",
                 Integer.class, profileId));
+    }
+
+    @Test
+    void recommendationRejectsWrongOwnerAndNonReadyStatusesWithoutTask() {
+        assertThrows(jakarta.persistence.EntityNotFoundException.class,
+                () -> recommendations.recommend(UUID.randomUUID(), sessionId, 3));
+        assertEquals(0, assignedCount());
+
+        jdbc.update("UPDATE diagnostic_sessions SET status='COLLECTING_EVIDENCE' WHERE id=?", sessionId);
+        assertEquals("DIAGNOSTIC_NOT_READY",
+                assertThrows(RecommendationStateException.class,
+                        () -> recommendations.recommend(learnerId, sessionId, 3)).code());
+        jdbc.update("UPDATE diagnostic_sessions SET status='TASK_ASSIGNED' WHERE id=?", sessionId);
+        assertEquals("TASK_ALREADY_ASSIGNED",
+                assertThrows(RecommendationStateException.class,
+                        () -> recommendations.recommend(learnerId, sessionId, 3)).code());
+        assertEquals(0, assignedCount());
+    }
+
+    @Test
+    void concurrentGetAndTwoPostsCreateOnlyOneDiagnosticTask() throws Exception {
+        background("INTERMEDIATE", 45);
+        try (var pool = Executors.newFixedThreadPool(3)) {
+            var go = new java.util.concurrent.CountDownLatch(1);
+            var read = pool.submit(() -> {
+                go.await();
+                try {
+                    return recommendations.recommend(learnerId, sessionId, 3).status();
+                } catch (RecommendationStateException exception) {
+                    return exception.code();
+                }
+            });
+            var first = pool.submit(() -> {
+                go.await();
+                return tasks.assign(learnerId, sessionId, "GM-EB01").id();
+            });
+            var second = pool.submit(() -> {
+                go.await();
+                return tasks.assign(learnerId, sessionId, "GM-EB01").id();
+            });
+            go.countDown();
+            assertEquals(first.get(15, TimeUnit.SECONDS), second.get(15, TimeUnit.SECONDS));
+            assertTrue(Set.of("RECOMMENDED", "TASK_ALREADY_ASSIGNED")
+                    .contains(read.get(15, TimeUnit.SECONDS)));
+        }
+        assertEquals(1, assignedCount());
     }
 }
