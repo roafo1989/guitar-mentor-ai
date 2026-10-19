@@ -162,6 +162,31 @@ class LocalAttemptMediaStoreTest {
     }
 
     @Test
+    void orphanKeysetPaginationReachesItemPastFirstPage() throws Exception {
+        var media=new LocalAttemptMediaStore(temp.toString());
+        var cutoff=java.time.Instant.now().minusSeconds(48*3600);
+        for(int i=0;i<1100;i++) {
+            String key=String.format("%08x-0000-0000-0000-000000000001.wav",i);
+            var file=temp.resolve(key);
+            Files.write(file,new byte[]{1});
+            Files.setLastModifiedTime(file,java.nio.file.attribute.FileTime.from(cutoff.minusSeconds(1)));
+        }
+        String cursor=null;
+        int total=0;
+        do {
+            var page=media.scanOlderThan(cutoff,256,cursor);
+            if(page.isEmpty()) break;
+            for(var item:page) {
+                if(cursor!=null) assertTrue(item.key().compareTo(cursor)>0);
+            }
+            total+=page.size();
+            cursor=page.get(page.size()-1).key();
+            if(page.size()<256) break;
+        } while(true);
+        assertEquals(1100,total);
+    }
+
+    @Test
     void filesystemDeletionFailureIsNotMistakenForAbsentFile() throws Exception {
         var media = new LocalAttemptMediaStore(temp.toString());
         Path target = temp.resolve(java.util.UUID.randomUUID() + ".wav");
