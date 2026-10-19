@@ -87,7 +87,7 @@ public final class AudioCorpusValidator {
             Set<String> ids = new HashSet<>();
             Map<String, String> groupSplits = new HashMap<>();
             Map<String, String> groupKinds = new HashMap<>();
-            Map<String, String> sourceOwners = new HashMap<>();
+
             Map<String, Set<String>> coverage = new HashMap<>();
             Set<String> sourceHashes = new HashSet<>();
             for (JsonNode rec : dataset.path("recordings")) {
@@ -116,9 +116,6 @@ public final class AudioCorpusValidator {
                     String sourceKey = value(rec, "sourceSha256");
                     if (validSha(sourceKey) && !sourceHashes.add(sourceKey)) {
                         errors.add("DUPLICATE_REAL_SOURCE:" + id);
-                    }
-                    if (validSha(sourceKey)) {
-                        sourceOwners.putIfAbsent(sourceKey, recordingGroup);
                     }
                     String oldKind = groupKinds.putIfAbsent(recordingGroup, group);
                     if (oldKind != null && !oldKind.equals(group)) errors.add("GROUP_REUSED_ACROSS_TYPES:" + id);
@@ -222,8 +219,14 @@ public final class AudioCorpusValidator {
                     || !reference.path("events").isArray()
                     || reference.path("barCount").asInt(-1) < rec.path("barTo").asInt(0)
                     || reference.path("bpm").asDouble(-1) <= 0
+                    || !Double.isFinite(reference.path("bpm").asDouble(-1))
+                    || reference.path("meterNumerator").asInt(4) <= 0
                     || reference.path("events").isEmpty()) {
                 errors.add("REFERENCE_CONTENT:" + id);
+                return;
+            }
+            if (reference.path("events").size() > 10000) {
+                errors.add("REFERENCE_TOO_LARGE:" + id);
                 return;
             }
             Set<String> eventIds = new HashSet<>();
@@ -233,7 +236,9 @@ public final class AudioCorpusValidator {
                         || e.path("bar").asInt(0) < 1
                         || e.path("bar").asInt() > reference.path("barCount").asInt()
                         || e.path("beat").asDouble(-1) < 0
+                        || !Double.isFinite(e.path("beat").asDouble(-1))
                         || e.path("durationBeats").asDouble(-1) <= 0
+                        || !Double.isFinite(e.path("durationBeats").asDouble(-1))
                         || !e.path("notes").isArray() || e.path("notes").isEmpty()) {
                     errors.add("REFERENCE_EVENT:" + id);
                     return;
