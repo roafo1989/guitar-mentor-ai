@@ -51,8 +51,10 @@ public class DiagnosticEvidenceController {
             @RequestPart(value="score",required=false) MultipartFile score) {
         var result = service.submit(learnerId, sessionId, requestId, title, composer,
                 comment, audio, score);
+        if (!result.created()) return ResponseEntity.ok(result.evidence());
         return ResponseEntity.created(URI.create("/api/v1/learners/" + learnerId
-                + "/diagnostic-sessions/" + sessionId + "/evidence/" + result.id())).body(result);
+                + "/diagnostic-sessions/" + sessionId + "/evidence/" + result.evidence().id()))
+                .body(result.evidence());
     }
     @ExceptionHandler(ResponseStatusException.class)
     public ResponseEntity<Map<String,String>> onUploadError(ResponseStatusException error) {
