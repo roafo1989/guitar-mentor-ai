@@ -130,6 +130,15 @@ public final class AudioCorpusValidator {
                     if (bytes == 0 || bytes > MAX_BYTES || bytes != rec.path("bytes").asLong(-1)
                             || !hash(source).equals(value(rec, "sourceSha256"))) {
                         errors.add("SOURCE_INTEGRITY:" + id);
+                    } else {
+                        try {
+                            if (!AudioMediaProbe.matches(source, rec.path("durationMs").asLong(-1),
+                                    rec.path("sampleRateHz").asInt(-1), rec.path("channels").asInt(-1))) {
+                                errors.add("MEDIA_PROBE_MISMATCH:" + id);
+                            }
+                        } catch (IOException probeFailure) {
+                            gaps.add("MEDIA_PROBE_UNAVAILABLE:" + id);
+                        }
                     }
                 } catch (Exception e) { errors.add("SOURCE_REFERENCE:" + id); }
                 long duration = rec.path("durationMs").asLong(-1);
