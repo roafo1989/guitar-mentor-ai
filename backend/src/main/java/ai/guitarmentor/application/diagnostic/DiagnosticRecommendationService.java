@@ -13,6 +13,7 @@ import java.util.HashMap;
 import java.util.Map;
 import java.util.Set;
 import java.util.UUID;
+import org.springframework.core.io.ClassPathResource;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -33,6 +34,12 @@ public class DiagnosticRecommendationService {
         this.backgrounds = backgrounds;
         this.exercises = exercises;
         this.skills = skills;
+    }
+
+    private static boolean safeAndAvailable(String resource) {
+        return resource != null && resource.startsWith("exercises/")
+                && !resource.contains("..") && !resource.contains("\\")
+                && new ClassPathResource(resource).exists();
     }
 
     public record RecommendationView(UUID sessionId, String algorithmVersion,
@@ -63,7 +70,9 @@ public class DiagnosticRecommendationService {
         var candidates = exercises
                 .findByInstrumentCodeAndTechniqueCodeAndCurrentTrueOrderByCode(
                         profile.getInstrumentCode(), profile.getTechniqueCode()).stream()
-                .filter(e -> e.getRecommendedPracticeMinutes() != null)
+                .filter(e -> e.getRecommendedPracticeMinutes() != null
+                        && safeAndAvailable(e.getScoreResource())
+                        && safeAndAvailable(e.getEventsResource()))
                 .map(e -> new RecommendationEngine.Candidate(e.getCode(), e.getVersion(),
                         e.getTitle(), e.getStyleCode(), e.getDifficulty(),
                         e.getLicense(), e.getReviewStatus(),
