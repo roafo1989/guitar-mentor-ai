@@ -60,7 +60,7 @@ class AudioCorpusReadinessTest {
                         .put("recordingGroupId", "G-" + index)
                         .put("performerId", "P-1").put("sessionId", "S-" + index)
                         .put("deviceId", "D-1").put("split", split)
-                        .put("availability", "AVAILABLE").put("rightsBasis", "OWNED")
+                        .put("availability", "AVAILABLE").put("holdoutIndependentConfirmed", true).put("rightsBasis", "OWNED")
                         .put("consentRef", "C-" + index).put("useScope", "LOCAL_RESEARCH")
                         .put("rightsConfirmed", true).put("manualReviewConfirmed", true)
                         .put("fileRef", media).put("sourceSha256", mediaSha)
