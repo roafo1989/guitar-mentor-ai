@@ -50,13 +50,18 @@ public class MediaCleanupService {
     private void reconcileOrphans(Instant now, MediaRetentionPolicy.Policy policy) {
         try {
             Instant cutoff=now.minus(policy.maxUnprocessed());
-            for (var orphan:store.scanOlderThan(cutoff,100)) {
+            int deleted=0;
+            for (var orphan:store.scanOlderThan(cutoff,10000)) {
+                if (deleted>=100) break;
                 if (transactions.isReferenced(orphan.key())) continue;
                 // Re-evaluate mtime, storage key and DB reference under the same local guard
                 // held by upload, worker and cleanup.
-                boolean stillOld=store.scanOlderThan(cutoff,100).stream()
+                boolean stillOld=store.scanOlderThan(cutoff,10000).stream()
                     .anyMatch(candidate->candidate.key().equals(orphan.key()));
-                if (stillOld && !transactions.isReferenced(orphan.key())) store.delete(orphan.key());
+                if (stillOld && !transactions.isReferenced(orphan.key())) {
+                    store.delete(orphan.key());
+                    deleted++;
+                }
             }
         } catch(IOException | RuntimeException failure) {
             log.error("event=MEDIA_ORPHAN_DELETE_FAILED code=ORPHAN_SCAN_OR_DATABASE_ERROR");
