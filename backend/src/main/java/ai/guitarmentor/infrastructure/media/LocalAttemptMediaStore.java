@@ -1,6 +1,8 @@
 package ai.guitarmentor.infrastructure.media;
 
 import java.io.IOException;
+import java.io.InputStream;
+import java.util.Arrays;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.LinkOption;
@@ -24,6 +26,8 @@ import org.springframework.web.server.ResponseStatusException;
  * until user authentication and authorization are implemented. */
 @Component
 public class LocalAttemptMediaStore implements AttemptMediaStore {
+    // Limit allocation and parsing for untrusted ISO BMFF compatible-brand tables.
+    private static final int MAX_FTYP_BYTES = 64 * 1024;
     private static final String KEY_PATTERN =
             "[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}\\.(mp3|wav|ogg|webm|m4a)";
 
@@ -60,7 +64,7 @@ public class LocalAttemptMediaStore implements AttemptMediaStore {
         try {
             byte[] prefix;
             try (var in = file.getInputStream()) {
-                prefix = in.readNBytes(256);
+                prefix = readHeader(format, in);
             }
             if (!matchesHeader(format, prefix)) {
                 throw new ResponseStatusException(HttpStatus.BAD_REQUEST,
@@ -100,6 +104,32 @@ public class LocalAttemptMediaStore implements AttemptMediaStore {
         }
     }
 
+    /**
+     * Read the complete ISO BMFF ftyp box. Its length is untrusted and
+     * strictly bounded before allocating. Reject truncated boxes.
+     */
+    private static byte[] readHeader(String format, InputStream in) throws IOException {
+        byte[] first = in.readNBytes(16);
+        if (!"m4a".equals(format) || first.length < 16) {
+            return first;
+        }
+        long boxLength = ftypBoxLength(first);
+        if (boxLength < 16 || boxLength > MAX_FTYP_BYTES
+                || (boxLength - 16) % 4 != 0) {
+            return first; // matchesM4aHeader rejects the invalid length.
+        }
+        byte[] tail = in.readNBytes((int) boxLength - 16);
+        byte[] header = Arrays.copyOf(first, 16 + tail.length);
+        System.arraycopy(tail, 0, header, 16, tail.length);
+        return header;
+    }
+
+    private static long ftypBoxLength(byte[] prefix) {
+        return ((long) (prefix[0] & 0xff) << 24)
+                | ((long) (prefix[1] & 0xff) << 16)
+                | ((long) (prefix[2] & 0xff) << 8) | (prefix[3] & 0xff);
+    }
+
     private static boolean matchesHeader(String ext, byte[] prefix) {
         if (prefix.length < 4) return false;
         return switch (ext) {
@@ -126,10 +156,9 @@ public class LocalAttemptMediaStore implements AttemptMediaStore {
     private static boolean matchesM4aHeader(byte[] prefix) {
         if (prefix.length < 16 || prefix[4] != 'f' || prefix[5] != 't'
                 || prefix[6] != 'y' || prefix[7] != 'p') return false;
-        long boxLength = ((long) (prefix[0] & 0xff) << 24)
-                | ((long) (prefix[1] & 0xff) << 16)
-                | ((long) (prefix[2] & 0xff) << 8) | (prefix[3] & 0xff);
-        if (boxLength < 16 || boxLength > prefix.length || (boxLength - 16) % 4 != 0) {
+        long boxLength = ftypBoxLength(prefix);
+        if (boxLength < 16 || boxLength > MAX_FTYP_BYTES
+                || boxLength != prefix.length || (boxLength - 16) % 4 != 0) {
             return false;
         }
         if (allowedM4aBrand(prefix, 8)) return true;
@@ -161,7 +190,7 @@ public class LocalAttemptMediaStore implements AttemptMediaStore {
         String format = key.substring(key.lastIndexOf('.') + 1);
         byte[] header;
         try (var in = Files.newInputStream(target)) {
-            header = in.readNBytes(256);
+            header = readHeader(format, in);
         }
         if (!matchesHeader(format, header)) {
             throw new IOException("INVALID_FORMAT");
