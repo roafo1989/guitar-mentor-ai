@@ -174,6 +174,7 @@ def main(args):
             code,r=upload(path,wav()); assert code>=400,(code,r)
             assert files()==before and len(api('GET',base))==count
         check('TC30-23','foreign ownership chain '+str(idx),ownership)
+    (OUT/'browser-fixture.json').write_text(json.dumps(dict(learner=learner,session=session,task=task,base=base)))
     history=api('GET',base); snapshot=files()
     stop(); start(args.current)
     check('TC30-07','new JVM same PostgreSQL and file root',lambda:(assert_equal(api('GET',base),history),assert_equal(files(),snapshot)))
@@ -186,6 +187,8 @@ def main(args):
         assert code==403 and r['code']=='UPLOAD_DISABLED',(code,r)
         assert files()==before and api('GET',base)==history
     check('TC30-08','explicit false',flag_off)
+    if args.browser:
+        subprocess.run(['python3','scripts/testing/qa30_browser.py','--disabled'],check=True)
     stop(); start(args.current,None)
     check('TC30-08','default disabled',flag_off)
     stop(); start(args.current,True)
