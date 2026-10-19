@@ -21,8 +21,13 @@ public interface SubmissionAttemptRepository extends JpaRepository<SubmissionAtt
     @org.springframework.data.jpa.repository.Query(value = """
         SELECT * FROM submission_attempts
         WHERE media_state='AVAILABLE'
-          AND ((processing_finalized_at IS NOT NULL AND processing_finalized_at <= :finalCutoff)
-            OR (processing_finalized_at IS NULL AND submitted_at <= :unprocessedCutoff))
+          AND processing_plan = 'TECHNICAL_ONLY_V1'
+          AND ((processing_finalized_at IS NOT NULL
+                AND status IN ('PROCESSED','FAILED')
+                AND processing_finalized_at <= :finalCutoff)
+            OR (processing_finalized_at IS NULL
+                AND status IN ('UPLOADED','PROCESSING')
+                AND submitted_at <= :unprocessedCutoff))
         ORDER BY submitted_at ASC LIMIT 50
         """,nativeQuery=true)
     java.util.List<SubmissionAttempt> findEligibleForCleanup(
