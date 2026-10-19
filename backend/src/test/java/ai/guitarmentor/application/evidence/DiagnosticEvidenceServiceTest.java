@@ -53,6 +53,18 @@ class DiagnosticEvidenceServiceTest {
             callback.afterCompletion(TransactionSynchronization.STATUS_ROLLED_BACK);
         TransactionSynchronizationManager.clearSynchronization();
     }
+    @Test void locationResolvesOnlyFromOwningSession() {
+        var existing=new DiagnosticEvidenceRepository.Evidence(UUID.randomUUID(),
+                sessionId,request,"Yesterday",null,null,Instant.now());
+        var view=new EvidenceDtos.EvidenceView(existing.id(),existing.title(),null,null,
+                existing.submittedAt(),null,null,"STUDENT_UPLOADED","NOT_ASSESSED");
+        when(repo.list(sessionId)).thenReturn(java.util.List.of(existing));
+        when(repo.view(existing)).thenReturn(view);
+        assertEquals(existing.id(),service.get(learner,sessionId,existing.id()).id());
+        assertEquals("EVIDENCE_NOT_FOUND",assertThrows(ResponseStatusException.class,
+                ()->service.get(learner,sessionId,UUID.randomUUID())).getReason());
+        verify(diagnostics,atLeastOnce()).get(learner,sessionId);
+    }
     @Test void missingAudioDoesNotCreateEvidence() {
         assertEquals("MISSING_AUDIO", assertThrows(ResponseStatusException.class,
             ()->service.submit(learner,sessionId,request,"Yesterday",null,null,null,null)).getReason());
