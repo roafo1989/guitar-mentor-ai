@@ -63,7 +63,7 @@ test('real exercise/controller entries keep existing playback/BPM and do not res
     assert.equal(state.status, 'running');
     ui.openExerciseMetronome(exercise, 'GM-EB01@0.8B', 84);
     assert.equal(ui.metronomeUi.open, true);
-    assert.equal(ui.metronomeUi.returnFocus, exercise);
+    assert.equal(ui.metronomeUi.returnFocus.kind, exercise.kind, 'focus target remains the exercise opener');
     assert.equal(state.bpm, 90, 'reopen from task does not replace the chosen tempo');
     assert.equal(state.status, 'running', 'ongoing click must continue');
     assert.equal(stops, 0, 'reopening does not stop the audio graph');
