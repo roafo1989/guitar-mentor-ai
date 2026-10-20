@@ -2,6 +2,7 @@
 
 | Версия | Дата | Изменения |
 |---|---|---|
+| 1.2 | 20.10.2026 | DEF-68-QA-01 исправлен owner-scoped pessimistic session lock; AC68-09 и PostgreSQL ownership PASS на SHA `86707dc`, Java CI 147/0/2 и Vue 13/13 успешны; полная QA-приёмка остаётся отдельным этапом. |
 | 1.1 | 20.10.2026 | Дополнительные PostgreSQL-тесты выявили и дважды воспроизвели DEF-68-QA-01 на гонке POST/continue; QA FAILED, возврат в разработку. |
 | 1.0 | 20.10.2026 | Матрица AC68-01…15, дополнительные регрессии повторных ревью, фактическое автоматическое тестирование и остаточный device-only QA. |
 
@@ -25,10 +26,10 @@
 | **TC68-03 / AC68-03** | Добавить второй пример audio-only, затем обновить страницу | 2 разных id; порядок и метаданные стабильны после F5 | **PARTIAL** — PostgreSQL тест доказывает создание 2; UI F5 на реальном браузере отдельно |
 | **TC68-04 / AC68-04** | Повторить тот же multipart+requestId, затем изменить payload при старом ключе | Идентичный повтор 200 / прежний id, без дублирования; изменённый payload 409 | **PASS-CI** — HTTP+PostgreSQL replay, fingerprint V14; frontend component regression |
 | **TC68-05 / AC68-05** | POST с названием и аудио, без композитора/нот | 201, `score=null`, автор nullable, не создаётся вымышленный эталон | **PASS-CI** — PostgreSQL integration `committedAudioAWithLostResponse…` и API аудио-only |
-| **TC68-06 / AC68-06** | GET / POST для чужого learnerId/sessionId/evidenceId | 404 без утечки чужих данных или создания media | **PARTIAL** — ownership проверен service integration; отдельная HTTP-проверка владельца в будущем расширит регрессию |
+| **TC68-06 / AC68-06** | GET / POST для чужого learnerId/sessionId/evidenceId | 404 без утечки чужих данных или создания media | **PARTIAL** — owner-scoped 404 и отсутствие файлов-сирот проверены в реальном PostgreSQL и unit; отдельные HTTP/IDOR и прочие security сценарии можно расширить позднее |
 | **TC68-07 / AC68-07** | PDF с ложной сигнатурой, PNG не PNG, >10 MiB, пустой файл | Отказ; ноль новых evidence, аудио и score-сирот | **PASS-CI** для поддельного PDF и компенсации; unit DocumentMediaStore покрывает PNG, пустой и oversized; полное граничное HTTP / multipart 413 отдельно |
 | **TC68-08 / AC68-08** | Worker получает invalid/overlong audio | FAILED/errorCode, история остаётся; continue разрешён; skillEvidence=NOT_ASSESSED | **PARTIAL** — worker unit и PostgreSQL lifecycle; отсутствует полный браузерный сценарий с реально испорченным файлом |
-| **TC68-09 / AC68-09** | Одновременно POST evidence и POST /continue | Сериализация по session row; evidence только если успел до смены статуса; состояние целостно | **FAIL-CI / DEF-68-QA-01** — конкурентные реальные Spring транзакции на PostgreSQL дважды дали `ObjectOptimisticLockingFailureException` при session lock upgrade; тест не проходит, требуется исправление сервиса |
+| **TC68-09 / AC68-09** | Одновременно POST evidence и POST /continue | Сериализация по session row; evidence только если успел до смены статуса; состояние целостно | **PASS-CI (исправлено после DEF-68-QA-01)** — реальный PostgreSQL race submit/continue на SHA `86707dc` прошёл с атомарным owner-scoped pessimistic lock и ожидаемым 201/409; повторная ручная нагрузочная проверка — по необходимости |
 | **TC68-10 / AC68-10** | Аудио записалось, score отклонён; DB rollback / неизвестный commit | Атомарный отказ, 0 media-сирот; uncertain outcome безопасно переживает повтор | **PARTIAL** — реально PostgreSQL/file compensation PASS; фазу STATUS_UNKNOWN непосредственно не симулировали |
 | **TC68-11 / AC68-11** | Создать 10 примеров → 11-й; отправить сверхлимитный multipart | 11-й 409/MAX_ITEMS_REACHED; oversized multipart 413; continue по-прежнему доступен | **PARTIAL** — unit maxItems и настроенные Spring multipart лимиты; full HTTP 413 ещё не исполнялся |
 | **TC68-12 / AC68-12** | Финализировать AUDIO+SCORE, передвинуть timestamps за 48h, выполнить общий cleanup | Оба файла удалены, строки/история/NOT_ASSESSED сохранены, catalog не затронут; retries не голодают | **PASS-CI** — реальный PostgreSQL + filesystem 48h тест и 60 DELETE_PENDING/1 newly expired; контент каталога проверяется отдельно в регрессии |
@@ -53,7 +54,13 @@
 
 ## 4. Фактически выполненные автономные проверки
 
-### Итог QA-прогона 20.10.2026 — FAILED
+### Итог дополнительного QA после исправления DEF-68-QA-01 — код проверен, аппаратная QA ещё не выполнена
+
+- **DEF-68-QA-01 / AC68-09 исправлен:** в `DiagnosticEvidenceService.submit()` вместо pre-read `diagnostics.get()` используется `DiagnosticSessionRepository.findLockedOwnedById()`, проверяющий владельца и блокирующий сессию одним JPA-запросом. `finishIntake` и POST теперь сериализуются без повторной блокировки устаревшего `@Version` объекта. Реальный PostgreSQL concurrency test и отказ 404 для чужого learner подтверждены.
+- На исправленном SHA **`86707dce4435531f6ac540872cca3f99bdd6f727`**: [Java #39400280043](https://github.com/roafo1989/guitar-mentor-ai/actions/runs/39400280043) **SUCCESS, 147 тестов, 0 failures/errors, 2 skipped**, Flyway и HTTP smoke SUCCESS; [Vue #39400280378](https://github.com/roafo1989/guitar-mentor-ai/actions/runs/39400280378) **SUCCESS, 13/13 + typecheck/build**.
+- **Итог этапа:** технический дефект устранён; требуется повторное независимое code-review нового production-кода и последующие DEVICE/UX проверки. PR не объединён, окончательная пользовательская приёмка не выполнена.
+
+### Исторический QA-прогон до исправления — FAILED
 
 - [Java CI #39397636320](https://github.com/roafo1989/guitar-mentor-ai/actions/runs/39397636320): **SUCCESS — 142 теста, 0 failures/errors, 2 skipped**. Включает четыре новые MockMvc+PostgreSQL multipart проверки #68.
 - [Vue CI #39398164288](https://github.com/roafo1989/guitar-mentor-ai/actions/runs/39398164288): **SUCCESS — 13/13 tests + vue-tsc/Vite**.
@@ -79,5 +86,5 @@
 ## 6. Формальное решение
 
 - **Код-ревью:** принят на `a6b5789` до дополнительного QA-тестового коммита; новые кодовые изменения должны получить CI-проверку, review-gate не смешивать с QA.
-- **QA:** **FAILED** из-за DEF-68-QA-01 (AC68-09). Часть автоматических кейсов успешно пройдена; окончательный PASS по AC68-01…15 не объявлять до исправления гонки и закрытия PARTIAL/DEVICE кейсов.
+- **QA:** DEF-68-QA-01 устранён, AC68-09 PASS-CI на `86707dc`; полная QA/приёмка **ещё не завершена**, поскольку остаются PARTIAL/DEVICE (микрофон, Samsung M4A, реальный браузер), а production-фикс требует повторного code-review.
 - **Issue/PR:** оставить OPEN, без merge до решения заказчика. Поля GitHub Project v2 при отсутствии метода записи не заявлять обновлёнными.
