@@ -18,8 +18,10 @@
 
 ## Требования и спецификации
 
-- [Бизнес-требования 0.4](requirements/business-requirements.md)
-- [Техническое задание 0.9](requirements/technical-specification.md) — 9 US / 31 FT, НФТ/SEC и открытые вопросы
+- [#104 / TOOL-02 — гибкий метроном](specifications/TOOL-02-flexible-metronome.md) — размеры, акценты, индивидуальная громкость, подразделения/Tap/пресеты; отдельное расширение после #87
+
+- [Бизнес-требования 0.5](requirements/business-requirements.md)
+- [Техническое задание 0.10](requirements/technical-specification.md) — 9 US / 32 FT, НФТ/SEC и открытые вопросы
 - [Системная спецификация 0.6](specifications/system-specification.md) — текущие API/данные и целевой остаток
 - [MVP Scope & Acceptance 1.1](project/mvp-scope-v1.md)
 - [Roadmap 1.1](project/roadmap-mvp-v1.md) — исходные оценки исторические, не текущий остаток
@@ -70,4 +72,5 @@
 - [Анализ акустических блюзовых концовок](music/reference-analysis-acoustic-blues-endings.md)
 
 **Последующее событие 19.10.2026:** #30 принята, PR #69/#70 объединены в main c521786; #14 выбрана для анализа и передана на оценку. Датированные снимки прежних этапов в документах сохраняют историю.
+
 

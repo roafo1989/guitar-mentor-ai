@@ -1,0 +1,6 @@
+flowchart TB
+  UI["Окно и входы header / упражнение"] --> Config["Валидатор и draft / pending config"]
+  Config --> Engine["Единое ядро Web Audio #86"]
+  Config <--> Store["Локальные настройки и пресеты"]
+  Engine --> UI
+  Lifecycle["Close, hidden, запись, тюнер"] --> Engine

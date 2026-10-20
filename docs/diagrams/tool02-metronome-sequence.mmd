@@ -1,0 +1,17 @@
+sequenceDiagram
+  participant U as Ученик
+  participant D as Dialog
+  participant E as Engine
+  participant A as Audio clock
+  U->>D: Изменить размер и акценты
+  D->>D: Проверить весь config
+  D->>E: Запросить валидный config
+  E-->>D: Pending до следующего такта
+  A->>E: Граница такта
+  E->>E: Атомарно заменить active config
+  E->>A: Планировать новый такт с позиции 1
+  E-->>D: Active config и прозвучавшая позиция
+  U->>D: Stop
+  D->>E: Немедленно остановить
+  E->>A: Отменить nodes и очередь
+  E-->>D: Stopped, без autoresume
