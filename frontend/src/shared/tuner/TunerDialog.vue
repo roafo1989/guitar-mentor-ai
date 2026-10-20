@@ -2,7 +2,8 @@
 import { computed, nextTick, onBeforeUnmount, ref, watch } from 'vue';
 import { useI18n } from 'vue-i18n';
 import { acquireAudio, releaseAudio } from '../audio/audio-session';
-import { STRINGS, detectPitch, stablePitch } from './pitch';
+import { STRINGS, detectPitch, noteName } from './pitch';
+import { autoStringIndex, newPitchTrack, resetPitchTrack, trackPitch } from './tuner-session';
 import { isolateDialogFocus } from './modal-focus';
 import { tunerReading } from './tuner-reading';
 import './tuner.css';
@@ -11,20 +12,25 @@ const props = defineProps<{ open: boolean }>();
 const emit = defineEmits<{ close: [] }>();
 const { t } = useI18n();
 const dialog = ref<HTMLElement | null>(null);
-const selected = ref(0);
+const mode = ref<'auto' | 'manual'>('auto');
+const selected = ref<number | null>(null);
 const phase = ref<'idle' | 'requesting' | 'listening'>('idle');
 const message = ref('tuner.ready');
 const error = ref('');
 const frequency = ref<number | null>(null);
-const target = computed(() => STRINGS[selected.value]);
-// Pitch reliability comes from stabilization, not proximity to the target.
-const reading = computed(() => phase.value === 'listening'
+const target = computed(() => selected.value === null ? null : STRINGS[selected.value]);
+// An unrecognized (or heavily detuned) pitch must not silently choose a target.
+const reading = computed(() => phase.value === 'listening' && target.value
   ? tunerReading(frequency.value, target.value.hz) : null);
+const note = computed(() => frequency.value === null ? '—' : noteName(frequency.value));
+const held = ref(false);
 const status = computed(() => reading.value
-  ? 'tuner.' + reading.value.status : message.value);
+  ? held.value ? 'tuner.holding' : 'tuner.' + reading.value.status
+  : phase.value === 'listening' && frequency.value !== null && mode.value === 'auto'
+    ? 'tuner.autoUncertain' : message.value);
 const position = computed(() => 50 + (reading.value?.meterValue ?? 0));
 const token = Symbol('tuner');
-const history: number[] = [];
+const tracking = newPitchTrack();
 let generation = 0;
 let stream: MediaStream | null = null;
 let context: AudioContext | null = null;
@@ -39,8 +45,10 @@ function clearFocusIsolation(): void {
 }
 
 function resetPitch(): void {
+  resetPitchTrack(tracking);
   frequency.value = null;
-  history.length = 0;
+  held.value = false;
+  if (mode.value === 'auto') selected.value = null;
 }
 function stop(): void {
   ++generation;
@@ -122,11 +130,15 @@ async function start(): Promise<void> {
     message.value = 'tuner.noSignal';
     const tick = (now: number) => {
       if (generation !== run || !analyser || !context) return;
-      if (now - last >= 120) {
+      if (now - last >= 100) {
         last = now;
         analyser.getFloatTimeDomainData(samples);
         const candidate = detectPitch(samples, context.sampleRate);
-        frequency.value = stablePitch(history, candidate);
+        frequency.value = trackPitch(tracking, candidate, now);
+        held.value = candidate === null && frequency.value !== null;
+        if (mode.value === 'auto') {
+          selected.value = autoStringIndex(frequency.value, selected.value);
+        }
         message.value = candidate === null ? 'tuner.noSignal' :
           frequency.value === null ? 'tuner.stabilizing' : 'tuner.wrongString';
       }
@@ -141,8 +153,13 @@ async function start(): Promise<void> {
   }
 }
 function choose(index: number): void {
+  mode.value = 'manual';
   selected.value = index;
   resetPitch();
+}
+function chooseAuto(): void {
+  mode.value = 'auto';
+  selected.value = autoStringIndex(frequency.value, null);
 }
 function handleKey(event: KeyboardEvent): void {
   if (event.key === 'Escape') {
@@ -169,6 +186,8 @@ watch(() => props.open, async open => {
   }
   // An earlier permission or device error must not survive a new dialog session.
   error.value = '';
+  mode.value = 'auto';
+  resetPitch();
   await nextTick();
   if (!props.open || !dialog.value) return;
   clearFocusIsolation();
@@ -194,6 +213,11 @@ onBeforeUnmount(() => {
           <button type="button" class="tuner-close" :title="t('tuner.close')" :aria-label="t('tuner.close')" @click="close">×</button>
         </div>
         <p>{{ t('tuner.instructions') }}</p>
+        <div class="tuner-mode">
+          <button type="button" class="tuner-auto-button" :class="{ selected: mode === 'auto' }"
+            :aria-pressed="mode === 'auto'" @click="chooseAuto">{{ t('tuner.auto') }}</button>
+          <span>{{ t('tuner.manualHint') }}</span>
+        </div>
         <div role="group" :aria-label="t('tuner.strings')" class="tuner-strings">
           <button v-for="(string, index) in STRINGS" :key="string.number" type="button"
             :class="{ selected: index === selected }" :aria-pressed="index === selected"
@@ -203,11 +227,13 @@ onBeforeUnmount(() => {
           </button>
         </div>
         <div class="tuner-screen">
-          <p>{{ t('tuner.target') }}: <strong>{{ target.note }}</strong> · {{ target.hz.toFixed(1) }} Hz</p>
+          <p>{{ t('tuner.target') }}: <strong>{{ target?.note ?? '—' }}</strong>
+            <span v-if="target"> · {{ target.hz.toFixed(1) }} Hz</span>
+          </p>
           <div class="tuner-note"><small>{{ t('tuner.detected') }}</small>
-            <strong>{{ reading?.note ?? '—' }}</strong>
+            <strong>{{ note }}</strong>
           </div>
-          <p role="status" aria-live="polite" class="tuner-status" :class="{ tuned: reading?.status === 'inTune' }">
+          <p role="status" aria-live="polite" class="tuner-status" :class="{ tuned: reading?.status === 'inTune' && !held }">
             {{ t(status) }}
           </p>
           <div class="tuner-meter" :role="reading ? 'meter' : undefined"

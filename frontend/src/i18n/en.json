@@ -281,7 +281,7 @@
     "title": "Guitar tuner",
     "open": "Open guitar tuner",
     "close": "Close tuner",
-    "instructions": "Select a string, start tuning, and pluck the string alone. Aim for zero cents.",
+    "instructions": "Start tuning and pluck one open string. Auto mode selects it for you; tap a string below for manual mode.",
     "strings": "Guitar strings",
     "string": "String {number}, {note}",
     "target": "Target",
@@ -306,6 +306,10 @@
     "failed": "Could not start tuner. Check your microphone.",
     "unsupported": "Use a Web Audio browser with a microphone over HTTPS or localhost.",
     "recorderActive": "A performance recording is active. Stop it before tuning; your draft is safe.",
-    "disconnected": "Microphone disconnected. Try again."
+    "disconnected": "Microphone disconnected. Try again.",
+    "auto": "Auto",
+    "manualHint": "Or tap a string to select it manually",
+    "holding": "Last reliable reading — listening for the string…",
+    "autoUncertain": "No clear open string — try again or choose one manually"
   }
 }

@@ -29,3 +29,15 @@ The first plausible YIN period is checked against a Hann-windowed 8192-point FFT
 A detected harmonic series establishes the **octave** but its upper partials are not assumed exact multiples of the fundamental. Before this correction the FFT estimator averaged `peak(h) / h`, systematically raising the indicated tuning by +5.46…+6.33 cents at B=0.001 for six correctly tuned strings. The detector now returns the independently measured **fundamental FFT peak** for pitch accuracy; higher partials only select and corroborate the fundamental. The YIN normalized-difference check is retained to reject an inconsistent or ambiguous periodicity.
 
 Regression coverage: 288 cases (6 strings × 2 sample rates × 2 spectra × 4 stiffness factors × 3 tuning offsets), asserting error under 3 cents and UI `inTune` at true pitch and `flat/sharp` when detuned. Another 144 weak-fundamental cases enforce no confidently wrong note (an ambiguous frame may return null). Tests remain synthetic; real microphone and acoustic-guitar QA is still required.
+
+## Real-guitar QA follow-up: sustained detection and automatic string selection (21 Oct 2026)
+
+The owner tuned a genuinely detuned acoustic guitar but found two practical defects:
+- **REAL-01:** The displayed note disappeared shortly after the pluck, requiring repeated attacks.
+- **REAL-02:** Every string required manual selection. The requested default is automatic recognition, similar in workflow (not copied UI) to GuitarTuna.
+
+Resolution: lower the initial absolute signal RMS gate from 0.01 to 0.003 while retaining YIN and FFT confidence checks; analyze every ~100 ms; use three consistent measurements to acquire a note and hold its last **verified** value for at most 700 ms through occasional null frames. A different valid pitch immediately clears the old reading and must stabilize independently. The grace period is **not** renewed by null frames, and a held reading is visibly identified as such (not colored «in tune»). Once expired, silence clears it. Test against real decay, microphone noise and changes of string — synthetic tests do not certify all hardware.
+
+On opening the dialog **Auto** mode is enabled. After pitch stabilization the nearest target among E2/A2/D3/G3/B3/E4 is selected within ±200 cents; hysteresis of 70 cents prevents flicker between adjacent string targets. Ambiguous/out-of-range frequencies leave the target unselected, and the recognized note can still be shown without an incorrect green status. Clicking an individual string activates a manual override; clicking Auto returns to automatic selection. Strum/chords and severely detuned strings require manual mode when the automatic classifier is not confident. RU/EN labels and ARIA states updated.
+
+**Manual acceptance:** check six strings with soft pluck and decay, delayed silence timeout, all six automatic target changes, manual fallback, strong detuning, background noise, chords, recorder protection and mobile/keyboard interactions. Do not treat these browser checks as passed until observed.

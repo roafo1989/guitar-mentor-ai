@@ -28,7 +28,9 @@ export function detectPitch(samples: Float32Array, sampleRate: number): number |
   for (let i = 0; i < width; i++) mean += samples[i];
   mean /= width;
   for (let i = 0; i < width; i++) energy += (samples[i] - mean) ** 2;
-  if (Math.sqrt(energy / width) < 0.01) return null;
+  // Quiet decays should remain detectable; the YIN and spectral confidence
+  // checks below still reject random noise and insufficiently periodic frames.
+  if (Math.sqrt(energy / width) < 0.003) return null;
   const differences = new Float64Array(maxLag + 2);
   // Compute the full difference curve before searching for a minimum:
   // otherwise uninitialized future lags are zero and create false early peaks.

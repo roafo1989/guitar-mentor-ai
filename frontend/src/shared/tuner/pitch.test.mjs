@@ -262,3 +262,81 @@ test('P2 inharmonicity: weak 2% fundamental cannot yield a false tuned note', ()
   assert.equal(checked, 144);
   assert.ok(detected >= 120, 'weak fundamental should remain useful');
 });
+
+
+import { newPitchTrack, trackPitch, autoStringIndex, HOLD_MS } from './tuner-session.ts';
+
+test('REAL-01: a verified note survives isolated silent frames but expires after bounded silence', () => {
+  const tracker = newPitchTrack();
+  assert.equal(trackPitch(tracker, 110, 100), null);
+  assert.equal(trackPitch(tracker, 110.2, 200), null);
+  assert.ok(Math.abs(cents(trackPitch(tracker, 110.1, 300), 110)) < 3);
+  assert.ok(Math.abs(cents(trackPitch(tracker, null, 450), 110)) < 3);
+  assert.ok(Math.abs(cents(trackPitch(tracker, 110, 550), 110)) < 3);
+  assert.ok(Math.abs(cents(trackPitch(tracker, null, 550 + HOLD_MS), 110)) < 3);
+  assert.equal(trackPitch(tracker, null, 551 + HOLD_MS), null);
+  assert.equal(tracker.history.length, 0, 'expired samples must not influence a new string');
+});
+
+test('REAL-01: different string immediately drops old reading and requires stabilization', () => {
+  const state = newPitchTrack();
+  for (const now of [100, 200, 300]) trackPitch(state, 82.406889, now);
+  assert.ok(state.frequency !== null);
+  assert.equal(trackPitch(state, 110, 400), null, 'never display the previous string during attack');
+  assert.equal(trackPitch(state, 110.1, 500), null);
+  const note = trackPitch(state, 109.9, 600);
+  assert.ok(note !== null && Math.abs(cents(note, 110)) < 3);
+});
+
+test('REAL-01: lower levels recognize naturally decaying strings without accepting silence/noise', () => {
+  for (const string of STRINGS) {
+    const samples = sine(string.hz, 48000, 0.009);
+    const frequency = detectPitch(samples, 48000);
+    assert.ok(frequency !== null, string.note + ': sustain should be detectable');
+    assert.ok(Math.abs(cents(frequency, string.hz)) < 5, string.note + ': wrong quiet note');
+  }
+  for (const amplitude of [0, 0.002]) {
+    assert.equal(detectPitch(sine(110, 48000, amplitude), 48000), null);
+  }
+  let seed = 1234;
+  const noise = Float32Array.from({ length: 8192 }, () => {
+    seed = (1664525 * seed + 1013904223) >>> 0;
+    return (seed / 4294967296 - 0.5) * 0.018;
+  });
+  assert.equal(detectPitch(noise, 48000), null);
+});
+
+test('REAL-02: automatic mode identifies all six open strings, including moderate detuning', () => {
+  for (let index = 0; index < STRINGS.length; index++) {
+    for (const centsOffset of [-120, 0, 120]) {
+      const frequency = STRINGS[index].hz * 2 ** (centsOffset / 1200);
+      assert.equal(autoStringIndex(frequency, null), index, STRINGS[index].note);
+    }
+  }
+  assert.equal(autoStringIndex(110 * 2 ** (300 / 1200), null), null,
+    'out-of-range pitch requires manual selection');
+  assert.equal(autoStringIndex(null, 1), null);
+});
+
+test('REAL-02: hysteresis prevents auto-target thrash around string boundaries', () => {
+  const middle = Math.sqrt(STRINGS[0].hz * STRINGS[1].hz);
+  assert.equal(autoStringIndex(middle * 1.02, 0), 0);
+  assert.equal(autoStringIndex(middle / 1.02, 1), 1);
+  assert.equal(autoStringIndex(STRINGS[1].hz, 0), 1, 'real new string switches');
+  assert.equal(autoStringIndex(STRINGS[0].hz, 1), 0);
+});
+
+test('REAL-02: notes outside ordinary open strings are not silently marked in tune', () => {
+  for (const frequency of [95, 127, 174, 220 * 2]) {
+    const choice = autoStringIndex(frequency, null);
+    if (choice !== null) {
+      assert.ok(Math.abs(cents(frequency, STRINGS[choice].hz)) <= 200);
+    }
+  }
+  // The selected note must come from the measured frequency, not from a button state.
+  for (const string of STRINGS) {
+    const candidate = detectPitch(sine(string.hz), 48000);
+    assert.ok(candidate !== null);
+    assert.equal(autoStringIndex(candidate, null), STRINGS.indexOf(string));
+  }
+});
