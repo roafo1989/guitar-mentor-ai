@@ -206,6 +206,75 @@ class AudioCorpusReadinessTest {
         writeJson("manifest.json", manifest);
         assertEquals("READY_FOR_POC", AudioCorpusValidator.validate(root, "manifest.json").status());
 
+        // Two differently encoded/created WAV files from ONE original are not
+        // independent takes, even though their derivative SHA-256 values differ.
+        // R-1 = CALIBRATION/G-1, R-2 = HOLDOUT/G-2 with the same M4A parent.
+        ObjectNode secondFromSameOriginal = (ObjectNode) recordings.get(1);
+        String otherWavSha = secondFromSameOriginal.path("sourceSha256").asText();
+        assertNotEquals(first.path("sourceSha256").asText(), otherWavSha);
+        secondFromSameOriginal.put("sourceKind", "DERIVED");
+        ObjectNode secondTransform = secondFromSameOriginal.putObject("transform");
+        secondTransform.put("sourceRef", "parent-original.m4a")
+                .put("sourceSha256", originalSha).put("operation", "DECODE")
+                .put("toolVersion", "TEST-FFMPEG");
+        secondTransform.putObject("parameters").put("codec", "pcm_s16le");
+        writeJson("manifest.json", manifest);
+        var leakedOriginal = AudioCorpusValidator.validate(root, "manifest.json");
+        assertEquals("INVALID", leakedOriginal.status(), leakedOriginal.toString());
+        assertTrue(leakedOriginal.errors().contains("SOURCE_LINEAGE_GROUP_CONFLICT:R-2"),
+                leakedOriginal.toString());
+        assertTrue(leakedOriginal.errors().contains("SOURCE_LINEAGE_SPLIT_CONFLICT:R-2"),
+                leakedOriginal.toString());
+
+        // Same physical original must also not be mislabeled as different groups
+        // within one split. This must not be mistaken for an independent take.
+        secondFromSameOriginal.put("split", "CALIBRATION");
+        writeJson("manifest.json", manifest);
+        var falseGroup = AudioCorpusValidator.validate(root, "manifest.json");
+        assertEquals("INVALID", falseGroup.status(), falseGroup.toString());
+        assertTrue(falseGroup.errors().contains("SOURCE_LINEAGE_GROUP_CONFLICT:R-2"),
+                falseGroup.toString());
+        secondFromSameOriginal.put("split", "HOLDOUT");
+        secondFromSameOriginal.remove("transform");
+        secondFromSameOriginal.put("sourceKind", "ORIGINAL");
+
+        // The opposite also matters: group G-1 must not silently merge two
+        // distinct origins as if they were derivatives of a single take.
+        secondFromSameOriginal.put("recordingGroupId", "G-1").put("split", "CALIBRATION");
+        writeJson("manifest.json", manifest);
+        var twoOriginalsOneGroup = AudioCorpusValidator.validate(root, "manifest.json");
+        assertEquals("INVALID", twoOriginalsOneGroup.status(), twoOriginalsOneGroup.toString());
+        assertTrue(twoOriginalsOneGroup.errors().contains("GROUP_MULTIPLE_ORIGINALS:R-2"),
+                twoOriginalsOneGroup.toString());
+        secondFromSameOriginal.put("recordingGroupId", "G-2").put("split", "HOLDOUT");
+
+        // Additional derivative of one original is legitimate within the SAME
+        // recordingGroupId/split, but does not count as a new independent group.
+        String siblingWav = "take-7.wav";
+        String siblingWavSha = writeWav(siblingWav, 7);
+        ObjectNode siblingAnnotation = (ObjectNode) mapper.readTree(
+                Files.readString(root.resolve("annotation-1.json")));
+        siblingAnnotation.put("annotationId", "A-7").put("recordingId", "R-7")
+                .put("sourceSha256", siblingWavSha);
+        String siblingAnnotationSha = writeJson("annotation-7.json", siblingAnnotation);
+        ObjectNode sibling = first.deepCopy();
+        sibling.put("recordingId", "R-7").put("fileRef", siblingWav)
+                .put("sourceSha256", siblingWavSha)
+                .put("bytes", Files.size(root.resolve(siblingWav)))
+                .put("annotationRef", "annotation-7.json")
+                .put("annotationSha256", siblingAnnotationSha);
+        recordings.add(sibling);
+        writeJson("manifest.json", manifest);
+        var legalSibling = AudioCorpusValidator.validate(root, "manifest.json");
+        assertEquals("READY_FOR_POC", legalSibling.status(), legalSibling.toString());
+        assertEquals(7, legalSibling.realCount());
+        recordings.remove(recordings.size() - 1);
+
+        // The original six takes from different original hashes remain READY.
+        secondFromSameOriginal.put("sourceKind", "ORIGINAL");
+        writeJson("manifest.json", manifest);
+        assertEquals("READY_FOR_POC", AudioCorpusValidator.validate(root, "manifest.json").status());
+
         transform.put("sourceSha256", "0".repeat(64));
         writeJson("manifest.json", manifest);
         assertTrue(AudioCorpusValidator.validate(root, "manifest.json").errors().stream()
