@@ -1,6 +1,6 @@
 # #14 Audio feasibility — offline benchmark
 
-Status: **#14 TECHNICAL SCOPE READY FOR CODE REVIEW/TESTING; #97 PRIVATE REAL CORPUS NOT YET ACCEPTED**. Contract version 1, 2026-10-19. Scope revised 2026-10-20 by [approved decision](scope-decision-2026-10-20.md); original [specification](../../specifications/MVP-R2-01-audio-feasibility.md) is preserved as history and its outstanding real-data checks continue in [#97](https://github.com/roafo1989/guitar-mentor-ai/issues/97).
+Status: **#14 TECHNICAL SCOPE READY FOR CODE REVIEW/TESTING; #97 PRIVATE REAL CORPUS NOT YET ACCEPTED**. Contract version 1, 2026-10-19. Scope revised 2026-10-20 by [approved decision](scope-decision-2026-10-20.md); original [original analysis specification v1.0](https://github.com/roafo1989/guitar-mentor-ai/blob/analysis/system-analysis-standard/docs/specifications/MVP-R2-01-audio-feasibility.md) is preserved as history and its outstanding real-data checks continue in [#97](https://github.com/roafo1989/guitar-mentor-ai/issues/97).
 
 ## Privacy and scope
 This directory contains **public documentation and synthetic structural examples only**. Never commit real recordings, performer identifiers, original filenames, consent documents, annotated real takes, absolute paths, or product-storage exports. Private corpus root must be **outside the Git checkout**. This experiment does not access the running application, PostgreSQL, the upload worker, or any S3 service. The product TTL remains unchanged.
