@@ -13,3 +13,7 @@ Manual QA: open from header without losing unsaved forms; check six strings agai
 - The ±50-cent meter clamps its accessible numeric value and needle, while visible text and aria-valuetext retain the full cents deviation. An unavailable reading has no meter role/value.
 - A newly opened modal clears old microphone errors. The Teleported overlay sets the background app shell inert, has document-level focus isolation and restores its previous state on close; the header restores focus to the launcher.
 - Regression tests cover wrong-target notes, cents ±50/±1200, no-reading semantics and focus isolation (using mocked focus events); manual browser verification is still necessary.
+
+## Octave alias fix after second review
+
+Instead of returning the first low YIN normalized-difference valley, the detector evaluates all valid local minima and chooses the earliest period close to the global best. This mitigates the second-harmonic 2x pitch error on E2/A2/D3 and prevents false subharmonics on pure sine waves. Regression tests cover all six strings at 44.1/48 kHz, strong second/third harmonics, slight decay/noise, and detunings. Ambiguous audio still requires on-instrument validation.

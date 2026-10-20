@@ -118,3 +118,43 @@ test('modal isolation preserves previous inert state and guards programmatic foc
   isolateDialogFocus(previouslyInert, dialog, doc)();
   assert.equal(previouslyInert.inert, true);
 });
+
+const harmonics = (frequency, rate, amplitudes, detuneCents = 0, withNoise = false) => {
+  const tunedFrequency = frequency * 2 ** (detuneCents / 1200);
+  return Float32Array.from({ length: 8192 }, (_, i) => {
+    const time = i / rate;
+    const signal = amplitudes.reduce((v, amp, harmonic) =>
+      v + amp * Math.sin(2 * Math.PI * tunedFrequency * (harmonic + 1) * time + harmonic * 0.45), 0);
+    return 0.3 * (signal * Math.exp(-0.6 * time) +
+      (withNoise ? 0.008 * Math.sin(2 * Math.PI * 9977 * time) : 0));
+  });
+};
+
+test('strong second harmonics do not cause octave aliases on six strings', () => {
+  for (const rate of [44100, 48000]) for (const string of STRINGS) {
+    for (const amplitudes of [[0.15, 1], [0.05, 1, 0.05], [1, 0.45, 0.3, 0.1]]) {
+      const result = detectPitch(harmonics(string.hz, rate, amplitudes, 0, true), rate);
+      assert.ok(result, 'No pitch for ' + string.note + ' at ' + rate + ' with ' + amplitudes);
+      assert.ok(Math.abs(cents(result, string.hz)) < 5,
+        'Octave/partial error for ' + string.note + ' at ' + rate + ': ' + result);
+    }
+  }
+});
+
+test('detuned multi-harmonic guitar strings retain accurate fundamentals', () => {
+  for (const string of STRINGS) for (const offset of [-35, 35]) {
+    const expected = string.hz * 2 ** (offset / 1200);
+    const result = detectPitch(harmonics(string.hz, 48000, [0.15, 1, 0.3], offset, true), 48000);
+    assert.ok(result, 'No pitch for ' + string.note + ' offset ' + offset);
+    assert.ok(Math.abs(cents(result, expected)) < 5,
+      'Detuning error for ' + string.note + ' offset ' + offset + ': ' + result);
+  }
+});
+
+test('a pure second harmonic is not mistaken for a missing lower fundamental', () => {
+  for (const string of STRINGS.slice(0, 3)) {
+    const result = detectPitch(sine(string.hz * 2), 48000);
+    assert.ok(result);
+    assert.ok(Math.abs(cents(result, string.hz * 2)) < 5);
+  }
+});

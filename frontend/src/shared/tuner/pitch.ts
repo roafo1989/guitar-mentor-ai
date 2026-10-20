@@ -38,16 +38,34 @@ export function detectPitch(samples: Float32Array, sampleRate: number): number |
     }
     differences[lag] = difference;
   }
-  let sum = 0, candidate = 0;
+  // Evaluate every normalized-difference minimum: the first plausible lag
+  // may correspond to a strong second harmonic rather than the fundamental.
+  const normalized = new Float64Array(maxLag + 1);
+  let sum = 0;
   for (let lag = 1; lag <= maxLag; lag++) {
     sum += differences[lag];
-    if (lag >= minLag && sum > 0 && differences[lag] * lag / sum < 0.16) {
+    normalized[lag] = sum > 0 ? differences[lag] * lag / sum : 1;
+  }
+  let bestScore = Infinity;
+  for (let lag = minLag; lag <= maxLag; lag++) {
+    if (differences[lag] <= differences[lag - 1] &&
+        differences[lag] <= differences[lag + 1] && normalized[lag] < 0.16) {
+      bestScore = Math.min(bestScore, normalized[lag]);
+    }
+  }
+  if (!Number.isFinite(bestScore)) return null;
+  // Prefer the earliest good period over later multiples (2*T, 3*T).
+  // A shallow half-period trough from the 2nd harmonic is filtered out.
+  const acceptable = Math.min(0.16, Math.max(bestScore * 1.35, bestScore + 0.002));
+  let candidate = 0;
+  for (let lag = minLag; lag <= maxLag; lag++) {
+    if (differences[lag] <= differences[lag - 1] &&
+        differences[lag] <= differences[lag + 1] && normalized[lag] <= acceptable) {
       candidate = lag;
       break;
     }
   }
   if (!candidate) return null;
-  while (candidate < maxLag && differences[candidate + 1] < differences[candidate]) candidate++;
   const left = differences[candidate - 1], center = differences[candidate], right = differences[candidate + 1];
   const denominator = left - 2 * center + right;
   const shift = denominator ? Math.max(-1, Math.min(1, (left - right) / (2 * denominator))) : 0;
