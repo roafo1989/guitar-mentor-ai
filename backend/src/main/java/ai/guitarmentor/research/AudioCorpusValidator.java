@@ -51,8 +51,8 @@ public final class AudioCorpusValidator {
             Path report = Path.of(args[5]).toAbsolutePath().normalize();
             if (!Files.isDirectory(root, LinkOption.NOFOLLOW_LINKS) || Files.isSymbolicLink(root)
                     || report.startsWith(root) || Files.exists(report, LinkOption.NOFOLLOW_LINKS)
-                    || Files.isSymbolicLink(report.getParent())
-                    || !Files.isDirectory(report.getParent())) {
+                    || containsSymlinkAncestor(root) || containsSymlinkAncestor(report.getParent())
+                    || !Files.isDirectory(report.getParent(), LinkOption.NOFOLLOW_LINKS)) {
                 throw new IllegalArgumentException("Invalid root or report location");
             }
             Result result = validate(root, args[3]);
@@ -158,6 +158,17 @@ public final class AudioCorpusValidator {
                             }
                         } catch (IOException probeFailure) {
                             gaps.add("MEDIA_PROBE_UNAVAILABLE:" + id);
+                        } finally {
+                            // Detect changes during probing; caller must protect the corpus from hostile writes.
+                            try {
+                                Path rechecked = safePath(root, value(rec, "fileRef"));
+                                if (!hash(rechecked).equals(value(rec, "sourceSha256"))
+                                        || Files.size(rechecked) != bytes) {
+                                    errors.add("SOURCE_CHANGED_DURING_PROBE:" + id);
+                                }
+                            } catch (Exception changed) {
+                                errors.add("SOURCE_CHANGED_DURING_PROBE:" + id);
+                            }
                         }
                     }
                 } catch (Exception e) { errors.add("SOURCE_REFERENCE:" + id); }
@@ -221,8 +232,14 @@ public final class AudioCorpusValidator {
                     || reference.path("barCount").asInt(-1) < rec.path("barTo").asInt(0)
                     || reference.path("bpm").asDouble(-1) <= 0
                     || !Double.isFinite(reference.path("bpm").asDouble(-1))
-                    || reference.path("meterNumerator").asInt(4) <= 0
-                    || reference.path("events").isEmpty()) {
+                    || !nonblank(reference, "origin") || !nonblank(reference, "rights")
+                     || !nonblank(reference, "instrument")
+                     || !validPitchArray(reference.path("tuning"))
+                     || !integerInRange(reference.path("meterNumerator"), 1, 32)
+                     || !integerInRange(reference.path("meterDenominator"), 1, 64)
+                     || !isPowerOfTwo(reference.path("meterDenominator").intValue())
+                     || !integerInRange(reference.path("barCount"), 1, 10000)
+                     || reference.path("events").isEmpty()) {
                 errors.add("REFERENCE_CONTENT:" + id);
                 return;
             }
@@ -234,13 +251,16 @@ public final class AudioCorpusValidator {
             for (JsonNode e : reference.path("events")) {
                 String eventId = value(e, "eventId");
                 if (!validId(eventId) || !eventIds.add(eventId)
-                        || e.path("bar").asInt(0) < 1
-                        || e.path("bar").asInt() > reference.path("barCount").asInt()
-                        || e.path("beat").asDouble(-1) < 0
-                        || !Double.isFinite(e.path("beat").asDouble(-1))
-                        || e.path("durationBeats").asDouble(-1) <= 0
-                        || !Double.isFinite(e.path("durationBeats").asDouble(-1))
-                        || !e.path("notes").isArray() || e.path("notes").isEmpty()) {
+                         || !integerInRange(e.path("bar"), 1, reference.path("barCount").intValue())
+                         || !e.path("beat").isNumber()
+                         || e.path("beat").asDouble() < 0
+                         || !Double.isFinite(e.path("beat").asDouble())
+                         || e.path("beat").asDouble() >= reference.path("meterNumerator").intValue()
+                         || !e.path("durationBeats").isNumber()
+                         || e.path("durationBeats").asDouble() <= 0
+                         || !Double.isFinite(e.path("durationBeats").asDouble())
+                         || !Set.of("BASS", "UPPER", "MIXED").contains(value(e, "voice"))
+                         || !validPitchArray(e.path("notes"))) {
                     errors.add("REFERENCE_EVENT:" + id);
                     return;
                 }
@@ -249,12 +269,20 @@ public final class AudioCorpusValidator {
             Path annotationPath = safePath(root, value(rec, "annotationRef"));
             if (!hash(annotationPath).equals(value(rec, "annotationSha256"))) return;
             JsonNode annotation = readBoundedJson(annotationPath);
+            if (!hash(annotationPath).equals(value(rec, "annotationSha256"))) {
+                errors.add("ANNOTATION_CHANGED_DURING_READ:" + id);
+                return;
+            }
             for (JsonNode obs : annotation.path("observations")) {
                 if (!"EXTRA".equals(value(obs, "label"))
                         && !eventIds.contains(value(obs, "eventId"))) {
                     errors.add("UNKNOWN_EVENT_ID:" + id);
                     return;
                 }
+            }
+        }
+            if (!hash(path).equals(value(rec, "referenceSha256"))) {
+                errors.add("REFERENCE_CHANGED_DURING_READ:" + id);
             }
         } catch (Exception e) {
             errors.add("REFERENCE_FILE:" + id);
@@ -290,15 +318,35 @@ public final class AudioCorpusValidator {
             long duration = rec.path("durationMs").asLong();
             for (JsonNode observation : a.path("observations")) {
                 String label = value(observation, "label");
-                long from = observation.path("fromMs").asLong(-1);
-                long onset = observation.path("onsetMs").asLong(-1);
-                long to = observation.path("toMs").asLong(-1);
-                if (!LABELS.contains(label) || from < 0 || onset < from || to < onset
-                        || to > duration || ("EXTRA".equals(label) && !observation.path("eventId").isNull())
-                        || (!"EXTRA".equals(label) && !validId(value(observation, "eventId")))) {
+                JsonNode fromNode = observation.path("fromMs");
+                JsonNode onsetNode = observation.path("onsetMs");
+                JsonNode toNode = observation.path("toMs");
+                long from = fromNode.asLong(-1), onset = onsetNode.asLong(-1), to = toNode.asLong(-1);
+                boolean interval = "PAUSE".equals(label) || "TEMPO_CHANGE".equals(label);
+                JsonNode end = observation.path("endMs");
+                JsonNode actual = observation.path("actualNotes");
+                boolean knownNotesNeeded = Set.of("MATCH", "WRONG_BASS", "EXTRA").contains(label);
+                if (!LABELS.contains(label)
+                        || !integralMs(fromNode, duration) || !integralMs(onsetNode, duration)
+                        || !integralMs(toNode, duration)
+                        || onset < from || to < onset
+                        || !Set.of("BASS", "UPPER", "MIXED", "UNKNOWN").contains(value(observation, "voice"))
+                        || !(actual.isTextual() && "UNKNOWN".equals(actual.asText())
+                                || validPitchArray(actual))
+                        || (knownNotesNeeded && !validPitchArray(actual))
+                        || ("EXTRA".equals(label) ? !observation.has("eventId")
+                                || !observation.get("eventId").isNull()
+                                : !validId(value(observation, "eventId")))
+                        || (interval && (!integralMs(end, duration) || end.asLong() <= from
+                                || end.asLong() < to))
+                        || (!interval && !end.isMissingNode()
+                                && (!integralMs(end, duration) || end.asLong() < to))) {
                     errors.add("ANNOTATION_EVENT:" + id);
                     break;
                 }
+            }
+            if (!hash(path).equals(value(rec, "annotationSha256"))) {
+                errors.add("ANNOTATION_CHANGED_DURING_READ:" + id);
             }
         } catch (Exception e) { errors.add("ANNOTATION_REFERENCE:" + id); }
     }
@@ -319,6 +367,9 @@ public final class AudioCorpusValidator {
             if (segment.toString().equals("..") || segment.toString().equals(".")) throw new IOException("unsafe");
         }
         Path base = root.toAbsolutePath().normalize();
+        if (!Files.isDirectory(base, LinkOption.NOFOLLOW_LINKS) || containsSymlinkAncestor(base)) {
+            throw new IOException("unsafe corpus root");
+        }
         Path target = base.resolve(relative).normalize();
         if (!target.startsWith(base)) throw new IOException("unsafe");
         Path cursor = base;
@@ -338,6 +389,41 @@ public final class AudioCorpusValidator {
             while ((count = in.read(bytes)) != -1) digest.update(bytes, 0, count);
         }
         return HexFormat.of().formatHex(digest.digest());
+    }
+
+    private static boolean containsSymlinkAncestor(Path path) {
+        if (path == null) return true;
+        Path absolute = path.toAbsolutePath().normalize();
+        Path cursor = absolute.getRoot();
+        for (Path part : absolute) {
+            cursor = cursor.resolve(part);
+            if (Files.isSymbolicLink(cursor)) return true;
+        }
+        return false;
+    }
+
+    private static boolean integerInRange(JsonNode node, int min, int max) {
+        return node.isIntegralNumber() && node.canConvertToInt()
+                && node.intValue() >= min && node.intValue() <= max;
+    }
+
+    private static boolean integralMs(JsonNode node, long duration) {
+        return node.isIntegralNumber() && node.canConvertToLong()
+                && node.longValue() >= 0 && node.longValue() <= duration;
+    }
+
+    private static boolean isPowerOfTwo(int n) {
+        return n > 0 && (n & (n - 1)) == 0;
+    }
+
+    private static boolean validPitchArray(JsonNode notes) {
+        if (!notes.isArray() || notes.isEmpty() || notes.size() > 24) return false;
+        for (JsonNode note : notes) {
+            if (!note.isTextual() || !note.asText().matches("[A-G](?:#|b)?(?:[0-8]|-1)")) {
+                return false;
+            }
+        }
+        return true;
     }
 
     private static String value(JsonNode n, String field) {
