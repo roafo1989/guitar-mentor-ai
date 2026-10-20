@@ -167,3 +167,74 @@ footer { text-align: center; font-size: 12px; padding: 24px; color: #8793a4; }
 @media (prefers-reduced-motion: reduce) {
   .mic-level-segment { transition: none; }
 }
+
+
+/* #87: one metronome shared by sticky header and exercise cards. */
+.header-tool-button {
+  display: inline-flex; align-items: center; justify-content: center; flex-shrink: 0;
+  width: 38px; height: 38px; padding: 6px; border: 1px solid #667f96; border-radius: 9px;
+  background: #31465e; color: #fff; cursor: pointer;
+}
+.header-tool-button:hover, .header-tool-button[aria-expanded="true"] { background: #41667e; }
+.header-tool-button:focus-visible { outline: 2px solid #a8ddca; outline-offset: 3px; }
+.metronome-backdrop {
+  position: fixed; inset: 0; z-index: 1000; display: flex; align-items: center; justify-content: center;
+  overflow: auto; padding: 18px; background: rgba(10, 22, 38, .65);
+}
+.metronome-dialog {
+  width: min(100%, 445px); max-height: calc(100dvh - 36px); overflow-y: auto;
+  border-radius: 16px; padding: 24px; background: #fff; color: #203044;
+  box-shadow: 0 24px 60px rgba(0, 0, 0, .27);
+}
+.metronome-dialog-heading { display: flex; align-items: center; justify-content: space-between; gap: 16px; }
+.metronome-dialog-heading h2 { margin: 0; font-size: 22px; }
+.metronome-close {
+  width: 38px; height: 38px; border-radius: 8px; border: 1px solid #d2dce4;
+  background: #f3f6f8; font-size: 26px; cursor: pointer;
+}
+.metronome-note { color: #627184; font-size: 13px; line-height: 1.55; margin: 12px 0 18px; }
+.metronome-tempo { display: flex; flex-direction: column; gap: 8px; }
+.metronome-tempo label { font-weight: 700; }
+.metronome-tempo-controls { display: flex; align-items: center; gap: 9px; flex-wrap: wrap; }
+.metronome-tempo-controls button {
+  width: 42px; height: 42px; background: #eef5f6; color: #1c6058;
+  border: 1px solid #bdd1d3; border-radius: 8px; font-size: 23px; cursor: pointer;
+}
+.metronome-tempo-controls button:disabled { opacity: .5; cursor: not-allowed; }
+.metronome-tempo-controls input {
+  width: 102px; max-width: 100%; padding: 9px; border: 1px solid #b9c9d4; border-radius: 8px;
+  font-weight: 700; font-size: 20px; text-align: center; font-variant-numeric: tabular-nums;
+}
+.metronome-bpm-unit { font-weight: 700; color: #577080; }
+.metronome-tempo small { color: #536a7b; }
+.metronome-error { color: #ae2532; font-size: 14px; margin: 0; }
+.metronome-count { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 10px; margin: 22px 0 14px; }
+.metronome-beat {
+  display: grid; place-items: center; height: 74px; border: 2px solid #d8e4e9;
+  border-radius: 13px; background: #f2f6f8; font-size: 26px; font-weight: 800; color: #506476;
+}
+.metronome-beat.is-accent { border-color: #8eb7b0; }
+.metronome-beat.is-active { background: #2e7c70; border-color: #2e7c70; color: white; }
+.metronome-beat.is-active.is-accent { background: #18584e; }
+.metronome-state { text-align: center; font-size: 14px; color: #506476; min-height: 22px; }
+.metronome-actions { display: flex; gap: 12px; justify-content: center; margin: 16px 0; }
+.metronome-actions button { min-width: 130px; }
+.metronome-exercise-tool { display: flex; flex-wrap: wrap; gap: 10px; align-items: center; margin: 0 0 18px; }
+.metronome-exercise-tool .hint { margin: 0; }
+.metronome-exercise-launch { white-space: normal; }
+.metronome-dialog button:focus-visible, .metronome-dialog input:focus-visible,
+.metronome-exercise-launch:focus-visible { outline: 3px solid #159987; outline-offset: 3px; }
+@media (max-width: 680px) {
+  .header-tool-button { order: 2; }
+  .language-picker { order: 3; margin-left: 0; }
+  .header-actions nav { order: 4; }
+}
+
+/* Minimized playback remains audible and visibly controllable through the header. */
+.header-tool-button { position: relative; }
+.header-tool-button.is-playing { border-color: #9de8bc; background: #27665b; }
+.metronome-running-dot {
+  position: absolute; top: 2px; right: 2px; height: 8px; width: 8px;
+  border-radius: 50%; background: #a8f5bf; box-shadow: 0 0 0 1px #1c2b40;
+}
+.metronome-actions { flex-wrap: wrap; }
