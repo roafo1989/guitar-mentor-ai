@@ -47,3 +47,74 @@ test('recording has priority and stale releases do not free it', () => {
   releaseAudio(recorder);
   assert.equal(audioOwner(), null);
 });
+
+import { tunerReading } from './tuner-reading.ts';
+import { isolateDialogFocus } from './modal-focus.ts';
+
+test('stable A2 is displayed even with E2 selected; only matching string is in tune', () => {
+  const wrong = tunerReading(110, STRINGS[0].hz);
+  assert.equal(wrong.note, 'A2');
+  assert.equal(wrong.status, 'wrongString');
+  assert.ok(wrong.cents > 400);
+  assert.equal(wrong.meterValue, 50);
+  const matched = tunerReading(110, STRINGS[1].hz);
+  assert.equal(matched.status, 'inTune');
+  assert.equal(matched.meterValue, 0);
+});
+
+test('tuning tolerances and meter use bounded accessibility values', () => {
+  const target = 110;
+  for (const offset of [-1200, -200, -50, -6, -5, 0, 5, 6, 50, 200, 1200]) {
+    const frequency = target * 2 ** (offset / 1200);
+    const reading = tunerReading(frequency, target);
+    assert.ok(reading, 'valid frequency at ' + offset);
+    assert.ok(reading.meterValue >= -50 && reading.meterValue <= 50);
+    const expected = Math.abs(offset) > 200 ? 'wrongString' :
+      Math.abs(offset) <= 5 ? 'inTune' : offset < 0 ? 'flat' : 'sharp';
+    // Floating-point values at exact boundaries may need a small tolerance.
+    if (![-200, -5, 5, 200].includes(offset)) assert.equal(reading.status, expected);
+    if (Math.abs(offset) >= 50) assert.equal(reading.meterValue, Math.sign(offset) * 50);
+  }
+  assert.equal(tunerReading(null, target), null);
+  assert.equal(tunerReading(Number.NaN, target), null);
+});
+
+test('modal isolation preserves previous inert state and guards programmatic focus', () => {
+  let handler;
+  let addCount = 0;
+  let removeCount = 0;
+  let focused = 0;
+  const outside = { id: 'background' };
+  const dialog = {
+    contains: node => node === dialog || node === inside,
+    focus: () => { focused++; },
+  };
+  const inside = { id: 'button' };
+  const doc = {
+    addEventListener: (type, fn, capture) => {
+      assert.equal(type, 'focusin'); assert.equal(capture, true);
+      handler = fn; addCount++;
+    },
+    removeEventListener: (type, fn, capture) => {
+      assert.equal(type, 'focusin'); assert.equal(fn, handler);
+      assert.equal(capture, true); removeCount++;
+    },
+  };
+  const root = { inert: false };
+  const release = isolateDialogFocus(root, dialog, doc);
+  assert.equal(root.inert, true);
+  assert.equal(focused, 1);
+  handler({ target: inside });
+  assert.equal(focused, 1);
+  handler({ target: outside });
+  assert.equal(focused, 2);
+  release();
+  release();
+  assert.equal(root.inert, false);
+  assert.equal(addCount, 1);
+  assert.equal(removeCount, 1);
+
+  const previouslyInert = { inert: true };
+  isolateDialogFocus(previouslyInert, dialog, doc)();
+  assert.equal(previouslyInert.inert, true);
+});

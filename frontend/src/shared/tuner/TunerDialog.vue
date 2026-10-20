@@ -2,7 +2,9 @@
 import { computed, nextTick, onBeforeUnmount, ref, watch } from 'vue';
 import { useI18n } from 'vue-i18n';
 import { acquireAudio, releaseAudio } from '../audio/audio-session';
-import { STRINGS, cents, detectPitch, noteName, stablePitch } from './pitch';
+import { STRINGS, detectPitch, stablePitch } from './pitch';
+import { isolateDialogFocus } from './modal-focus';
+import { tunerReading } from './tuner-reading';
 import './tuner.css';
 
 const props = defineProps<{ open: boolean }>();
@@ -15,14 +17,12 @@ const message = ref('tuner.ready');
 const error = ref('');
 const frequency = ref<number | null>(null);
 const target = computed(() => STRINGS[selected.value]);
-const deviation = computed(() => frequency.value === null ? null : cents(frequency.value, target.value.hz));
-const reliable = computed(() => phase.value === 'listening' && deviation.value !== null && Math.abs(deviation.value) <= 200);
-const status = computed(() => {
-  if (!reliable.value || deviation.value === null) return message.value;
-  if (Math.abs(deviation.value) <= 5) return 'tuner.inTune';
-  return deviation.value < 0 ? 'tuner.flat' : 'tuner.sharp';
-});
-const position = computed(() => 50 + Math.max(-50, Math.min(50, deviation.value ?? 0)));
+// Pitch reliability comes from stabilization, not proximity to the target.
+const reading = computed(() => phase.value === 'listening'
+  ? tunerReading(frequency.value, target.value.hz) : null);
+const status = computed(() => reading.value
+  ? 'tuner.' + reading.value.status : message.value);
+const position = computed(() => 50 + (reading.value?.meterValue ?? 0));
 const token = Symbol('tuner');
 const history: number[] = [];
 let generation = 0;
@@ -31,6 +31,12 @@ let context: AudioContext | null = null;
 let source: MediaStreamAudioSourceNode | null = null;
 let analyser: AnalyserNode | null = null;
 let frame: number | null = null;
+let releaseFocusIsolation: (() => void) | null = null;
+
+function clearFocusIsolation(): void {
+  releaseFocusIsolation?.();
+  releaseFocusIsolation = null;
+}
 
 function resetPitch(): void {
   frequency.value = null;
@@ -156,10 +162,26 @@ function handleKey(event: KeyboardEvent): void {
   }
 }
 watch(() => props.open, async open => {
-  if (!open) stop();
-  else { await nextTick(); dialog.value?.focus(); }
+  if (!open) {
+    clearFocusIsolation();
+    stop();
+    return;
+  }
+  // An earlier permission or device error must not survive a new dialog session.
+  error.value = '';
+  await nextTick();
+  if (!props.open || !dialog.value) return;
+  clearFocusIsolation();
+  const page = document.querySelector<HTMLElement>('.app-shell');
+  releaseFocusIsolation = page
+    ? isolateDialogFocus(page, dialog.value)
+    : null;
+  if (!page) dialog.value.focus();
+}, { flush: 'post' });
+onBeforeUnmount(() => {
+  clearFocusIsolation();
+  stop();
 });
-onBeforeUnmount(stop);
 </script>
 
 <template>
@@ -183,20 +205,23 @@ onBeforeUnmount(stop);
         <div class="tuner-screen">
           <p>{{ t('tuner.target') }}: <strong>{{ target.note }}</strong> · {{ target.hz.toFixed(1) }} Hz</p>
           <div class="tuner-note"><small>{{ t('tuner.detected') }}</small>
-            <strong>{{ reliable && frequency !== null ? noteName(frequency) : '—' }}</strong>
+            <strong>{{ reading?.note ?? '—' }}</strong>
           </div>
-          <p role="status" aria-live="polite" class="tuner-status" :class="{ tuned: reliable && Math.abs(deviation ?? 999) <= 5 }">
+          <p role="status" aria-live="polite" class="tuner-status" :class="{ tuned: reading?.status === 'inTune' }">
             {{ t(status) }}
           </p>
-          <div class="tuner-meter" role="meter" :aria-label="t('tuner.deviation')"
-            aria-valuemin="-50" aria-valuemax="50"
-            :aria-valuenow="reliable ? Math.round(deviation ?? 0) : undefined"
-            :aria-valuetext="reliable ? t('tuner.cents', { value: Math.round(deviation ?? 0) }) : t('tuner.noReading')">
+          <div class="tuner-meter" :role="reading ? 'meter' : undefined"
+            :aria-hidden="reading ? undefined : true"
+            :aria-label="reading ? t('tuner.deviation') : undefined"
+            :aria-valuemin="reading ? -50 : undefined"
+            :aria-valuemax="reading ? 50 : undefined"
+            :aria-valuenow="reading?.meterValue ?? undefined"
+            :aria-valuetext="reading ? t('tuner.cents', { value: Math.round(reading.cents) }) : undefined">
             <span class="tuner-zero"></span>
-            <span v-if="reliable" class="tuner-needle" :style="{ left: position + '%' }"></span>
+            <span v-if="reading" class="tuner-needle" :style="{ left: position + '%' }"></span>
           </div>
           <div class="tuner-scale"><span>−50</span><span>0</span><span>+50</span></div>
-          <p>{{ reliable ? t('tuner.cents', { value: Math.round(deviation ?? 0) }) : t('tuner.noReading') }}</p>
+          <p>{{ reading ? t('tuner.cents', { value: Math.round(reading.cents) }) : t('tuner.noReading') }}</p>
         </div>
         <p v-if="error" role="alert" class="attempt-error">{{ t(error) }}</p>
         <div class="tuner-controls">
