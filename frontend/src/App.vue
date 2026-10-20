@@ -41,8 +41,8 @@ onBeforeUnmount(() => { unsubscribeMetronome?.(); closeMetronome(); });
 </script>
 
 <template>
-  <div class="app-shell">
-    <header class="site-header" :inert="metronomeUi.open">
+  <div class="app-shell" :inert="metronomeUi.open">
+    <header class="site-header">
       <RouterLink to="/" class="brand" :aria-label="t('app.home') + ' · Guitar Mentor AI'">
         <img class="brand-icon" src="/favicon.png" alt="" aria-hidden="true" width="40" height="40" />
         <div>
@@ -86,7 +86,7 @@ onBeforeUnmount(() => { unsubscribeMetronome?.(); closeMetronome(); });
       </div>
     </header>
     <MetronomeDialog v-if="metronomeUi.open" @close="closeMetronome" @minimize="minimizeMetronome" />
-    <main class="main-content" :inert="metronomeUi.open"><RouterView /></main>
-    <footer :inert="metronomeUi.open">Guitar Mentor AI · MVP</footer>
+    <main class="main-content"><RouterView /></main>
+    <footer>Guitar Mentor AI · MVP</footer>
   </div>
 </template>

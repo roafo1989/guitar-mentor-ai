@@ -104,6 +104,7 @@ function fakeEngine() {
   return {
     get starts() { return starts; },
     getState: () => ({ ...state }),
+    setStatus(status) { state.status = status; emit(); },
     subscribe(callback) {
       listeners.add(callback);
       callback({ ...state });
@@ -179,6 +180,44 @@ test('real dialog applies typed BPM and starts; invalid input preserves BPM and 
     assert.equal(minimized, true);
     assert.equal(engine.getState().status, 'running',
       'minimizing and destroying the dialog must not stop metronome audio');
+  } finally {
+    app?.unmount();
+    globalThis.document = savedDocument;
+    delete globalThis.__testMetronome87;
+  }
+});
+
+test('focused Start remains enabled, focusable and stable while audio is starting', async () => {
+  const savedDocument = globalThis.document;
+  const engine = fakeEngine();
+  const view = createTestRenderer();
+  globalThis.__testMetronome87 = engine;
+  globalThis.document = { body: view.body, activeElement: null };
+  let app;
+  try {
+    const Dialog = await compileDialog();
+    app = view.renderer.createApp({ render: () => h(Dialog) });
+    app.mount(view.node('root'));
+    await nextTick();
+    const button = view.find('button', n => n.text === 'metronome.start');
+    assert.ok(button);
+    button.focus();
+    engine.setStatus('starting');
+    await nextTick();
+    assert.equal(button.props.disabled, undefined, 'do not natively disable focused button');
+    assert.equal(button.props['aria-disabled'], true, 'announce pending state to assistive technology');
+    button.props.onClick();
+    await nextTick();
+    assert.equal(engine.starts, 0, 'pending start is not invoked a second time');
+    assert.equal(globalThis.document.activeElement, button, 'focus retained while waiting');
+    engine.setStatus('running');
+    await nextTick();
+    assert.equal(view.find('button', n => n.text === 'metronome.stop'), button);
+    assert.equal(globalThis.document.activeElement, button);
+    button.props.onClick();
+    await nextTick();
+    assert.equal(engine.getState().status, 'stopped');
+    assert.equal(globalThis.document.activeElement, button, 'Stop keeps focus');
   } finally {
     app?.unmount();
     globalThis.document = savedDocument;

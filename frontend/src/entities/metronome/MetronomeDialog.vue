@@ -57,6 +57,14 @@ function stop(): void {
   metronome.stop();
 }
 
+// Do not disable the focused button while AudioContext.resume() is pending:
+// native disabled can blur it and strand keyboard navigation outside the dialog.
+function togglePlayback(): void {
+  if (state.value.status === 'starting') return;
+  if (state.value.status === 'running') stop();
+  else start();
+}
+
 function requestClose(): void {
   emit('close');
 }
@@ -147,8 +155,8 @@ onBeforeUnmount(() => {
           {{ t('metronome.unavailable') }}
         </p>
         <div class="metronome-actions">
-          <button type="button" class="action-button" :disabled="state.status === 'starting'"
-            @click="state.status === 'running' ? stop() : start()">
+          <button type="button" class="action-button"
+            :aria-disabled="state.status === 'starting'" @click="togglePlayback">
             {{ state.status === 'running' ? t('metronome.stop') : t('metronome.start') }}
           </button>
           <button v-if="state.status === 'running'" type="button"
