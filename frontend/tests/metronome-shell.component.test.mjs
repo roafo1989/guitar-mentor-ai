@@ -37,7 +37,10 @@ const tunerUrl = asModule([
   "} };",
 ].join('\n'));
 
+let appInstance = 0;
 async function compileRealApp() {
+  // Each mounted app must use the current test's independent reactive stubs.
+  const instance = ++appInstance;
   const source = await readFile(new URL('../src/App.vue', import.meta.url), 'utf8');
   const { descriptor, errors } = parse(source, { filename: 'App.vue' });
   assert.equal(errors.length, 0);
@@ -49,15 +52,15 @@ async function compileRealApp() {
     vue: vueUrl, 'vue-router': routerUrl, 'vue-i18n': i18nUrl,
     './entities/metronome/MetronomeDialog.vue': dialogUrl,
     './shared/tuner/TunerDialog.vue': tunerUrl,
-    './entities/metronome/metronome-ui': uiUrl,
-    './shared/audio/metronome': audioUrl,
+    './entities/metronome/metronome-ui': uiUrl + '#app-' + instance,
+    './shared/audio/metronome': audioUrl + '#app-' + instance,
     './stores/learner.store': learnerUrl,
   };
   const mapped = js.replace(/from (['"])(.*?)\1/g, (_full, _q, name) => {
     if (!sources[name]) throw Error('Unexpected App.vue runtime import: ' + name);
     return 'from ' + JSON.stringify(sources[name]);
   });
-  return (await import(asModule(mapped))).default;
+  return (await import(asModule(mapped + '\n// component instance ' + instance))).default;
 }
 
 function createHeadlessDocument() {
