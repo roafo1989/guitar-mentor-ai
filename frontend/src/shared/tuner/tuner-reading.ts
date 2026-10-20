@@ -1,4 +1,4 @@
-import { cents, noteName } from './pitch';
+import { cents, noteName } from './pitch.ts';
 
 export type TuningStatus = 'inTune' | 'flat' | 'sharp' | 'wrongString';
 
