@@ -27,6 +27,8 @@ jobs:
           node-version: "22"
       - name: Install packages
         run: npm ci --no-audit --no-fund
+      - name: Guard diagnostic intake navigation under recording and upload
+        run: npm run test:intake
       - name: Test tuner pitch and microphone ownership
         run: npm run test:tuner
       - name: Typecheck and build

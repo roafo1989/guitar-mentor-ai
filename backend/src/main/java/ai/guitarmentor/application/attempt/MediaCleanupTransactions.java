@@ -3,6 +3,7 @@ package ai.guitarmentor.application.attempt;
 import ai.guitarmentor.domain.attempt.AttemptStatus;
 import ai.guitarmentor.domain.attempt.MediaState;
 import ai.guitarmentor.infrastructure.persistence.SubmissionAttemptRepository;
+import ai.guitarmentor.infrastructure.persistence.DiagnosticEvidenceRepository;
 import java.time.Instant;
 import java.util.List;
 import java.util.UUID;
@@ -13,7 +14,14 @@ import org.springframework.transaction.annotation.Transactional;
 @Service
 public class MediaCleanupTransactions {
     private final SubmissionAttemptRepository attempts;
-    public MediaCleanupTransactions(SubmissionAttemptRepository attempts) { this.attempts=attempts; }
+    private final DiagnosticEvidenceRepository evidence;
+    @org.springframework.beans.factory.annotation.Autowired
+    public MediaCleanupTransactions(SubmissionAttemptRepository attempts, DiagnosticEvidenceRepository evidence) {
+        this.attempts=attempts;this.evidence=evidence;
+    }
+    public MediaCleanupTransactions(SubmissionAttemptRepository attempts) {
+        this(attempts, null);
+    }
     public record Candidate(UUID id,String key) {}
 
     @Transactional
@@ -40,7 +48,7 @@ public class MediaCleanupTransactions {
         });
     }
     @Transactional(readOnly=true)
-    public boolean isReferenced(String key) { return attempts.existsByMediaKey(key); }
+    public boolean isReferenced(String key) { return attempts.existsByMediaKey(key) || (evidence != null && evidence.existsByKey(key)); }
 
     @Transactional
     public void failed(UUID id) {
