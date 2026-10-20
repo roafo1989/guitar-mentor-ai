@@ -42,6 +42,8 @@ export class MetronomeEngine {
   private nextBeatIndex = 0;
   private generation = 0;
   private pendingStart: Promise<boolean> | null = null;
+  /** Closing can be asynchronous: never allocate a replacement before it finishes. */
+  private closing: Promise<void> | null = null;
 
   constructor(options: { bpm?: number; createAudioContext?: () => AudioContext } = {}) {
     const bpm = options.bpm ?? 80;
@@ -114,12 +116,19 @@ export class MetronomeEngine {
 
   private async begin(generation: number): Promise<boolean> {
     try {
+      // Wait only when a previous AudioContext is still closing. Normal initial
+      // start/resume stays in the user gesture; no browser autoplay is attempted.
+      if (this.closing) {
+        await this.closing;
+        if (generation !== this.generation) return false;
+      }
       const context = this.makeContext();
       if (generation !== this.generation) {
         void context.close().catch(() => {});
         return false;
       }
       this.context = context;
+      context.addEventListener('statechange', this.onAudioStateChange);
       // Also handle pagehide while a browser is waiting for resume() to settle.
       this.addLifecycleListeners();
       await context.resume();
@@ -139,12 +148,7 @@ export class MetronomeEngine {
       this.interval = setInterval(() => this.schedule(generation), LOOKAHEAD_MS);
       return true;
     } catch {
-      if (generation === this.generation) {
-        ++this.generation;
-        this.cleanup();
-        this.state = { ...this.state, status: 'unavailable', beat: null, error: 'web-audio-unavailable' };
-        this.emit();
-      }
+      if (generation === this.generation) this.failAudio();
       return false;
     }
   }
@@ -153,6 +157,21 @@ export class MetronomeEngine {
     if (typeof document !== 'undefined' && document.visibilityState === 'hidden') this.stop();
   };
   private readonly onPageHide = (): void => { this.stop(); };
+  private readonly onAudioStateChange = (): void => {
+    // Do not confuse the initial suspended state with an interruption, or a
+    // deliberate close with an audio failure. Never automatically resume.
+    if (this.state.status === 'running' && this.context?.state !== 'running') {
+      this.failAudio();
+    }
+  };
+
+  private failAudio(): void {
+    ++this.generation;
+    this.pendingStart = null;
+    this.cleanup();
+    this.state = { ...this.state, status: 'unavailable', beat: null, error: 'web-audio-unavailable' };
+    this.emit();
+  }
 
   private addLifecycleListeners(): void {
     if (typeof document !== 'undefined') document.addEventListener('visibilitychange', this.onVisibilityChange);
@@ -167,6 +186,10 @@ export class MetronomeEngine {
   private schedule(generation: number): void {
     const context = this.context;
     if (generation !== this.generation || this.state.status !== 'running' || !context) return;
+    if (context.state !== 'running') {
+      this.failAudio();
+      return;
+    }
     try {
       const beatSeconds = 60 / this.state.bpm;
       // On a throttled tab, skip missed beats rather than playing a burst of old ones.
@@ -191,12 +214,7 @@ export class MetronomeEngine {
         this.nextBeatIndex = (this.nextBeatIndex + 1) % 4;
       }
     } catch {
-      if (generation === this.generation) {
-        ++this.generation;
-        this.cleanup();
-        this.state = { ...this.state, status: 'unavailable', beat: null, error: 'web-audio-unavailable' };
-        this.emit();
-      }
+      if (generation === this.generation) this.failAudio();
     }
   }
 
@@ -240,15 +258,27 @@ export class MetronomeEngine {
     this.cancelScheduledBeats();
     const context = this.context;
     this.context = null;
-    if (context && context.state !== 'closed') {
-      try { void context.close().catch(() => {}); } catch { /* browser context failed */ }
+    if (context) {
+      context.removeEventListener('statechange', this.onAudioStateChange);
+      if (context.state !== 'closed') {
+        try {
+          // Store the promise before a new start() can create another context.
+          // Even a rejected close must unblock a future explicit user start.
+          const pending = Promise.resolve(context.close()).then(() => {}, () => {});
+          this.closing = pending;
+          void pending.then(() => {
+            if (this.closing === pending) this.closing = null;
+          });
+        } catch { /* browser context failed to close synchronously */ }
+      }
     }
   }
 
   private emit(): void {
-    const snapshot = this.getState();
     for (const listener of this.listeners) {
-      try { listener(snapshot); } catch { /* one faulty consumer must not stop audio */ }
+      // Each subscriber receives an independent snapshot. Readonly<T> is only
+      // compile-time; an errant JS subscriber must not corrupt other listeners.
+      try { listener(this.getState()); } catch { /* one faulty consumer must not stop audio */ }
     }
   }
 }
