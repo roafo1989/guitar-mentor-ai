@@ -17,12 +17,18 @@ const loading = ref(true);
 const busy = ref(false);
 const intakeBusy = ref(false);
 const intakeDraft = ref(false);
+const error = ref('');
 
 function onIntakeState(value: { busy: boolean; dirty: boolean }): void {
+  const wasBusy = intakeBusy.value;
   intakeBusy.value = value.busy;
   intakeDraft.value = value.dirty;
+  // A failed navigation while recording is no longer a current error after
+  // the microphone stops or the POST finishes. Preserve unrelated failures.
+  if (wasBusy && !value.busy && error.value === t('evidence.waitBeforeLeave')) {
+    error.value = '';
+  }
 }
-const error = ref('');
 const catalogBusy = ref(false);
 const exercises = ref<Exercise[]>([]);
 const recommendation = ref<DiagnosticRecommendation | null>(null);
@@ -198,7 +204,6 @@ async function assign(exerciseCode: string): Promise<void> {
       <template v-if="!session">
         <h2>{{ t('diagnostic.startTitle') }}</h2>
         <p>{{ t('diagnostic.startDescription') }}</p>
-        <p class="hint">{{ t('diagnostic.noFilesYet') }}</p>
         <div class="form-actions">
           <button type="button" class="action-button" :disabled="busy" @click="start">
             {{ busy ? t('diagnostic.working') : t('diagnostic.start') }}
@@ -206,9 +211,6 @@ async function assign(exerciseCode: string): Promise<void> {
         </div>
       </template>
       <template v-else-if="session.status === 'COLLECTING_EVIDENCE'">
-        <h2>{{ t('diagnostic.intakeTitle') }}</h2>
-        <p>{{ t('diagnostic.intakeDescription') }}</p>
-        <p class="hint">{{ t('diagnostic.noFilesYet') }}</p>
         <div class="form-actions">
           <button type="button" class="action-button" :disabled="busy || intakeBusy" @click="continueWithoutRecording">
             {{ busy ? t('diagnostic.working') : t('diagnostic.continue') }}
