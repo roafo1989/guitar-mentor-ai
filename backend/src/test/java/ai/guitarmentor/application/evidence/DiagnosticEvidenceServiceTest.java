@@ -59,6 +59,16 @@ class DiagnosticEvidenceServiceTest {
         assertTrue(capabilities.audioFormats().contains("webm"));
         verify(diagnostics).get(learner,sessionId);
     }
+    @Test void disabledUploadsRejectPostsButCapabilitiesRemainQueryable() {
+        var disabled=new DiagnosticEvidenceService(diagnostics,sessions,repo,audio,
+                scores,rollback,coordinator,false);
+        assertFalse(disabled.capabilities(learner,sessionId).enabled());
+        var rejected=assertThrows(ResponseStatusException.class,
+                ()->disabled.submit(learner,sessionId,request,"Yesterday",null,null,recording,null));
+        assertEquals(HttpStatus.FORBIDDEN,rejected.getStatusCode());
+        assertEquals("UPLOAD_DISABLED",rejected.getReason());
+        verify(audio,never()).store(any());
+    }
     @Test void locationResolvesOnlyFromOwningSession() {
         var existing=new DiagnosticEvidenceRepository.Evidence(UUID.randomUUID(),
                 sessionId,request,"Yesterday",null,null,null,Instant.now());
