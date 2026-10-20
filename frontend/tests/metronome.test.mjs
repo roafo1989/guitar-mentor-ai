@@ -256,3 +256,21 @@ test('delayed scheduler skips stale beats instead of producing a catch-up burst'
     assert.equal(env.clock.tasks.size, 0);
   } finally { env.restore(); }
 });
+
+
+test('pagehide while resume is pending cancels startup before any sound', async () => {
+  let release;
+  const deferred = new Promise(resolve => { release = resolve; });
+  const env = setup({ resume(ctx) { return deferred.then(() => { ctx.state = 'running'; }); } });
+  try {
+    const pending = env.engine.start();
+    assert.equal(env.windowListeners.has('pagehide'), true);
+    env.windowListeners.get('pagehide')();
+    release();
+    assert.equal(await pending, false);
+    assert.equal(env.engine.getState().status, 'stopped');
+    assert.equal(env.contexts[0].closed, 1);
+    assert.equal(env.contexts[0].oscillators.length, 0);
+    assert.equal(env.clock.tasks.size, 0);
+  } finally { env.restore(); }
+});
