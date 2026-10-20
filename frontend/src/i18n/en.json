@@ -270,6 +270,9 @@
     "technicalStatus": "Technical status",
     "deleted": "Original file deleted according to retention policy; history remains.",
     "notAssessed": "No musical skill assessment has been made.",
-    "confirmDiscard": "An unsaved performance is present. Continue and discard the draft?"
+    "confirmDiscard": "You have an unsaved performance. Leave this page and discard the draft?",
+    "waitBeforeLeave": "Stop recording or finish/cancel the upload before leaving.",
+    "cancelUpload": "Cancel upload",
+    "uploadCancelledRetry": "Upload canceled. Files remain here for a safe retry with the same request ID; the server may have accepted the recording."
   }
 }
