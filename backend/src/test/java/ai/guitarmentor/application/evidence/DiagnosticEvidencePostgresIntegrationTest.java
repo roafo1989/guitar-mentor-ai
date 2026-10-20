@@ -162,6 +162,40 @@ class DiagnosticEvidencePostgresIntegrationTest {
         assertEquals("DELETED",retained.score().mediaState());
         assertEquals("NOT_ASSESSED",retained.skillEvidence());
     }
+    @Test void committedAudioAWithLostResponseCannotAcknowledgeChangedAudioB() throws Exception {
+        UUID key=UUID.randomUUID();
+        var a=service.submit(learner,session,key,"Yesterday","Beatles",null,audio(),null);
+        assertTrue(a.created());
+        var b=new MockMultipartFile("audio","mine.wav","audio/wav",
+                new byte[]{'R','I','F','F',8,0,0,0,'W','A','V','E',1,2,3,4});
+        var mismatch=assertThrows(ResponseStatusException.class,
+                ()->service.submit(learner,session,key,"Yesterday","Beatles",null,b,null));
+        assertEquals(org.springframework.http.HttpStatus.CONFLICT,mismatch.getStatusCode());
+        assertEquals("IDEMPOTENCY_PAYLOAD_MISMATCH",mismatch.getReason());
+        assertEquals(1,service.list(learner,session).size());
+        assertEquals(1,count(AUDIO_ROOT));
+        var distinct=service.submit(learner,session,UUID.randomUUID(),"Yesterday",
+                "Beatles",null,b,null);
+        assertTrue(distinct.created());
+        assertNotEquals(a.evidence().id(),distinct.evidence().id());
+        assertEquals(2,service.list(learner,session).size());
+        assertEquals(2,count(AUDIO_ROOT));
+    }
+
+    @Test void changedScoreOrTitleCannotReusePreviouslyCommittedRequest() throws Exception {
+        UUID key=UUID.randomUUID();
+        service.submit(learner,session,key,"Yesterday","Beatles",null,audio(),pdf());
+        var altered=new MockMultipartFile("score","tabs.pdf","application/pdf",
+                "%PDF-1.7\nsecond score".getBytes(java.nio.charset.StandardCharsets.UTF_8));
+        assertEquals("IDEMPOTENCY_PAYLOAD_MISMATCH",assertThrows(ResponseStatusException.class,
+                ()->service.submit(learner,session,key,"Yesterday","Beatles",null,audio(),altered))
+                .getReason());
+        assertEquals("IDEMPOTENCY_PAYLOAD_MISMATCH",assertThrows(ResponseStatusException.class,
+                ()->service.submit(learner,session,key,"Changed title","Beatles",null,audio(),pdf()))
+                .getReason());
+        assertEquals(1,service.list(learner,session).size());
+    }
+
     @Test void invalidSecondFileCompensatesPreviouslyUploadedAudio() throws Exception {
         var forged=new MockMultipartFile("score","fake.pdf","application/pdf",
                 "not really a pdf".getBytes());
