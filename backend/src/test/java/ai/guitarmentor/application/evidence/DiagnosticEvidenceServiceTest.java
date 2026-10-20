@@ -61,7 +61,7 @@ class DiagnosticEvidenceServiceTest {
     }
     @Test void locationResolvesOnlyFromOwningSession() {
         var existing=new DiagnosticEvidenceRepository.Evidence(UUID.randomUUID(),
-                sessionId,request,"Yesterday",null,null,Instant.now());
+                sessionId,request,"Yesterday",null,null,null,Instant.now());
         var view=new EvidenceDtos.EvidenceView(existing.id(),existing.title(),null,null,
                 existing.submittedAt(),null,null,"STUDENT_UPLOADED","NOT_ASSESSED");
         when(repo.list(sessionId)).thenReturn(java.util.List.of(existing));
@@ -86,7 +86,8 @@ class DiagnosticEvidenceServiceTest {
     @Test void committedRetryDoesNotStoreAgainEvenAfterContinue() {
         when(session.getStatus()).thenReturn(DiagnosticStatus.TASK_ASSIGNED);
         var existing=new DiagnosticEvidenceRepository.Evidence(UUID.randomUUID(),
-                sessionId,request,"Yesterday",null,null,Instant.now());
+                sessionId,request,"Yesterday",null,null,
+                EvidenceRequestFingerprint.calculate("Yesterday",null,null,recording,null),Instant.now());
         var view=new EvidenceDtos.EvidenceView(existing.id(),existing.title(),null,null,
                 existing.submittedAt(),null,null,"STUDENT_UPLOADED","NOT_ASSESSED");
         when(repo.byRequest(sessionId,request)).thenReturn(Optional.of(existing));
@@ -96,6 +97,20 @@ class DiagnosticEvidenceServiceTest {
         assertEquals(existing.id(),result.evidence().id());
         verify(audio,never()).store(any());
     }
+    @Test void changedPayloadWithSameRequestIdConflictsBeforeStoringAnyFile() {
+        var existing=new DiagnosticEvidenceRepository.Evidence(UUID.randomUUID(),
+                sessionId,request,"Yesterday",null,null,
+                EvidenceRequestFingerprint.calculate("Yesterday",null,null,recording,null),Instant.now());
+        when(repo.byRequest(sessionId,request)).thenReturn(Optional.of(existing));
+        var replacedAudio=new MockMultipartFile("audio","test.wav","audio/wav",
+                new byte[]{'R','I','F','F',1,0,0,0,'W','A','V','E'});
+        var error=assertThrows(ResponseStatusException.class,()->service.submit(
+                learner,sessionId,request,"Yesterday",null,null,replacedAudio,null));
+        assertEquals(HttpStatus.CONFLICT,error.getStatusCode());
+        assertEquals("IDEMPOTENCY_PAYLOAD_MISMATCH",error.getReason());
+        verify(audio,never()).store(any());
+    }
+
     @Test void quotaIsEnforcedBeforeSavingAudio() {
         when(repo.count(sessionId)).thenReturn(10L);
         assertEquals("MAX_ITEMS_REACHED",assertThrows(ResponseStatusException.class,
@@ -108,7 +123,7 @@ class DiagnosticEvidenceServiceTest {
         var storedDoc=new DocumentMediaStore.Stored(UUID.randomUUID()+".pdf","pdf",9L);
         when(scores.store(pdf)).thenReturn(storedDoc);
         var created=new DiagnosticEvidenceRepository.Evidence(UUID.randomUUID(),
-                sessionId,request,"Yesterday","Beatles",null,Instant.now());
+                sessionId,request,"Yesterday","Beatles",null,null,Instant.now());
         when(repo.byRequest(sessionId,request)).thenReturn(Optional.empty(),Optional.of(created));
         when(repo.view(created)).thenReturn(new EvidenceDtos.EvidenceView(
                 created.id(),"Yesterday","Beatles",null,created.submittedAt(),
@@ -117,7 +132,7 @@ class DiagnosticEvidenceServiceTest {
                 null,recording,pdf);
         assertTrue(result.created());
         verify(repo).addEvidence(any(),eq(sessionId),eq(request),
-                eq("Yesterday"),eq("Beatles"),isNull());
+                eq("Yesterday"),eq("Beatles"),isNull(),anyString());
         verify(repo).addMedia(any(UUID.class),eq("SCORE"),eq(storedDoc.key()),
                 eq("pdf"),eq(9L),eq("PROCESSED"));
         verify(rollback).register(anyString(),eq(request));
