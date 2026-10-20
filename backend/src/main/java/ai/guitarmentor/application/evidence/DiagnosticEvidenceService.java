@@ -54,7 +54,7 @@ public class DiagnosticEvidenceService {
 
     public Capabilities capabilities(UUID learnerId, UUID sessionId) {
         diagnostics.get(learnerId, sessionId);
-        return new Capabilities(enabled, List.of("mp3","wav","ogg","webm"),
+        return new Capabilities(enabled, List.of("mp3","wav","ogg","webm","m4a"),
                 AttemptMediaStore.MAX_BYTES, 120, List.of("pdf","jpg","jpeg","png"),
                 DocumentMediaStore.MAX_BYTES, MAX_ITEMS);
     }
