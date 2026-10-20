@@ -256,6 +256,17 @@ class DiagnosticEvidencePostgresIntegrationTest {
         }
     }
 
+    @Test void foreignLearnerCannotUploadToOwnedSessionOrCreateFiles() throws Exception {
+        UUID otherLearner=UUID.randomUUID();
+        var refused=assertThrows(ResponseStatusException.class, () -> service.submit(
+                otherLearner,session,UUID.randomUUID(),"Not mine",null,null,audio(),null));
+        assertEquals(org.springframework.http.HttpStatus.NOT_FOUND,refused.getStatusCode());
+        assertEquals("SESSION_NOT_FOUND",refused.getReason());
+        assertTrue(service.list(learner,session).isEmpty());
+        assertEquals(0,count(AUDIO_ROOT));
+        assertEquals(0,count(SCORE_ROOT));
+    }
+
     @Test void sixtyFailedPendingDeletesCannotStarveFreshEligibleMedia() {
         Instant now=Instant.now();
         Instant old=now.minusSeconds(50*3600);
