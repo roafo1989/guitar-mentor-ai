@@ -96,19 +96,23 @@ public class DiagnosticEvidenceService {
         var session = sessions.findLockedById(sessionId)
                 .orElseThrow(() -> rejected(HttpStatus.NOT_FOUND, "SESSION_NOT_FOUND"));
 
-        // Idempotency precedes the state check, so committed retries after continue are safe.
-        var existing = evidence.byRequest(sessionId, requestId);
-        if (existing.isPresent()) return new SubmitResult(evidence.view(existing.get()), false);
-        if (session.getStatus() != DiagnosticStatus.COLLECTING_EVIDENCE)
-            throw rejected(HttpStatus.CONFLICT, "INVALID_SESSION_STATE");
-        if (evidence.count(sessionId) >= MAX_ITEMS)
-            throw rejected(HttpStatus.CONFLICT, "MAX_ITEMS_REACHED");
-
+        // Compare the complete immutable payload before accepting an idempotent replay.
+        // Files may have expired since initial submission; the persisted digest remains.
         String cleanTitle = sanitize(title, 200, true, "INVALID_TITLE");
         String cleanComposer = sanitize(composer, 200, false, "INVALID_COMPOSER");
         String cleanComment = sanitize(comment, 2000, false, "INVALID_COMMENT");
-        if (file == null || file.isEmpty())
-            throw rejected(HttpStatus.BAD_REQUEST, "MISSING_AUDIO");
+        var existing = evidence.byRequest(sessionId, requestId);
+        if (existing.isEmpty() && session.getStatus() != DiagnosticStatus.COLLECTING_EVIDENCE)
+            throw rejected(HttpStatus.CONFLICT, "INVALID_SESSION_STATE");
+        if (existing.isEmpty() && evidence.count(sessionId) >= MAX_ITEMS)
+            throw rejected(HttpStatus.CONFLICT, "MAX_ITEMS_REACHED");
+        String fingerprint = EvidenceRequestFingerprint.calculate(
+                cleanTitle, cleanComposer, cleanComment, file, score);
+        if (existing.isPresent()) {
+            if (!fingerprint.equals(existing.get().fingerprint()))
+                throw rejected(HttpStatus.CONFLICT, "IDEMPOTENCY_PAYLOAD_MISMATCH");
+            return new SubmitResult(evidence.view(existing.get()), false);
+        }
 
         var stored = audio.store(file);
         // Rollback compensation handles an invalid second file, flush failure and DB commit failure.
@@ -140,7 +144,7 @@ public class DiagnosticEvidenceService {
         }
 
         UUID id = UUID.randomUUID();
-        evidence.addEvidence(id, sessionId, requestId, cleanTitle, cleanComposer, cleanComment);
+        evidence.addEvidence(id, sessionId, requestId, cleanTitle, cleanComposer, cleanComment, fingerprint);
         evidence.addMedia(id, "AUDIO", stored.key(), stored.format(), stored.size(), "UPLOADED");
         if (storedScore != null) evidence.addMedia(id, "SCORE",
                 storedScore.key(), storedScore.format(), storedScore.bytes(), "PROCESSED");
