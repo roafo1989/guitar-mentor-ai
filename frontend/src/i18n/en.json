@@ -245,7 +245,7 @@
     "historyLoadError": "Could not load attempt history. Refresh the page and check the connection."
   },
   "evidence": {
-    "heading": "My performances (optional)",
+    "heading": "My performances",
     "description": "Add a familiar piece before diagnostic exercises. You can skip this step.",
     "loading": "Loading performances...",
     "disabled": "Uploads are disabled in this local prototype. You can continue without a recording.",
