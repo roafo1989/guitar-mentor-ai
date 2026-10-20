@@ -146,9 +146,16 @@ onBeforeUnmount(() => {
 </script>
 
 <template>
-  <section class="homework-panel" aria-labelledby="evidence-heading">
-    <h3 id="evidence-heading">{{ t('evidence.heading') }}</h3>
-    <p class="hint">{{ t('evidence.description') }}</p>
+  <!-- The intake form stays open. After moving to task selection, native <details>
+       starts closed but keeps the saved evidence available on click or keyboard. -->
+  <details class="homework-panel evidence-details" :open="props.allowUpload">
+    <summary id="evidence-toggle" class="evidence-summary"
+      :style="props.allowUpload ? { display: 'none' } : undefined">
+      {{ t('evidence.heading') }} ({{ entries.length }})
+    </summary>
+    <div :aria-labelledby="props.allowUpload ? 'evidence-heading' : 'evidence-toggle'">
+    <h3 v-if="props.allowUpload" id="evidence-heading">{{ t('evidence.heading') }}</h3>
+    <p v-if="props.allowUpload" class="hint">{{ t('evidence.description') }}</p>
     <p v-if="loading" role="status">{{ t('evidence.loading') }}</p>
     <template v-else>
       <p v-if="props.allowUpload && !capabilities?.enabled" class="hint">{{ t('evidence.disabled') }}</p>
@@ -210,5 +217,6 @@ onBeforeUnmount(() => {
         <p class="hint">{{ t('evidence.notAssessed') }}</p>
       </article>
     </template>
-  </section>
+    </div>
+  </details>
 </template>
