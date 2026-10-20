@@ -37,6 +37,7 @@ class DiagnosticEvidencePostgresIntegrationTest {
     }
     @Autowired JdbcTemplate jdbc;
     @Autowired DiagnosticEvidenceService service;
+    @Autowired ai.guitarmentor.application.diagnostic.DiagnosticSessionService diagnosticSessions;
     @Autowired ai.guitarmentor.infrastructure.persistence.DiagnosticEvidenceRepository evidenceRepository;
     @Autowired MediaCleanupService cleanup;
     private UUID learner, profile, session;
@@ -213,6 +214,46 @@ class DiagnosticEvidencePostgresIntegrationTest {
         assertEquals(10,count(AUDIO_ROOT));
         jdbc.update("UPDATE diagnostic_sessions SET status='READY_FOR_TASK' WHERE id=?",session);
         assertEquals(10,service.list(learner,session).size());
+    }
+
+
+    @Test void concurrentHttpIntakeAndContinueAreSerializedBySessionLock() throws Exception {
+        var start=new java.util.concurrent.CountDownLatch(1);
+        var pool=java.util.concurrent.Executors.newFixedThreadPool(2);
+        try {
+            var submission=java.util.concurrent.CompletableFuture.supplyAsync(() -> {
+                try {
+                    start.await();
+                    service.submit(learner,session,UUID.randomUUID(),"Race piece",null,null,audio(),null);
+                    return "CREATED";
+                } catch (ResponseStatusException conflict) {
+                    if (conflict.getStatusCode().value()!=409) throw conflict;
+                    return "CONFLICT";
+                } catch (InterruptedException interrupted) {
+                    Thread.currentThread().interrupt();
+                    throw new RuntimeException(interrupted);
+                }
+            },pool);
+            var continuing=java.util.concurrent.CompletableFuture.runAsync(() -> {
+                try {
+                    start.await();
+                    diagnosticSessions.finishIntake(learner,session);
+                } catch (InterruptedException interrupted) {
+                    Thread.currentThread().interrupt();
+                    throw new RuntimeException(interrupted);
+                }
+            },pool);
+            start.countDown();
+            var outcome=submission.get(20,java.util.concurrent.TimeUnit.SECONDS);
+            continuing.get(20,java.util.concurrent.TimeUnit.SECONDS);
+            assertEquals("READY_FOR_TASK",jdbc.queryForObject(
+                    "SELECT status FROM diagnostic_sessions WHERE id=?",String.class,session));
+            int saved=service.list(learner,session).size();
+            assertEquals("CREATED".equals(outcome) ? 1 : 0,saved);
+            assertEquals(saved,count(AUDIO_ROOT));
+        } finally {
+            pool.shutdownNow();
+        }
     }
 
     @Test void sixtyFailedPendingDeletesCannotStarveFreshEligibleMedia() {
