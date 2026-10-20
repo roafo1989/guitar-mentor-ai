@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import { computed, onBeforeUnmount, ref } from 'vue';
 import { useI18n } from 'vue-i18n';
+import { stopMetronomeForAudioCapture } from '../metronome/metronome-ui';
 
 const props = defineProps<{ disabled: boolean; maxBytes: number }>();
 const emit = defineEmits<{ recorded: [file: File]; active: [value: boolean] }>();
@@ -145,6 +146,7 @@ async function start() {
   seconds.value = 0;
   state.value = 'requesting';
   emit('active', true);
+  stopMetronomeForAudioCapture(); // Never leak metronome clicks into learner audio.
   try {
     const microphone = await navigator.mediaDevices.getUserMedia({ audio: true, video: false });
     if (props.disabled || cancelled) {

@@ -275,5 +275,30 @@
     "cancelUpload": "Cancel upload",
     "uploadCancelledRetry": "Upload canceled. Files and request ID remain for a safe retry. Editing files or fields creates a new submission.",
     "payloadMismatch": "This request ID already belongs to a different performance. Your draft remains. Edit a field or reselect a file to start a new submission."
+  },
+  "metronome": {
+    "open": "Metronome",
+    "openExercise": "Metronome",
+    "title": "Metronome",
+    "close": "Close metronome",
+    "description": "A steady 4/4 beat with an accent on beat one.",
+    "tempo": "Tempo",
+    "slower": "Decrease tempo by 1 BPM",
+    "faster": "Increase tempo by 1 BPM",
+    "current": "Current tempo: {bpm}",
+    "beat": "Beat {number}",
+    "start": "Start",
+    "stop": "Stop",
+    "recommended": "Tempo from this exercise; changes only affect playback.",
+    "invalidBpm": "Enter an integer BPM between 20 and 240.",
+    "unavailable": "Audio output is unavailable. Check your device and try again.",
+    "warning": "The metronome does not sync with MP3 or analyze your playing. It stops automatically before recording.",
+    "status": {
+      "ready": "Ready to start",
+      "starting": "Starting…",
+      "running": "Playing",
+      "stopped": "Stopped",
+      "unavailable": "No audio output"
+    }
   }
 }
