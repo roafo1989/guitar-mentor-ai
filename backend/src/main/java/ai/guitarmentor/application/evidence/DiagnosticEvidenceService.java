@@ -92,8 +92,9 @@ public class DiagnosticEvidenceService {
             coordinator.release();
             throw failure;
         }
-        diagnostics.get(learnerId, sessionId);
-        var session = sessions.findLockedById(sessionId)
+        // Lock and verify ownership atomically: a prior diagnostics.get() loads an
+        // unlocked @Version entity that can become stale during a concurrent continue.
+        var session = sessions.findLockedOwnedById(learnerId, sessionId)
                 .orElseThrow(() -> rejected(HttpStatus.NOT_FOUND, "SESSION_NOT_FOUND"));
 
         // Compare the complete immutable payload before accepting an idempotent replay.
