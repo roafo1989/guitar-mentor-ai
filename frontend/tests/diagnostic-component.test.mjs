@@ -31,6 +31,7 @@ async function compileRealView() {
       vue: vueUrl,
       'vue-router': import.meta.resolve('vue-router'),
       'vue-i18n': import.meta.resolve('vue-i18n'),
+      './intake-navigation': new URL('../src/entities/diagnostic/intake-navigation.ts', import.meta.url).href,
     };
     const target = sources[name] ?? (
       name.endsWith('DiagnosticEvidencePanel.vue') ? panel :
