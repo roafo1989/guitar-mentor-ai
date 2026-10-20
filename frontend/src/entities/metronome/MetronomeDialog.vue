@@ -26,6 +26,20 @@ function commitTempo(): boolean {
   return true;
 }
 
+function onTempoInput(event: Event): void {
+  // Read the raw DOM string. Vue's v-model on type=number would silently
+  // coerce it to Number and previously caused .trim() to throw on Start.
+  draft.value = (event.target as HTMLInputElement).value;
+  const parsed = parseMetronomeBpm(draft.value);
+  if (parsed === null) {
+    error.value = t('metronome.invalidBpm');
+    return; // Do not modify the last valid engine BPM.
+  }
+  error.value = '';
+  // Update the metronome while the student types, including during playback.
+  metronome.setBpm(parsed);
+}
+
 function stepTempo(step: -1 | 1): void {
   const bpm = stepMetronomeBpm(state.value.bpm, step);
   draft.value = String(bpm);
@@ -111,7 +125,7 @@ onBeforeUnmount(() => {
           <div class="metronome-tempo-controls">
             <button type="button" :aria-label="t('metronome.slower')" :disabled="state.bpm <= MIN_BPM"
               @click="stepTempo(-1)">−</button>
-            <input id="metronome-bpm" ref="bpmField" v-model="draft"
+            <input id="metronome-bpm" ref="bpmField" :value="draft" @input="onTempoInput"
               type="number" inputmode="numeric" :min="MIN_BPM" :max="MAX_BPM" step="1"
               :aria-invalid="!!error && state.error === null" :aria-describedby="error ? 'metronome-error' : 'metronome-range'"
               @change="commitTempo" @keydown.enter.prevent="commitTempo" />
