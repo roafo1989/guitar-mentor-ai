@@ -59,6 +59,15 @@ function createHeadlessDocument() {
       return connectedRoots.has(current);
     },
     focus() { document.activeElement = this; },
+    addEventListener() {},
+    removeEventListener() {},
+    get options() { return this.children.filter(c => c.tag === 'option'); },
+    get selectedIndex() { return this.options.findIndex(o => o.selected); },
+    set selectedIndex(_value) {},
+    get value() { return this._value ?? ''; },
+    set value(value) { this._value = value; },
+    setAttribute(key, value) { this.props[key] = value; },
+    removeAttribute(key) { delete this.props[key]; },
   });
   const root = host('root');
   const body = host('body');

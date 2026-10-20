@@ -199,7 +199,7 @@ test('focused Start remains enabled, focusable and stable while audio is startin
     app = view.renderer.createApp({ render: () => h(Dialog) });
     app.mount(view.node('root'));
     await nextTick();
-    const button = view.find('button', n => n.text === 'metronome.start');
+    const button = view.find('button', n => n.text === 'metronome.start' || n.children.some(c => c.text === 'metronome.start'));
     assert.ok(button);
     button.focus();
     engine.setStatus('starting');
