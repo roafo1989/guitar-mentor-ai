@@ -29,7 +29,9 @@ jobs:
         run: npm ci --no-audit --no-fund
       - name: Guard diagnostic intake navigation under recording and upload
         run: npm run test:intake
-      - name: Test tuner pitch and microphone ownership
+      - name: Metronome unit tests
+        run: npm test
+      - name: Tuner pitch and spectrum regression tests
         run: npm run test:tuner
       - name: Typecheck and build
         run: npm run build
