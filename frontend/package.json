@@ -6,8 +6,9 @@
   "scripts": {
     "dev": "vite",
     "build": "vue-tsc --noEmit && vite build",
-    "test": "node --experimental-strip-types --test tests/*.test.mjs",
-    "preview": "vite preview"
+    "preview": "vite preview",
+    "test": "node --experimental-strip-types --test tests/metronome.test.mjs",
+    "test:intake": "node --experimental-strip-types --test tests/intake-navigation.test.mjs tests/diagnostic-component.test.mjs tests/evidence-panel.component.test.mjs"
   },
   "dependencies": {
     "pinia": "^3.0.3",

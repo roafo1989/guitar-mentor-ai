@@ -1,10 +1,13 @@
 <script setup lang="ts">
-import { onMounted, ref } from 'vue';
+import { onBeforeUnmount, onMounted, ref } from 'vue';
+import { onBeforeRouteLeave } from 'vue-router';
 import { useI18n } from 'vue-i18n';
 import { useLearnerStore } from '../../stores/learner.store';
 import { diagnosticService } from './diagnostic.service';
 import ExercisePreview from './ExercisePreview.vue';
 import SubmissionPanel from '../attempt/SubmissionPanel.vue';
+import DiagnosticEvidencePanel from './DiagnosticEvidencePanel.vue';
+import { intakeNavigationAction, permitIntakeNavigation, shouldWarnBeforeUnload } from './intake-navigation';
 import type { DiagnosticSession, DiagnosticTask, Exercise, DiagnosticRecommendation } from '../../shared/model/diagnostic.model';
 
 const { t } = useI18n();
@@ -12,13 +15,50 @@ const learnerStore = useLearnerStore();
 const session = ref<DiagnosticSession | null>(null);
 const loading = ref(true);
 const busy = ref(false);
+const intakeBusy = ref(false);
+const intakeDraft = ref(false);
 const error = ref('');
+
+function onIntakeState(value: { busy: boolean; dirty: boolean }): void {
+  const wasBusy = intakeBusy.value;
+  intakeBusy.value = value.busy;
+  intakeDraft.value = value.dirty;
+  // A failed navigation while recording is no longer a current error after
+  // the microphone stops or the POST finishes. Preserve unrelated failures.
+  if (wasBusy && !value.busy && error.value === t('evidence.waitBeforeLeave')) {
+    error.value = '';
+  }
+}
 const catalogBusy = ref(false);
 const exercises = ref<Exercise[]>([]);
 const recommendation = ref<DiagnosticRecommendation | null>(null);
 const recommendationBusy = ref(false);
 const recommendationError = ref('');
 const task = ref<DiagnosticTask | null>(null);
+
+/** Applies to Back, header links, router.back() and all other SPA route changes. */
+function allowRouteLeave(): boolean {
+  if (session.value?.status !== 'COLLECTING_EVIDENCE') return true;
+  const action = intakeNavigationAction(busy.value, intakeBusy.value, intakeDraft.value);
+  if (action === 'BLOCK') {
+    error.value = t('evidence.waitBeforeLeave');
+    return false;
+  }
+  return permitIntakeNavigation(busy.value, intakeBusy.value, intakeDraft.value,
+    () => window.confirm(t('evidence.confirmDiscard')));
+}
+
+onBeforeRouteLeave(() => allowRouteLeave());
+
+/** SPA leave guards do not run for F5, tab close, or browser navigation away. */
+function onBrowserUnload(event: BeforeUnloadEvent): void {
+  if (!shouldWarnBeforeUnload(session.value?.status === 'COLLECTING_EVIDENCE',
+    busy.value || intakeBusy.value, intakeDraft.value)) return;
+  event.preventDefault();
+  event.returnValue = '';
+}
+onMounted(() => window.addEventListener('beforeunload', onBrowserUnload));
+onBeforeUnmount(() => window.removeEventListener('beforeunload', onBrowserUnload));
 
 async function loadTask(learnerId: string, diagnosticId: string): Promise<void> {
   task.value = await diagnosticService.currentTask(learnerId, diagnosticId);
@@ -109,7 +149,10 @@ async function start(): Promise<void> {
 
 async function continueWithoutRecording(): Promise<void> {
   const id = learnerStore.learner?.id;
-  if (!id || !session.value || busy.value) return;
+  if (!id || !session.value) return;
+  // The same confirmation policy also protects the browser Back and header links.
+  if (!permitIntakeNavigation(busy.value, intakeBusy.value, intakeDraft.value,
+    () => window.confirm(t('evidence.confirmDiscard')))) return;
   busy.value = true;
   error.value = '';
   try {
@@ -154,10 +197,13 @@ async function assign(exerciseCode: string): Promise<void> {
       <div v-if="session" class="saved-status" role="status">
         {{ t('diagnostic.session') }}: {{ session.id }}
       </div>
+      <DiagnosticEvidencePanel v-if="session && learnerStore.learner"
+        :learner-id="learnerStore.learner.id" :session-id="session.id"
+        :allow-upload="session.status === 'COLLECTING_EVIDENCE'"
+        @intake-state="onIntakeState" />
       <template v-if="!session">
         <h2>{{ t('diagnostic.startTitle') }}</h2>
         <p>{{ t('diagnostic.startDescription') }}</p>
-        <p class="hint">{{ t('diagnostic.noFilesYet') }}</p>
         <div class="form-actions">
           <button type="button" class="action-button" :disabled="busy" @click="start">
             {{ busy ? t('diagnostic.working') : t('diagnostic.start') }}
@@ -165,11 +211,8 @@ async function assign(exerciseCode: string): Promise<void> {
         </div>
       </template>
       <template v-else-if="session.status === 'COLLECTING_EVIDENCE'">
-        <h2>{{ t('diagnostic.intakeTitle') }}</h2>
-        <p>{{ t('diagnostic.intakeDescription') }}</p>
-        <p class="hint">{{ t('diagnostic.noFilesYet') }}</p>
         <div class="form-actions">
-          <button type="button" class="action-button" :disabled="busy" @click="continueWithoutRecording">
+          <button type="button" class="action-button" :disabled="busy || intakeBusy" @click="continueWithoutRecording">
             {{ busy ? t('diagnostic.working') : t('diagnostic.continue') }}
           </button>
         </div>
