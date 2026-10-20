@@ -2,8 +2,10 @@
 export const MIN_BPM = 20;
 export const MAX_BPM = 240;
 
-export function parseMetronomeBpm(raw: string): number | null {
-  const normalized = raw.trim();
+export function parseMetronomeBpm(raw: string | number): number | null {
+  // <input type="number"> with Vue v-model returns a number, not always a string.
+  // Keep this parser safe if the UI binding changes in the future.
+  const normalized = typeof raw === 'number' ? String(raw) : raw.trim();
   if (!/^\d{1,3}$/.test(normalized)) return null;
   const value = Number(normalized);
   return Number.isInteger(value) && value >= MIN_BPM && value <= MAX_BPM ? value : null;
