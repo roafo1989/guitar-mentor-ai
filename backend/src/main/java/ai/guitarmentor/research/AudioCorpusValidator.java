@@ -76,7 +76,7 @@ public final class AudioCorpusValidator {
         try {
             Path manifest = safePath(root, manifestRef);
             JsonNode dataset = readBoundedJson(manifest);
-            if (dataset == null || dataset.path("schemaVersion").asInt(-1) != 1
+            if (dataset == null || !integerInRange(dataset.path("schemaVersion"), 1, 1)
                     || !nonblank(dataset, "datasetId") || !nonblank(dataset, "datasetVersion")
                     || !nonblank(dataset, "createdAt") || !nonblank(dataset, "sourceCommit")
                     || !dataset.path("recordings").isArray()) {
@@ -122,21 +122,28 @@ public final class AudioCorpusValidator {
                     if (oldKind != null && !oldKind.equals(group)) errors.add("GROUP_REUSED_ACROSS_TYPES:" + id);
                     String oldSplit = groupSplits.putIfAbsent(recordingGroup, split);
                     if (oldSplit != null && !oldSplit.equals(split)) errors.add("SPLIT_LEAK:" + id);
+                    // Malformed attestations are INVALID. Missing/false assertions are INCOMPLETE.
+                    for (String flag : List.of("rightsConfirmed", "manualReviewConfirmed",
+                            "holdoutIndependentConfirmed")) {
+                        if (rec.has(flag) && !rec.path(flag).isBoolean()) {
+                            errors.add("ATTESTATION_TYPE:" + id + ":" + flag);
+                        }
+                    }
                     // Do not count withdrawn, absent or unreviewed samples as usable holdout.
-                    if ("AVAILABLE".equals(available) && rec.path("rightsConfirmed").asBoolean(false)
-                            && rec.path("manualReviewConfirmed").asBoolean(false)
+                    if ("AVAILABLE".equals(available) && isTrue(rec.path("rightsConfirmed"))
+                            && isTrue(rec.path("manualReviewConfirmed"))
                             && nonblank(rec, "annotationRef") && validSha(value(rec, "annotationSha256"))
                             && nonblank(rec, "referenceRef") && validSha(value(rec, "referenceSha256"))
                             && ("CALIBRATION".equals(split) || "HOLDOUT".equals(split))
-                            && (!"HOLDOUT".equals(split) || rec.path("holdoutIndependentConfirmed").asBoolean(false))) {
+                            && (!"HOLDOUT".equals(split) || isTrue(rec.path("holdoutIndependentConfirmed")))) {
                         coverage.computeIfAbsent(group, ignored -> new HashSet<>()).add(recordingGroup + ":" + split);
                     }
                     if (!Set.of("OWNED", "LICENSED", "EXPLICIT_PERMISSION").contains(value(rec, "rightsBasis"))
                             || !validId(value(rec, "consentRef"))
                             || !Set.of("LOCAL_RESEARCH", "EXTERNAL_APPROVED").contains(value(rec, "useScope"))
-                            || !rec.path("rightsConfirmed").asBoolean(false)) gaps.add("RIGHTS_UNCONFIRMED:" + id);
-                    if (!rec.path("manualReviewConfirmed").asBoolean(false)) gaps.add("REVIEW_MISSING:" + id);
-                    if ("HOLDOUT".equals(split) && !rec.path("holdoutIndependentConfirmed").asBoolean(false)) {
+                            || !isTrue(rec.path("rightsConfirmed"))) gaps.add("RIGHTS_UNCONFIRMED:" + id);
+                    if (!isTrue(rec.path("manualReviewConfirmed"))) gaps.add("REVIEW_MISSING:" + id);
+                    if ("HOLDOUT".equals(split) && !isTrue(rec.path("holdoutIndependentConfirmed"))) {
                         gaps.add("HOLDOUT_INDEPENDENCE_UNCONFIRMED:" + id);
                     }
                 }
@@ -147,7 +154,8 @@ public final class AudioCorpusValidator {
                 try {
                     Path source = safePath(root, value(rec, "fileRef"));
                     long bytes = Files.size(source);
-                    if (bytes == 0 || bytes > MAX_BYTES || bytes != rec.path("bytes").asLong(-1)
+                    if (!longInRange(rec.path("bytes"), 1, MAX_BYTES)
+                            || bytes != rec.path("bytes").longValue()
                             || !hash(source).equals(value(rec, "sourceSha256"))) {
                         errors.add("SOURCE_INTEGRITY:" + id);
                     } else {
@@ -173,23 +181,28 @@ public final class AudioCorpusValidator {
                     }
                 } catch (Exception e) { errors.add("SOURCE_REFERENCE:" + id); }
                 long duration = rec.path("durationMs").asLong(-1);
-                if (duration < 1 || duration > MAX_MS || rec.path("sampleRateHz").asInt(-1) < 1
-                        || rec.path("channels").asInt(-1) < 1 || rec.path("channels").asInt() > 2) {
+                if (!longInRange(rec.path("durationMs"), 1, MAX_MS)
+                        || !integerInRange(rec.path("sampleRateHz"), 1, 384000)
+                        || !integerInRange(rec.path("channels"), 1, 2)) {
                     errors.add("MEDIA_METADATA:" + id);
                 }
                 if ("REAL".equals(kind) || "SYNTHETIC".equals(kind)) {
                     if (!validId(value(rec, "referenceId")) || !nonblank(rec, "referenceVersion")
                             || !validSha(value(rec, "referenceSha256"))
-                            || rec.path("barFrom").asInt(0) < 1
-                            || rec.path("barTo").asInt(0) < rec.path("barFrom").asInt(0)) {
+                            || !integerInRange(rec.path("barFrom"), 1, 10000)
+                            || !integerInRange(rec.path("barTo"), 1, 10000)
+                            || rec.path("barTo").intValue() < rec.path("barFrom").intValue()) {
                         errors.add("REFERENCE_SCHEMA:" + id);
                     }
                 }
                 if ("REAL".equals(kind) && !"AVAILABLE".equals(available)) {
                     gaps.add("REAL_NOT_USABLE:" + id);
                 }
-                if ("SYNTHETIC".equals(kind) && !rec.path("transform").isObject()) {
-                    errors.add("TRANSFORM_MISSING:" + id);
+                if ("SYNTHETIC".equals(kind) && !validGeneratorTransform(rec.path("transform"))) {
+                    errors.add("TRANSFORM_SCHEMA:" + id);
+                }
+                if ("REAL".equals(kind)) {
+                    validateProvenance(root, rec, id, errors);
                 }
                 if ("REAL".equals(kind)) {
                     if (!nonblank(rec, "referenceRef")) {
@@ -201,7 +214,7 @@ public final class AudioCorpusValidator {
                             || !nonblank(rec, "annotationVersion")) {
                         gaps.add("ANNOTATION_MISSING:" + id);
                     } else {
-                        validateAnnotation(root, rec, id, errors);
+                        validateAnnotation(root, rec, id, errors, gaps);
                     }
                 }
             }
@@ -229,9 +242,12 @@ public final class AudioCorpusValidator {
             if (!value(rec, "referenceId").equals(value(reference, "referenceId"))
                     || !value(rec, "referenceVersion").equals(value(reference, "referenceVersion"))
                     || !reference.path("events").isArray()
-                    || reference.path("barCount").asInt(-1) < rec.path("barTo").asInt(0)
-                    || reference.path("bpm").asDouble(-1) <= 0
-                    || !Double.isFinite(reference.path("bpm").asDouble(-1))
+                    || !integerInRange(reference.path("barCount"), 1, 10000)
+                    || !integerInRange(rec.path("barTo"), 1, 10000)
+                    || reference.path("barCount").intValue() < rec.path("barTo").intValue()
+                    || !reference.path("bpm").isNumber()
+                    || reference.path("bpm").asDouble() <= 0
+                    || !Double.isFinite(reference.path("bpm").asDouble())
                     || !nonblank(reference, "origin") || !nonblank(reference, "rights")
                      || !nonblank(reference, "instrument")
                      || !validPitchArray(reference.path("tuning"))
@@ -288,7 +304,8 @@ public final class AudioCorpusValidator {
         }
     }
 
-    private static void validateAnnotation(Path root, JsonNode rec, String id, List<String> errors) {
+    private static void validateAnnotation(Path root, JsonNode rec, String id, List<String> errors,
+                                           List<String> gaps) {
         try {
             Path path = safePath(root, value(rec, "annotationRef"));
             if (!hash(path).equals(value(rec, "annotationSha256"))) {
@@ -302,9 +319,12 @@ public final class AudioCorpusValidator {
                     || !nonblank(a, "annotationId") || !nonblank(a, "annotationVersion")
                     || !value(rec, "annotationVersion").equals(value(a, "annotationVersion"))
                     || !validId(value(a, "annotatorId"))
-                    || !a.path("manualConfirmed").asBoolean(false)) {
+                    || (a.has("manualConfirmed") && !a.path("manualConfirmed").isBoolean())) {
                 errors.add("ANNOTATION_SCHEMA:" + id);
                 return;
+            }
+            if (!isTrue(a.path("manualConfirmed"))) {
+                gaps.add("ANNOTATION_REVIEW_MISSING:" + id);
             }
             if (a.path("observations").size() > 10000) {
                 errors.add("TOO_MANY_OBSERVATIONS:" + id);
@@ -399,6 +419,62 @@ public final class AudioCorpusValidator {
             if (Files.isSymbolicLink(cursor)) return true;
         }
         return false;
+    }
+
+    private static boolean isTrue(JsonNode node) {
+        return node.isBoolean() && node.booleanValue();
+    }
+
+    private static boolean longInRange(JsonNode node, long min, long max) {
+        return node.isIntegralNumber() && node.canConvertToLong()
+                && node.longValue() >= min && node.longValue() <= max;
+    }
+
+    // For GENERATED/SYNTHETIC inputs there is no original source file.
+    private static boolean validGeneratorTransform(JsonNode transform) {
+        return transform.isObject()
+                && nonblank(transform, "operation")
+                && nonblank(transform, "toolVersion")
+                && transform.path("parameters").isObject();
+    }
+
+    private static void validateProvenance(Path root, JsonNode rec, String id, List<String> errors) {
+        // Source files removed/withdrawn must remain INCOMPLETE, not falsely READY.
+        if (!"AVAILABLE".equals(value(rec, "availability"))) return;
+        String sourceKind = value(rec, "sourceKind");
+        JsonNode transform = rec.path("transform");
+        if ("ORIGINAL".equals(sourceKind)) {
+            if (!transform.isMissingNode() && !transform.isNull()) {
+                errors.add("UNEXPECTED_TRANSFORM:" + id);
+            }
+            return;
+        }
+        if (!"DERIVED".equals(sourceKind) || !validGeneratorTransform(transform)
+                || !validSha(value(transform, "sourceSha256"))
+                || !nonblank(transform, "sourceRef")
+                || !transform.path("parameters").isObject()
+                || transform.path("parameters").isEmpty()) {
+            errors.add("REAL_PROVENANCE_SCHEMA:" + id);
+            return;
+        }
+        if (value(transform, "sourceSha256").equals(value(rec, "sourceSha256"))
+                || value(transform, "sourceRef").equals(value(rec, "fileRef"))) {
+            errors.add("REAL_PROVENANCE_SELF_REFERENCE:" + id);
+            return;
+        }
+        try {
+            Path original = safePath(root, value(transform, "sourceRef"));
+            if (!longSizeInRange(original) || !hash(original).equals(value(transform, "sourceSha256"))) {
+                errors.add("REAL_PROVENANCE_INTEGRITY:" + id);
+            }
+        } catch (Exception e) {
+            errors.add("REAL_PROVENANCE_REFERENCE:" + id);
+        }
+    }
+
+    private static boolean longSizeInRange(Path file) throws IOException {
+        long bytes = Files.size(file);
+        return bytes > 0 && bytes <= MAX_BYTES;
     }
 
     private static boolean integerInRange(JsonNode node, int min, int max) {
