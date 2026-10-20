@@ -1,0 +1,542 @@
+package ai.guitarmentor.research;
+
+import com.fasterxml.jackson.databind.JsonNode;
+import com.fasterxml.jackson.databind.ObjectMapper;
+
+import java.io.IOException;
+import java.nio.file.Files;
+import java.nio.file.LinkOption;
+import java.nio.file.Path;
+import java.security.MessageDigest;
+import java.util.ArrayList;
+import java.util.HashMap;
+import java.util.HashSet;
+import java.util.HexFormat;
+import java.util.List;
+import java.util.Map;
+import java.util.Set;
+
+/**
+ * Standalone offline corpus validator. Never touches application media storage or database.
+ * Exit codes: 0 READY_FOR_POC, 2 INCOMPLETE/INVALID, 3 CLI/environment failure.
+ */
+public final class AudioCorpusValidator {
+    private static final long MAX_BYTES = 20L * 1024 * 1024;
+    private static final long MAX_MS = 120_000;
+    private static final long MAX_JSON_BYTES = 1024 * 1024;
+    private static final Set<String> KINDS = Set.of("REAL", "SYNTHETIC", "QUALITY");
+    private static final Set<String> GROUPS = Set.of("REAL-BASS", "REAL-TIMING", "REAL-POLY",
+            "SYNTHETIC-CONTROL", "QUALITY-CONTROL");
+    private static final Set<String> SPLITS = Set.of("CALIBRATION", "HOLDOUT", "DIAGNOSTIC_ONLY");
+    private static final Set<String> AVAILABILITY = Set.of("AVAILABLE", "MISSING", "WITHDRAWN");
+    private static final Set<String> LABELS = Set.of("MATCH", "OMISSION", "EXTRA",
+            "WRONG_BASS", "PAUSE", "TEMPO_CHANGE", "AMBIGUOUS");
+    private static final ObjectMapper JSON = new ObjectMapper();
+
+    private AudioCorpusValidator() {}
+
+    public record Result(String status, List<String> errors, List<String> gaps, int realCount) {
+        public int exitCode() { return "READY_FOR_POC".equals(status) ? 0 : 2; }
+    }
+
+    public static void main(String[] args) {
+        try {
+            if (args.length != 7 || !"--root".equals(args[0])
+                    || !"--manifest".equals(args[2]) || !"--report".equals(args[4])
+                    || !"--offline".equals(args[6])) {
+                System.err.println("USAGE: --root <dir> --manifest <relative.json> --report <new-external.json> --offline");
+                System.exit(3);
+            }
+            Path root = Path.of(args[1]).toAbsolutePath().normalize();
+            Path report = Path.of(args[5]).toAbsolutePath().normalize();
+            if (!Files.isDirectory(root, LinkOption.NOFOLLOW_LINKS) || Files.isSymbolicLink(root)
+                    || report.startsWith(root) || Files.exists(report, LinkOption.NOFOLLOW_LINKS)
+                    || containsSymlinkAncestor(root) || containsSymlinkAncestor(report.getParent())
+                    || !Files.isDirectory(report.getParent(), LinkOption.NOFOLLOW_LINKS)) {
+                throw new IllegalArgumentException("Invalid root or report location");
+            }
+            Result result = validate(root, args[3]);
+            // CREATE_NEW guarantees a previous result is never overwritten.
+            try (var output = Files.newOutputStream(report, java.nio.file.StandardOpenOption.CREATE_NEW)) {
+                JSON.writerWithDefaultPrettyPrinter().writeValue(output, result);
+            }
+            System.out.println(result.status());
+            System.exit(result.exitCode());
+        } catch (Exception e) {
+            // Do not include private filenames or paths in public console output.
+            System.err.println("ENVIRONMENT_OR_INPUT_ERROR");
+            System.exit(3);
+        }
+    }
+
+    public static Result validate(Path root, String manifestRef) {
+        List<String> errors = new ArrayList<>();
+        List<String> gaps = new ArrayList<>();
+        int realCount = 0;
+        try {
+            Path manifest = safePath(root, manifestRef);
+            JsonNode dataset = readBoundedJson(manifest);
+            if (dataset == null || !integerInRange(dataset.path("schemaVersion"), 1, 1)
+                    || !nonblank(dataset, "datasetId") || !nonblank(dataset, "datasetVersion")
+                    || !nonblank(dataset, "createdAt") || !nonblank(dataset, "sourceCommit")
+                    || !dataset.path("recordings").isArray()) {
+                return new Result("INVALID", List.of("MANIFEST_SCHEMA"), List.of(), 0);
+            }
+            if (dataset.path("recordings").size() > 1000) {
+                return new Result("INVALID", List.of("TOO_MANY_RECORDINGS"), List.of(), 0);
+            }
+            Set<String> ids = new HashSet<>();
+            Map<String, String> groupSplits = new HashMap<>();
+            Map<String, String> groupKinds = new HashMap<>();
+
+            Map<String, Set<String>> coverage = new HashMap<>();
+            Set<String> sourceHashes = new HashSet<>();
+            // Separate WAV encodings can have different SHA-256 while referring to the same
+            // original physical performance. Never let those derivatives enter distinct
+            // recording groups or opposite calibration/holdout partitions.
+            Map<String, String> originalRecordingGroups = new HashMap<>();
+            Map<String, String> originalSplits = new HashMap<>();
+            Map<String, String> groupOriginalHashes = new HashMap<>();
+            for (JsonNode rec : dataset.path("recordings")) {
+                String id = value(rec, "recordingId");
+                if (!validId(id) || !ids.add(id)) {
+                    errors.add("RECORDING_ID");
+                    continue;
+                }
+                String kind = value(rec, "kind"), group = value(rec, "group");
+                String split = value(rec, "split"), available = value(rec, "availability");
+                if (!KINDS.contains(kind) || !GROUPS.contains(group)
+                        || !SPLITS.contains(split) || !AVAILABILITY.contains(available)
+                        || ("REAL".equals(kind) != group.startsWith("REAL-"))
+                        || ("SYNTHETIC".equals(kind) != "SYNTHETIC-CONTROL".equals(group))
+                        || ("QUALITY".equals(kind) != "QUALITY-CONTROL".equals(group))) {
+                    errors.add("RECORDING_ENUM:" + id);
+                    continue;
+                }
+                if ("REAL".equals(kind)) {
+                    realCount++;
+                    String recordingGroup = value(rec, "recordingGroupId");
+                    if (!validId(recordingGroup) || !validId(value(rec, "performerId"))
+                            || !validId(value(rec, "sessionId")) || !validId(value(rec, "deviceId"))) {
+                        errors.add("REAL_METADATA:" + id);
+                    }
+                    String sourceKey = value(rec, "sourceSha256");
+                    if (validSha(sourceKey) && !sourceHashes.add(sourceKey)) {
+                        errors.add("DUPLICATE_REAL_SOURCE:" + id);
+                    }
+                    // ORIGINAL files use their own hash; DERIVED files use the parent hash
+                    // from the provenance validated below. Missing/invalid provenance
+                    // is rejected by validateProvenance; do not trust it for coverage.
+                    if ("AVAILABLE".equals(available) && validId(recordingGroup)) {
+                        String sourceKind = value(rec, "sourceKind");
+                        String originalHash = "ORIGINAL".equals(sourceKind) ? sourceKey
+                                : "DERIVED".equals(sourceKind)
+                                        ? value(rec.path("transform"), "sourceSha256") : "";
+                        if (validSha(originalHash)) {
+                            String existingGroup = originalRecordingGroups.putIfAbsent(
+                                    originalHash, recordingGroup);
+                            if (existingGroup != null && !existingGroup.equals(recordingGroup)) {
+                                errors.add("SOURCE_LINEAGE_GROUP_CONFLICT:" + id);
+                            }
+                            String existingSplit = originalSplits.putIfAbsent(originalHash, split);
+                            if (existingSplit != null && !existingSplit.equals(split)) {
+                                errors.add("SOURCE_LINEAGE_SPLIT_CONFLICT:" + id);
+                            }
+                            String existingOriginal = groupOriginalHashes.putIfAbsent(
+                                    recordingGroup, originalHash);
+                            if (existingOriginal != null && !existingOriginal.equals(originalHash)) {
+                                errors.add("GROUP_MULTIPLE_ORIGINALS:" + id);
+                            }
+                        }
+                    }
+                    String oldKind = groupKinds.putIfAbsent(recordingGroup, group);
+                    if (oldKind != null && !oldKind.equals(group)) errors.add("GROUP_REUSED_ACROSS_TYPES:" + id);
+                    String oldSplit = groupSplits.putIfAbsent(recordingGroup, split);
+                    if (oldSplit != null && !oldSplit.equals(split)) errors.add("SPLIT_LEAK:" + id);
+                    // Malformed attestations are INVALID. Missing/false assertions are INCOMPLETE.
+                    for (String flag : List.of("rightsConfirmed", "manualReviewConfirmed",
+                            "holdoutIndependentConfirmed")) {
+                        if (rec.has(flag) && !rec.path(flag).isBoolean()) {
+                            errors.add("ATTESTATION_TYPE:" + id + ":" + flag);
+                        }
+                    }
+                    // Do not count withdrawn, absent or unreviewed samples as usable holdout.
+                    if ("AVAILABLE".equals(available) && isTrue(rec.path("rightsConfirmed"))
+                            && isTrue(rec.path("manualReviewConfirmed"))
+                            && nonblank(rec, "annotationRef") && validSha(value(rec, "annotationSha256"))
+                            && nonblank(rec, "referenceRef") && validSha(value(rec, "referenceSha256"))
+                            && ("CALIBRATION".equals(split) || "HOLDOUT".equals(split))
+                            && (!"HOLDOUT".equals(split) || isTrue(rec.path("holdoutIndependentConfirmed")))) {
+                        coverage.computeIfAbsent(group, ignored -> new HashSet<>()).add(recordingGroup + ":" + split);
+                    }
+                    if (!Set.of("OWNED", "LICENSED", "EXPLICIT_PERMISSION").contains(value(rec, "rightsBasis"))
+                            || !validId(value(rec, "consentRef"))
+                            || !Set.of("LOCAL_RESEARCH", "EXTERNAL_APPROVED").contains(value(rec, "useScope"))
+                            || !isTrue(rec.path("rightsConfirmed"))) gaps.add("RIGHTS_UNCONFIRMED:" + id);
+                    if (!isTrue(rec.path("manualReviewConfirmed"))) gaps.add("REVIEW_MISSING:" + id);
+                    if ("HOLDOUT".equals(split) && !isTrue(rec.path("holdoutIndependentConfirmed"))) {
+                        gaps.add("HOLDOUT_INDEPENDENCE_UNCONFIRMED:" + id);
+                    }
+                }
+                if (!"AVAILABLE".equals(available)) {
+                    gaps.add("SOURCE_UNAVAILABLE:" + id);
+                    continue;
+                }
+                try {
+                    Path source = safePath(root, value(rec, "fileRef"));
+                    long bytes = Files.size(source);
+                    if (!longInRange(rec.path("bytes"), 1, MAX_BYTES)
+                            || bytes != rec.path("bytes").longValue()
+                            || !hash(source).equals(value(rec, "sourceSha256"))) {
+                        errors.add("SOURCE_INTEGRITY:" + id);
+                    } else {
+                        try {
+                            if (!AudioMediaProbe.matches(source, rec.path("durationMs").asLong(-1),
+                                    rec.path("sampleRateHz").asInt(-1), rec.path("channels").asInt(-1))) {
+                                errors.add("MEDIA_PROBE_MISMATCH:" + id);
+                            }
+                        } catch (IOException probeFailure) {
+                            gaps.add("MEDIA_PROBE_UNAVAILABLE:" + id);
+                        } finally {
+                            // Detect changes during probing; caller must protect the corpus from hostile writes.
+                            try {
+                                Path rechecked = safePath(root, value(rec, "fileRef"));
+                                if (!hash(rechecked).equals(value(rec, "sourceSha256"))
+                                        || Files.size(rechecked) != bytes) {
+                                    errors.add("SOURCE_CHANGED_DURING_PROBE:" + id);
+                                }
+                            } catch (Exception changed) {
+                                errors.add("SOURCE_CHANGED_DURING_PROBE:" + id);
+                            }
+                        }
+                    }
+                } catch (Exception e) { errors.add("SOURCE_REFERENCE:" + id); }
+                long duration = rec.path("durationMs").asLong(-1);
+                if (!longInRange(rec.path("durationMs"), 1, MAX_MS)
+                        || !integerInRange(rec.path("sampleRateHz"), 1, 384000)
+                        || !integerInRange(rec.path("channels"), 1, 2)) {
+                    errors.add("MEDIA_METADATA:" + id);
+                }
+                if ("REAL".equals(kind) || "SYNTHETIC".equals(kind)) {
+                    if (!validId(value(rec, "referenceId")) || !nonblank(rec, "referenceVersion")
+                            || !validSha(value(rec, "referenceSha256"))
+                            || !integerInRange(rec.path("barFrom"), 1, 10000)
+                            || !integerInRange(rec.path("barTo"), 1, 10000)
+                            || rec.path("barTo").intValue() < rec.path("barFrom").intValue()) {
+                        errors.add("REFERENCE_SCHEMA:" + id);
+                    }
+                }
+                if ("REAL".equals(kind) && !"AVAILABLE".equals(available)) {
+                    gaps.add("REAL_NOT_USABLE:" + id);
+                }
+                if ("SYNTHETIC".equals(kind) && !validGeneratorTransform(rec.path("transform"))) {
+                    errors.add("TRANSFORM_SCHEMA:" + id);
+                }
+                if ("REAL".equals(kind)) {
+                    validateProvenance(root, rec, id, errors);
+                }
+                if ("REAL".equals(kind)) {
+                    if (!nonblank(rec, "referenceRef")) {
+                        gaps.add("REFERENCE_FILE_MISSING:" + id);
+                    } else {
+                        validateReference(root, rec, id, errors);
+                    }
+                    if (!nonblank(rec, "annotationRef") || !validSha(value(rec, "annotationSha256"))
+                            || !nonblank(rec, "annotationVersion")) {
+                        gaps.add("ANNOTATION_MISSING:" + id);
+                    } else {
+                        validateAnnotation(root, rec, id, errors, gaps);
+                    }
+                }
+            }
+            for (String group : List.of("REAL-BASS", "REAL-TIMING", "REAL-POLY")) {
+                Set<String> samples = coverage.getOrDefault(group, Set.of());
+                boolean cal = samples.stream().anyMatch(s -> s.endsWith(":CALIBRATION"));
+                boolean hold = samples.stream().anyMatch(s -> s.endsWith(":HOLDOUT"));
+                if (samples.size() < 2 || !cal || !hold) gaps.add("NO_INDEPENDENT_HOLDOUT:" + group);
+            }
+        } catch (Exception e) {
+            errors.add("MANIFEST_UNREADABLE_OR_UNSAFE");
+        }
+        String status = !errors.isEmpty() ? "INVALID" : !gaps.isEmpty() ? "INCOMPLETE" : "READY_FOR_POC";
+        return new Result(status, List.copyOf(errors), List.copyOf(gaps), realCount);
+    }
+
+    private static void validateReference(Path root, JsonNode rec, String id, List<String> errors) {
+        try {
+            Path path = safePath(root, value(rec, "referenceRef"));
+            if (!hash(path).equals(value(rec, "referenceSha256"))) {
+                errors.add("REFERENCE_INTEGRITY:" + id);
+                return;
+            }
+            JsonNode reference = readBoundedJson(path);
+            if (!value(rec, "referenceId").equals(value(reference, "referenceId"))
+                    || !value(rec, "referenceVersion").equals(value(reference, "referenceVersion"))
+                    || !reference.path("events").isArray()
+                    || !integerInRange(reference.path("barCount"), 1, 10000)
+                    || !integerInRange(rec.path("barTo"), 1, 10000)
+                    || reference.path("barCount").intValue() < rec.path("barTo").intValue()
+                    || !reference.path("bpm").isNumber()
+                    || reference.path("bpm").asDouble() <= 0
+                    || !Double.isFinite(reference.path("bpm").asDouble())
+                    || !nonblank(reference, "origin") || !nonblank(reference, "rights")
+                     || !nonblank(reference, "instrument")
+                     || !validPitchArray(reference.path("tuning"))
+                     || !integerInRange(reference.path("meterNumerator"), 1, 32)
+                     || !integerInRange(reference.path("meterDenominator"), 1, 64)
+                     || !isPowerOfTwo(reference.path("meterDenominator").intValue())
+                     || !integerInRange(reference.path("barCount"), 1, 10000)
+                     || reference.path("events").isEmpty()) {
+                errors.add("REFERENCE_CONTENT:" + id);
+                return;
+            }
+            if (reference.path("events").size() > 10000) {
+                errors.add("REFERENCE_TOO_LARGE:" + id);
+                return;
+            }
+            Set<String> eventIds = new HashSet<>();
+            for (JsonNode e : reference.path("events")) {
+                String eventId = value(e, "eventId");
+                if (!validId(eventId) || !eventIds.add(eventId)
+                         || !integerInRange(e.path("bar"), 1, reference.path("barCount").intValue())
+                         || !e.path("beat").isNumber()
+                         || e.path("beat").asDouble() < 0
+                         || !Double.isFinite(e.path("beat").asDouble())
+                         || e.path("beat").asDouble() >= reference.path("meterNumerator").intValue()
+                         || !e.path("durationBeats").isNumber()
+                         || e.path("durationBeats").asDouble() <= 0
+                         || !Double.isFinite(e.path("durationBeats").asDouble())
+                         || !Set.of("BASS", "UPPER", "MIXED").contains(value(e, "voice"))
+                         || !validPitchArray(e.path("notes"))) {
+                    errors.add("REFERENCE_EVENT:" + id);
+                    return;
+                }
+            }
+            if (!nonblank(rec, "annotationRef") || !validSha(value(rec, "annotationSha256"))) return;
+            Path annotationPath = safePath(root, value(rec, "annotationRef"));
+            if (!hash(annotationPath).equals(value(rec, "annotationSha256"))) return;
+            JsonNode annotation = readBoundedJson(annotationPath);
+            if (!hash(annotationPath).equals(value(rec, "annotationSha256"))) {
+                errors.add("ANNOTATION_CHANGED_DURING_READ:" + id);
+                return;
+            }
+            for (JsonNode obs : annotation.path("observations")) {
+                if (!"EXTRA".equals(value(obs, "label"))
+                        && !eventIds.contains(value(obs, "eventId"))) {
+                    errors.add("UNKNOWN_EVENT_ID:" + id);
+                    return;
+                }
+            }
+            if (!hash(path).equals(value(rec, "referenceSha256"))) {
+                errors.add("REFERENCE_CHANGED_DURING_READ:" + id);
+            }
+        } catch (Exception e) {
+            errors.add("REFERENCE_FILE:" + id);
+        }
+    }
+
+    private static void validateAnnotation(Path root, JsonNode rec, String id, List<String> errors,
+                                           List<String> gaps) {
+        try {
+            Path path = safePath(root, value(rec, "annotationRef"));
+            if (!hash(path).equals(value(rec, "annotationSha256"))) {
+                errors.add("ANNOTATION_INTEGRITY:" + id);
+                return;
+            }
+            JsonNode a = readBoundedJson(path);
+            if (!id.equals(value(a, "recordingId"))
+                    || !value(rec, "sourceSha256").equals(value(a, "sourceSha256"))
+                    || !a.path("observations").isArray()
+                    || !nonblank(a, "annotationId") || !nonblank(a, "annotationVersion")
+                    || !value(rec, "annotationVersion").equals(value(a, "annotationVersion"))
+                    || !validId(value(a, "annotatorId"))
+                    || (a.has("manualConfirmed") && !a.path("manualConfirmed").isBoolean())) {
+                errors.add("ANNOTATION_SCHEMA:" + id);
+                return;
+            }
+            if (!isTrue(a.path("manualConfirmed"))) {
+                gaps.add("ANNOTATION_REVIEW_MISSING:" + id);
+            }
+            if (a.path("observations").size() > 10000) {
+                errors.add("TOO_MANY_OBSERVATIONS:" + id);
+                return;
+            }
+            if (a.path("observations").isEmpty()) {
+                errors.add("ANNOTATION_EMPTY:" + id);
+                return;
+            }
+            long duration = rec.path("durationMs").asLong();
+            for (JsonNode observation : a.path("observations")) {
+                String label = value(observation, "label");
+                JsonNode fromNode = observation.path("fromMs");
+                JsonNode onsetNode = observation.path("onsetMs");
+                JsonNode toNode = observation.path("toMs");
+                long from = fromNode.asLong(-1), onset = onsetNode.asLong(-1), to = toNode.asLong(-1);
+                boolean interval = "PAUSE".equals(label) || "TEMPO_CHANGE".equals(label);
+                JsonNode end = observation.path("endMs");
+                JsonNode actual = observation.path("actualNotes");
+                boolean knownNotesNeeded = Set.of("MATCH", "WRONG_BASS", "EXTRA").contains(label);
+                if (!LABELS.contains(label)
+                        || !integralMs(fromNode, duration) || !integralMs(onsetNode, duration)
+                        || !integralMs(toNode, duration)
+                        || onset < from || to < onset
+                        || !Set.of("BASS", "UPPER", "MIXED", "UNKNOWN").contains(value(observation, "voice"))
+                        || !(actual.isTextual() && "UNKNOWN".equals(actual.asText())
+                                || validPitchArray(actual))
+                        || (knownNotesNeeded && !validPitchArray(actual))
+                        || ("EXTRA".equals(label) ? !observation.has("eventId")
+                                || !observation.get("eventId").isNull()
+                                : !validId(value(observation, "eventId")))
+                        || (interval && (!integralMs(end, duration) || end.asLong() <= from
+                                || end.asLong() < to))
+                        || (!interval && !end.isMissingNode()
+                                && (!integralMs(end, duration) || end.asLong() < to))) {
+                    errors.add("ANNOTATION_EVENT:" + id);
+                    break;
+                }
+            }
+            if (!hash(path).equals(value(rec, "annotationSha256"))) {
+                errors.add("ANNOTATION_CHANGED_DURING_READ:" + id);
+            }
+        } catch (Exception e) { errors.add("ANNOTATION_REFERENCE:" + id); }
+    }
+
+    private static JsonNode readBoundedJson(Path file) throws IOException {
+        if (Files.size(file) > MAX_JSON_BYTES) throw new IOException("json too large");
+        try (var input = Files.newInputStream(file)) {
+            return JSON.readTree(input);
+        }
+    }
+
+    public static Path safePath(Path root, String ref) throws IOException {
+        if (ref == null || ref.isBlank() || ref.indexOf(':') >= 0 || ref.indexOf('\\') >= 0
+                || ref.startsWith("/") || ref.startsWith("~")) throw new IOException("unsafe");
+        Path relative = Path.of(ref);
+        if (relative.isAbsolute()) throw new IOException("unsafe");
+        for (Path segment : relative) {
+            if (segment.toString().equals("..") || segment.toString().equals(".")) throw new IOException("unsafe");
+        }
+        Path base = root.toAbsolutePath().normalize();
+        if (!Files.isDirectory(base, LinkOption.NOFOLLOW_LINKS) || containsSymlinkAncestor(base)) {
+            throw new IOException("unsafe corpus root");
+        }
+        Path target = base.resolve(relative).normalize();
+        if (!target.startsWith(base)) throw new IOException("unsafe");
+        Path cursor = base;
+        for (Path part : relative) {
+            cursor = cursor.resolve(part);
+            if (Files.isSymbolicLink(cursor)) throw new IOException("unsafe");
+        }
+        if (!Files.isRegularFile(target, LinkOption.NOFOLLOW_LINKS)) throw new IOException("missing");
+        return target;
+    }
+
+    private static String hash(Path path) throws Exception {
+        MessageDigest digest = MessageDigest.getInstance("SHA-256");
+        try (var in = Files.newInputStream(path)) {
+            byte[] bytes = new byte[8192];
+            int count;
+            while ((count = in.read(bytes)) != -1) digest.update(bytes, 0, count);
+        }
+        return HexFormat.of().formatHex(digest.digest());
+    }
+
+    private static boolean containsSymlinkAncestor(Path path) {
+        if (path == null) return true;
+        Path absolute = path.toAbsolutePath().normalize();
+        Path cursor = absolute.getRoot();
+        for (Path part : absolute) {
+            cursor = cursor.resolve(part);
+            if (Files.isSymbolicLink(cursor)) return true;
+        }
+        return false;
+    }
+
+    private static boolean isTrue(JsonNode node) {
+        return node.isBoolean() && node.booleanValue();
+    }
+
+    private static boolean longInRange(JsonNode node, long min, long max) {
+        return node.isIntegralNumber() && node.canConvertToLong()
+                && node.longValue() >= min && node.longValue() <= max;
+    }
+
+    // For GENERATED/SYNTHETIC inputs there is no original source file.
+    private static boolean validGeneratorTransform(JsonNode transform) {
+        return transform.isObject()
+                && nonblank(transform, "operation")
+                && nonblank(transform, "toolVersion")
+                && transform.path("parameters").isObject();
+    }
+
+    private static void validateProvenance(Path root, JsonNode rec, String id, List<String> errors) {
+        // Source files removed/withdrawn must remain INCOMPLETE, not falsely READY.
+        if (!"AVAILABLE".equals(value(rec, "availability"))) return;
+        String sourceKind = value(rec, "sourceKind");
+        JsonNode transform = rec.path("transform");
+        if ("ORIGINAL".equals(sourceKind)) {
+            if (!transform.isMissingNode() && !transform.isNull()) {
+                errors.add("UNEXPECTED_TRANSFORM:" + id);
+            }
+            return;
+        }
+        if (!"DERIVED".equals(sourceKind) || !validGeneratorTransform(transform)
+                || !validSha(value(transform, "sourceSha256"))
+                || !nonblank(transform, "sourceRef")
+                || !transform.path("parameters").isObject()
+                || transform.path("parameters").isEmpty()) {
+            errors.add("REAL_PROVENANCE_SCHEMA:" + id);
+            return;
+        }
+        if (value(transform, "sourceSha256").equals(value(rec, "sourceSha256"))
+                || value(transform, "sourceRef").equals(value(rec, "fileRef"))) {
+            errors.add("REAL_PROVENANCE_SELF_REFERENCE:" + id);
+            return;
+        }
+        try {
+            Path original = safePath(root, value(transform, "sourceRef"));
+            if (!longSizeInRange(original) || !hash(original).equals(value(transform, "sourceSha256"))) {
+                errors.add("REAL_PROVENANCE_INTEGRITY:" + id);
+            }
+        } catch (Exception e) {
+            errors.add("REAL_PROVENANCE_REFERENCE:" + id);
+        }
+    }
+
+    private static boolean longSizeInRange(Path file) throws IOException {
+        long bytes = Files.size(file);
+        return bytes > 0 && bytes <= MAX_BYTES;
+    }
+
+    private static boolean integerInRange(JsonNode node, int min, int max) {
+        return node.isIntegralNumber() && node.canConvertToInt()
+                && node.intValue() >= min && node.intValue() <= max;
+    }
+
+    private static boolean integralMs(JsonNode node, long duration) {
+        return node.isIntegralNumber() && node.canConvertToLong()
+                && node.longValue() >= 0 && node.longValue() <= duration;
+    }
+
+    private static boolean isPowerOfTwo(int n) {
+        return n > 0 && (n & (n - 1)) == 0;
+    }
+
+    private static boolean validPitchArray(JsonNode notes) {
+        if (!notes.isArray() || notes.isEmpty() || notes.size() > 24) return false;
+        for (JsonNode note : notes) {
+            if (!note.isTextual() || !note.asText().matches("[A-G](?:#|b)?(?:[0-8]|-1)")) {
+                return false;
+            }
+        }
+        return true;
+    }
+
+    private static String value(JsonNode n, String field) {
+        JsonNode v = n.path(field);
+        return v.isTextual() ? v.asText() : "";
+    }
+    private static boolean nonblank(JsonNode n, String key) { return !value(n, key).isBlank(); }
+    private static boolean validId(String id) { return id != null && id.matches("[A-Za-z0-9_-]{1,80}"); }
+    private static boolean validSha(String sha) { return sha != null && sha.matches("[0-9a-f]{64}"); }
+}

@@ -1,0 +1,30 @@
+{
+  "schemaVersion": 1,
+  "datasetId": "EXAMPLE-SYNTHETIC-ONLY",
+  "datasetVersion": "1.0.0",
+  "createdAt": "2026-10-19T00:00:00Z",
+  "sourceCommit": "DOCUMENTATION-ONLY",
+  "recordings": [
+    {
+      "recordingId": "SYN-001",
+      "kind": "SYNTHETIC",
+      "group": "SYNTHETIC-CONTROL",
+      "recordingGroupId": "SYN-GROUP-001",
+      "fileRef": "PLACEHOLDER-NOT-A-REAL-FILE.wav",
+      "sourceSha256": "0000000000000000000000000000000000000000000000000000000000000000",
+      "bytes": 0,
+      "durationMs": 0,
+      "sampleRateHz": 0,
+      "channels": 0,
+      "referenceId": "EXAMPLE",
+      "referenceVersion": "1",
+      "referenceSha256": "0000000000000000000000000000000000000000000000000000000000000000",
+      "split": "DIAGNOSTIC_ONLY",
+      "availability": "MISSING",
+      "transform": {
+        "operation": "ILLUSTRATION_ONLY",
+        "toolVersion": "none"
+      }
+    }
+  ]
+}

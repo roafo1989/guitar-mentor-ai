@@ -1,0 +1,455 @@
+package ai.guitarmentor.research;
+
+import com.fasterxml.jackson.databind.ObjectMapper;
+import com.fasterxml.jackson.databind.node.ArrayNode;
+import com.fasterxml.jackson.databind.node.ObjectNode;
+import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.io.TempDir;
+
+import java.nio.ByteBuffer;
+import java.nio.ByteOrder;
+import java.nio.file.Files;
+import java.nio.file.Path;
+import java.security.MessageDigest;
+import java.util.HexFormat;
+
+import static org.junit.jupiter.api.Assertions.*;
+import static org.junit.jupiter.api.Assumptions.assumeTrue;
+
+class AudioCorpusReadinessTest {
+    @TempDir Path root;
+    private final ObjectMapper mapper = new ObjectMapper();
+
+    @Test
+    void sixIndependentSyntheticTestHarnessTakesMeetStructuralReadiness() throws Exception {
+        // Files are generated PCM WAV test signals, NOT human performances or research data.
+        assumeTrue(ffprobePresent(), "ffprobe unavailable; skip positive media integration scenario");
+        var reference = mapper.createObjectNode();
+        reference.put("referenceId", "REF-1").put("referenceVersion", "1")
+                .put("barCount", 1).put("bpm", 60)
+                .put("meterNumerator", 4).put("meterDenominator", 4)
+                .put("origin", "SYNTHETIC_TEST").put("rights", "OWNED")
+                .put("instrument", "GUITAR");
+        reference.putArray("tuning")
+                .add("E2").add("A2").add("D3").add("G3").add("B3").add("E4");
+        var event = mapper.createObjectNode();
+        event.put("eventId", "NOTE-1").put("bar", 1).put("beat", 0)
+                .put("durationBeats", 1).put("voice", "BASS");
+        event.putArray("notes").add("E2");
+        reference.putArray("events").add(event);
+        String refHash = writeJson("reference.json", reference);
+
+        ObjectNode manifest = mapper.createObjectNode();
+        manifest.put("schemaVersion", 1).put("datasetId", "STRUCTURAL-TEST")
+                .put("datasetVersion", "1").put("createdAt", "2026-10-19T00:00:00Z")
+                .put("sourceCommit", "test");
+        ArrayNode recordings = manifest.putArray("recordings");
+        int index = 0;
+        for (String group : new String[]{"REAL-BASS", "REAL-TIMING", "REAL-POLY"}) {
+            for (String split : new String[]{"CALIBRATION", "HOLDOUT"}) {
+                index++;
+                String id = "R-" + index;
+                String media = "take-" + index + ".wav";
+                String mediaSha = writeWav(media, index);
+                ObjectNode annotation = mapper.createObjectNode();
+                annotation.put("annotationId", "A-" + index).put("annotationVersion", "1")
+                        .put("recordingId", id).put("sourceSha256", mediaSha)
+                        .put("annotatorId", "TEST-ANNOTATOR").put("manualConfirmed", true);
+                ObjectNode observation = annotation.putArray("observations").addObject();
+                observation.put("eventId", "NOTE-1").put("onsetMs", 0).put("fromMs", 0)
+                        .put("toMs", 10).put("voice", "BASS").put("label", "MATCH");
+                observation.putArray("actualNotes").add("E2");
+                String annotationName = "annotation-" + index + ".json";
+                String annotationSha = writeJson(annotationName, annotation);
+                ObjectNode r = recordings.addObject();
+                r.put("recordingId", id).put("kind", "REAL").put("group", group)
+                        .put("recordingGroupId", "G-" + index)
+                        .put("performerId", "P-1").put("sessionId", "S-" + index)
+                        .put("deviceId", "D-1").put("sourceKind", "ORIGINAL").put("split", split)
+                        .put("availability", "AVAILABLE").put("holdoutIndependentConfirmed", true).put("rightsBasis", "OWNED")
+                        .put("consentRef", "C-" + index).put("useScope", "LOCAL_RESEARCH")
+                        .put("rightsConfirmed", true).put("manualReviewConfirmed", true)
+                        .put("fileRef", media).put("sourceSha256", mediaSha)
+                        .put("bytes", Files.size(root.resolve(media)))
+                        .put("durationMs", 1000).put("sampleRateHz", 8000).put("channels", 1)
+                        .put("referenceId", "REF-1").put("referenceVersion", "1")
+                        .put("referenceRef", "reference.json").put("referenceSha256", refHash)
+                        .put("barFrom", 1).put("barTo", 1)
+                        .put("annotationRef", annotationName).put("annotationSha256", annotationSha)
+                        .put("annotationVersion", "1");
+            }
+        }
+        writeJson("manifest.json", manifest);
+        var result = AudioCorpusValidator.validate(root, "manifest.json");
+        assertEquals("READY_FOR_POC", result.status(), result.toString());
+        assertEquals(6, result.realCount());
+        assertEquals(0, result.exitCode());
+
+        // Missing mandatory score and note fields must never make a false READY fixture.
+        reference.remove("meterDenominator");
+        updateReferenceHash(recordings, writeJson("reference.json", reference));
+        writeJson("manifest.json", manifest);
+        var scoreWithoutMeter = AudioCorpusValidator.validate(root, "manifest.json");
+        assertEquals("INVALID", scoreWithoutMeter.status(), scoreWithoutMeter.toString());
+        assertTrue(scoreWithoutMeter.errors().stream().anyMatch(x -> x.startsWith("REFERENCE_CONTENT")));
+        reference.put("meterDenominator", 4);
+
+        event.remove("voice");
+        updateReferenceHash(recordings, writeJson("reference.json", reference));
+        writeJson("manifest.json", manifest);
+        var scoreWithoutVoice = AudioCorpusValidator.validate(root, "manifest.json");
+        assertEquals("INVALID", scoreWithoutVoice.status(), scoreWithoutVoice.toString());
+        assertTrue(scoreWithoutVoice.errors().stream().anyMatch(x -> x.startsWith("REFERENCE_EVENT")));
+        event.put("voice", "BASS");
+
+        event.put("beat", 4);
+        updateReferenceHash(recordings, writeJson("reference.json", reference));
+        writeJson("manifest.json", manifest);
+        assertEquals("INVALID", AudioCorpusValidator.validate(root, "manifest.json").status());
+        event.put("beat", 0);
+
+        event.withArray("notes").set(0, mapper.getNodeFactory().textNode("NOT_A_NOTE"));
+        updateReferenceHash(recordings, writeJson("reference.json", reference));
+        writeJson("manifest.json", manifest);
+        assertEquals("INVALID", AudioCorpusValidator.validate(root, "manifest.json").status());
+        event.withArray("notes").set(0, mapper.getNodeFactory().textNode("E2"));
+        updateReferenceHash(recordings, writeJson("reference.json", reference));
+
+        // The annotation must have voice, valid actualNotes and bounded interval endMs.
+        ObjectNode firstAnnotationAtStart = (ObjectNode) mapper.readTree(
+                Files.readString(root.resolve("annotation-1.json")));
+        ObjectNode firstObservation = (ObjectNode) firstAnnotationAtStart.withArray("observations").get(0);
+        firstObservation.remove("voice");
+        ((ObjectNode)recordings.get(0)).put("annotationSha256",
+                writeJson("annotation-1.json", firstAnnotationAtStart));
+        writeJson("manifest.json", manifest);
+        assertTrue(AudioCorpusValidator.validate(root, "manifest.json").errors().stream()
+                .anyMatch(x -> x.startsWith("ANNOTATION_EVENT")));
+        firstObservation.put("voice", "BASS");
+
+        firstObservation.put("label", "PAUSE").put("actualNotes", "UNKNOWN")
+                .put("endMs", 1001);
+        ((ObjectNode)recordings.get(0)).put("annotationSha256",
+                writeJson("annotation-1.json", firstAnnotationAtStart));
+        writeJson("manifest.json", manifest);
+        assertTrue(AudioCorpusValidator.validate(root, "manifest.json").errors().stream()
+                .anyMatch(x -> x.startsWith("ANNOTATION_EVENT")));
+
+        firstObservation.put("endMs", 8);
+        ((ObjectNode)recordings.get(0)).put("annotationSha256",
+                writeJson("annotation-1.json", firstAnnotationAtStart));
+        writeJson("manifest.json", manifest);
+        assertEquals("INVALID", AudioCorpusValidator.validate(root, "manifest.json").status());
+
+        // UNKNOWN is a legitimate explicitly marked abstention, not a fabricated pitch.
+        firstObservation.put("label", "AMBIGUOUS").remove("endMs");
+        ((ObjectNode)recordings.get(0)).put("annotationSha256",
+                writeJson("annotation-1.json", firstAnnotationAtStart));
+        writeJson("manifest.json", manifest);
+        assertEquals("READY_FOR_POC", AudioCorpusValidator.validate(root, "manifest.json").status());
+
+        // Valid WAV bytes under an unsupported extension are not an approved audio input.
+        Files.copy(root.resolve("take-1.wav"), root.resolve("take-1.m4a"));
+        ((ObjectNode)recordings.get(0)).put("fileRef", "take-1.m4a");
+        writeJson("manifest.json", manifest);
+        var badMedia = AudioCorpusValidator.validate(root, "manifest.json");
+        assertEquals("INVALID", badMedia.status());
+        assertTrue(badMedia.errors().stream().anyMatch(x -> x.startsWith("MEDIA_PROBE_MISMATCH")));
+        ((ObjectNode)recordings.get(0)).put("fileRef", "take-1.wav");
+
+        // Restore baseline before the existing rights/holdout and event-reference checks.
+        firstObservation.put("label", "MATCH").putArray("actualNotes").add("E2");
+        ((ObjectNode)recordings.get(0)).put("annotationSha256",
+                writeJson("annotation-1.json", firstAnnotationAtStart));
+        writeJson("manifest.json", manifest);
+        assertEquals("READY_FOR_POC", AudioCorpusValidator.validate(root, "manifest.json").status());
+
+        // A non-boolean attestation must never be coerced into permission.
+        ObjectNode first = (ObjectNode) recordings.get(0);
+        first.put("rightsConfirmed", "true");
+        writeJson("manifest.json", manifest);
+        var rightsType = AudioCorpusValidator.validate(root, "manifest.json");
+        assertEquals("INVALID", rightsType.status());
+        assertTrue(rightsType.errors().stream().anyMatch(x -> x.startsWith("ATTESTATION_TYPE")));
+        first.put("rightsConfirmed", true);
+
+        first.put("manualReviewConfirmed", 1);
+        writeJson("manifest.json", manifest);
+        assertEquals("INVALID", AudioCorpusValidator.validate(root, "manifest.json").status());
+        first.put("manualReviewConfirmed", true);
+
+        ObjectNode second = (ObjectNode) recordings.get(1);
+        second.put("holdoutIndependentConfirmed", "true");
+        writeJson("manifest.json", manifest);
+        assertEquals("INVALID", AudioCorpusValidator.validate(root, "manifest.json").status());
+        second.put("holdoutIndependentConfirmed", true);
+
+        // A converted REAL recording must point to an intact, immutable original.
+        first.remove("sourceKind");
+        writeJson("manifest.json", manifest);
+        assertTrue(AudioCorpusValidator.validate(root, "manifest.json").errors().stream()
+                .anyMatch(x -> x.startsWith("REAL_PROVENANCE_SCHEMA")));
+        first.put("sourceKind", "ORIGINAL");
+
+        first.put("sourceKind", "DERIVED");
+        first.putObject("transform");
+        writeJson("manifest.json", manifest);
+        assertTrue(AudioCorpusValidator.validate(root, "manifest.json").errors().stream()
+                .anyMatch(x -> x.startsWith("REAL_PROVENANCE_SCHEMA")));
+
+        Files.writeString(root.resolve("parent-original.m4a"), "synthetic-parent-test-only");
+        String originalSha = sha(Files.readAllBytes(root.resolve("parent-original.m4a")));
+        ObjectNode transform = first.putObject("transform");
+        transform.put("sourceRef", "parent-original.m4a").put("sourceSha256", originalSha)
+                .put("operation", "DECODE").put("toolVersion", "TEST-FFMPEG");
+        transform.putObject("parameters").put("codec", "pcm_s16le");
+        writeJson("manifest.json", manifest);
+        assertEquals("READY_FOR_POC", AudioCorpusValidator.validate(root, "manifest.json").status());
+
+        // Two differently encoded/created WAV files from ONE original are not
+        // independent takes, even though their derivative SHA-256 values differ.
+        // R-1 = CALIBRATION/G-1, R-2 = HOLDOUT/G-2 with the same M4A parent.
+        ObjectNode secondFromSameOriginal = (ObjectNode) recordings.get(1);
+        String otherWavSha = secondFromSameOriginal.path("sourceSha256").asText();
+        assertNotEquals(first.path("sourceSha256").asText(), otherWavSha);
+        secondFromSameOriginal.put("sourceKind", "DERIVED");
+        ObjectNode secondTransform = secondFromSameOriginal.putObject("transform");
+        secondTransform.put("sourceRef", "parent-original.m4a")
+                .put("sourceSha256", originalSha).put("operation", "DECODE")
+                .put("toolVersion", "TEST-FFMPEG");
+        secondTransform.putObject("parameters").put("codec", "pcm_s16le");
+        writeJson("manifest.json", manifest);
+        var leakedOriginal = AudioCorpusValidator.validate(root, "manifest.json");
+        assertEquals("INVALID", leakedOriginal.status(), leakedOriginal.toString());
+        assertTrue(leakedOriginal.errors().contains("SOURCE_LINEAGE_GROUP_CONFLICT:R-2"),
+                leakedOriginal.toString());
+        assertTrue(leakedOriginal.errors().contains("SOURCE_LINEAGE_SPLIT_CONFLICT:R-2"),
+                leakedOriginal.toString());
+
+        // Same physical original must also not be mislabeled as different groups
+        // within one split. This must not be mistaken for an independent take.
+        secondFromSameOriginal.put("split", "CALIBRATION");
+        writeJson("manifest.json", manifest);
+        var falseGroup = AudioCorpusValidator.validate(root, "manifest.json");
+        assertEquals("INVALID", falseGroup.status(), falseGroup.toString());
+        assertTrue(falseGroup.errors().contains("SOURCE_LINEAGE_GROUP_CONFLICT:R-2"),
+                falseGroup.toString());
+        secondFromSameOriginal.put("split", "HOLDOUT");
+        secondFromSameOriginal.remove("transform");
+        secondFromSameOriginal.put("sourceKind", "ORIGINAL");
+
+        // The opposite also matters: group G-1 must not silently merge two
+        // distinct origins as if they were derivatives of a single take.
+        secondFromSameOriginal.put("recordingGroupId", "G-1").put("split", "CALIBRATION");
+        writeJson("manifest.json", manifest);
+        var twoOriginalsOneGroup = AudioCorpusValidator.validate(root, "manifest.json");
+        assertEquals("INVALID", twoOriginalsOneGroup.status(), twoOriginalsOneGroup.toString());
+        assertTrue(twoOriginalsOneGroup.errors().contains("GROUP_MULTIPLE_ORIGINALS:R-2"),
+                twoOriginalsOneGroup.toString());
+        secondFromSameOriginal.put("recordingGroupId", "G-2").put("split", "HOLDOUT");
+
+        // Additional derivative of one original is legitimate within the SAME
+        // recordingGroupId/split, but does not count as a new independent group.
+        String siblingWav = "take-7.wav";
+        String siblingWavSha = writeWav(siblingWav, 7);
+        ObjectNode siblingAnnotation = (ObjectNode) mapper.readTree(
+                Files.readString(root.resolve("annotation-1.json")));
+        siblingAnnotation.put("annotationId", "A-7").put("recordingId", "R-7")
+                .put("sourceSha256", siblingWavSha);
+        String siblingAnnotationSha = writeJson("annotation-7.json", siblingAnnotation);
+        ObjectNode sibling = first.deepCopy();
+        sibling.put("recordingId", "R-7").put("fileRef", siblingWav)
+                .put("sourceSha256", siblingWavSha)
+                .put("bytes", Files.size(root.resolve(siblingWav)))
+                .put("annotationRef", "annotation-7.json")
+                .put("annotationSha256", siblingAnnotationSha);
+        recordings.add(sibling);
+        writeJson("manifest.json", manifest);
+        var legalSibling = AudioCorpusValidator.validate(root, "manifest.json");
+        assertEquals("READY_FOR_POC", legalSibling.status(), legalSibling.toString());
+        assertEquals(7, legalSibling.realCount());
+        recordings.remove(recordings.size() - 1);
+
+        // The original six takes from different original hashes remain READY.
+        secondFromSameOriginal.put("sourceKind", "ORIGINAL");
+        writeJson("manifest.json", manifest);
+        assertEquals("READY_FOR_POC", AudioCorpusValidator.validate(root, "manifest.json").status());
+
+        transform.put("sourceSha256", "0".repeat(64));
+        writeJson("manifest.json", manifest);
+        assertTrue(AudioCorpusValidator.validate(root, "manifest.json").errors().stream()
+                .anyMatch(x -> x.startsWith("REAL_PROVENANCE_INTEGRITY")));
+        transform.put("sourceSha256", originalSha);
+        first.remove("transform");
+        first.put("sourceKind", "ORIGINAL");
+
+        // Strict numeric types: a textual integer or BPM is not valid JSON schema.
+        manifest.put("schemaVersion", "1");
+        writeJson("manifest.json", manifest);
+        assertEquals("INVALID", AudioCorpusValidator.validate(root, "manifest.json").status());
+        manifest.put("schemaVersion", 1);
+
+        for (String field : new String[]{"bytes", "durationMs", "sampleRateHz", "channels",
+                "barFrom", "barTo"}) {
+            int integer = first.path(field).asInt();
+            first.put(field, Integer.toString(integer));
+            writeJson("manifest.json", manifest);
+            assertEquals("INVALID", AudioCorpusValidator.validate(root, "manifest.json").status(), field);
+            first.put(field, integer);
+        }
+
+        reference.put("bpm", "60");
+        updateReferenceHash(recordings, writeJson("reference.json", reference));
+        writeJson("manifest.json", manifest);
+        assertTrue(AudioCorpusValidator.validate(root, "manifest.json").errors().stream()
+                .anyMatch(x -> x.startsWith("REFERENCE_CONTENT")));
+        reference.put("bpm", 60);
+        updateReferenceHash(recordings, writeJson("reference.json", reference));
+
+        // Regression: owner's recording permission alone does not attest all score rights.
+        first.put("rightsConfirmed", false);
+        writeJson("manifest.json", manifest);
+        var unlicensedScore = AudioCorpusValidator.validate(root, "manifest.json");
+        assertEquals("INCOMPLETE", unlicensedScore.status(), unlicensedScore.toString());
+        assertTrue(unlicensedScore.gaps().contains("RIGHTS_UNCONFIRMED:R-1"));
+        first.put("rightsConfirmed", true);
+
+        // A file with no independently confirmed event review cannot count as ready.
+        first.put("manualReviewConfirmed", false);
+        writeJson("manifest.json", manifest);
+        var noHumanReview = AudioCorpusValidator.validate(root, "manifest.json");
+        assertEquals("INCOMPLETE", noHumanReview.status(), noHumanReview.toString());
+        assertTrue(noHumanReview.gaps().contains("REVIEW_MISSING:R-1"));
+        first.put("manualReviewConfirmed", true);
+
+        // Separate file hashes alone cannot replace holdout lineage attestation.
+        second.put("holdoutIndependentConfirmed", false);
+        writeJson("manifest.json", manifest);
+        var holdoutUnknown = AudioCorpusValidator.validate(root, "manifest.json");
+        assertEquals("INCOMPLETE", holdoutUnknown.status(), holdoutUnknown.toString());
+        assertTrue(holdoutUnknown.gaps().contains("HOLDOUT_INDEPENDENCE_UNCONFIRMED:R-2"));
+        second.put("holdoutIndependentConfirmed", true);
+
+        // A consent/review checkbox in the manifest is not sufficient by itself.
+        ObjectNode firstAnnotation = (ObjectNode) mapper.readTree(
+                Files.readString(root.resolve("annotation-1.json")));
+        firstAnnotation.put("manualConfirmed", false);
+        String unconfirmedHash = writeJson("annotation-1.json", firstAnnotation);
+        ((ObjectNode)recordings.get(0)).put("annotationSha256", unconfirmedHash);
+        writeJson("manifest.json", manifest);
+        var unconfirmed = AudioCorpusValidator.validate(root, "manifest.json");
+        assertEquals("INCOMPLETE", unconfirmed.status());
+        assertTrue(unconfirmed.gaps().stream().anyMatch(e -> e.startsWith("ANNOTATION_REVIEW_MISSING")));
+        firstAnnotation.put("manualConfirmed", "true");
+        ((ObjectNode)recordings.get(0)).put("annotationSha256", writeJson("annotation-1.json", firstAnnotation));
+        writeJson("manifest.json", manifest);
+        var malformedReview = AudioCorpusValidator.validate(root, "manifest.json");
+        assertEquals("INVALID", malformedReview.status());
+        assertTrue(malformedReview.errors().stream().anyMatch(e -> e.startsWith("ANNOTATION_SCHEMA")));
+        firstAnnotation.put("manualConfirmed", true);
+        ((ObjectNode)recordings.get(0)).put("annotationSha256", writeJson("annotation-1.json", firstAnnotation));
+
+
+        String secondHash = second.path("sourceSha256").asText();
+        second.put("sourceSha256", first.path("sourceSha256").asText());
+        writeJson("manifest.json", manifest);
+        var duplicate = AudioCorpusValidator.validate(root, "manifest.json");
+        assertEquals("INVALID", duplicate.status());
+        assertTrue(duplicate.errors().stream().anyMatch(e -> e.startsWith("DUPLICATE_REAL_SOURCE")));
+        second.put("sourceSha256", secondHash);
+
+
+        // A reference to a nonexistent notation event must fail.
+        ObjectNode bad = (ObjectNode) mapper.readTree(Files.readString(root.resolve("annotation-1.json")));
+        ((ObjectNode)bad.withArray("observations").get(0)).put("eventId", "NONEXISTENT");
+        String replacementSha = writeJson("annotation-1.json", bad);
+        ((ObjectNode)recordings.get(0)).put("annotationSha256", replacementSha);
+        writeJson("manifest.json", manifest);
+        var rejected = AudioCorpusValidator.validate(root, "manifest.json");
+        assertEquals("INVALID", rejected.status());
+        assertTrue(rejected.errors().stream().anyMatch(e -> e.startsWith("UNKNOWN_EVENT_ID")));
+    }
+
+    @Test
+    void allDocumentedAudioContainersAreProbedWithRealFfmpegOutputs() throws Exception {
+        assumeTrue(ffprobePresent() && ffmpegPresent(),
+                "ffprobe and ffmpeg must be installed; dedicated CI treats skips as failures");
+        String input = "format-input.wav";
+        writeWav(input, 23);
+        for (String[] spec : new String[][]{
+                {"mp3", "libmp3lame"}, {"ogg", "libopus"}, {"webm", "libopus"}
+        }) {
+            String file = "encoded." + spec[0];
+            encodeWithFfmpeg(input, file, spec[1]);
+            assertTrue(AudioMediaProbe.matches(root.resolve(file), 1000, 48000, 1),
+                    "Supported container/codec must pass: " + spec[0]);
+        }
+        Files.copy(root.resolve("encoded.mp3"), root.resolve("fake.wav"));
+        assertFalse(AudioMediaProbe.matches(root.resolve("fake.wav"), 1000, 48000, 1),
+                "Extension does not override detected MP3 container");
+        Files.copy(root.resolve("encoded.webm"), root.resolve("fake.ogg"));
+        assertFalse(AudioMediaProbe.matches(root.resolve("fake.ogg"), 1000, 48000, 1),
+                "WebM bytes are not OGG");
+        encodeWithFfmpeg(input, "wrong-codec.wav", "pcm_alaw");
+        assertFalse(AudioMediaProbe.matches(root.resolve("wrong-codec.wav"), 1000, 48000, 1),
+                "WAV with unsupported codec must not be accepted as PCM research format");
+    }
+
+    private void encodeWithFfmpeg(String input, String output, String codec) throws Exception {
+        var command = new ProcessBuilder(
+                "ffmpeg", "-nostdin", "-v", "error", "-y",
+                "-i", root.resolve(input).toString(), "-ar", "48000", "-c:a", codec,
+                root.resolve(output).toString())
+                .redirectOutput(ProcessBuilder.Redirect.DISCARD)
+                .redirectError(ProcessBuilder.Redirect.DISCARD)
+                .start();
+        assertTrue(command.waitFor(20, java.util.concurrent.TimeUnit.SECONDS), "ffmpeg timed out");
+        assertEquals(0, command.exitValue(), "ffmpeg must produce " + output);
+    }
+
+    private boolean ffmpegPresent() {
+        try {
+            Process p = new ProcessBuilder("ffmpeg", "-version").start();
+            return p.waitFor(5, java.util.concurrent.TimeUnit.SECONDS) && p.exitValue() == 0;
+        } catch (Exception e) {
+            return false;
+        }
+    }
+
+    private void updateReferenceHash(ArrayNode recordings, String digest) {
+        for (var record : recordings) ((ObjectNode) record).put("referenceSha256", digest);
+    }
+
+    private String writeJson(String file, ObjectNode node) throws Exception {
+        byte[] bytes = mapper.writeValueAsBytes(node);
+        Files.write(root.resolve(file), bytes);
+        return sha(bytes);
+    }
+
+    private String writeWav(String file, int takeId) throws Exception {
+        int dataSize = 8000 * 2;
+        ByteBuffer b = ByteBuffer.allocate(44 + dataSize).order(ByteOrder.LITTLE_ENDIAN);
+        b.put(new byte[]{'R','I','F','F'}).putInt(36 + dataSize)
+                .put(new byte[]{'W','A','V','E','f','m','t',' '}).putInt(16)
+                .putShort((short)1).putShort((short)1).putInt(8000)
+                .putInt(16000).putShort((short)2).putShort((short)16)
+                .put(new byte[]{'d','a','t','a'}).putInt(dataSize);
+        for (int i=0; i<8000; i++) b.putShort((short)(i == 0 ? takeId : 0));
+        byte[] bytes = b.array();
+        Files.write(root.resolve(file), bytes);
+        return sha(bytes);
+    }
+
+    private static String sha(byte[] bytes) throws Exception {
+        return HexFormat.of().formatHex(MessageDigest.getInstance("SHA-256").digest(bytes));
+    }
+
+    private boolean ffprobePresent() {
+        try {
+            Process process = new ProcessBuilder("ffprobe", "-version").start();
+            return process.waitFor() == 0;
+        } catch (Exception e) {
+            return false;
+        }
+    }
+}
