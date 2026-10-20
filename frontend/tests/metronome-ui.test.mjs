@@ -22,3 +22,13 @@ test('BPM step changes one unit and clamps to inclusive limits', () => {
   assert.equal(stepMetronomeBpm(20, -1), 20);
   assert.equal(stepMetronomeBpm(240, 1), 240);
 });
+
+test('Vue number-input coercion must never crash BPM parser', () => {
+  // Vue implicitly applies .number when v-model is bound to an input[type=number].
+  assert.equal(parseMetronomeBpm(90), 90);
+  assert.equal(parseMetronomeBpm(60), 60);
+  assert.equal(parseMetronomeBpm(20.5), null);
+  assert.equal(parseMetronomeBpm(Number.NaN), null);
+  assert.equal(parseMetronomeBpm(Infinity), null);
+  assert.equal(parseMetronomeBpm(-1), null);
+});
