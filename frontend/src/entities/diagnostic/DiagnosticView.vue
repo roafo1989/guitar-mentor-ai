@@ -5,6 +5,7 @@ import { useI18n } from 'vue-i18n';
 import { useLearnerStore } from '../../stores/learner.store';
 import { diagnosticService } from './diagnostic.service';
 import ExercisePreview from './ExercisePreview.vue';
+import { closeMetronome } from '../metronome/metronome-ui';
 import SubmissionPanel from '../attempt/SubmissionPanel.vue';
 import DiagnosticEvidencePanel from './DiagnosticEvidencePanel.vue';
 import { intakeNavigationAction, permitIntakeNavigation, shouldWarnBeforeUnload } from './intake-navigation';
@@ -171,6 +172,7 @@ async function assign(exerciseCode: string): Promise<void> {
   error.value = '';
   try {
     task.value = await diagnosticService.assignTask(id, session.value.id, exerciseCode);
+    closeMetronome(); // Assignment replaces the selected exercise; no carry-over audio.
     session.value = await diagnosticService.get(id, session.value.id);
   } catch (cause) {
     error.value = showError(cause);

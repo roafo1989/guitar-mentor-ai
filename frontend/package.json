@@ -7,7 +7,7 @@
     "dev": "vite",
     "build": "vue-tsc --noEmit && vite build",
     "preview": "vite preview",
-    "test": "node --experimental-strip-types --test tests/metronome.test.mjs",
+    "test": "node --experimental-strip-types --test tests/metronome.test.mjs tests/metronome-ui.test.mjs tests/metronome-dialog.component.test.mjs tests/metronome-recording.component.test.mjs tests/metronome-shell.component.test.mjs tests/metronome-entry-flow.test.mjs",
     "test:intake": "node --experimental-strip-types --test tests/intake-navigation.test.mjs tests/diagnostic-component.test.mjs tests/evidence-panel.component.test.mjs",
     "test:tuner": "node --experimental-strip-types --test src/shared/tuner/pitch.test.mjs"
   },

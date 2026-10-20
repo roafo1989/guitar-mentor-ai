@@ -15,6 +15,7 @@ const blank = asModule("import { h } from '" + vueUrl + "'; export default { ren
 const panel = asModule("import { h } from '" + vueUrl +
   "'; export default {emits:['intake-state'], setup(_,{emit}) {globalThis.__testEmit = emit; return ()=>h('section');}};");
 const store = asModule("export const useLearnerStore = () => globalThis.__testLearner;");
+const metronomeUi = asModule("export const closeMetronome = () => {};");
 const diagnostic = asModule("export const diagnosticService = {get: async()=>({id:'session',status:'COLLECTING_EVIDENCE'}),listExercises:async()=>[],recommendations:async()=>({items:[]}),continueWithoutRecording:async()=>({id:'session',status:'READY_FOR_TASK'})};");
 let cached;
 async function compileRealView() {
@@ -32,6 +33,7 @@ async function compileRealView() {
       'vue-router': import.meta.resolve('vue-router'),
       'vue-i18n': import.meta.resolve('vue-i18n'),
       './intake-navigation': new URL('../src/entities/diagnostic/intake-navigation.ts', import.meta.url).href,
+      '../metronome/metronome-ui': metronomeUi,
     };
     const target = sources[name] ?? (
       name.endsWith('DiagnosticEvidencePanel.vue') ? panel :

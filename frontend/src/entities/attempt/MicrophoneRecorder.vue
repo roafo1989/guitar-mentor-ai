@@ -153,6 +153,8 @@ async function start() {
   state.value = 'requesting';
   emit('active', true);
   try {
+    // The learner may practise to a running metronome. Record only getUserMedia's
+    // microphone stream; headphone monitoring minimizes acoustic click bleed.
     const microphone = await navigator.mediaDevices.getUserMedia({ audio: true, video: false });
     if (props.disabled || cancelled) {
       microphone.getTracks().forEach(track => track.stop());
@@ -212,6 +214,7 @@ onBeforeUnmount(() => {
   <div class="microphone-recorder">
     <strong>{{ t('attempt.micHeading') }}</strong>
     <p class="hint">{{ t('attempt.micPrivacy') }}</p>
+    <p class="hint">{{ t('attempt.metronomePracticeTip') }}</p>
     <p v-if="!supported" class="hint">{{ t('attempt.micUnsupported') }}</p>
     <div v-else class="microphone-controls">
       <button v-if="state === 'idle'" type="button" class="recorder-button"
