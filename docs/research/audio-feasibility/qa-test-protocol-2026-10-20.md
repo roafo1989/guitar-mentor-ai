@@ -1,6 +1,6 @@
 # #14 — Technical QA test protocol (20.10.2026)
 
-**Status:** TESTING / IN PROGRESS; automated and document-based checks collected; final owner sign-off pending.  
+**Status:** ACCEPTED — technical T14-01…06 accepted by the product owner on 2026-10-20, after reviewing the QA summary and explicitly authorizing completion. Outstanding REAL musical validation remains #97.  
 **Scope:** the owner-approved technical-only T14-01…06; [scope decision](scope-decision-2026-10-20.md).  
 **Code baseline:** `875deb4549f804a192fa31d43b4bc12eba8a8efe`; subsequently only editorial corrections to README/recording-protocol and this report.  
 **PR:** [#73](https://github.com/roafo1989/guitar-mentor-ai/pull/73), fourth code review [PASS](https://github.com/roafo1989/guitar-mentor-ai/pull/73#pullrequestreview-5584958409).  
@@ -45,7 +45,7 @@
 | QA14-19 | 05 | Independent manual invocation of packaged Java CLI with `--root/--manifest/--report/--offline`. | No Maven/Jackson local environment; CI covers lower-level main classes via tests. | NOT-RUN (non-blocking for documented technical gate, disclose) |
 | QA14-20 | 06 | No production API, database migrations, upload pipeline or media retention implementation changed in PR. | 13 changed paths, diff scope and product CI | PASS-INSPECTION |
 | QA14-21 | 06 | Technical code-review PASS on frozen implementation revision. | Review #5584958409 | PASS-INSPECTION |
-| QA14-22 | 06 | Product-owner decision after reviewing technical QA results. | Separate customer confirmation required | PENDING-OWNER |
+| QA14-22 | 06 | Product-owner decision after reviewing technical QA results. | Owner authorized acceptance and completion in the conversation on 2026-10-20, after seeing the 20 PASS / 1 NOT-RUN / 1 pending summary. | PASS-OWNER |
 
 ## QA notes / limitations
 
@@ -53,6 +53,6 @@
 2. Synthetic fixtures use `kind=REAL` deliberately to exercise readiness control flow. Their `manualConfirmed:true` and `rightsConfirmed:true` fields are **test doubles**, not evidence of human attestation. No such field was changed for a private real take.
 3. The displayed statuses and test counts are grounded in CI job logs, not a separate local Maven execution. Four skipped tests in the general Java backend suite are distinct from the **zero skipped audio tests** in the dedicated workflow.
 4. Private data remain LOCAL_RESEARCH-only, and no third-party sharing permission was requested or assumed. All REAL musical review, notation rights, and prospective blind-holdout tests belong to #97.
-5. GitHub Projects v2 custom Stage/Status fields were not changed because this connector does not expose a write action. Issue #14 itself records **Testing / In Progress**. No merge/close was performed.
+5. The product owner's acceptance authorizes PR merge and #14 closure; the final merge SHA and closure result are tracked in GitHub PR/Issue history, not forecast here. GitHub Projects v2 custom Stage/Status fields require separate board synchronization because the available connector has no write action.
 
-**Current QA disposition:** no blocker found within the approved technical T14-01…06 scope on the code baseline; all executable CI and document/source inspection cases passed. A complete standalone local CLI smoke test was not feasible in this environment and is disclosed as NOT-RUN, but the positive integration harness and published invocation exist. **Await owner acceptance** before setting T14-06 completed, merging PR or closing #14.
+**Final technical QA disposition:** 22 cases — **20 PASS-CI/PASS-INSPECTION, 1 PASS-OWNER, 1 NOT-RUN**. No blocking defect found in the approved T14-01…06 technical scope. The missing standalone local CLI smoke test was disclosed to and accepted by the owner as a limitation; the Java validator's positive/negative synthetic integration tests ran in GitHub CI. **Technical #14 ACCEPTED for merge and closure**. This does not make the private REAL corpus READY_FOR_POC, nor does it accept any real note/accuracy/rights evidence; those are #97. No owner permission for third-party disclosure has been inferred.
