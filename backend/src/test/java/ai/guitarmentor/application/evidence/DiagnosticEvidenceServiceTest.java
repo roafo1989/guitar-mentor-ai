@@ -53,6 +53,12 @@ class DiagnosticEvidenceServiceTest {
             callback.afterCompletion(TransactionSynchronization.STATUS_ROLLED_BACK);
         TransactionSynchronizationManager.clearSynchronization();
     }
+    @Test void capabilityFormatsFollowExistingAudioStoreIncludingM4a() {
+        var capabilities=service.capabilities(learner,sessionId);
+        assertTrue(capabilities.audioFormats().contains("m4a"));
+        assertTrue(capabilities.audioFormats().contains("webm"));
+        verify(diagnostics).get(learner,sessionId);
+    }
     @Test void locationResolvesOnlyFromOwningSession() {
         var existing=new DiagnosticEvidenceRepository.Evidence(UUID.randomUUID(),
                 sessionId,request,"Yesterday",null,null,Instant.now());
