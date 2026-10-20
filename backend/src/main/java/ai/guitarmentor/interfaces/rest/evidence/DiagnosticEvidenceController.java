@@ -28,7 +28,8 @@ public class DiagnosticEvidenceController {
             "SESSION_NOT_FOUND", "EVIDENCE_NOT_FOUND", "INVALID_SESSION_STATE", "MAX_ITEMS_REACHED", "INVALID_TITLE",
             "INVALID_COMPOSER", "INVALID_COMMENT", "MISSING_AUDIO", "INVALID_SCORE_SIZE",
             "UNSUPPORTED_SCORE_FORMAT", "INVALID_SCORE_CONTENT", "STORAGE_UNAVAILABLE",
-            "INVALID_AUDIO_SIZE", "INVALID_AUDIO_CONTENT", "UNSUPPORTED_AUDIO_FORMAT");
+            "INVALID_AUDIO_SIZE", "INVALID_AUDIO_CONTENT", "UNSUPPORTED_AUDIO_FORMAT",
+            "IDEMPOTENCY_PAYLOAD_MISMATCH", "UPLOAD_READ_FAILED");
     private final DiagnosticEvidenceService service;
     public DiagnosticEvidenceController(DiagnosticEvidenceService service) {
         this.service = service;
