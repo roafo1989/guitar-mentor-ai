@@ -1,6 +1,6 @@
 # #14 Audio feasibility — offline benchmark
 
-Status: **OFFLINE VALIDATOR IMPLEMENTED; PRIVATE REAL CORPUS NOT YET ACCEPTED**. Contract version 1, 2026-10-19. Requirements: [specification](../../specifications/MVP-R2-01-audio-feasibility.md).
+Status: **#14 TECHNICAL SCOPE READY FOR CODE REVIEW/TESTING; #97 PRIVATE REAL CORPUS NOT YET ACCEPTED**. Contract version 1, 2026-10-19. Scope revised 2026-10-20 by [approved decision](scope-decision-2026-10-20.md); original [specification](../../specifications/MVP-R2-01-audio-feasibility.md) is preserved as history and its outstanding real-data checks continue in [#97](https://github.com/roafo1989/guitar-mentor-ai/issues/97).
 
 ## Privacy and scope
 This directory contains **public documentation and synthetic structural examples only**. Never commit real recordings, performer identifiers, original filenames, consent documents, annotated real takes, absolute paths, or product-storage exports. Private corpus root must be **outside the Git checkout**. This experiment does not access the running application, PostgreSQL, the upload worker, or any S3 service. The product TTL remains unchanged.
@@ -13,7 +13,7 @@ Six private human-performed takes have been received and their WAV derivatives t
 - `recording-protocol.md`: human-controlled acquisition and review steps.
 - `independent-review.md`: independent listening, score alignment, metronome discrimination, uncertainty and strict real-corpus acceptance gate.
 - `fixtures/`: non-audio, synthetic, schema-shape demonstration.
-- #15 implements onset/tempo/pause/bass extraction and measures runtime accuracy. #31 decides GO/LIMITED/NO-GO. #22/#23 integrate production feedback.
+- #15 may first explore onset/tempo/pause/bass extraction **diagnostically**, without validated real-world accuracy claims. #97 approves human ground truth and rights; only then can #15 test musical accuracy on a legitimate controlled holdout. #31 decides GO/LIMITED/NO-GO after evidence. #22/#23 integrate only validated feedback.
 
 ## Readiness
 At least **two distinct real takes** are required for each REAL-BASS, REAL-TIMING and REAL-POLY (minimum six total), each with manually reviewed observations and permission for the intended scope. Preserve original hashes; split derivatives together. Assign independent CALIBRATION and HOLDOUT recording groups before algorithm fitting, ideally one of each REAL group in each partition. Without independent holdout, report NO_INDEPENDENT_HOLDOUT; never claim out-of-sample precision.
@@ -44,11 +44,11 @@ Current implementation performs structural checks, SHA-256 integrity and a local
 
 The offline validator and executable tests have been committed to Draft PR #73. CI validates the source/test build; it **does not** establish that a real guitar corpus exists. In particular, the automatic READY test is a structural simulation and does not demonstrate independently performed takes.
 
-**Before #14 can be accepted:** the six human-performed takes have been supplied and checked for technical readability/integrity, but device/source/rights attestation and manual review remain unresolved. Independently annotate observed note events and uncertainties, verify the split does not share the same original performance, run the Java validator against the completed approved private package, save the redacted report, check input SHA-256 unchanged, and record verification of all AC14-01…10. Private waveform-based event detection and pairwise spectral/DTW alignment only generate review **candidates**, not confirmed note events; different performances may diverge through timing, attack, resonance, or actual pitches. The declared intentional bass mistake has no confirmed time/pitch and must not enter benchmark denominators. If ffprobe is unavailable the tool cannot report READY.
+**Before the private REAL corpus can be accepted under #97:** the six human-performed takes have been supplied and checked for technical readability/integrity, but device/source/rights attestation and manual review remain unresolved. Independently annotate observed note events and uncertainties, verify the split does not share the same original performance, run the Java validator against the completed approved private package, save the redacted report, check input SHA-256 unchanged, and record verification of #97 real-corpus criteria; #14's independent technical acceptance uses T14-01…06 in the [approved decision](scope-decision-2026-10-20.md). Private waveform-based event detection and pairwise spectral/DTW alignment only generate review **candidates**, not confirmed note events; different performances may diverge through timing, attack, resonance, or actual pitches. The declared intentional bass mistake has no confirmed time/pitch and must not enter benchmark denominators. If ffprobe is unavailable the tool cannot report READY.
 
 **Known non-automatable assertions:** consent/legal rights, actual instrument performance, whether score-event annotations match audible events, and independence between distinct waveforms. Dataset author must verify these; a boolean or hash is insufficient. The tool does not transcribe guitar notes or calculate musical accuracy. Negative-case tests and passing CI are not substitutes for real validation. The corpus is kept outside Git and product storage with separately agreed retention.
 
-The research handoff to #15 must include frozen corpus/reference/annotation version hashes, calibration/holdout allocations, approved metrics policy, and explicit unresolved ambiguity and abstention domains. Do not supply #15 with generated fixtures as real ground truth.
+The diagnostic handoff to #15 may include synthetic controlled fixtures and explicitly marked private `DIAGNOSTIC_ONLY` pilot artifacts without any musical accuracy claims. The **final accuracy** handoff is blocked by #97 and must include frozen approved corpus/reference/annotation hashes, calibration/holdout allocations, an independently reviewed event list, permissions and explicit ambiguity/abstention domains. Do not supply #15 with generated fixtures or exploratory events as real ground truth.
 
 ## CI execution evidence
 
@@ -58,7 +58,7 @@ The standard Java backend CI may run the Maven tests **before ffprobe is install
 
 Six private source recordings and decoded WAV files are present and technically inventoried. A **private diagnostic** review package contains reproducible original/derivative checks, short listening clips, spectral bass spot-checks, score section hints, and a local offline reviewer page. No private artifacts are included in this public repository. An exploratory comparison of two fingerstyle takes highlights candidate dissimilarities, but no intentionally incorrect bass note has been verified by an independent reviewer. The printed sheet tempo is explicitly *not* assumed to be the performed BPM; two metronome-assisted takes use known 60/80 BPM, while the remaining takes were performed without a metronome. This is recording-condition metadata, not a musical correctness assertion.
 
-The partial private manifest is intentionally `INCOMPLETE` / `DIAGNOSTIC_ONLY`; manual score-to-audio event alignment, scope-limited rights confirmation, review attestation and independent split proof have not been completed. Running an independent algorithmic comparison more times cannot substitute for human ground truth. Consult [independent-review.md](independent-review.md) for the bounded next steps. CI success validates synthetic structural fixtures and does not indicate the real pilot was accepted. Do not merge Draft PR #73 until the stated controls and AC evidence are completed.
+The partial private manifest is intentionally `INCOMPLETE` / `DIAGNOSTIC_ONLY`; manual score-to-audio event alignment, scope-limited rights confirmation, review attestation and independent split proof have not been completed. Running an independent algorithmic comparison more times cannot substitute for human ground truth. Consult [independent-review.md](independent-review.md) for the bounded next steps. CI success validates synthetic structural fixtures and does not indicate the real pilot was accepted. Under the agreed scope split, Draft PR #73 may enter **technical code review/testing** for T14-01…06 without waiting for real-corpus musical attestation; merging or closing #14 still requires normal technical acceptance and owner approval. The real-corpus work remains in #97.
 
 
 ## Pilot v0.2: provisional split and private preflight (2026-10-20)
@@ -71,3 +71,7 @@ Provisional partition: one performance per group in CALIBRATION and the other in
 
 The private package keeps intentionally absent annotation and reference files, placeholder score-event coordinates and no musical-truth flags. No note correctness or intentionally wrong bass note was verified. A private result of INCOMPLETE is the scientifically correct outcome and does not indicate that the Java validator implementation failed.
 
+
+## Approved decomposition / acceptance status
+
+Owner-approved 2026-10-20: [#14 technical validation scope](scope-decision-2026-10-20.md) is separate from [#97 independent REAL corpus validation](https://github.com/roafo1989/guitar-mentor-ai/issues/97). The original AC14-01…10 have not been discarded; real-data dependent obligations have moved to #97 with explicit traceability. This document and PR are public; do not include private dataset bytes, original notation or personal feedback.
