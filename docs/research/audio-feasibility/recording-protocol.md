@@ -9,4 +9,4 @@
 7. Validate locally, check unchanged source hashes and public diff/console for leaks. Without six confirmed takes and holdout, return INCOMPLETE.
 8. When a participant withdraws consent or a source disappears, mark WITHDRAWN/MISSING and invalidate the dataset version; do not attempt recovery from application TTL storage.
 
-**Operator prerequisite:** at present, no user-provided real corpus or agreed local access path has been supplied. Do not fabricate recordings, timestamps, approvals or human listening results.
+**Operator prerequisite (updated 2026-10-20):** six user-supplied real takes and their local WAV derivatives have been inventoried **privately**, but the REAL corpus is still `INCOMPLETE`: independent score-to-audio event review, notation rights, genuine blind holdout, and acceptance under #97 are not confirmed. Never publish files, private source hashes or reviewer answers to GitHub. Do not fabricate recordings, timestamps, approvals or human listening results.
