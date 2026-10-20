@@ -4,7 +4,7 @@ import { useI18n } from 'vue-i18n';
 import { metronome, type MetronomeState } from '../../shared/audio/metronome';
 import { MAX_BPM, MIN_BPM, parseMetronomeBpm, stepMetronomeBpm } from './metronome-input';
 
-const emit = defineEmits<{ close: [] }>();
+const emit = defineEmits<{ close: []; minimize: [] }>();
 const { t } = useI18n();
 const state = ref<MetronomeState>(metronome.getState());
 const draft = ref(String(state.value.bpm));
@@ -103,8 +103,7 @@ onMounted(async () => {
 onBeforeUnmount(() => {
   unsubscribe?.();
   document.body.style.overflow = previousOverflow;
-  // No child should dispose() the shared #86 engine: it is owned across the app.
-  metronome.stop();
+  // Only unsubscribe. Closing explicitly stops in closeMetronome(); minimizing must not.
 });
 </script>
 
@@ -148,10 +147,14 @@ onBeforeUnmount(() => {
           {{ t('metronome.unavailable') }}
         </p>
         <div class="metronome-actions">
-          <button v-if="state.status !== 'running' && state.status !== 'starting'"
-            type="button" class="action-button" @click="start">{{ t('metronome.start') }}</button>
-          <button v-else type="button" class="action-button"
-            @click="stop">{{ t('metronome.stop') }}</button>
+          <button type="button" class="action-button" :disabled="state.status === 'starting'"
+            @click="state.status === 'running' ? stop() : start()">
+            {{ state.status === 'running' ? t('metronome.stop') : t('metronome.start') }}
+          </button>
+          <button v-if="state.status === 'running'" type="button"
+            class="recorder-button secondary-button" @click="emit('minimize')">
+            {{ t('metronome.minimize') }}
+          </button>
         </div>
         <p class="metronome-note">{{ t('metronome.warning') }}</p>
       </section>

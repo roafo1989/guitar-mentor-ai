@@ -229,3 +229,12 @@ footer { text-align: center; font-size: 12px; padding: 24px; color: #8793a4; }
   .language-picker { order: 3; margin-left: 0; }
   .header-actions nav { order: 4; }
 }
+
+/* Minimized playback remains audible and visibly controllable through the header. */
+.header-tool-button { position: relative; }
+.header-tool-button.is-playing { border-color: #9de8bc; background: #27665b; }
+.metronome-running-dot {
+  position: absolute; top: 2px; right: 2px; height: 8px; width: 8px;
+  border-radius: 50%; background: #a8f5bf; box-shadow: 0 0 0 1px #1c2b40;
+}
+.metronome-actions { flex-wrap: wrap; }

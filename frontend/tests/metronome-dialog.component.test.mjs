@@ -141,13 +141,16 @@ test('real dialog applies typed BPM and starts; invalid input preserves BPM and 
 
     const start = view.find('button', n => n.children.some(c => c.text === 'metronome.start') || n.text === 'metronome.start');
     assert.ok(start, 'Start button rendered');
+    start.focus();
     start.props.onClick();
     await nextTick();
+    assert.equal(globalThis.document.activeElement, start, 'Start/Stop preserves DOM focus');
     assert.equal(engine.starts, 1, 'Start click reaches Web Audio engine');
     assert.equal(engine.getState().status, 'running');
 
     const stop = view.find('button', n => n.text === 'metronome.stop');
     assert.ok(stop);
+    assert.equal(stop, start, 'Start/Stop must be the same DOM button');
     stop.props.onClick();
     await nextTick();
 

@@ -1,7 +1,6 @@
 <script setup lang="ts">
 import { computed, onBeforeUnmount, ref } from 'vue';
 import { useI18n } from 'vue-i18n';
-import { stopMetronomeForAudioCapture } from '../metronome/metronome-ui';
 
 const props = defineProps<{ disabled: boolean; maxBytes: number }>();
 const emit = defineEmits<{ recorded: [file: File]; active: [value: boolean] }>();
@@ -146,7 +145,8 @@ async function start() {
   seconds.value = 0;
   state.value = 'requesting';
   emit('active', true);
-  stopMetronomeForAudioCapture(); // Never leak metronome clicks into learner audio.
+  // The learner may practise to a running metronome. Record only getUserMedia's
+  // microphone stream; headphone monitoring minimizes acoustic click bleed.
   try {
     const microphone = await navigator.mediaDevices.getUserMedia({ audio: true, video: false });
     if (props.disabled || cancelled) {
@@ -207,6 +207,7 @@ onBeforeUnmount(() => {
   <div class="microphone-recorder">
     <strong>{{ t('attempt.micHeading') }}</strong>
     <p class="hint">{{ t('attempt.micPrivacy') }}</p>
+    <p class="hint">{{ t('attempt.metronomePracticeTip') }}</p>
     <p v-if="!supported" class="hint">{{ t('attempt.micUnsupported') }}</p>
     <div v-else class="microphone-controls">
       <button v-if="state === 'idle'" type="button" class="recorder-button"

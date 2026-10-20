@@ -26,6 +26,12 @@ export function openExerciseMetronome(trigger: HTMLElement, source: string, bpm:
   openMetronome(trigger);
 }
 
+/** Hide only the window so the student can record to a running metronome. */
+export function minimizeMetronome(): void {
+  if (metronome.getState().status !== 'running') return;
+  metronomeUi.open = false;
+}
+
 export function closeMetronome(): void {
   metronome.stop();
   metronomeUi.open = false;
@@ -39,7 +45,7 @@ export function leaveMetronomeExercise(source: string): void {
   }
 }
 
-/** Independently usable from recorder/tuner integration: never resumes playback. */
+/** Exclusive audio tools (e.g. a future tuner) may need to stop playback. Not for recording. */
 export function stopMetronomeForAudioCapture(): void {
   closeMetronome();
   metronomeUi.sourceExercise = null;

@@ -242,7 +242,8 @@
     "commentTooLong": "Comment is too long (maximum 2000 characters).",
     "uploadNetworkError": "Could not connect to the server. Check your connection and try again.",
     "uploadServerError": "The server could not accept this recording. Please retry.",
-    "historyLoadError": "Could not load attempt history. Refresh the page and check the connection."
+    "historyLoadError": "Could not load attempt history. Refresh the page and check the connection.",
+    "metronomePracticeTip": "You can record while playing to the metronome. Use headphones to avoid speaker clicks being captured by the microphone."
   },
   "evidence": {
     "heading": "My performances",
@@ -292,13 +293,15 @@
     "recommended": "Tempo from this exercise; changes only affect playback.",
     "invalidBpm": "Enter an integer BPM between 20 and 240.",
     "unavailable": "Audio output is unavailable. Check your device and try again.",
-    "warning": "The metronome does not sync with MP3 or analyze your playing. It stops automatically before recording.",
+    "warning": "You can keep the metronome playing while recording a practice take. Use headphones to reduce click bleed into the microphone. The metronome does not sync with MP3 or analyze your playing.",
     "status": {
       "ready": "Ready to start",
       "starting": "Starting…",
       "running": "Playing",
       "stopped": "Stopped",
       "unavailable": "No audio output"
-    }
+    },
+    "minimize": "Minimize and keep playing",
+    "playingInBackground": "Metronome is playing — open controls"
   }
 }
