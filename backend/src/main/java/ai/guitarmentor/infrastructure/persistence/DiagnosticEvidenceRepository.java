@@ -22,7 +22,7 @@ public class DiagnosticEvidenceRepository {
     public DiagnosticEvidenceRepository(JdbcTemplate db) { this.db = db; }
 
     public record Evidence(UUID id, UUID sessionId, UUID requestId, String title,
-            String composer, String comment, Instant submittedAt) {}
+            String composer, String comment, String fingerprint, Instant submittedAt) {}
     public record Media(UUID id, UUID evidenceId, String kind, String key,
             String format, long bytes, String status, BigDecimal duration,
             String errorCode, String mediaState) {}
@@ -35,7 +35,8 @@ public class DiagnosticEvidenceRepository {
     private static Evidence mapEvidence(ResultSet rs, int i) throws SQLException {
         return new Evidence(uuid(rs, "id"), uuid(rs, "diagnostic_session_id"),
                 uuid(rs, "request_id"), rs.getString("title"), rs.getString("composer"),
-                rs.getString("student_comment"), rs.getTimestamp("submitted_at").toInstant());
+                rs.getString("student_comment"), rs.getString("request_fingerprint"),
+                rs.getTimestamp("submitted_at").toInstant());
     }
     private static Media mapMedia(ResultSet rs, int i) throws SQLException {
         return new Media(uuid(rs, "id"), uuid(rs, "evidence_id"), rs.getString("kind"),
@@ -60,10 +61,10 @@ public class DiagnosticEvidenceRepository {
         return count == null ? 0 : count;
     }
     public void addEvidence(UUID id, UUID sessionId, UUID requestId,
-            String title, String composer, String comment) {
+            String title, String composer, String comment, String fingerprint) {
         db.update("INSERT INTO diagnostic_evidence " +
-                "(id,diagnostic_session_id,request_id,title,composer,student_comment)" +
-                " VALUES (?,?,?,?,?,?)", id, sessionId, requestId, title, composer, comment);
+                "(id,diagnostic_session_id,request_id,title,composer,student_comment,request_fingerprint)" +
+                " VALUES (?,?,?,?,?,?,?)", id, sessionId, requestId, title, composer, comment, fingerprint);
     }
     public void addMedia(UUID evidenceId, String kind, String key, String format,
             long bytes, String status) {
