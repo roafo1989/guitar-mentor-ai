@@ -1,3 +1,5 @@
+import { spectralFundamental } from './harmonic-spectrum.ts';
+
 export const STRINGS = [
   { number: 6, note: 'E2', hz: 82.406889 },
   { number: 5, note: 'A2', hz: 110 },
@@ -70,7 +72,21 @@ export function detectPitch(samples: Float32Array, sampleRate: number): number |
   const denominator = left - 2 * center + right;
   const shift = denominator ? Math.max(-1, Math.min(1, (left - right) / (2 * denominator))) : 0;
   const frequency = sampleRate / (candidate + shift);
-  return frequency >= 70 && frequency <= 375 && Number.isFinite(frequency) ? frequency : null;
+  if (frequency < 70 || frequency > 375 || !Number.isFinite(frequency)) return null;
+  // The first credible YIN period can be a harmonic or subharmonic.
+  // Spectral evidence must support a proposed lower fundamental.
+  const spectrum = spectralFundamental(samples, sampleRate);
+  if (!spectrum) return null;
+  if (spectrum.count === 1) {
+    // A single sine is indistinguishable from a missing-fundamental overtone.
+    // Do not invent lower pitches without independent spectral evidence.
+    return Math.abs(cents(spectrum.hz, frequency)) <= 15 ? frequency : null;
+  }
+  const period = Math.round(sampleRate / spectrum.hz);
+  if (period < minLag || period > maxLag ||
+      Math.min(normalized[Math.max(minLag, period - 1)], normalized[period],
+        normalized[Math.min(maxLag, period + 1)]) >= 0.16) return null;
+  return spectrum.hz;
 }
 // Three consecutive stable frames required; transients never show "in tune".
 export function stablePitch(history: number[], frequency: number | null): number | null {

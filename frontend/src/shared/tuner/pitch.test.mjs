@@ -158,3 +158,47 @@ test('a pure second harmonic is not mistaken for a missing lower fundamental', (
     assert.ok(Math.abs(cents(result, string.hz * 2)) < 5);
   }
 });
+
+
+// Independent QA regression for BUG-98-QA-01:
+// six strings × 44.1/48 kHz × nine profiles with a nonzero fundamental.
+test('QA: 108 harmonic-rich guitar signals preserve the actual pitch', () => {
+  const profiles = [
+    [1], [0.15, 1], [0.05, 1, 0.05], [1, 0.45, 0.3, 0.1],
+    [0.02, 1], [0.02, 0.02, 1], [0.15, 0.3, 0.5, 0.7, 0.9, 1],
+    [0.1, 0.1, 1, 0.1], [0.2, 1, 0.3],
+  ];
+  let count = 0;
+  for (const rate of [44100, 48000]) for (const string of STRINGS) for (const amplitudes of profiles) {
+    const found = detectPitch(harmonics(string.hz, rate, amplitudes), rate);
+    assert.ok(found !== null, string.note + ' undetected with ' + amplitudes);
+    assert.ok(Math.abs(cents(found, string.hz)) < 10,
+      string.note + ' / ' + rate + ' / ' + amplitudes + ': ' + found);
+    count++;
+  }
+  assert.equal(count, 108);
+});
+
+test('QA: isolated upper overtones never invent a lower missing fundamental', () => {
+  for (const rate of [44100, 48000]) {
+    for (const string of STRINGS.slice(0, 3)) {
+      const audible = 2 * string.hz;
+      const found = detectPitch(harmonics(audible, rate, [1]), rate);
+      assert.ok(found !== null);
+      assert.ok(Math.abs(cents(found, audible)) < 10);
+    }
+    // A high partial outside the scan range is ambiguous, not proof of a lower note.
+    for (const string of STRINGS.slice(3)) {
+      assert.equal(detectPitch(harmonics(string.hz, rate, [0, 0, 1]), rate), null);
+    }
+  }
+});
+
+test('QA: repeated weak fundamentals stabilize on the intended note', () => {
+  const history = [];
+  for (let i = 0; i < 2; i++) {
+    assert.equal(stablePitch(history, detectPitch(harmonics(110, 48000, [0.02, 0.02, 1]), 48000)), null);
+  }
+  const result = stablePitch(history, detectPitch(harmonics(110, 48000, [0.02, 0.02, 1]), 48000));
+  assert.ok(result !== null && Math.abs(cents(result, 110)) < 10);
+});

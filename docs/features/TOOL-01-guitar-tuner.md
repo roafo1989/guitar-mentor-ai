@@ -17,3 +17,9 @@ Manual QA: open from header without losing unsaved forms; check six strings agai
 ## Octave alias fix after second review
 
 Instead of returning the first low YIN normalized-difference valley, the detector evaluates all valid local minima and chooses the earliest period close to the global best. This mitigates the second-harmonic 2x pitch error on E2/A2/D3 and prevents false subharmonics on pure sine waves. Regression tests cover all six strings at 44.1/48 kHz, strong second/third harmonics, slight decay/noise, and detunings. Ambiguous audio still requires on-instrument validation.
+
+## QA BUG-98-QA-01: suppressing harmonic aliases
+
+The first plausible YIN period is checked against a Hann-windowed 8192-point FFT. A proposed fundamental must have measured energy and harmonically consistent peaks, and its time-domain period must also pass normalized-difference validation. Unsupported or contradictory estimates are withheld (`null`), rather than shown as confidently tuned. Automated regression tests cover 108 resolvable cases (6 guitar strings × 2 sample rates × 9 spectra with a present fundamental), including fundamentals just 2% of an overtone.
+
+**Physical limitation:** a pure higher harmonic with no fundamental energy cannot be distinguished from a real higher note solely from its waveform. The detector does not invent an inaudible lower fundamental. Real guitar recordings, permissions, keyboard and mobile QA remain mandatory.
