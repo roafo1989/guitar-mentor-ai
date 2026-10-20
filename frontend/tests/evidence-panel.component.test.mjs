@@ -10,13 +10,17 @@ import { createI18n } from 'vue-i18n';
 const moduleUrl = (code) => 'data:text/javascript,' + encodeURIComponent(code);
 const blank = moduleUrl("export default {render(){return null;}};");
 const service = moduleUrl('export const evidenceService = { capabilities: (...a) => globalThis.__evidenceServiceMock.capabilities(...a), list: (...a) => globalThis.__evidenceServiceMock.list(...a), upload: (...a) => globalThis.__evidenceServiceMock.upload(...a) };');
-let Panel;
-async function getPanel() {
-  if (Panel) return Panel;
+let Panel, FullPanel;
+async function getPanel(withTemplate = false) {
+  if (withTemplate && FullPanel) return FullPanel;
+  if (!withTemplate && Panel) return Panel;
   const source = await readFile(new URL('../src/entities/diagnostic/DiagnosticEvidencePanel.vue', import.meta.url), 'utf8');
   const { descriptor, errors } = parse(source, { filename: 'DiagnosticEvidencePanel.vue' });
   assert.equal(errors.length, 0);
-  const script = compileScript(descriptor, { id: 'evidence-panel-test', inlineTemplate: false });
+  const script = compileScript(descriptor, {
+    id: withTemplate ? 'evidence-archive-test' : 'evidence-panel-test',
+    inlineTemplate: withTemplate,
+  });
   const js = ts.transpileModule(script.content, {
     compilerOptions: { target: ts.ScriptTarget.ES2022, module: ts.ModuleKind.ESNext }
   }).outputText;
@@ -28,12 +32,20 @@ async function getPanel() {
     if (!value) throw Error('Unknown panel runtime dependency ' + name);
     return 'from ' + JSON.stringify(value);
   });
-  Panel = (await import(moduleUrl(mapped))).default;
+  const component = (await import(moduleUrl(mapped))).default;
+  if (withTemplate) {
+    FullPanel = component;
+    return FullPanel;
+  }
+  Panel = component;
   Panel.render = () => h('section');
   return Panel;
 }
 function headlessRenderer() {
-  const node = (tag, text = '') => ({ tag, text, children: [], parent: null });
+  const node = (tag, text = '') => ({
+    tag, text, children: [], parent: null, props: {},
+    addEventListener() {}, removeEventListener() {},
+  });
   const remove = (n) => {
     const items = n.parent?.children;
     if (items) { const i = items.indexOf(n); if (i >= 0) items.splice(i, 1); }
@@ -44,7 +56,7 @@ function headlessRenderer() {
     createComment: (text) => node('#comment', text),
     setText: (n, text) => { n.text = text; },
     setElementText: (n, text) => { n.text = text; n.children = []; },
-    patchProp() {},
+    patchProp: (n, key, _old, value) => { n.props[key] = value; },
     insert: (n, parent) => { if (n.parent) remove(n); n.parent = parent; parent.children.push(n); },
     remove, parentNode: (n) => n.parent, nextSibling: () => null,
   });
@@ -53,19 +65,20 @@ const capabilities = {
   enabled: true, maxAudioBytes: 20971520, maxScoreBytes: 10485760, maxItems: 10,
   audioFormats: ['wav', 'm4a'], scoreFormats: ['pdf']
 };
-async function mountWith(mock) {
+async function mountWith(mock, { withTemplate = false, allowUpload = true } = {}) {
   globalThis.__evidenceServiceMock = mock;
-  const view = await getPanel();
+  const view = await getPanel(withTemplate);
   const app = headlessRenderer().createApp(view, {
-    learnerId: 'learner', sessionId: 'session', allowUpload: true
+    learnerId: 'learner', sessionId: 'session', allowUpload
   });
   app.use(createI18n({ legacy: false, locale: 'en', messages: { en: {} } }));
-  app.mount({ tag: 'root', children: [], parent: null });
+  const root = { tag: 'root', children: [], parent: null, props: {} };
+  app.mount(root);
   const instance = app._instance;
   for (let i = 0; i < 8 && instance.setupState.loading; i++) {
     await Promise.resolve(); await nextTick();
   }
-  return { app, state: instance.setupState };
+  return { app, state: instance.setupState, root };
 }
 function audio(data, filename = 'a.wav') {
   return new File([new Uint8Array(data)], filename, { type: 'audio/wav' });
@@ -130,6 +143,70 @@ test('resolved POST releases busy before subsequent history GET finishes', async
     assert.equal(state.uploading, false, 'POST completion releases navigation immediately');
     assert.equal(refreshStarted, true, 'background history GET started');
     assert.equal(state.audio, null, 'only confirmed POST clears the file');
+  } finally {
+    app.unmount();
+    delete globalThis.__evidenceServiceMock;
+  }
+});
+
+function allNodes(node) {
+  return [node, ...(node.children ?? []).flatMap(allNodes)];
+}
+function visibleText(node) {
+  return [node.text ?? '', ...(node.children ?? []).map(visibleText)].join(' ');
+}
+function evidenceEntry(id, title) {
+  return {
+    id, title, composer: null, comment: null, submittedAt: '2026-10-20T10:00:00Z',
+    audio: {
+      format: 'm4a', bytes: 314572, status: 'PROCESSED', durationSeconds: 12,
+      errorCode: null, mediaState: 'AVAILABLE',
+    },
+    score: null, source: 'STUDENT_UPLOADED', skillEvidence: 'NOT_ASSESSED',
+  };
+}
+
+test('readonly evidence archive mounts CLOSED with an accessible summary, a count and both saved recordings', async () => {
+  const mock = {
+    capabilities: async () => capabilities,
+    list: async () => [evidenceEntry('a', 'Mic recording'), evidenceEntry('b', 'Samsung M4A')],
+    upload: async () => { throw Error('Read-only history cannot upload'); },
+  };
+  const { app, root } = await mountWith(mock, { withTemplate: true, allowUpload: false });
+  try {
+    await nextTick();
+    const nodes = allNodes(root);
+    const archive = nodes.find(n => n.tag === 'details');
+    assert.ok(archive, 'native details is mounted');
+    assert.equal(archive.props.open, false, 'archive must be closed after entering task selection');
+    const summary = nodes.find(n => n.tag === 'summary');
+    assert.ok(summary, 'summary is a keyboard-accessible native toggle');
+    assert.match(visibleText(summary), /\\(2\\)/, 'collapsed header shows number of saved items');
+    assert.equal(nodes.filter(n => n.tag === 'article').length, 2, 'both evidence records remain in the archive');
+    assert.equal(nodes.filter(n => n.tag === 'form').length, 0, 'upload form is not offered in readonly mode');
+    assert.ok(nodes.some(n => n.tag === 'h4' && visibleText(n).includes('Samsung M4A')));
+  } finally {
+    app.unmount();
+    delete globalThis.__evidenceServiceMock;
+  }
+});
+
+test('evidence section remains OPEN for intake, with upload form accessible', async () => {
+  const mock = {
+    capabilities: async () => capabilities,
+    list: async () => [],
+    upload: async () => { throw Error('not reached'); },
+  };
+  const { app, root } = await mountWith(mock, { withTemplate: true, allowUpload: true });
+  try {
+    await nextTick();
+    const nodes = allNodes(root);
+    const archive = nodes.find(n => n.tag === 'details');
+    assert.ok(archive);
+    assert.equal(archive.props.open, true, 'intake form must be open');
+    const summary = nodes.find(n => n.tag === 'summary');
+    assert.equal(summary.props.style.display, 'none', 'summary toggle hidden during intake');
+    assert.ok(nodes.some(n => n.tag === 'form'), 'upload form is shown while collecting evidence');
   } finally {
     app.unmount();
     delete globalThis.__evidenceServiceMock;
