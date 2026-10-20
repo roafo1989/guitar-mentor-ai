@@ -6,6 +6,7 @@ import { diagnosticService } from './diagnostic.service';
 import ExercisePreview from './ExercisePreview.vue';
 import SubmissionPanel from '../attempt/SubmissionPanel.vue';
 import DiagnosticEvidencePanel from './DiagnosticEvidencePanel.vue';
+import { intakeNavigationAction } from './intake-navigation';
 import type { DiagnosticSession, DiagnosticTask, Exercise, DiagnosticRecommendation } from '../../shared/model/diagnostic.model';
 
 const { t } = useI18n();
@@ -117,9 +118,11 @@ async function start(): Promise<void> {
 
 async function continueWithoutRecording(): Promise<void> {
   const id = learnerStore.learner?.id;
-  if (!id || !session.value || busy.value || intakeBusy.value) return;
+  if (!id || !session.value) return;
+  const navigation = intakeNavigationAction(busy.value, intakeBusy.value, intakeDraft.value);
+  if (navigation === 'BLOCK') return;
   // Do not silently discard a local recording or upload form when leaving intake.
-  if (intakeDraft.value && !window.confirm(t('evidence.confirmDiscard'))) return;
+  if (navigation === 'CONFIRM_DISCARD' && !window.confirm(t('evidence.confirmDiscard'))) return;
   busy.value = true;
   error.value = '';
   try {
