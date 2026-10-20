@@ -133,7 +133,9 @@ async function start(): Promise<void> {
       if (now - last >= 100) {
         last = now;
         analyser.getFloatTimeDomainData(samples);
-        const candidate = detectPitch(samples, context.sampleRate);
+        // Auto mode must not confirm tuning when a competing pitch is detected.
+        // Manual mode remains available for difficult or severely detuned notes.
+        const candidate = detectPitch(samples, context.sampleRate, mode.value === 'auto');
         frequency.value = trackPitch(tracking, candidate, now);
         held.value = candidate === null && frequency.value !== null;
         if (mode.value === 'auto') {
@@ -159,7 +161,9 @@ function choose(index: number): void {
 }
 function chooseAuto(): void {
   mode.value = 'auto';
-  selected.value = autoStringIndex(frequency.value, null);
+  // Never inherit a possibly polyphonic pitch from manual mode. Acquire a
+  // fresh set of three monophonic frames before selecting the target.
+  resetPitch();
 }
 function handleKey(event: KeyboardEvent): void {
   if (event.key === 'Escape') {

@@ -1,5 +1,5 @@
 /** Hann-windowed FFT over 8192 samples: verify fundamentals independently of YIN. */
-export interface SpectralCandidate { hz: number; count: number; score: number }
+export interface SpectralCandidate { hz: number; count: number; score: number; ambiguous: boolean }
 interface Peak { hz: number; strength: number }
 
 export function spectralFundamental(samples: Float32Array, sampleRate: number): SpectralCandidate | null {
@@ -83,9 +83,36 @@ export function spectralFundamental(samples: Float32Array, sampleRate: number): 
     // Their frequencies are NOT exact multiples on real, stiff guitar strings;
     // averaging match.hz / harmonic shifts a perfectly tuned string sharp.
     // Report the measured fundamental peak, not a harmonic-derived mean.
-    const choice = { hz: fundamental.hz, count, score };
+    const choice = { hz: fundamental.hz, count, score, ambiguous: false };
     if (!best || score > best.score + 1e-6 ||
       (Math.abs(score - best.score) < 1e-6 && choice.hz < best.hz)) best = choice;
   }
-  return best;
+  if (!best) return null;
+  const fundamentalHz = best.hz;
+  // The detected fundamental alone is not proof that only one note is sounding.
+  // In Auto mode, reject strong independent partials that do not belong to
+  // the selected harmonic family. Permit some inharmonicity on stiff strings.
+  const explainedByFundamental = (hz: number): boolean => {
+    const harmonic = Math.round(hz / fundamentalHz);
+    if (harmonic < 1 || harmonic > 30) return false;
+    const expected = harmonic * fundamentalHz;
+    return Math.abs(hz - expected) <= Math.max(7, expected * 0.045);
+  };
+  const independentPartial = peaks.some(peak =>
+    peak.strength >= 0.15 * maximum && !explainedByFundamental(peak.hz));
+
+  // Guitar open strings can overlap a different string's 3rd/4th harmonic
+  // (E2+B3, E2+E4, A2+E4). A pronounced second harmonic *series* is a
+  // conservative ambiguity cue, NOT proof of two physical sources.
+  // Preserve bright, genuinely single notes with a very weak fundamental.
+  const root = nearby(fundamentalHz);
+  const nestedSeries = root !== null && root.strength >= 0.25 * maximum &&
+    [3, 4].some(n => {
+      const high = nearby(n * fundamentalHz);
+      const doubleHigh = nearby(2 * n * fundamentalHz);
+      return high !== null && doubleHigh !== null &&
+        high.strength >= 0.24 * root.strength &&
+        doubleHigh.strength >= 0.055 * maximum;
+    });
+  return { ...best, ambiguous: independentPartial || nestedSeries };
 }

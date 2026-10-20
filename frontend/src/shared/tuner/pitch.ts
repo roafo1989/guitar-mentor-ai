@@ -18,7 +18,11 @@ export function noteName(hz: number): string {
   return NOTES[((midi % 12) + 12) % 12] + String(Math.floor(midi / 12) - 1);
 }
 // YIN-like normalized difference. Inaccurate/weak/ambiguous frames return null.
-export function detectPitch(samples: Float32Array, sampleRate: number): number | null {
+export function detectPitch(
+  samples: Float32Array,
+  sampleRate: number,
+  requireMonophonic = false,
+): number | null {
   if (!Number.isFinite(sampleRate) || sampleRate <= 0) return null;
   const minLag = Math.max(2, Math.floor(sampleRate / 375));
   const maxLag = Math.ceil(sampleRate / 70);
@@ -78,7 +82,7 @@ export function detectPitch(samples: Float32Array, sampleRate: number): number |
   // The first credible YIN period can be a harmonic or subharmonic.
   // Spectral evidence must support a proposed lower fundamental.
   const spectrum = spectralFundamental(samples, sampleRate);
-  if (!spectrum) return null;
+  if (!spectrum || (requireMonophonic && spectrum.ambiguous)) return null;
   if (spectrum.count === 1) {
     // A single sine is indistinguishable from a missing-fundamental overtone.
     // Do not invent lower pitches without independent spectral evidence.

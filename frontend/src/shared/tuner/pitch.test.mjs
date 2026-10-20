@@ -341,3 +341,81 @@ test('REAL-02: notes outside ordinary open strings are not silently marked in tu
     assert.equal(autoStringIndex(candidate, null), STRINGS.indexOf(string));
   }
 });
+
+
+// P2 BUG-98-REVIEW-03: Auto must not report "in tune" while two separately
+// pitched strings are visible in the spectrum. Some exact harmonic overlaps
+// are physically indistinguishable in a short mono recording; those exceptions
+// are explicitly limited and described in the feature documentation.
+const twoStrings = (first, second, secondLevel, rate, phaseVariant) =>
+  Float32Array.from({ length: 8192 }, (_, i) => {
+    const time = i / rate;
+    const sound = (hz, gain, phase) => [1, 0.45, 0.25].reduce((value, amp, k) =>
+      value + gain * amp * Math.sin(2 * Math.PI * hz * (k + 1) * time +
+        (phaseVariant === 0 ? k : k + 1) * phase), 0);
+    return 0.16 * Math.exp(-0.3 * time) *
+      (sound(first, 1, 0.4) + sound(second, secondLevel, 0.8));
+  });
+
+test('REVIEW-03: 150 two-string mixtures never confidently show a clear false green', () => {
+  let checked = 0, rejected = 0;
+  const unresolved = [];
+  for (const phaseVariant of [0, 1]) {
+    for (const level of [0.2, 0.4, 0.6, 0.8, 1]) {
+      for (let first = 0; first < STRINGS.length; first++) {
+        for (let second = first + 1; second < STRINGS.length; second++) {
+          const signal = twoStrings(STRINGS[first].hz, STRINGS[second].hz,
+            level, 48000, phaseVariant);
+          const result = detectPitch(signal, 48000, true);
+          if (result === null) {
+            rejected++;
+          } else {
+            unresolved.push({
+              first, second, level, phaseVariant,
+              status: tunerReading(result, STRINGS[first].hz).status,
+            });
+          }
+          checked++;
+        }
+      }
+    }
+  }
+  assert.equal(checked, 150);
+  assert.ok(rejected >= 148, 'Most polyphonic signals must be withheld in Auto');
+  assert.ok(unresolved.every(x =>
+    x.first === 0 && x.second === 5 && x.level === 0.2),
+    'Only the quiet E4 aligned with the E2 fourth harmonic may be indeterminate');
+});
+
+test('REVIEW-03: Auto recognizes clean low notes, overtones and inharmonic strings', () => {
+  const profiles = [[1], [1, 0.45, 0.3, 0.1], [0.02, 0.02, 1],
+    [0.15, 0.3, 0.5, 0.7, 0.9, 1], [0.2, 1, 0.6, 0.3, 0.12]];
+  let checked = 0;
+  for (const rate of [44100, 48000]) for (const string of STRINGS) {
+    for (const amps of profiles) {
+      const clean = harmonics(string.hz, rate, amps);
+      const found = detectPitch(clean, rate, true);
+      assert.ok(found !== null, 'Auto rejected ' + string.note + ' with ' + amps);
+      assert.ok(Math.abs(cents(found, string.hz)) < 5,
+        'Auto misstuned ' + string.note);
+      checked++;
+    }
+    for (const stiffness of [0.0005, 0.001, 0.002]) {
+      const stiff = stiffString(string.hz, rate, [1, 0.4, 0.3, 0.2], stiffness);
+      const found = detectPitch(stiff, rate, true);
+      assert.ok(found !== null, 'Auto rejected stiff ' + string.note);
+      assert.ok(Math.abs(cents(found, string.hz)) < 5,
+        'Auto wrong cents on stiff ' + string.note);
+      checked++;
+    }
+  }
+  assert.equal(checked, 96);
+});
+
+test('REVIEW-03: manual mode may analyze dominant pitch without green Auto lock', () => {
+  const signal = twoStrings(STRINGS[0].hz, STRINGS[4].hz, 1, 48000, 0);
+  const manual = detectPitch(signal, 48000);
+  assert.ok(manual !== null, 'Manual still offers fallback if desired');
+  assert.equal(detectPitch(signal, 48000, true), null,
+    'Auto must not confirm tuning while other strings sound');
+});
