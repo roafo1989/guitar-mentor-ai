@@ -91,6 +91,12 @@ public final class AudioCorpusValidator {
 
             Map<String, Set<String>> coverage = new HashMap<>();
             Set<String> sourceHashes = new HashSet<>();
+            // Separate WAV encodings can have different SHA-256 while referring to the same
+            // original physical performance. Never let those derivatives enter distinct
+            // recording groups or opposite calibration/holdout partitions.
+            Map<String, String> originalRecordingGroups = new HashMap<>();
+            Map<String, String> originalSplits = new HashMap<>();
+            Map<String, String> groupOriginalHashes = new HashMap<>();
             for (JsonNode rec : dataset.path("recordings")) {
                 String id = value(rec, "recordingId");
                 if (!validId(id) || !ids.add(id)) {
@@ -117,6 +123,31 @@ public final class AudioCorpusValidator {
                     String sourceKey = value(rec, "sourceSha256");
                     if (validSha(sourceKey) && !sourceHashes.add(sourceKey)) {
                         errors.add("DUPLICATE_REAL_SOURCE:" + id);
+                    }
+                    // ORIGINAL files use their own hash; DERIVED files use the parent hash
+                    // from the provenance validated below. Missing/invalid provenance
+                    // is rejected by validateProvenance; do not trust it for coverage.
+                    if ("AVAILABLE".equals(available) && validId(recordingGroup)) {
+                        String sourceKind = value(rec, "sourceKind");
+                        String originalHash = "ORIGINAL".equals(sourceKind) ? sourceKey
+                                : "DERIVED".equals(sourceKind)
+                                        ? value(rec.path("transform"), "sourceSha256") : "";
+                        if (validSha(originalHash)) {
+                            String existingGroup = originalRecordingGroups.putIfAbsent(
+                                    originalHash, recordingGroup);
+                            if (existingGroup != null && !existingGroup.equals(recordingGroup)) {
+                                errors.add("SOURCE_LINEAGE_GROUP_CONFLICT:" + id);
+                            }
+                            String existingSplit = originalSplits.putIfAbsent(originalHash, split);
+                            if (existingSplit != null && !existingSplit.equals(split)) {
+                                errors.add("SOURCE_LINEAGE_SPLIT_CONFLICT:" + id);
+                            }
+                            String existingOriginal = groupOriginalHashes.putIfAbsent(
+                                    recordingGroup, originalHash);
+                            if (existingOriginal != null && !existingOriginal.equals(originalHash)) {
+                                errors.add("GROUP_MULTIPLE_ORIGINALS:" + id);
+                            }
+                        }
                     }
                     String oldKind = groupKinds.putIfAbsent(recordingGroup, group);
                     if (oldKind != null && !oldKind.equals(group)) errors.add("GROUP_REUSED_ACROSS_TYPES:" + id);
