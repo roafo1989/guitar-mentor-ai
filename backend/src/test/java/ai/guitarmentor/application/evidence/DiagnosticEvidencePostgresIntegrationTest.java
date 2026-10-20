@@ -267,6 +267,73 @@ class DiagnosticEvidencePostgresIntegrationTest {
         assertEquals(0,count(SCORE_ROOT));
     }
 
+
+    @Test void existingOtherLearnerCannotAccessForeignEvidenceByAnyApi() throws Exception {
+        UUID otherLearner=UUID.randomUUID(),otherProfile=UUID.randomUUID();
+        Timestamp now=Timestamp.from(Instant.now());
+        jdbc.update("INSERT INTO learners(id,display_name,created_at) VALUES(?,?,?)",
+                otherLearner,"Another real learner",now);
+        jdbc.update("INSERT INTO instrument_profiles(id,learner_id,instrument_code,technique_code) " +
+                "VALUES(?,?,?,?)",otherProfile,otherLearner,"ACOUSTIC_GUITAR","FINGERSTYLE");
+        try {
+            UUID evidenceId=service.submit(learner,session,UUID.randomUUID(),
+                    "Private performance",null,null,audio(),null).evidence().id();
+            String otherPath="/api/v1/learners/"+otherLearner+"/diagnostic-sessions/"+session+"/evidence";
+            var http=evidenceHttp();
+            http.perform(org.springframework.test.web.servlet.request.MockMvcRequestBuilders
+                    .multipart(otherPath).file(audio())
+                    .param("requestId",UUID.randomUUID().toString()).param("title","Unauthorized"))
+                    .andExpect(org.springframework.test.web.servlet.result.MockMvcResultMatchers.status().isNotFound())
+                    .andExpect(org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath("$.code")
+                            .value("SESSION_NOT_FOUND"));
+            assertThrows(jakarta.persistence.EntityNotFoundException.class,
+                    ()->service.list(otherLearner,session));
+            assertThrows(jakarta.persistence.EntityNotFoundException.class,
+                    ()->service.get(otherLearner,session,evidenceId));
+            assertEquals(1,service.list(learner,session).size());
+            assertEquals(1,count(AUDIO_ROOT));
+        } finally {
+            jdbc.update("DELETE FROM instrument_profiles WHERE id=?",otherProfile);
+            jdbc.update("DELETE FROM learners WHERE id=?",otherLearner);
+        }
+    }
+
+    @Test void learnerCanFinishIntakeWithoutAnyEvidence() {
+        assertTrue(service.list(learner,session).isEmpty());
+        var finished=diagnosticSessions.finishIntake(learner,session);
+        assertEquals("READY_FOR_TASK",finished.status().name());
+        assertTrue(service.list(learner,session).isEmpty());
+        assertEquals(0,countEvidenceRows());
+    }
+    private long countEvidenceRows() {
+        return jdbc.queryForObject("SELECT count(*) FROM diagnostic_evidence WHERE diagnostic_session_id=?",
+                Long.class,session);
+    }
+
+    @Test void twoPerformancesRemainDistinctWhenHistoryIsFetchedAfresh() throws Exception {
+        var http=evidenceHttp();
+        UUID first=UUID.randomUUID(),second=UUID.randomUUID();
+        http.perform(org.springframework.test.web.servlet.request.MockMvcRequestBuilders
+                .multipart(evidencePath()).file(audio())
+                .param("requestId",first.toString()).param("title","Piece one"))
+                .andExpect(org.springframework.test.web.servlet.result.MockMvcResultMatchers.status().isCreated());
+        http.perform(org.springframework.test.web.servlet.request.MockMvcRequestBuilders
+                .multipart(evidencePath()).file(audio())
+                .param("requestId",second.toString()).param("title","Piece two"))
+                .andExpect(org.springframework.test.web.servlet.result.MockMvcResultMatchers.status().isCreated());
+        // A new HTTP controller request represents a reload, not in-memory UI state.
+        var afterReload=evidenceHttp();
+        afterReload.perform(org.springframework.test.web.servlet.request.MockMvcRequestBuilders
+                .get(evidencePath()))
+                .andExpect(org.springframework.test.web.servlet.result.MockMvcResultMatchers.status().isOk())
+                .andExpect(org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath("$.length()").value(2))
+                .andExpect(org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath("$[0].title").value("Piece one"))
+                .andExpect(org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath("$[1].title").value("Piece two"));
+        var saved=service.list(learner,session);
+        assertNotEquals(saved.get(0).id(),saved.get(1).id());
+        assertEquals(2,count(AUDIO_ROOT));
+    }
+
     @Test void sixtyFailedPendingDeletesCannotStarveFreshEligibleMedia() {
         Instant now=Instant.now();
         Instant old=now.minusSeconds(50*3600);
