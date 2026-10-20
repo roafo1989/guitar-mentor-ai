@@ -74,7 +74,7 @@ class DiagnosticEvidenceServiceTest {
     @Test void missingAudioDoesNotCreateEvidence() {
         assertEquals("MISSING_AUDIO", assertThrows(ResponseStatusException.class,
             ()->service.submit(learner,sessionId,request,"Yesterday",null,null,null,null)).getReason());
-        verify(repo,never()).addEvidence(any(),any(),any(),any(),any(),any());
+        verify(repo,never()).addEvidence(any(),any(),any(),any(),any(),any(),any());
     }
     @Test void cannotUploadAfterContinue() {
         when(session.getStatus()).thenReturn(DiagnosticStatus.READY_FOR_TASK);
