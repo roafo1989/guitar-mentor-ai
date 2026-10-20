@@ -27,5 +27,7 @@ jobs:
           node-version: "22"
       - name: Install packages
         run: npm ci --no-audit --no-fund
+      - name: Guard diagnostic intake navigation under recording and upload
+        run: npm run test:intake
       - name: Typecheck and build
         run: npm run build
