@@ -47,6 +47,7 @@ function headlessRenderer() {
     addEventListener() {}, removeEventListener() {},
   });
   const remove = (n) => {
+    if (!n) return; // Vue fragment teardown may hand the headless host a null anchor.
     const items = n.parent?.children;
     if (items) { const i = items.indexOf(n); if (i >= 0) items.splice(i, 1); }
     n.parent = null;
