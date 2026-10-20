@@ -52,13 +52,21 @@ function audioFactory(clock, contexts, options = {}) {
       destination: {},
       closed: 0,
       oscillators: [],
+      listeners: new Map(),
+      addEventListener(name, fn) { this.listeners.set(name, fn); },
+      removeEventListener(name, fn) { if (this.listeners.get(name) === fn) this.listeners.delete(name); },
       get currentTime() { return clock.now / 1000; },
       resume() {
         if (options.resume) return options.resume(this);
         this.state = 'running';
         return Promise.resolve();
       },
-      close() { this.state = 'closed'; this.closed++; return Promise.resolve(); },
+      close() {
+        this.closed++;
+        if (options.close) return options.close(this);
+        this.state = 'closed';
+        return Promise.resolve();
+      },
       createOscillator() {
         if (options.failOscillator) throw new Error('audio device error');
         const osc = {
@@ -272,5 +280,86 @@ test('pagehide while resume is pending cancels startup before any sound', async 
     assert.equal(env.contexts[0].closed, 1);
     assert.equal(env.contexts[0].oscillators.length, 0);
     assert.equal(env.clock.tasks.size, 0);
+  } finally { env.restore(); }
+});
+
+
+test('suspended/interrupted output becomes unavailable; no automatic restart', async () => {
+  const env = setup();
+  try {
+    assert.equal(await env.engine.start(), true);
+    const context = env.contexts[0];
+    context.state = 'suspended';
+    context.listeners.get('statechange')();
+    assert.equal(env.engine.getState().status, 'unavailable');
+    assert.equal(env.engine.getState().beat, null);
+    assert.equal(env.engine.getState().error, 'web-audio-unavailable');
+    assert.equal(context.closed, 1);
+    assert.equal(env.clock.tasks.size, 0);
+    env.clock.advance(1000);
+    assert.equal(env.contexts.length, 1, 'interruption cannot restart audio');
+    assert.equal(await env.engine.start(), true, 'explicit restart can retry');
+    const second = env.contexts[1];
+    second.state = 'interrupted';
+    const interval = [...env.clock.tasks.values()].find(t => t.repeating);
+    interval.fn(); // fallback if browser did not dispatch statechange
+    assert.equal(env.engine.getState().status, 'unavailable');
+    assert.equal(second.closed, 1);
+    assert.equal(env.clock.tasks.size, 0);
+  } finally { env.restore(); }
+});
+
+test('rapid stop/start waits for previous close and never stacks contexts', async () => {
+  const waiters = [];
+  const env = setup({ close(ctx) {
+    return new Promise(resolve => waiters.push(() => { ctx.state = 'closed'; resolve(); }));
+  } });
+  try {
+    assert.equal(await env.engine.start(), true);
+    env.engine.stop();
+    assert.equal(waiters.length, 1);
+    const next = env.engine.start();
+    const duplicate = env.engine.start();
+    assert.equal(env.contexts.length, 1, 'cannot allocate while close pending');
+    waiters.shift()();
+    assert.equal(await next, true);
+    assert.equal(await duplicate, true);
+    assert.equal(env.contexts.length, 2);
+    assert.equal(env.contexts[0].state, 'closed');
+    env.engine.stop();
+    waiters.shift()();
+    await Promise.resolve();
+    assert.equal(env.clock.tasks.size, 0);
+  } finally { env.restore(); }
+});
+
+test('stop during pending close cancels queued start without creating a context', async () => {
+  let release;
+  const env = setup({ close(ctx) {
+    return new Promise(resolve => { release = () => { ctx.state = 'closed'; resolve(); }; });
+  } });
+  try {
+    await env.engine.start();
+    env.engine.stop();
+    const pending = env.engine.start();
+    env.engine.stop();
+    release();
+    assert.equal(await pending, false);
+    assert.equal(env.contexts.length, 1);
+    assert.equal(env.engine.getState().status, 'stopped');
+    assert.equal(env.clock.tasks.size, 0);
+  } finally { env.restore(); }
+});
+
+test('malformed listener cannot alter next subscriber state', async () => {
+  const env = setup();
+  try {
+    const observed = [];
+    env.engine.subscribe(state => { state.bpm = 201; state.beat = 4; });
+    env.engine.subscribe(state => observed.push(state));
+    assert.equal(env.engine.setBpm(84), true);
+    assert.equal(observed.at(-1).bpm, 84);
+    assert.equal(observed.at(-1).beat, null);
+    assert.equal(env.engine.getState().bpm, 84);
   } finally { env.restore(); }
 });
