@@ -280,7 +280,6 @@ public final class AudioCorpusValidator {
                     return;
                 }
             }
-        }
             if (!hash(path).equals(value(rec, "referenceSha256"))) {
                 errors.add("REFERENCE_CHANGED_DURING_READ:" + id);
             }
