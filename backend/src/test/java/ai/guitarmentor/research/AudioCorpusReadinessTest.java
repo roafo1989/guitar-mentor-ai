@@ -301,6 +301,52 @@ class AudioCorpusReadinessTest {
         assertTrue(rejected.errors().stream().anyMatch(e -> e.startsWith("UNKNOWN_EVENT_ID")));
     }
 
+    @Test
+    void allDocumentedAudioContainersAreProbedWithRealFfmpegOutputs() throws Exception {
+        assumeTrue(ffprobePresent() && ffmpegPresent(),
+                "ffprobe and ffmpeg must be installed; dedicated CI treats skips as failures");
+        String input = "format-input.wav";
+        writeWav(input, 23);
+        for (String[] spec : new String[][]{
+                {"mp3", "libmp3lame"}, {"ogg", "libopus"}, {"webm", "libopus"}
+        }) {
+            String file = "encoded." + spec[0];
+            encodeWithFfmpeg(input, file, spec[1]);
+            assertTrue(AudioMediaProbe.matches(root.resolve(file), 1000, 48000, 1),
+                    "Supported container/codec must pass: " + spec[0]);
+        }
+        Files.copy(root.resolve("encoded.mp3"), root.resolve("fake.wav"));
+        assertFalse(AudioMediaProbe.matches(root.resolve("fake.wav"), 1000, 48000, 1),
+                "Extension does not override detected MP3 container");
+        Files.copy(root.resolve("encoded.webm"), root.resolve("fake.ogg"));
+        assertFalse(AudioMediaProbe.matches(root.resolve("fake.ogg"), 1000, 48000, 1),
+                "WebM bytes are not OGG");
+        encodeWithFfmpeg(input, "wrong-codec.wav", "pcm_alaw");
+        assertFalse(AudioMediaProbe.matches(root.resolve("wrong-codec.wav"), 1000, 48000, 1),
+                "WAV with unsupported codec must not be accepted as PCM research format");
+    }
+
+    private void encodeWithFfmpeg(String input, String output, String codec) throws Exception {
+        var command = new ProcessBuilder(
+                "ffmpeg", "-nostdin", "-v", "error", "-y",
+                "-i", root.resolve(input).toString(), "-ar", "48000", "-c:a", codec,
+                root.resolve(output).toString())
+                .redirectOutput(ProcessBuilder.Redirect.DISCARD)
+                .redirectError(ProcessBuilder.Redirect.DISCARD)
+                .start();
+        assertTrue(command.waitFor(20, java.util.concurrent.TimeUnit.SECONDS), "ffmpeg timed out");
+        assertEquals(0, command.exitValue(), "ffmpeg must produce " + output);
+    }
+
+    private boolean ffmpegPresent() {
+        try {
+            Process p = new ProcessBuilder("ffmpeg", "-version").start();
+            return p.waitFor(5, java.util.concurrent.TimeUnit.SECONDS) && p.exitValue() == 0;
+        } catch (Exception e) {
+            return false;
+        }
+    }
+
     private void updateReferenceHash(ArrayNode recordings, String digest) {
         for (var record : recordings) ((ObjectNode) record).put("referenceSha256", digest);
     }
