@@ -117,7 +117,9 @@ onBeforeUnmount(() => {
 
 <template>
   <Teleport to="body">
-    <div class="metronome-backdrop" @click.self="requestClose">
+    <!-- Accidental backdrop clicks must not silence a practice session.
+         Close (×/Escape) and Minimize are explicit distinct actions. -->
+    <div class="metronome-backdrop">
       <section ref="dialog" class="metronome-dialog" role="dialog" aria-modal="true"
         aria-labelledby="metronome-title" aria-describedby="metronome-description"
         tabindex="-1" @keydown="onKeydown">

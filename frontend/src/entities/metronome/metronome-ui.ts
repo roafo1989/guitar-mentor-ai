@@ -16,8 +16,17 @@ export function openMetronome(trigger: HTMLElement): void {
 
 /** Exercise opens with its recommended tempo; it never writes back to the exercise. */
 export function openExerciseMetronome(trigger: HTMLElement, source: string, bpm: number): void {
-  // A new source must not inherit the previous exercise's audio playback.
-  metronome.stop();
+  // A minimized metronome must not lose its beat or tempo when the student
+  // reopens the very same singleton from an exercise card. Applying even an
+  // identical BPM while playing would reset #86's beat scheduler.
+  const status = metronome.getState().status;
+  if (status === 'running' || status === 'starting') {
+    metronomeUi.sourceExercise = source;
+    openMetronome(trigger);
+    return;
+  }
+  // On a stopped metronome the exercise recommendation is a convenient
+  // starting point, not a mutation of the underlying exercise.
   metronomeUi.sourceExercise = source;
   if (!metronome.setBpm(bpm)) {
     // Invalid catalog data must not overwrite the user's previously valid tempo.

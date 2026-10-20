@@ -181,6 +181,10 @@ test('real dialog applies typed BPM and starts; invalid input preserves BPM and 
     retry.props.onClick();
     await nextTick();
     assert.equal(engine.getState().status, 'running');
+    const backdrop = view.find('div', n => n.props.class === 'metronome-backdrop');
+    assert.ok(backdrop);
+    assert.equal(backdrop.props.onClick, undefined, 'backdrop is not a close button');
+    assert.equal(engine.getState().status, 'running', 'unintentional backdrop interaction cannot stop playback');
     const minimize = view.find('button', n => n.text === 'metronome.minimize');
     assert.ok(minimize, 'minimize command offered when playing');
     minimize.props.onClick();
