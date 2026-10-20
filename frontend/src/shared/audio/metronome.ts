@@ -120,14 +120,19 @@ export class MetronomeEngine {
         return false;
       }
       this.context = context;
+      // Also handle pagehide while a browser is waiting for resume() to settle.
+      this.addLifecycleListeners();
       await context.resume();
       if (generation !== this.generation) return false;
+      if (typeof document !== 'undefined' && document.visibilityState === 'hidden') {
+        this.stop();
+        return false;
+      }
       if (context.state !== 'running') throw new Error('Audio context did not resume');
 
       this.nextBeatIndex = 0;
       this.nextBeatTime = context.currentTime + FIRST_BEAT_DELAY_SECONDS;
       this.state = { ...this.state, status: 'running', beat: null, error: null };
-      this.addLifecycleListeners();
       this.emit();
       this.schedule(generation);
       if (generation !== this.generation) return false;
