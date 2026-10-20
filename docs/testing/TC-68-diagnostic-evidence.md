@@ -2,6 +2,7 @@
 
 | Версия | Дата | Изменения |
 |---|---|---|
+| 1.1 | 20.10.2026 | Дополнительные PostgreSQL-тесты выявили и дважды воспроизвели DEF-68-QA-01 на гонке POST/continue; QA FAILED, возврат в разработку. |
 | 1.0 | 20.10.2026 | Матрица AC68-01…15, дополнительные регрессии повторных ревью, фактическое автоматическое тестирование и остаточный device-only QA. |
 
 **Задача:** [#68](https://github.com/roafo1989/guitar-mentor-ai/issues/68) · **PR:** [#93](https://github.com/roafo1989/guitar-mentor-ai/pull/93).  
@@ -27,7 +28,7 @@
 | **TC68-06 / AC68-06** | GET / POST для чужого learnerId/sessionId/evidenceId | 404 без утечки чужих данных или создания media | **PARTIAL** — ownership проверен service integration; отдельная HTTP-проверка владельца в будущем расширит регрессию |
 | **TC68-07 / AC68-07** | PDF с ложной сигнатурой, PNG не PNG, >10 MiB, пустой файл | Отказ; ноль новых evidence, аудио и score-сирот | **PASS-CI** для поддельного PDF и компенсации; unit DocumentMediaStore покрывает PNG, пустой и oversized; полное граничное HTTP / multipart 413 отдельно |
 | **TC68-08 / AC68-08** | Worker получает invalid/overlong audio | FAILED/errorCode, история остаётся; continue разрешён; skillEvidence=NOT_ASSESSED | **PARTIAL** — worker unit и PostgreSQL lifecycle; отсутствует полный браузерный сценарий с реально испорченным файлом |
-| **TC68-09 / AC68-09** | Одновременно POST evidence и POST /continue | Сериализация по session row; evidence только если успел до смены статуса; состояние целостно | **PARTIAL** — контракт locking проверен по коду; отдельный стресс-тест на реальном HTTP ещё не запускался |
+| **TC68-09 / AC68-09** | Одновременно POST evidence и POST /continue | Сериализация по session row; evidence только если успел до смены статуса; состояние целостно | **FAIL-CI / DEF-68-QA-01** — конкурентные реальные Spring транзакции на PostgreSQL дважды дали `ObjectOptimisticLockingFailureException` при session lock upgrade; тест не проходит, требуется исправление сервиса |
 | **TC68-10 / AC68-10** | Аудио записалось, score отклонён; DB rollback / неизвестный commit | Атомарный отказ, 0 media-сирот; uncertain outcome безопасно переживает повтор | **PARTIAL** — реально PostgreSQL/file compensation PASS; фазу STATUS_UNKNOWN непосредственно не симулировали |
 | **TC68-11 / AC68-11** | Создать 10 примеров → 11-й; отправить сверхлимитный multipart | 11-й 409/MAX_ITEMS_REACHED; oversized multipart 413; continue по-прежнему доступен | **PARTIAL** — unit maxItems и настроенные Spring multipart лимиты; full HTTP 413 ещё не исполнялся |
 | **TC68-12 / AC68-12** | Финализировать AUDIO+SCORE, передвинуть timestamps за 48h, выполнить общий cleanup | Оба файла удалены, строки/история/NOT_ASSESSED сохранены, catalog не затронут; retries не голодают | **PASS-CI** — реальный PostgreSQL + filesystem 48h тест и 60 DELETE_PENDING/1 newly expired; контент каталога проверяется отдельно в регрессии |
@@ -52,9 +53,19 @@
 
 ## 4. Фактически выполненные автономные проверки
 
+### Итог QA-прогона 20.10.2026 — FAILED
+
+- [Java CI #39397636320](https://github.com/roafo1989/guitar-mentor-ai/actions/runs/39397636320): **SUCCESS — 142 теста, 0 failures/errors, 2 skipped**. Включает четыре новые MockMvc+PostgreSQL multipart проверки #68.
+- [Vue CI #39398164288](https://github.com/roafo1989/guitar-mentor-ai/actions/runs/39398164288): **SUCCESS — 13/13 tests + vue-tsc/Vite**.
+- [Java CI #39398163986](https://github.com/roafo1989/guitar-mentor-ai/actions/runs/39398163986): **FAILED два раза на SHA `07bf2f621c4ecf906ea773c90bad03e5de7024ea` — 145 tests, 0 assertion failures, 1 error, 2 skipped**. Положительно проверены feature flag off/403 и лимит maxItems 10/409, но новый параллельный тест `concurrentHttpIntakeAndContinueAreSerializedBySessionLock` выявил production race.
+- **DEF-68-QA-01 (P1):** `DiagnosticEvidenceService.submit` читает сессию через `diagnostics.get` до pessimistic `sessions.findLockedById`. Конкурирующий `finishIntake` может успеть обновить JPA `@Version`, поэтому при захвате lock Hibernate выбрасывает `ObjectOptimisticLockingFailureException`. Ожидается сериализация с итогом 201 или 409, не необработанная ошибка. Стек `DiagnosticEvidenceService.java:96` подтверждён CI. Подробности — в [Issue #68](https://github.com/roafo1989/guitar-mentor-ai/issues/68).
+- **Процесс:** QA FAILED; PR Draft, Issue OPEN; вернуть разработчику, повторить CI и ревью после исправления, только потом возобновлять device-only тесты. Ручные испытания владельца в этом прогоне **НЕ ТРЕБУЮТСЯ**.
+
+### Автономное покрытие
+
 Проверялся **исходный PR в GitHub и результаты CI**, а не локальный пользовательский ПК. GitHub Actions запускал backend PostgreSQL 17, Flyway, JUnit, загрузочные Java tests, HTTP smoke, а также Vue component/router tests и TypeScript/Vite. Дополнительно в feature-ветку внесены **4 настоящих MockMvc multipart HTTP/PG теста для #68**, которых раньше не было: 201/Location/GET/replay; changed payload 409; фальшивый PDF/компенсация; переход в READY и новая загрузка 409. Они выполняются GitHub Actions, итоги привязывать только к их последнему зелёному run.
 
-**Критерий QA PASS:** все обязательные CI зелёные на финальном HEAD, HTTP/PG регрессии успешны, затем получены результаты реального браузера по TC68-15, 21, 22 и 25. Если тест падает — зафиксировать defect прямо в #68 и вернуть задачу в разработку, не сливать PR.
+**Критерий QA PASS:** после устранения DEF-68-QA-01 все обязательные CI зелёные на финальном HEAD, HTTP/PG регрессии успешны, затем получены результаты реального браузера по TC68-15, 21, 22 и 25. Если тест падает — зафиксировать defect прямо в #68 и вернуть задачу в разработку, не сливать PR.
 
 ## 5. Минимальный список проверок, которые нельзя выполнить без пользовательского устройства
 
@@ -68,5 +79,5 @@
 ## 6. Формальное решение
 
 - **Код-ревью:** принят на `a6b5789` до дополнительного QA-тестового коммита; новые кодовые изменения должны получить CI-проверку, review-gate не смешивать с QA.
-- **QA:** автоматический срез покрыт GitHub Actions; окончательный PASS по AC68-01…15 не объявлять до закрытия обозначенных PARTIAL/DEVICE кейсов.
+- **QA:** **FAILED** из-за DEF-68-QA-01 (AC68-09). Часть автоматических кейсов успешно пройдена; окончательный PASS по AC68-01…15 не объявлять до исправления гонки и закрытия PARTIAL/DEVICE кейсов.
 - **Issue/PR:** оставить OPEN, без merge до решения заказчика. Поля GitHub Project v2 при отсутствии метода записи не заявлять обновлёнными.
