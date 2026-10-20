@@ -140,7 +140,28 @@
     "pdfNewTab": "Open PDF in new tab",
     "musicXmlAlternative": "If your browser cannot display PDF inline: ",
     "assignedMediaHeading": "Lesson materials",
-    "assignedMediaHint": "Exercise assigned"
+    "assignedMediaHint": "Exercise assigned",
+    "recommendationTitle": "Recommended diagnostic studies",
+    "recommendationLoading": "Matching available studies to your goals...",
+    "recommendationUnavailable": "Recommendations could not load. The catalog remains available below.",
+    "retryRecommendations": "Retry recommendations",
+    "manualChoice": "You can change your profile or manually select an exercise from the catalog.",
+    "practiceDuration": "Session duration: {minutes} min",
+    "assignRecommended": "Choose this study",
+    "catalogAll": "All available exercises",
+    "recommendationReason": {
+      "GOAL_MATCH": "Matches your learning goals",
+      "UNKNOWN_SKILL_DIAGNOSTIC": "Helps check skills (not yet assessed)",
+      "PREFERRED_STYLE": "Preferred style",
+      "TIME_FIT": "Fits your practice time",
+      "PREREQUISITE_TO_PRACTICE": "Prerequisite for other skills"
+    },
+    "noRecommendation": {
+      "NO_COMPATIBLE_EXERCISE": "No compatible reviewed exercises yet.",
+      "ALL_STYLES_EXCLUDED": "All suitable styles are excluded by preferences.",
+      "NO_BEGINNER_EXERCISE": "No beginner-friendly exercise is available yet.",
+      "NO_TIME_FIT": "No exercise fits the available session duration."
+    }
   },
   "home": {
     "welcome": "Your space for music",

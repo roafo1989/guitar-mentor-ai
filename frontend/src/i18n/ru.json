@@ -140,7 +140,28 @@
     "pdfNewTab": "Открыть PDF в новой вкладке",
     "musicXmlAlternative": "Если встроенный просмотр не поддерживается браузером: ",
     "assignedMediaHeading": "Материалы задания",
-    "assignedMediaHint": "Этюд назначен"
+    "assignedMediaHint": "Этюд назначен",
+    "recommendationTitle": "Рекомендуемые диагностические упражнения",
+    "recommendationLoading": "Подбираем упражнение по целям и анкете...",
+    "recommendationUnavailable": "Не удалось получить рекомендации. Каталог ниже по-прежнему доступен.",
+    "retryRecommendations": "Повторить подбор",
+    "manualChoice": "Можно изменить анкету или выбрать упражнение из каталога самостоятельно.",
+    "practiceDuration": "На занятие: {minutes} мин",
+    "assignRecommended": "Выбрать это упражнение",
+    "catalogAll": "Все доступные упражнения",
+    "recommendationReason": {
+      "GOAL_MATCH": "Отвечает учебным целям",
+      "UNKNOWN_SKILL_DIAGNOSTIC": "Помогает проверить навыки (пока не оценены)",
+      "PREFERRED_STYLE": "Предпочитаемый стиль",
+      "TIME_FIT": "Укладывается во время занятия",
+      "PREREQUISITE_TO_PRACTICE": "Опорный навык для дальнейшего обучения"
+    },
+    "noRecommendation": {
+      "NO_COMPATIBLE_EXERCISE": "Пока нет совместимых проверенных упражнений.",
+      "ALL_STYLES_EXCLUDED": "Все подходящие стили исключены в предпочтениях.",
+      "NO_BEGINNER_EXERCISE": "Для начального уровня пока нет подходящего упражнения.",
+      "NO_TIME_FIT": "Для выбранного времени занятия пока нет подходящего упражнения."
+    }
   },
   "home": {
     "welcome": "Твоё пространство для музыки",

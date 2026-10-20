@@ -40,7 +40,7 @@ class OnboardingServiceTest {
         learner = new Learner("Student");
         instrument = new InstrumentProfile("ACOUSTIC_GUITAR", "FINGERSTYLE");
         learner.addInstrumentProfile(instrument);
-        when(learners.findById(learner.getId())).thenReturn(Optional.of(learner));
+        when(learners.findLockedById(learner.getId())).thenReturn(Optional.of(learner));
     }
 
     private BackgroundRequest noviceRequest() {

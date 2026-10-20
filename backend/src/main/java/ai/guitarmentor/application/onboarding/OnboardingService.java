@@ -5,6 +5,9 @@ import ai.guitarmentor.domain.onboarding.KnownPiece;
 import ai.guitarmentor.domain.onboarding.LearningBackground;
 import ai.guitarmentor.infrastructure.persistence.LearnerRepository;
 import ai.guitarmentor.infrastructure.persistence.LearningBackgroundRepository;
+import ai.guitarmentor.infrastructure.persistence.SkillMapRepository;
+import ai.guitarmentor.domain.onboarding.SkillTag;
+import org.springframework.beans.factory.annotation.Autowired;
 import ai.guitarmentor.interfaces.rest.onboarding.OnboardingDtos.BackgroundRequest;
 import ai.guitarmentor.interfaces.rest.onboarding.OnboardingDtos.BackgroundView;
 import ai.guitarmentor.interfaces.rest.onboarding.OnboardingDtos.KnownPieceInput;
@@ -22,10 +25,19 @@ public class OnboardingService {
 
     private final LearnerRepository learners;
     private final LearningBackgroundRepository backgrounds;
+    private final SkillMapRepository skillSignals;
 
-    public OnboardingService(LearnerRepository learners, LearningBackgroundRepository backgrounds) {
+    @Autowired
+    public OnboardingService(LearnerRepository learners, LearningBackgroundRepository backgrounds,
+            SkillMapRepository skillSignals) {
         this.learners = learners;
         this.backgrounds = backgrounds;
+        this.skillSignals = skillSignals;
+    }
+
+    /** Existing isolated unit tests use the two-argument constructor. */
+    public OnboardingService(LearnerRepository learners, LearningBackgroundRepository backgrounds) {
+        this(learners, backgrounds, null);
     }
 
     @Transactional(readOnly = true)
@@ -37,10 +49,14 @@ public class OnboardingService {
 
     @Transactional
     public BackgroundView upsert(UUID learnerId, String instrumentCode, BackgroundRequest request) {
-        var instrument = instrument(learnerId, instrumentCode);
+        // Lock the learner row before reading/updating claims: concurrent PUTs
+        // must serialize so duplicate claims and lost retractions cannot occur.
+        var instrument = instrument(learnerId, instrumentCode, true);
         var background = backgrounds.findByInstrumentProfile_Id(instrument.getId())
                 .orElseGet(() -> new LearningBackground(instrument));
         validate(request);
+        boolean wasFamiliar = background.getSkills().contains(SkillTag.FINGERSTYLE_MELODY);
+        boolean nowFamiliar = request.skills().contains(SkillTag.FINGERSTYLE_MELODY);
         background.update(
                 request.experienceLevel(),
                 request.yearsPlaying(),
@@ -52,11 +68,20 @@ public class OnboardingService {
                 request.practiceMinutes(),
                 request.sessionsPerWeek(),
                 request.notes().trim());
-        return toView(backgrounds.saveAndFlush(background));
+        var saved = backgrounds.saveAndFlush(background);
+        if (skillSignals != null && wasFamiliar != nowFamiliar) {
+            // An onboarding statement does not constitute an assessed skill.
+            skillSignals.appendOnboardingClaim(instrument.getId(), "MELODY", nowFamiliar);
+        }
+        return toView(saved);
     }
 
     private InstrumentProfile instrument(UUID learnerId, String instrumentCode) {
-        var learner = learners.findById(learnerId)
+        return instrument(learnerId, instrumentCode, false);
+    }
+
+    private InstrumentProfile instrument(UUID learnerId, String instrumentCode, boolean lock) {
+        var learner = (lock ? learners.findLockedById(learnerId) : learners.findById(learnerId))
                 .orElseThrow(() -> new EntityNotFoundException("Learner not found"));
         return learner.getInstrumentProfiles().stream()
                 .filter(profile -> profile.getInstrumentCode().equals(instrumentCode))
