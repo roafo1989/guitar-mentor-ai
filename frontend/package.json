@@ -6,7 +6,8 @@
   "scripts": {
     "dev": "vite",
     "build": "vue-tsc --noEmit && vite build",
-    "preview": "vite preview"
+    "preview": "vite preview",
+    "test:tuner": "node --experimental-strip-types --test src/shared/tuner/pitch.test.mjs"
   },
   "dependencies": {
     "pinia": "^3.0.3",

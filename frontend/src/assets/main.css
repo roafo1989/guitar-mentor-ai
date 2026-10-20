@@ -152,3 +152,9 @@ footer { text-align: center; font-size: 12px; padding: 24px; color: #8793a4; }
 @media (prefers-reduced-motion: reduce) {
   .mic-level-segment { transition: none; }
 }
+
+/* TOOL-01 header tuning fork */
+.header-tool-button{display:inline-flex;align-items:center;justify-content:center;width:40px;height:40px;padding:8px;flex:0 0 auto;border-radius:9px;border:1px solid #7992a7;background:#30495f;color:white;cursor:pointer}
+.header-tool-button:hover{background:#3c5b72}
+.header-tool-button:focus-visible{outline:3px solid #a8ddca;outline-offset:2px}
+@media(max-width:680px){.header-tool-button{order:0}}

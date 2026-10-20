@@ -1,0 +1,9 @@
+# TOOL-01 / #98 — Guitar tuner
+
+MVP: standard E2 A2 D3 G3 B3 E4 (A4=440 Hz). Selected string is explicit. Browser-only Web Audio, no backend, recording or uploads. Pitch detector searches 70–375 Hz and requires RMS >=0.01, normalized difference <0.16, and three stable readings spaced ~120 ms within 25 cents. “In tune” = selected string within ±5 cents, after stabilization. Alternative tunings/calibration excluded.
+
+One microphone owner: an attempt recording can stop the tuner, but tuner cannot stop a recording; a draft is never erased. TOOL-01 dispatches guitar-mentor:tool-activated (detail.tool='tuner') for #87 metronome integration after #87 is implemented. No code for #87 currently in main. Stop, Close, Escape, route change and component unmount release the microphone. Late permission approvals after closing are stopped. Use HTTPS or localhost for getUserMedia; a custom HTTP hosts alias may not count as a secure context.
+
+Automatic verification: cd frontend; npm ci; npm run test:tuner; npm run build. Synthetic E2–E4 tones at 44.1 and 48 kHz, silence, noise, weak signals, note math, stability, and exclusive microphone lease. The CI workflow runs these tests.
+
+Manual QA: open from header without losing unsaved forms; check six strings against reference tuner; mute/noise; deny/grant mic permission; stop/close/Escape; route changes; mobile; Tab/Shift+Tab; RU/EN; microphone recording conflict; verify no media upload. Real-guitar accuracy and mobile permissions require owner test. No database migrations.

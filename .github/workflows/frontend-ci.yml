@@ -27,5 +27,7 @@ jobs:
           node-version: "22"
       - name: Install packages
         run: npm ci --no-audit --no-fund
+      - name: Test tuner pitch and microphone ownership
+        run: npm run test:tuner
       - name: Typecheck and build
         run: npm run build
