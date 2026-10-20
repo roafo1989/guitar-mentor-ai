@@ -65,7 +65,7 @@ class AudioCorpusReadinessTest {
                 r.put("recordingId", id).put("kind", "REAL").put("group", group)
                         .put("recordingGroupId", "G-" + index)
                         .put("performerId", "P-1").put("sessionId", "S-" + index)
-                        .put("deviceId", "D-1").put("split", split)
+                        .put("deviceId", "D-1").put("sourceKind", "ORIGINAL").put("split", split)
                         .put("availability", "AVAILABLE").put("holdoutIndependentConfirmed", true).put("rightsBasis", "OWNED")
                         .put("consentRef", "C-" + index).put("useScope", "LOCAL_RESEARCH")
                         .put("rightsConfirmed", true).put("manualReviewConfirmed", true)
@@ -164,8 +164,80 @@ class AudioCorpusReadinessTest {
         writeJson("manifest.json", manifest);
         assertEquals("READY_FOR_POC", AudioCorpusValidator.validate(root, "manifest.json").status());
 
-        // Regression: owner's recording permission alone does not attest all score rights.
+        // A non-boolean attestation must never be coerced into permission.
         ObjectNode first = (ObjectNode) recordings.get(0);
+        first.put("rightsConfirmed", "true");
+        writeJson("manifest.json", manifest);
+        var rightsType = AudioCorpusValidator.validate(root, "manifest.json");
+        assertEquals("INVALID", rightsType.status());
+        assertTrue(rightsType.errors().stream().anyMatch(x -> x.startsWith("ATTESTATION_TYPE")));
+        first.put("rightsConfirmed", true);
+
+        first.put("manualReviewConfirmed", 1);
+        writeJson("manifest.json", manifest);
+        assertEquals("INVALID", AudioCorpusValidator.validate(root, "manifest.json").status());
+        first.put("manualReviewConfirmed", true);
+
+        ObjectNode second = (ObjectNode) recordings.get(1);
+        second.put("holdoutIndependentConfirmed", "true");
+        writeJson("manifest.json", manifest);
+        assertEquals("INVALID", AudioCorpusValidator.validate(root, "manifest.json").status());
+        second.put("holdoutIndependentConfirmed", true);
+
+        // A converted REAL recording must point to an intact, immutable original.
+        first.remove("sourceKind");
+        writeJson("manifest.json", manifest);
+        assertTrue(AudioCorpusValidator.validate(root, "manifest.json").errors().stream()
+                .anyMatch(x -> x.startsWith("REAL_PROVENANCE_SCHEMA")));
+        first.put("sourceKind", "ORIGINAL");
+
+        first.put("sourceKind", "DERIVED");
+        first.putObject("transform");
+        writeJson("manifest.json", manifest);
+        assertTrue(AudioCorpusValidator.validate(root, "manifest.json").errors().stream()
+                .anyMatch(x -> x.startsWith("REAL_PROVENANCE_SCHEMA")));
+
+        Files.writeString(root.resolve("parent-original.m4a"), "synthetic-parent-test-only");
+        String originalSha = sha(Files.readAllBytes(root.resolve("parent-original.m4a")));
+        ObjectNode transform = first.putObject("transform");
+        transform.put("sourceRef", "parent-original.m4a").put("sourceSha256", originalSha)
+                .put("operation", "DECODE").put("toolVersion", "TEST-FFMPEG");
+        transform.putObject("parameters").put("codec", "pcm_s16le");
+        writeJson("manifest.json", manifest);
+        assertEquals("READY_FOR_POC", AudioCorpusValidator.validate(root, "manifest.json").status());
+
+        transform.put("sourceSha256", "0".repeat(64));
+        writeJson("manifest.json", manifest);
+        assertTrue(AudioCorpusValidator.validate(root, "manifest.json").errors().stream()
+                .anyMatch(x -> x.startsWith("REAL_PROVENANCE_INTEGRITY")));
+        transform.put("sourceSha256", originalSha);
+        first.remove("transform");
+        first.put("sourceKind", "ORIGINAL");
+
+        // Strict numeric types: a textual integer or BPM is not valid JSON schema.
+        manifest.put("schemaVersion", "1");
+        writeJson("manifest.json", manifest);
+        assertEquals("INVALID", AudioCorpusValidator.validate(root, "manifest.json").status());
+        manifest.put("schemaVersion", 1);
+
+        for (String field : new String[]{"bytes", "durationMs", "sampleRateHz", "channels",
+                "barFrom", "barTo"}) {
+            int integer = first.path(field).asInt();
+            first.put(field, Integer.toString(integer));
+            writeJson("manifest.json", manifest);
+            assertEquals("INVALID", AudioCorpusValidator.validate(root, "manifest.json").status(), field);
+            first.put(field, integer);
+        }
+
+        reference.put("bpm", "60");
+        updateReferenceHash(recordings, writeJson("reference.json", reference));
+        writeJson("manifest.json", manifest);
+        assertTrue(AudioCorpusValidator.validate(root, "manifest.json").errors().stream()
+                .anyMatch(x -> x.startsWith("REFERENCE_CONTENT")));
+        reference.put("bpm", 60);
+        updateReferenceHash(recordings, writeJson("reference.json", reference));
+
+        // Regression: owner's recording permission alone does not attest all score rights.
         first.put("rightsConfirmed", false);
         writeJson("manifest.json", manifest);
         var unlicensedScore = AudioCorpusValidator.validate(root, "manifest.json");
@@ -182,7 +254,6 @@ class AudioCorpusReadinessTest {
         first.put("manualReviewConfirmed", true);
 
         // Separate file hashes alone cannot replace holdout lineage attestation.
-        ObjectNode second = (ObjectNode) recordings.get(1);
         second.put("holdoutIndependentConfirmed", false);
         writeJson("manifest.json", manifest);
         var holdoutUnknown = AudioCorpusValidator.validate(root, "manifest.json");
@@ -198,8 +269,14 @@ class AudioCorpusReadinessTest {
         ((ObjectNode)recordings.get(0)).put("annotationSha256", unconfirmedHash);
         writeJson("manifest.json", manifest);
         var unconfirmed = AudioCorpusValidator.validate(root, "manifest.json");
-        assertEquals("INVALID", unconfirmed.status());
-        assertTrue(unconfirmed.errors().stream().anyMatch(e -> e.startsWith("ANNOTATION_SCHEMA")));
+        assertEquals("INCOMPLETE", unconfirmed.status());
+        assertTrue(unconfirmed.gaps().stream().anyMatch(e -> e.startsWith("ANNOTATION_REVIEW_MISSING")));
+        firstAnnotation.put("manualConfirmed", "true");
+        ((ObjectNode)recordings.get(0)).put("annotationSha256", writeJson("annotation-1.json", firstAnnotation));
+        writeJson("manifest.json", manifest);
+        var malformedReview = AudioCorpusValidator.validate(root, "manifest.json");
+        assertEquals("INVALID", malformedReview.status());
+        assertTrue(malformedReview.errors().stream().anyMatch(e -> e.startsWith("ANNOTATION_SCHEMA")));
         firstAnnotation.put("manualConfirmed", true);
         ((ObjectNode)recordings.get(0)).put("annotationSha256", writeJson("annotation-1.json", firstAnnotation));
 
