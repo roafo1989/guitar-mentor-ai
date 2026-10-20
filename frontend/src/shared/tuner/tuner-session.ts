@@ -47,8 +47,9 @@ export function trackPitch(state: PitchTrackState, candidate: number | null, now
 
 /**
  * Auto mode considers only known open-string targets. Large detunings beyond
- * 200 cents are deliberately left to manual selection. The 70-cent margin
- * prevents repeated switching near boundaries between strings.
+ * 175 cents are deliberately left to manual selection on first detection.
+ * While tracking an established string, tolerate up to 235 cents to avoid
+ * flicker close to the G3/B3 boundary; switch only for a clearly nearer target.
  */
 export function autoStringIndex(frequency: number | null, previous: number | null): number | null {
   if (frequency === null || !Number.isFinite(frequency) || frequency <= 0) return null;
@@ -57,8 +58,13 @@ export function autoStringIndex(frequency: number | null, previous: number | nul
   for (let i = 1; i < distances.length; i++) {
     if (distances[i] < distances[closest]) closest = i;
   }
-  if (distances[closest] > 200) return null;
-  if (previous !== null && previous >= 0 && previous < STRINGS.length && previous !== closest &&
-      distances[previous] - distances[closest] < 70) return previous;
-  return closest;
+  const hasPrevious = previous !== null && previous >= 0 && previous < STRINGS.length;
+  if (hasPrevious && distances[previous] <= 235) {
+    // At a boundary, prefer the last verified open string. A new one must
+    // become substantially closer before it can displace the current target.
+    if (closest === previous || distances[closest] > 175 ||
+        distances[previous] - distances[closest] < 70) return previous;
+  }
+  // Do not invent a guitar string from a pitch in the ambiguous gap.
+  return distances[closest] <= 175 ? closest : null;
 }

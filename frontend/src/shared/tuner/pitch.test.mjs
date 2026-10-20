@@ -319,18 +319,19 @@ test('REAL-02: automatic mode identifies all six open strings, including moderat
 });
 
 test('REAL-02: hysteresis prevents auto-target thrash around string boundaries', () => {
-  const middle = Math.sqrt(STRINGS[0].hz * STRINGS[1].hz);
-  assert.equal(autoStringIndex(middle * 1.02, 0), 0);
-  assert.equal(autoStringIndex(middle / 1.02, 1), 1);
-  assert.equal(autoStringIndex(STRINGS[1].hz, 0), 1, 'real new string switches');
-  assert.equal(autoStringIndex(STRINGS[0].hz, 1), 0);
+  const middle = Math.sqrt(STRINGS[3].hz * STRINGS[4].hz);
+  assert.equal(autoStringIndex(middle, null), null, 'without context the boundary is ambiguous');
+  assert.equal(autoStringIndex(middle * 1.004, 3), 3);
+  assert.equal(autoStringIndex(middle / 1.004, 4), 4);
+  assert.equal(autoStringIndex(STRINGS[4].hz, 3), 4, 'real new string switches');
+  assert.equal(autoStringIndex(STRINGS[3].hz, 4), 3);
 });
 
 test('REAL-02: notes outside ordinary open strings are not silently marked in tune', () => {
   for (const frequency of [95, 127, 174, 220 * 2]) {
     const choice = autoStringIndex(frequency, null);
     if (choice !== null) {
-      assert.ok(Math.abs(cents(frequency, STRINGS[choice].hz)) <= 200);
+      assert.ok(Math.abs(cents(frequency, STRINGS[choice].hz)) <= 175);
     }
   }
   // The selected note must come from the measured frequency, not from a button state.
