@@ -36,6 +36,22 @@ class AudioCorpusValidatorTest {
     }
 
     @Test
+    void rejectsSymlinkedAncestorOfCorpusRootWhereSupported() throws Exception {
+        Path realParent = Files.createDirectory(root.resolve("real-parent"));
+        Path realCorpus = Files.createDirectory(realParent.resolve("corpus"));
+        Files.writeString(realCorpus.resolve("safe.json"), "{}");
+        Path alias = root.resolve("linked-parent");
+        try {
+            Files.createSymbolicLink(alias, realParent);
+        } catch (UnsupportedOperationException | java.nio.file.FileSystemException | SecurityException e) {
+            return; // Platforms without symlink creation permission
+        }
+        // The final file itself is not a symlink; its ancestor is.
+        assertThrows(Exception.class, () -> AudioCorpusValidator.safePath(
+                alias.resolve("corpus"), "safe.json"));
+    }
+
+    @Test
     void invalidManifestIsInvalid() throws Exception {
         Files.writeString(root.resolve("manifest.json"), "{\"schemaVersion\":0,\"recordings\":[]}");
         assertEquals("INVALID", AudioCorpusValidator.validate(root, "manifest.json").status());
