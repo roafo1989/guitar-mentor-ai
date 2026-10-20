@@ -27,6 +27,12 @@ const scoreInput = ref<HTMLInputElement | null>(null);
 const preview = ref<string | null>(null);
 const requestId = ref(crypto.randomUUID());
 let polling: ReturnType<typeof setInterval> | undefined;
+let activeUpload: AbortController | null = null;
+
+/** Aborting a request does not prove the server rolled it back; retry with the SAME requestId. */
+function cancelUpload(): void {
+  activeUpload?.abort();
+}
 
 // Synchronous parent notification closes the gap between upload start and the continue click.
 watch([recordingActive, uploading, title, composer, comment, audio, score], () => {
@@ -90,10 +96,13 @@ async function submit(): Promise<void> {
     error.value = t('evidence.sizeError'); return;
   }
   uploading.value = true;
+  const controller = new AbortController();
+  activeUpload = controller;
   try {
     await evidenceService.upload(props.learnerId, props.sessionId, {
       requestId: requestId.value, title: title.value, composer: composer.value,
       comment: comment.value, audio: audio.value, score: score.value,
+      signal: controller.signal,
     });
     title.value = '';
     composer.value = '';
@@ -107,8 +116,10 @@ async function submit(): Promise<void> {
     await refresh();
   } catch (cause) {
     // Keep both files and requestId: a retry must be idempotent.
-    error.value = cause instanceof Error ? cause.message : 'REQUEST_FAILED';
+    error.value = controller.signal.aborted ? t('evidence.uploadCancelledRetry') :
+      cause instanceof Error ? cause.message : 'REQUEST_FAILED';
   } finally {
+    activeUpload = null;
     uploading.value = false;
   }
 }
@@ -117,6 +128,7 @@ onMounted(() => {
   polling = setInterval(() => { if (!uploading.value) void refresh(); }, 3000);
 });
 onBeforeUnmount(() => {
+  activeUpload?.abort();
   if (polling !== undefined) clearInterval(polling);
   clearPreview();
   emit('intake-state', { busy: false, dirty: false });
@@ -160,6 +172,8 @@ onBeforeUnmount(() => {
           :disabled="uploading || recordingActive || !audio || !title.trim()">
           {{ uploading ? t('evidence.uploading') : t('evidence.add') }}
         </button>
+        <button v-if="uploading" type="button" class="recorder-button secondary-button"
+          @click="cancelUpload">{{ t('evidence.cancelUpload') }}</button>
       </form>
       <p v-else-if="props.allowUpload && capabilities?.enabled" class="hint">{{ t('evidence.limitReached') }}</p>
       <p v-if="notice" class="saved-status" role="status">{{ notice }}</p>
