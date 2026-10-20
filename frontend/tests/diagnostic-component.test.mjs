@@ -105,7 +105,9 @@ test('real mounted DiagnosticView guards router leave, confirms drafts, and hand
     app = headlessRenderer().createApp({ render: () => h(RouterView) });
     app.use(createI18n({ legacy: false, locale: 'en', messages: { en: {} } }));
     app.use(router);
-    app.mount({ tag: 'root', children: [], parent: null });
+    const root = { tag: 'root', children: [], parent: null };
+    app.mount(root);
+    const renderedText = (node) => [node.text ?? '', ...(node.children ?? []).map(renderedText)].join(' ');
     for (let i = 0; i < 20 && !globalThis.__testEmit; i++) {
       await Promise.resolve();
       await nextTick();
@@ -116,6 +118,8 @@ test('real mounted DiagnosticView guards router leave, confirms drafts, and hand
     await nextTick();
     await router.push('/profile');
     assert.equal(router.currentRoute.value.path, '/diagnostics', 'busy upload blocks router leaving');
+    assert.ok(renderedText(root).includes('evidence.waitBeforeLeave'),
+      'blocked navigation displays a warning');
 
     const unload = listeners.get('beforeunload');
     assert.equal(typeof unload, 'function');
@@ -125,6 +129,8 @@ test('real mounted DiagnosticView guards router leave, confirms drafts, and hand
 
     globalThis.__testEmit('intake-state', { busy: false, dirty: true });
     await nextTick();
+    assert.equal(renderedText(root).includes('evidence.waitBeforeLeave'), false,
+      'P3 #101: stale busy warning clears as soon as recording/upload ends');
     replies.push(false, true);
     await router.push('/profile');
     assert.equal(router.currentRoute.value.path, '/diagnostics', 'declined confirmation keeps draft');
@@ -135,5 +141,22 @@ test('real mounted DiagnosticView guards router leave, confirms drafts, and hand
     globalThis.window = oldWindow;
     delete globalThis.__testLearner;
     delete globalThis.__testEmit;
+  }
+});
+
+test('intake copy in both languages describes existing uploads and continuing to studies', async () => {
+  for (const locale of ['ru', 'en']) {
+    const path = new URL('../src/i18n/' + locale + '.json', import.meta.url);
+    const messages = JSON.parse(await readFile(path, 'utf8'));
+    const strings = [
+      messages.diagnostic.startDescription,
+      messages.diagnostic.intakeDescription,
+      messages.diagnostic.noFilesYet,
+    ].join(' ');
+    assert.doesNotMatch(strings, /ещё не реализован|будущем здесь появится|not implemented|comes later/i);
+    assert.doesNotMatch(messages.diagnostic.continue,
+      /без записи|without recording/i, 'button must work for a learner who already uploaded');
+    assert.match(messages.diagnostic.continue,
+      locale === 'ru' ? /этюд/ : /study/, 'button should describe its destination');
   }
 });
