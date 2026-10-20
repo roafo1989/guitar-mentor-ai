@@ -9,7 +9,7 @@ import { createI18n } from 'vue-i18n';
 // Mount the real production script setup; provide a minimal headless render function.
 const moduleUrl = (code) => 'data:text/javascript,' + encodeURIComponent(code);
 const blank = moduleUrl("export default {render(){return null;}};");
-const service = moduleUrl('export const evidenceService = globalThis.__evidenceServiceMock;');
+const service = moduleUrl('export const evidenceService = { capabilities: (...a) => globalThis.__evidenceServiceMock.capabilities(...a), list: (...a) => globalThis.__evidenceServiceMock.list(...a), upload: (...a) => globalThis.__evidenceServiceMock.upload(...a) };');
 let Panel;
 async function getPanel() {
   if (Panel) return Panel;
