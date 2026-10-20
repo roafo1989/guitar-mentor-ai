@@ -41,6 +41,28 @@ class DiagnosticEvidenceWorkerTest {
         verify(repo).finishAudio(id,0,"DURATION_EXCEEDED");
         verify(guard).release();
     }
+    @Test void acceptsM4aOnlyAfterInspectingAudioStreams() throws Exception {
+        var m4a=new DiagnosticEvidenceRepository.AudioJob(id,"recording.m4a",16);
+        var inspected=Path.of("recording.m4a");
+        when(repo.claimAudio()).thenReturn(Optional.of(m4a));
+        when(store.resolveForInspection(m4a.key())).thenReturn(inspected);
+        when(probe.measure(inspected)).thenReturn(17.6);
+        worker.poll();
+        var checks=inOrder(probe);
+        checks.verify(probe).inspectM4a(inspected);
+        checks.verify(probe).measure(inspected);
+        verify(repo).finishAudio(id,17.6,null);
+    }
+    @Test void rejectsM4aWithVideoOrNonAacBeforeDurationProbe() throws Exception {
+        var m4a=new DiagnosticEvidenceRepository.AudioJob(id,"recording.m4a",16);
+        var inspected=Path.of("recording.m4a");
+        when(repo.claimAudio()).thenReturn(Optional.of(m4a));
+        when(store.resolveForInspection(m4a.key())).thenReturn(inspected);
+        doThrow(new IOException("INVALID_MEDIA")).when(probe).inspectM4a(inspected);
+        worker.poll();
+        verify(probe,never()).measure(any(Path.class));
+        verify(repo).finishAudio(id,0,"INVALID_MEDIA");
+    }
     @Test void neverProcessesWhileCleanupOwnsGuard() {
         when(guard.tryAcquire()).thenReturn(false);
         worker.poll();
