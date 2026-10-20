@@ -1,6 +1,6 @@
 # Guitar Mentor AI — документация
 
-**[Состояние проекта и результаты сверки — 19.10.2026](project/current-state.md)**. Здесь отделены main, открытые PR, пройденные проверки и ожидаемая приёмка. Приложение работает локально, без авторизации.
+**[Состояние проекта и датированные результаты сверки](project/current-state.md)**. Последнее дополнение: [анализ четырёх задач — 20.10.2026](project/analysis-refresh-2026-10-20.md). Приложение работает локально, без авторизации.
 
 ## Навигация и регламенты
 
@@ -19,13 +19,17 @@
 ## Требования и спецификации
 
 - [Бизнес-требования 0.4](requirements/business-requirements.md)
-- [Техническое задание 0.7](requirements/technical-specification.md) — 9 US / 31 FT, НФТ/SEC и открытые вопросы
+- [Техническое задание 0.9](requirements/technical-specification.md) — 9 US / 31 FT, НФТ/SEC и открытые вопросы
 - [Системная спецификация 0.6](specifications/system-specification.md) — текущие API/данные и целевой остаток
 - [MVP Scope & Acceptance 1.1](project/mvp-scope-v1.md)
 - [Roadmap 1.1](project/roadmap-mvp-v1.md) — исходные оценки исторические, не текущий остаток
-- [#14 — корпус, эталоны и методика аудиопроверки](specifications/MVP-R2-01-audio-feasibility.md) — анализ завершён, Оценка / В очереди; новая оценка отдельно
+- [#14 — корпус, эталоны и методика аудиопроверки](specifications/MVP-R2-01-audio-feasibility.md) — техническая часть принята; независимая REAL-валидация остаётся в #97
+- [#15 — диагностический PoC и validation-gate](specifications/MVP-R2-02-audio-poc.md) — Full; диагностический инкремент не подменяет #97
+- [#95 — сохранение языка после F5](specifications/BUG-095-persist-interface-locale.md) — Standard
+- [#18 — оценки, история и решения ученика](specifications/MVP-R4-01-learning-state-and-decisions.md) — Full; состояния, REST, миграции и конкуренция
+- [#19 — UI результатов занятия](specifications/MVP-R4-02-lesson-results-ui.md) — Full; общий контракт с #18, полный следующий шаг зависит от #24
 - [#30 — контракт storage и rollback](specifications/DEV-05B-media-storage.md)
-- [#21 — TTL/очистка](specifications/MVP-R5-02-media-retention.md) — 20 ч, старт после приёмки/merge #30
+- [#21 — TTL/очистка](specifications/MVP-R5-02-media-retention.md) — реализовано в main на срез 20.10; прежние статусы/часы в документе исторические
 - [UC-01 — профиль](use-cases/UC-01-learner-profile-api.md)
 - [UC-03 — опыт и цели](use-cases/UC-03-onboarding-experience-goals.md) — в main; полная ручная приёмка #11 требует подтверждения
 - [UC-02 — диагностика](use-cases/UC-02-initial-diagnostics.md) — частичная реализация, целевой цикл открыт
@@ -35,7 +39,7 @@
 
 - [Архитектура/компоненты 0.4](architecture/system-architecture.md)
 - [ADR-0001 — стек](adr/0001-java-vue-postgresql.md)
-- [ADR-0002 — медиа и политика 48h](adr/0002-media-storage-and-retention.md) — TTL ещё не реализован
+- [ADR-0002 — медиа и политика 48h](adr/0002-media-storage-and-retention.md) — runtime TTL уже в main на срез 20.10
 - [ADR-0003 — оценка и решение ученика](adr/0003-diagnostic-feedback-and-student-decision.md)
 - [Архитектура PlantUML](diagrams/system-architecture.puml) · [компоненты](diagrams/backend-components.puml)
 - [Диагностические состояния](diagrams/diagnostic-session-states.puml) · [intake](diagrams/diagnostic-intake-sequence.puml)
@@ -66,3 +70,4 @@
 - [Анализ акустических блюзовых концовок](music/reference-analysis-acoustic-blues-endings.md)
 
 **Последующее событие 19.10.2026:** #30 принята, PR #69/#70 объединены в main c521786; #14 выбрана для анализа и передана на оценку. Датированные снимки прежних этапов в документах сохраняют историю.
+

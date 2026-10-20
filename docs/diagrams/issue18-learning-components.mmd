@@ -1,0 +1,8 @@
+flowchart TB
+  U["Vue result/history/decision (#19)"] --> A["Learning REST API (#18)"]
+  A --> L["Ownership и Learning application service"]
+  L --> P["PostgreSQL: state, snapshots, assessments, decisions"]
+  W["Внутренний доверенный Assessment writer"] --> L
+  L --> E["SkillEvidence read model"]
+  S["Существующие task/attempt и media lifecycle"] --> P
+  P --> N["Будущий план занятий (#24)"]

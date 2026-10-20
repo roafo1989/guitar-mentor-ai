@@ -1,0 +1,22 @@
+sequenceDiagram
+  participant U as Vue
+  participant A as Learning API
+  participant L as Application service
+  participant D as PostgreSQL
+  U->>A: GET learning и оценки выбранной попытки
+  A->>L: Проверить ownership
+  L->>D: Read state/version/assessment
+  D-->>U: Актуальные данные через API
+  U->>A: POST decision(requestId, version, baseAssessmentId)
+  A->>L: Валидированная команда
+  L->>D: Begin, ownership, lock session и state
+  alt Успешный replay с тем же payload
+    D-->>L: Исходный DecisionResult
+  else Устаревшая версия, основание или иной payload ключа
+    L-->>A: 409 без побочного изменения
+  else Новая допустимая команда
+    L->>D: Insert decision + update state/version
+    D-->>L: Commit
+  end
+  A-->>U: Result или безопасный code
+  U->>A: Перечитать серверное состояние
