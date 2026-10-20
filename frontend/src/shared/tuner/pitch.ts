@@ -28,7 +28,8 @@ export function detectPitch(samples: Float32Array, sampleRate: number): number |
   for (let i = 0; i < width; i++) energy += (samples[i] - mean) ** 2;
   if (Math.sqrt(energy / width) < 0.01) return null;
   const differences = new Float64Array(maxLag + 2);
-  let sum = 0, candidate = 0;
+  // Compute the full difference curve before searching for a minimum:
+  // otherwise uninitialized future lags are zero and create false early peaks.
   for (let lag = 1; lag <= maxLag + 1; lag++) {
     let difference = 0;
     for (let i = 0; i < width; i++) {
@@ -36,8 +37,11 @@ export function detectPitch(samples: Float32Array, sampleRate: number): number |
       difference += delta * delta;
     }
     differences[lag] = difference;
-    sum += difference;
-    if (lag >= minLag && lag <= maxLag && sum > 0 && difference * lag / sum < 0.16) {
+  }
+  let sum = 0, candidate = 0;
+  for (let lag = 1; lag <= maxLag; lag++) {
+    sum += differences[lag];
+    if (lag >= minLag && sum > 0 && differences[lag] * lag / sum < 0.16) {
       candidate = lag;
       break;
     }
