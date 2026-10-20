@@ -1,4 +1,4 @@
-# #14 — independent musical review and corpus acceptance gate
+# #97 — independent musical review and REAL-corpus acceptance gate (formerly #14 real-data scope)
 
 This procedure is for an **offline, private** research package only. Do not put real recordings, photos of scores, performer names, listening decisions, measured individual timestamps, hashes of private source files, or completed annotation JSON in public GitHub.
 
@@ -20,7 +20,7 @@ A recorded metronome is an **independent time reference**, not a guitar onset. M
 7. Log uncertainty (UNKNOWN/AMBIGUOUS/abstain), reviewer conflicts and adjudication. Require each confirmed event's `eventId` to exist in the immutable reference and its time range to fit within the corresponding recording.
 8. Confirm six independent **performances**: two per REAL-BASS / REAL-TIMING / REAL-POLY. Split CALIBRATION/HOLDOUT by independent session/performance lineage; recoded WAV/M4A variants and excerpts of one performance must remain in the same group. A matching file hash alone cannot prove independence.
 9. Fill the real private schema with actual source/reference/annotation hashes and reviewed rights; invoke `AudioCorpusValidator` on the approved offline manifest, store a redacted report and repeat to confirm stable output and unchanged media hashes.
-10. Verify AC14-01 through AC14-10 individually before switching to Testing. `READY_FOR_POC` means structurally and manually ready to benchmark in #15; it is **not** a statement of model accuracy or musical competence.
+10. Verify [#97](https://github.com/roafo1989/guitar-mentor-ai/issues/97) AC-REAL-01…08 against the real corpus before its acceptance, separately from #14's technical T14-01…06 checks. `READY_FOR_POC` means structurally and manually ready to benchmark in #15; it is **not** a statement of model accuracy or musical competence.
 
 ## Acceptance matrix
 
@@ -31,9 +31,9 @@ A recorded metronome is an **independent time reference**, not a guitar onset. M
 | Rights to use audio and score for the intended scope | No | scope-limited source/consent evidence |
 | Count-in / selected bars / note-event references | No | visual score check and listening alignment |
 | Actual bass errors and timing deviations | No | independent audio-by-score review with timestamps |
-| TRUE / FALSE performance metrics | No, not in #14 | separate #15 blinded benchmark on approved holdout |
+| TRUE / FALSE performance metrics | No, not in #97 or technical #14 | separate #15 blinded benchmark on approved holdout |
 
-If any manual proof is absent, remain `INCOMPLETE`. Keep Draft PR open and do not merge, close the issue, or mark test acceptance complete. Notation photos and musical examples are private references, not public test fixtures.
+If any manual proof is absent, the **REAL corpus** remains `INCOMPLETE` and #97 stays OPEN. This must not block code review/testing of technical #14 after the [approved split](scope-decision-2026-10-20.md). Technical PR merging and #14 closure still require their own code review, tests and owner acceptance. Notation photos and musical examples are private references, not public test fixtures.
 
 ## Audit trail
 
