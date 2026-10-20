@@ -37,6 +37,7 @@ class DiagnosticEvidencePostgresIntegrationTest {
     }
     @Autowired JdbcTemplate jdbc;
     @Autowired DiagnosticEvidenceService service;
+    @Autowired ai.guitarmentor.infrastructure.persistence.DiagnosticEvidenceRepository evidenceRepository;
     @Autowired MediaCleanupService cleanup;
     private UUID learner, profile, session;
 
@@ -79,6 +80,55 @@ class DiagnosticEvidencePostgresIntegrationTest {
         if(!Files.isDirectory(root))return 0;
         try(Stream<Path> s=Files.list(root)){return s.count();}
     }
+    @Test void sixtyFailedPendingDeletesCannotStarveFreshEligibleMedia() {
+        Instant now=Instant.now();
+        Instant old=now.minusSeconds(50*3600);
+        java.util.Set<UUID> firstPendingIds=new java.util.HashSet<>();
+        for(int i=0;i<60;i++) {
+            UUID evidenceId=UUID.randomUUID(),mediaId=UUID.randomUUID();
+            jdbc.update("""
+                INSERT INTO diagnostic_evidence(id,diagnostic_session_id,request_id,title,submitted_at)
+                VALUES(?,?,?,?,?)
+                """,evidenceId,session,UUID.randomUUID(),"old evidence "+i,Timestamp.from(old));
+            jdbc.update("""
+                INSERT INTO diagnostic_evidence_media(id,evidence_id,kind,storage_key,
+                media_format,size_bytes,status,finalized_at,media_state,delete_attempts)
+                VALUES(?,?,?,?,?,?,?,?,?,?)
+                """,mediaId,evidenceId,"SCORE",UUID.randomUUID()+".pdf","pdf",9L,
+                    "PROCESSED",Timestamp.from(old),"DELETE_PENDING",0);
+        }
+        UUID newEvidence=UUID.randomUUID(),freshMedia=UUID.randomUUID();
+        Instant freshAge=now.minusSeconds(49*3600);
+        jdbc.update("""
+            INSERT INTO diagnostic_evidence(id,diagnostic_session_id,request_id,title,submitted_at)
+            VALUES(?,?,?,?,?)
+            """,newEvidence,session,UUID.randomUUID(),"newly expired",Timestamp.from(freshAge));
+        jdbc.update("""
+            INSERT INTO diagnostic_evidence_media(id,evidence_id,kind,storage_key,
+            media_format,size_bytes,status,finalized_at,media_state,delete_attempts)
+            VALUES(?,?,?,?,?,?,?,?,?,?)
+            """,freshMedia,newEvidence,"AUDIO",UUID.randomUUID()+".wav","wav",16L,
+                "PROCESSED",Timestamp.from(freshAge),"AVAILABLE",0);
+
+        Instant boundary=now.minusSeconds(48*3600);
+        var first=evidenceRepository.claimExpired(boundary,boundary);
+        assertEquals(26,first.size()); // 25 failed retries + 1 newly expired file
+        assertTrue(first.stream().anyMatch(x->x.id().equals(freshMedia)));
+        assertEquals("DELETE_PENDING",jdbc.queryForObject(
+                "SELECT media_state FROM diagnostic_evidence_media WHERE id=?",
+                String.class,freshMedia));
+        for(var item:first) {
+            if(!item.id().equals(freshMedia)) {
+                firstPendingIds.add(item.id());
+                evidenceRepository.markFailed(item.id());
+            }
+        }
+        var next=evidenceRepository.claimExpired(boundary,boundary);
+        // Lowest failure count first: previously untried pending rows are processed next.
+        assertTrue(next.stream().anyMatch(x->!x.id().equals(freshMedia)
+                && !firstPendingIds.contains(x.id())));
+    }
+
     @Test void twoAssetsSurviveRefreshAndRetireTogetherWithHistory() throws Exception {
         UUID request=UUID.randomUUID();
         var first=service.submit(learner,session,request,"Yesterday","Beatles",
