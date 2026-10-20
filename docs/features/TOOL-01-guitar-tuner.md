@@ -23,3 +23,9 @@ Instead of returning the first low YIN normalized-difference valley, the detecto
 The first plausible YIN period is checked against a Hann-windowed 8192-point FFT. A proposed fundamental must have measured energy and harmonically consistent peaks, and its time-domain period must also pass normalized-difference validation. Unsupported or contradictory estimates are withheld (`null`), rather than shown as confidently tuned. Automated regression tests cover 108 resolvable cases (6 guitar strings × 2 sample rates × 9 spectra with a present fundamental), including fundamentals just 2% of an overtone.
 
 **Physical limitation:** a pure higher harmonic with no fundamental energy cannot be distinguished from a real higher note solely from its waveform. The detector does not invent an inaudible lower fundamental. Real guitar recordings, permissions, keyboard and mobile QA remain mandatory.
+
+## Independent review P2: stiff-string inharmonicity
+
+A detected harmonic series establishes the **octave** but its upper partials are not assumed exact multiples of the fundamental. Before this correction the FFT estimator averaged `peak(h) / h`, systematically raising the indicated tuning by +5.46…+6.33 cents at B=0.001 for six correctly tuned strings. The detector now returns the independently measured **fundamental FFT peak** for pitch accuracy; higher partials only select and corroborate the fundamental. The YIN normalized-difference check is retained to reject an inconsistent or ambiguous periodicity.
+
+Regression coverage: 288 cases (6 strings × 2 sample rates × 2 spectra × 4 stiffness factors × 3 tuning offsets), asserting error under 3 cents and UI `inTune` at true pitch and `flat/sharp` when detuned. Another 144 weak-fundamental cases enforce no confidently wrong note (an ambiguous frame may return null). Tests remain synthetic; real microphone and acoustic-guitar QA is still required.

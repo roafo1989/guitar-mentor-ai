@@ -202,3 +202,63 @@ test('QA: repeated weak fundamentals stabilize on the intended note', () => {
   const result = stablePitch(history, detectPitch(harmonics(110, 48000, [0.02, 0.02, 1]), 48000));
   assert.ok(result !== null && Math.abs(cents(result, 110)) < 10);
 });
+
+
+// Independent review regression: realistic stiff strings have slightly sharp
+// upper partials, f_n = n*f1*sqrt((1+B*n*n)/(1+B)), despite f1 being exactly tuned.
+const stiffString = (frequency, rate, amplitudes, B) =>
+  Float32Array.from({ length: 8192 }, (_, i) => {
+    const t = i / rate;
+    let value = 0;
+    for (let h = 1; h <= amplitudes.length; h++) {
+      const partialHz = h * frequency * Math.sqrt((1 + B * h * h) / (1 + B));
+      value += amplitudes[h - 1] * Math.sin(2 * Math.PI * partialHz * t + h * 0.4);
+    }
+    return 0.2 * Math.exp(-0.6 * t) * value;
+  });
+
+test('P2 inharmonicity: 288 modeled stiff-string signals stay within 3 cents', () => {
+  const spectra = [[0.2, 1, 0.6, 0.3, 0.12], [1, 0.4, 0.3, 0.2]];
+  let checked = 0;
+  for (const rate of [44100, 48000]) for (const string of STRINGS) {
+    for (const amps of spectra) for (const B of [0, 0.0005, 0.001, 0.002]) {
+      for (const detune of [-25, 0, 25]) {
+        const actual = string.hz * 2 ** (detune / 1200);
+        const result = detectPitch(stiffString(actual, rate, amps, B), rate);
+        assert.ok(result !== null, string.note + ' not detected: B=' + B);
+        const error = cents(result, actual);
+        assert.ok(Math.abs(error) < 3,
+          string.note + ' B=' + B + ' detune=' + detune + ' ' + rate +
+          ' spectrum=' + amps + ' bias=' + error + ' cents');
+        const reading = tunerReading(result, string.hz);
+        assert.equal(reading.status, detune === 0 ? 'inTune' :
+          detune < 0 ? 'flat' : 'sharp',
+        string.note + ' B=' + B + ', detune=' + detune);
+        checked++;
+      }
+    }
+  }
+  assert.equal(checked, 288);
+});
+
+test('P2 inharmonicity: weak 2% fundamental cannot yield a false tuned note', () => {
+  // A very weak fundamental can yield a temporary no-reading response;
+  // accepting null is preferable to showing a wrong note or octave.
+  let checked = 0, detected = 0;
+  for (const rate of [44100, 48000]) for (const string of STRINGS) {
+    for (const B of [0, 0.0005, 0.001, 0.002]) {
+      for (const detune of [-25, 0, 25]) {
+        const actual = string.hz * 2 ** (detune / 1200);
+        const result = detectPitch(stiffString(actual, rate, [0.02, 1], B), rate);
+        if (result !== null) {
+          assert.ok(Math.abs(cents(result, actual)) < 5,
+            'False confident reading for ' + string.note + ', B=' + B + ' offset=' + detune);
+          detected++;
+        }
+        checked++;
+      }
+    }
+  }
+  assert.equal(checked, 144);
+  assert.ok(detected >= 120, 'weak fundamental should remain useful');
+});

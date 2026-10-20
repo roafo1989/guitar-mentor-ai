@@ -70,18 +70,20 @@ export function spectralFundamental(samples: Float32Array, sampleRate: number): 
     const fundamental = nearby(baseHz);
     // A loud overtone with no energy at its proposed fundamental proves nothing.
     if (!fundamental || fundamental.strength < 0.01 * maximum) continue;
-    let score = 0, weightedHz = 0, totalWeight = 0, count = 0;
+    let score = 0, count = 0;
     for (let harmonic = 1; harmonic <= 8 && harmonic * baseHz <= 2500; harmonic++) {
       const match = nearby(harmonic * baseHz);
       const ratio = (match?.strength ?? 0) / maximum;
       if (ratio < 0.012 || !match) continue;
       score += 1 + 0.2 * Math.log(1 + 10 * ratio);
-      weightedHz += (match.hz / harmonic) * ratio;
-      totalWeight += ratio;
       count++;
     }
-    if (!totalWeight) continue;
-    const choice = { hz: weightedHz / totalWeight, count, score };
+    if (!count) continue;
+    // Higher partials only establish which fundamental is plausible.
+    // Their frequencies are NOT exact multiples on real, stiff guitar strings;
+    // averaging match.hz / harmonic shifts a perfectly tuned string sharp.
+    // Report the measured fundamental peak, not a harmonic-derived mean.
+    const choice = { hz: fundamental.hz, count, score };
     if (!best || score > best.score + 1e-6 ||
       (Math.abs(score - best.score) < 1e-6 && choice.hz < best.hz)) best = choice;
   }
