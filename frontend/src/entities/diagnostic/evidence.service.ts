@@ -50,7 +50,7 @@ export const evidenceService = {
   },
   upload(learnerId: string, sessionId: string, input: {
     requestId: string; title: string; composer: string; comment: string;
-    audio: File; score: File | null;
+    audio: File; score: File | null; signal?: AbortSignal;
   }) {
     const data = new FormData();
     data.append('requestId', input.requestId);
@@ -61,7 +61,7 @@ export const evidenceService = {
     if (input.score) data.append('score', input.score, input.score.name);
     // Browser supplies a multipart boundary; do not set Content-Type manually.
     return response<EvidenceEntry>(fetch(base(learnerId, sessionId), {
-      method: 'POST', body: data,
+      method: 'POST', body: data, signal: input.signal,
     }));
   },
 };
