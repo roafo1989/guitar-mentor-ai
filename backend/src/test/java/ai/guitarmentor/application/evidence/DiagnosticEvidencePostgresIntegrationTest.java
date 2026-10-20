@@ -193,6 +193,28 @@ class DiagnosticEvidencePostgresIntegrationTest {
         assertEquals(1,service.list(learner,session).size());
     }
 
+
+    @Test void httpEleventhEvidenceIsRejectedAndIntakeCanStillFinish() throws Exception {
+        var http=evidenceHttp();
+        for(int i=0;i<10;i++) {
+            http.perform(org.springframework.test.web.servlet.request.MockMvcRequestBuilders
+                    .multipart(evidencePath()).file(audio())
+                    .param("requestId",UUID.randomUUID().toString())
+                    .param("title","Practice piece "+i))
+                    .andExpect(org.springframework.test.web.servlet.result.MockMvcResultMatchers.status().isCreated());
+        }
+        http.perform(org.springframework.test.web.servlet.request.MockMvcRequestBuilders
+                .multipart(evidencePath()).file(audio())
+                .param("requestId",UUID.randomUUID().toString()).param("title","Over quota"))
+                .andExpect(org.springframework.test.web.servlet.result.MockMvcResultMatchers.status().isConflict())
+                .andExpect(org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath("$.code")
+                        .value("MAX_ITEMS_REACHED"));
+        assertEquals(10,service.list(learner,session).size());
+        assertEquals(10,count(AUDIO_ROOT));
+        jdbc.update("UPDATE diagnostic_sessions SET status='READY_FOR_TASK' WHERE id=?",session);
+        assertEquals(10,service.list(learner,session).size());
+    }
+
     @Test void sixtyFailedPendingDeletesCannotStarveFreshEligibleMedia() {
         Instant now=Instant.now();
         Instant old=now.minusSeconds(50*3600);
