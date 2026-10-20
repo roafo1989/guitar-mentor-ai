@@ -14,7 +14,7 @@ spring:
   servlet:
     multipart:
       max-file-size: 20MB
-      max-request-size: 21MB
+      max-request-size: 32MB
 
 # Still a single-user local prototype. An ID in a URL is not authentication.
 server:
@@ -25,6 +25,7 @@ guitar-mentor:
     # Explicit opt-in for local, non-personal test recordings only.
     enabled: ${GUITAR_MENTOR_ENABLE_UPLOADS:false}
     storage-path: ${GUITAR_MENTOR_MEDIA_PATH:./.local-media/attempts}
+    score-storage-path: ${GUITAR_MENTOR_SCORE_PATH:./.local-media/scores}
     poll-delay-ms: ${GUITAR_MENTOR_PROCESS_POLL_MS:3000}
     ffprobe-command: ${GUITAR_MENTOR_FFPROBE:ffprobe}
 
