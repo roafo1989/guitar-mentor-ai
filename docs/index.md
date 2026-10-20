@@ -18,10 +18,10 @@
 
 ## Требования и спецификации
 
-- [#104 / TOOL-02 — гибкий метроном](specifications/TOOL-02-flexible-metronome.md) — размеры, акценты, индивидуальная громкость, подразделения/Tap/пресеты; отдельное расширение после #87
+- [#104 / TOOL-02 — гибкий метроном](specifications/TOOL-02-flexible-metronome.md) — размеры, акценты, индивидуальная громкость, подразделения/Tap/пресеты; v1.1,36 ч; база — принятая #87, запись/minimize/reopen сохраняются
 
-- [Бизнес-требования 0.5](requirements/business-requirements.md)
-- [Техническое задание 0.10](requirements/technical-specification.md) — 9 US / 32 FT, НФТ/SEC и открытые вопросы
+- [Бизнес-требования 0.6](requirements/business-requirements.md)
+- [Техническое задание 0.11](requirements/technical-specification.md) — 9 US / 32 FT, НФТ/SEC и открытые вопросы
 - [Системная спецификация 0.6](specifications/system-specification.md) — текущие API/данные и целевой остаток
 - [MVP Scope & Acceptance 1.1](project/mvp-scope-v1.md)
 - [Roadmap 1.1](project/roadmap-mvp-v1.md) — исходные оценки исторические, не текущий остаток

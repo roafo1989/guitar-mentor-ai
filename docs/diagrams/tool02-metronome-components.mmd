@@ -1,6 +1,8 @@
 flowchart TB
-  UI["Окно и входы header / упражнение"] --> Config["Валидатор и draft / pending config"]
+  UI["Окно и входы header / упражнение"] --> Config["Валидатор и active / pending config"]
   Config --> Engine["Единое ядро Web Audio #86"]
   Config <--> Store["Локальные настройки и пресеты"]
   Engine --> UI
-  Lifecycle["Close, hidden, запись, тюнер"] --> Engine
+  Lifecycle["Явное close, hidden, route, тюнер"] -->|stop| Engine
+  Recorder["Запись микрофона без внутреннего mix"] ---|сосуществует| Engine
+  UI -->|minimize: звук продолжается| Engine
