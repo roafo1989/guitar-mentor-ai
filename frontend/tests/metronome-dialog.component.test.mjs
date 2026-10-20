@@ -128,7 +128,12 @@ test('real dialog applies typed BPM and starts; invalid input preserves BPM and 
   let app;
   try {
     const Dialog = await compileDialog();
-    app = view.renderer.createApp({ render: () => h(Dialog) });
+    let minimized = false;
+    app = view.renderer.createApp({ render: () => h(Dialog, { onMinimize: () => {
+      minimized = true;
+      app.unmount(); // Vue unmount after collapsing the modal.
+      app = undefined;
+    } }) });
     app.mount(view.node('root'));
     await nextTick();
     await nextTick();
@@ -161,6 +166,19 @@ test('real dialog applies typed BPM and starts; invalid input preserves BPM and 
     retry.props.onClick();
     await nextTick();
     assert.equal(engine.starts, 1, 'invalid input cannot trigger playback');
+    // The student can minimize controls and still hear the metronome during a take.
+    input.props.onInput({ target: { value: '92' } });
+    await nextTick();
+    retry.props.onClick();
+    await nextTick();
+    assert.equal(engine.getState().status, 'running');
+    const minimize = view.find('button', n => n.text === 'metronome.minimize');
+    assert.ok(minimize, 'minimize command offered when playing');
+    minimize.props.onClick();
+    await nextTick();
+    assert.equal(minimized, true);
+    assert.equal(engine.getState().status, 'running',
+      'minimizing and destroying the dialog must not stop metronome audio');
   } finally {
     app?.unmount();
     globalThis.document = savedDocument;
