@@ -32,7 +32,9 @@ public class DiagnosticEvidenceWorker {
             var item=job.get();
             try {
                 audio.verifyAndHash(item.key(),item.bytes());
-                double duration=probe.measure(audio.resolveForInspection(item.key()));
+                var inspected=audio.resolveForInspection(item.key());
+                if (item.key().endsWith(".m4a")) probe.inspectM4a(inspected);
+                double duration=probe.measure(inspected);
                 evidence.finishAudio(item.id(),duration,null);
             } catch (IOException failure) {
                 String reason=failure.getMessage();
