@@ -5,6 +5,7 @@ import { useLearnerStore } from '../../stores/learner.store';
 import { diagnosticService } from './diagnostic.service';
 import ExercisePreview from './ExercisePreview.vue';
 import SubmissionPanel from '../attempt/SubmissionPanel.vue';
+import DiagnosticEvidencePanel from './DiagnosticEvidencePanel.vue';
 import type { DiagnosticSession, DiagnosticTask, Exercise, DiagnosticRecommendation } from '../../shared/model/diagnostic.model';
 
 const { t } = useI18n();
@@ -12,6 +13,13 @@ const learnerStore = useLearnerStore();
 const session = ref<DiagnosticSession | null>(null);
 const loading = ref(true);
 const busy = ref(false);
+const intakeBusy = ref(false);
+const intakeDraft = ref(false);
+
+function onIntakeState(value: { busy: boolean; dirty: boolean }): void {
+  intakeBusy.value = value.busy;
+  intakeDraft.value = value.dirty;
+}
 const error = ref('');
 const catalogBusy = ref(false);
 const exercises = ref<Exercise[]>([]);
@@ -109,7 +117,9 @@ async function start(): Promise<void> {
 
 async function continueWithoutRecording(): Promise<void> {
   const id = learnerStore.learner?.id;
-  if (!id || !session.value || busy.value) return;
+  if (!id || !session.value || busy.value || intakeBusy.value) return;
+  // Do not silently discard a local recording or upload form when leaving intake.
+  if (intakeDraft.value && !window.confirm(t('evidence.confirmDiscard'))) return;
   busy.value = true;
   error.value = '';
   try {
@@ -154,6 +164,10 @@ async function assign(exerciseCode: string): Promise<void> {
       <div v-if="session" class="saved-status" role="status">
         {{ t('diagnostic.session') }}: {{ session.id }}
       </div>
+      <DiagnosticEvidencePanel v-if="session && learnerStore.learner"
+        :learner-id="learnerStore.learner.id" :session-id="session.id"
+        :allow-upload="session.status === 'COLLECTING_EVIDENCE'"
+        @intake-state="onIntakeState" />
       <template v-if="!session">
         <h2>{{ t('diagnostic.startTitle') }}</h2>
         <p>{{ t('diagnostic.startDescription') }}</p>
@@ -169,7 +183,7 @@ async function assign(exerciseCode: string): Promise<void> {
         <p>{{ t('diagnostic.intakeDescription') }}</p>
         <p class="hint">{{ t('diagnostic.noFilesYet') }}</p>
         <div class="form-actions">
-          <button type="button" class="action-button" :disabled="busy" @click="continueWithoutRecording">
+          <button type="button" class="action-button" :disabled="busy || intakeBusy" @click="continueWithoutRecording">
             {{ busy ? t('diagnostic.working') : t('diagnostic.continue') }}
           </button>
         </div>
