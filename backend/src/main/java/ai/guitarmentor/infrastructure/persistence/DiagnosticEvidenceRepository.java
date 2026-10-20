@@ -141,16 +141,31 @@ public class DiagnosticEvidenceRepository {
 
     @Transactional
     public List<Expired> claimExpired(Instant finishedCutoff, Instant staleCutoff) {
-        var candidates = db.query("""
+        // Independent quotas prevent permanently failing DELETE_PENDING rows from
+        // starving newly eligible evidence. Retry by lowest failure count first:
+        // failed files eventually yield their slots to other pending files.
+        var pending = db.query("""
                 SELECT m.id,m.kind,m.storage_key FROM diagnostic_evidence_media m
                 JOIN diagnostic_evidence e ON e.id=m.evidence_id
                 WHERE m.media_state='DELETE_PENDING'
-                   OR (m.media_state='AVAILABLE' AND
-                       ((m.finalized_at IS NOT NULL AND m.finalized_at<=?)
-                        OR (m.finalized_at IS NULL AND e.submitted_at<=?)))
-                ORDER BY e.submitted_at,m.id LIMIT 50 FOR UPDATE OF m SKIP LOCKED
+                ORDER BY m.delete_attempts ASC,e.submitted_at ASC,m.id ASC
+                LIMIT 25 FOR UPDATE OF m SKIP LOCKED
                 """, (rs,i) -> new Expired(uuid(rs,"id"),rs.getString("kind"),
-                        rs.getString("storage_key")), Timestamp.from(finishedCutoff), Timestamp.from(staleCutoff));
+                        rs.getString("storage_key")));
+        var newlyExpired = db.query("""
+                SELECT m.id,m.kind,m.storage_key FROM diagnostic_evidence_media m
+                JOIN diagnostic_evidence e ON e.id=m.evidence_id
+                WHERE m.media_state='AVAILABLE'
+                  AND ((m.finalized_at IS NOT NULL AND m.finalized_at<=?)
+                    OR (m.finalized_at IS NULL AND e.submitted_at<=?))
+                ORDER BY e.submitted_at ASC,m.id ASC
+                LIMIT 50 FOR UPDATE OF m SKIP LOCKED
+                """, (rs,i) -> new Expired(uuid(rs,"id"),rs.getString("kind"),
+                        rs.getString("storage_key")),
+                Timestamp.from(finishedCutoff), Timestamp.from(staleCutoff));
+        var candidates = new ArrayList<Expired>(pending.size() + newlyExpired.size());
+        candidates.addAll(pending);
+        candidates.addAll(newlyExpired);
         for (Expired item : candidates) {
             db.update("""
                     UPDATE diagnostic_evidence_media SET media_state='DELETE_PENDING'
