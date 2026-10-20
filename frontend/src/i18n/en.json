@@ -273,6 +273,7 @@
     "confirmDiscard": "You have an unsaved performance. Leave this page and discard the draft?",
     "waitBeforeLeave": "Stop recording or finish/cancel the upload before leaving.",
     "cancelUpload": "Cancel upload",
-    "uploadCancelledRetry": "Upload canceled. Files remain here for a safe retry with the same request ID; the server may have accepted the recording."
+    "uploadCancelledRetry": "Upload canceled. Files and request ID remain for a safe retry. Editing files or fields creates a new submission.",
+    "payloadMismatch": "This request ID already belongs to a different performance. Your draft remains. Edit a field or reselect a file to start a new submission."
   }
 }
