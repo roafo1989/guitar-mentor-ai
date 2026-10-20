@@ -7,7 +7,7 @@ Scope: isolated frontend audio core for 4/4, BPM 20–240; header/modal and exer
 Import the single shared instance from frontend/src/shared/audio/metronome.ts:
 
 ~~~ts
-import { metronome } from '@/shared/audio/metronome'; // or use a relative path
+import { metronome } from '../../shared/audio/metronome'; // from src/entities/metronome/
 
 const unsubscribe = metronome.subscribe((state) => {
   // state = { status, bpm, beat, error }
