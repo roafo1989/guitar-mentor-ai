@@ -42,7 +42,7 @@ class DiagnosticEvidenceServiceTest {
 
     @BeforeEach void setup() {
         TransactionSynchronizationManager.initSynchronization();
-        when(sessions.findLockedById(sessionId)).thenReturn(Optional.of(session));
+        when(sessions.findLockedOwnedById(learner,sessionId)).thenReturn(Optional.of(session));
         when(session.getStatus()).thenReturn(DiagnosticStatus.COLLECTING_EVIDENCE);
         when(repo.byRequest(sessionId,request)).thenReturn(Optional.empty());
         when(audio.store(recording)).thenReturn(
@@ -84,6 +84,16 @@ class DiagnosticEvidenceServiceTest {
     @Test void missingAudioDoesNotCreateEvidence() {
         assertEquals("MISSING_AUDIO", assertThrows(ResponseStatusException.class,
             ()->service.submit(learner,sessionId,request,"Yesterday",null,null,null,null)).getReason());
+        verify(repo,never()).addEvidence(any(),any(),any(),any(),any(),any(),any());
+    }
+    @Test void foreignOwnerCannotUploadOrLockAnyMedia() {
+        var foreign=UUID.randomUUID();
+        var refused=assertThrows(ResponseStatusException.class,
+                ()->service.submit(foreign,sessionId,request,"Yesterday",null,null,recording,null));
+        assertEquals(HttpStatus.NOT_FOUND,refused.getStatusCode());
+        assertEquals("SESSION_NOT_FOUND",refused.getReason());
+        verify(sessions).findLockedOwnedById(foreign,sessionId);
+        verify(audio,never()).store(any());
         verify(repo,never()).addEvidence(any(),any(),any(),any(),any(),any(),any());
     }
     @Test void cannotUploadAfterContinue() {
