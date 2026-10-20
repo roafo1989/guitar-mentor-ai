@@ -10,7 +10,15 @@ import { createRenderer, h, nextTick } from 'vue';
 // <input type="number"> v-model coercion that caused .trim() to throw.
 const asModule = code => 'data:text/javascript,' + encodeURIComponent(code);
 const vueUrl = import.meta.resolve('vue');
-const fakeAudioUrl = asModule('export const metronome = globalThis.__testMetronome87;');
+const fakeAudioUrl = asModule([
+  'export const metronome = {',
+  'getState: (...args)=>globalThis.__testMetronome87.getState(...args),',
+  'subscribe: (...args)=>globalThis.__testMetronome87.subscribe(...args),',
+  'setBpm: (...args)=>globalThis.__testMetronome87.setBpm(...args),',
+  'start: (...args)=>globalThis.__testMetronome87.start(...args),',
+  'stop: (...args)=>globalThis.__testMetronome87.stop(...args)',
+  '};',
+].join(String.fromCharCode(10)));
 const fakeI18nUrl = asModule('export const useI18n = () => ({ t: (key) => key });');
 let Component;
 

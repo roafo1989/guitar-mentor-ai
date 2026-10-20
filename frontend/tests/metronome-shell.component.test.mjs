@@ -3,7 +3,7 @@ import assert from 'node:assert/strict';
 import { readFile } from 'node:fs/promises';
 import { parse, compileScript } from '@vue/compiler-sfc';
 import ts from 'typescript';
-import { createRenderer, h, nextTick, reactive } from 'vue';
+import { createRenderer, h, nextTick, reactive, markRaw } from 'vue';
 
 const asModule = code => 'data:text/javascript,' + encodeURIComponent(code);
 const vueUrl = import.meta.resolve('vue');
@@ -51,7 +51,7 @@ async function compileRealApp() {
 
 function createHeadlessDocument() {
   const connectedRoots = new Set();
-  const host = (tag, text = '') => ({
+  const host = (tag, text = '') => markRaw({
     tag, text, props: {}, children: [], parent: null,
     get isConnected() {
       let current = this;
