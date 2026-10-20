@@ -34,6 +34,12 @@ function cancelUpload(): void {
   activeUpload?.abort();
 }
 
+// A requestId identifies ONE immutable snapshot. A changed form/file is a NEW submission;
+// an aborted/failed POST retains its original ID until the user edits the draft.
+watch([title, composer, comment, audio, score], () => {
+  if (!uploading.value) requestId.value = crypto.randomUUID();
+}, { flush: 'sync' });
+
 // Synchronous parent notification closes the gap between upload start and the continue click.
 watch([recordingActive, uploading, title, composer, comment, audio, score], () => {
   emit('intake-state', {
@@ -95,6 +101,7 @@ async function submit(): Promise<void> {
       (score.value && score.value.size > capabilities.value.maxScoreBytes)) {
     error.value = t('evidence.sizeError'); return;
   }
+  // Capture one immutable request: edits are disabled during POST.
   uploading.value = true;
   const controller = new AbortController();
   activeUpload = controller;
@@ -113,15 +120,18 @@ async function submit(): Promise<void> {
     if (scoreInput.value) scoreInput.value.value = '';
     requestId.value = crypto.randomUUID();
     notice.value = t('evidence.saved');
-    await refresh();
   } catch (cause) {
-    // Keep both files and requestId: a retry must be idempotent.
+    // Keep the exact files and requestId for safe retry of an unknown outcome.
+    const code = cause instanceof Error ? cause.message : 'REQUEST_FAILED';
     error.value = controller.signal.aborted ? t('evidence.uploadCancelledRetry') :
-      cause instanceof Error ? cause.message : 'REQUEST_FAILED';
+      code === 'IDEMPOTENCY_PAYLOAD_MISMATCH' ? t('evidence.payloadMismatch') : code;
+    return;
   } finally {
     activeUpload = null;
     uploading.value = false;
   }
+  // POST has completed: never hold navigation hostage to a slow GET history refresh.
+  void refresh();
 }
 onMounted(() => {
   void initialize();
