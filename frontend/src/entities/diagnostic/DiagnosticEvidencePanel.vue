@@ -139,7 +139,7 @@ onBeforeUnmount(() => {
         <input id="evidence-composer" v-model="composer" maxlength="200" :disabled="uploading" />
         <label for="evidence-audio">{{ t('evidence.audio') }}</label>
         <input id="evidence-audio" ref="audioInput" type="file"
-          accept=".mp3,.wav,.ogg,.webm" :disabled="uploading || recordingActive" @change="onAudioInput" />
+          accept=".mp3,.wav,.ogg,.webm,.m4a" :disabled="uploading || recordingActive" @change="onAudioInput" />
         <MicrophoneRecorder :disabled="uploading" :max-bytes="capabilities.maxAudioBytes"
           @active="recordingActive = $event" @recorded="onRecorded" />
         <div v-if="preview" class="recorded-preview">
