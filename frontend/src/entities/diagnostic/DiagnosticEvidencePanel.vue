@@ -1,11 +1,14 @@
 <script setup lang="ts">
-import { onBeforeUnmount, onMounted, ref } from 'vue';
+import { onBeforeUnmount, onMounted, ref, watch } from 'vue';
 import { useI18n } from 'vue-i18n';
 import MicrophoneRecorder from '../attempt/MicrophoneRecorder.vue';
 import { evidenceService } from './evidence.service';
 import type { EvidenceEntry, EvidenceCapabilities } from './evidence.service';
 
 const props = defineProps<{ learnerId: string; sessionId: string; allowUpload: boolean }>();
+const emit = defineEmits<{
+  (event: 'intake-state', state: { busy: boolean; dirty: boolean }): void;
+}>();
 const { t } = useI18n();
 const capabilities = ref<EvidenceCapabilities | null>(null);
 const entries = ref<EvidenceEntry[]>([]);
@@ -24,6 +27,15 @@ const scoreInput = ref<HTMLInputElement | null>(null);
 const preview = ref<string | null>(null);
 const requestId = ref(crypto.randomUUID());
 let polling: ReturnType<typeof setInterval> | undefined;
+
+// Synchronous parent notification closes the gap between upload start and the continue click.
+watch([recordingActive, uploading, title, composer, comment, audio, score], () => {
+  emit('intake-state', {
+    busy: recordingActive.value || uploading.value,
+    dirty: !!(title.value.trim() || composer.value.trim() || comment.value.trim()
+      || audio.value || score.value),
+  });
+}, { immediate: true, flush: 'sync' });
 
 function clearPreview(): void {
   if (preview.value) URL.revokeObjectURL(preview.value);
@@ -107,6 +119,7 @@ onMounted(() => {
 onBeforeUnmount(() => {
   if (polling !== undefined) clearInterval(polling);
   clearPreview();
+  emit('intake-state', { busy: false, dirty: false });
 });
 </script>
 
