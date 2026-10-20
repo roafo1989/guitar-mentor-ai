@@ -1,12 +1,13 @@
 <script setup lang="ts">
-import { onMounted, ref } from 'vue';
+import { onBeforeUnmount, onMounted, ref } from 'vue';
+import { onBeforeRouteLeave } from 'vue-router';
 import { useI18n } from 'vue-i18n';
 import { useLearnerStore } from '../../stores/learner.store';
 import { diagnosticService } from './diagnostic.service';
 import ExercisePreview from './ExercisePreview.vue';
 import SubmissionPanel from '../attempt/SubmissionPanel.vue';
 import DiagnosticEvidencePanel from './DiagnosticEvidencePanel.vue';
-import { intakeNavigationAction } from './intake-navigation';
+import { intakeNavigationAction, permitIntakeNavigation, shouldWarnBeforeUnload } from './intake-navigation';
 import type { DiagnosticSession, DiagnosticTask, Exercise, DiagnosticRecommendation } from '../../shared/model/diagnostic.model';
 
 const { t } = useI18n();
@@ -28,6 +29,30 @@ const recommendation = ref<DiagnosticRecommendation | null>(null);
 const recommendationBusy = ref(false);
 const recommendationError = ref('');
 const task = ref<DiagnosticTask | null>(null);
+
+/** Applies to Back, header links, router.back() and all other SPA route changes. */
+function allowRouteLeave(): boolean {
+  if (session.value?.status !== 'COLLECTING_EVIDENCE') return true;
+  const action = intakeNavigationAction(busy.value, intakeBusy.value, intakeDraft.value);
+  if (action === 'BLOCK') {
+    error.value = t('evidence.waitBeforeLeave');
+    return false;
+  }
+  return permitIntakeNavigation(busy.value, intakeBusy.value, intakeDraft.value,
+    () => window.confirm(t('evidence.confirmDiscard')));
+}
+
+onBeforeRouteLeave(() => allowRouteLeave());
+
+/** SPA leave guards do not run for F5, tab close, or browser navigation away. */
+function onBrowserUnload(event: BeforeUnloadEvent): void {
+  if (!shouldWarnBeforeUnload(session.value?.status === 'COLLECTING_EVIDENCE',
+    busy.value || intakeBusy.value, intakeDraft.value)) return;
+  event.preventDefault();
+  event.returnValue = '';
+}
+onMounted(() => window.addEventListener('beforeunload', onBrowserUnload));
+onBeforeUnmount(() => window.removeEventListener('beforeunload', onBrowserUnload));
 
 async function loadTask(learnerId: string, diagnosticId: string): Promise<void> {
   task.value = await diagnosticService.currentTask(learnerId, diagnosticId);
@@ -119,10 +144,9 @@ async function start(): Promise<void> {
 async function continueWithoutRecording(): Promise<void> {
   const id = learnerStore.learner?.id;
   if (!id || !session.value) return;
-  const navigation = intakeNavigationAction(busy.value, intakeBusy.value, intakeDraft.value);
-  if (navigation === 'BLOCK') return;
-  // Do not silently discard a local recording or upload form when leaving intake.
-  if (navigation === 'CONFIRM_DISCARD' && !window.confirm(t('evidence.confirmDiscard'))) return;
+  // The same confirmation policy also protects the browser Back and header links.
+  if (!permitIntakeNavigation(busy.value, intakeBusy.value, intakeDraft.value,
+    () => window.confirm(t('evidence.confirmDiscard')))) return;
   busy.value = true;
   error.value = '';
   try {
