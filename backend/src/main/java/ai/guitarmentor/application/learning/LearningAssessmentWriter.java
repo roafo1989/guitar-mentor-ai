@@ -24,7 +24,16 @@ public class LearningAssessmentWriter {
             String reasonCode, String evidenceText) {}
     public record Input(UUID sourceOperationId, String sourceKind, String methodId,
             String methodVersion, String sourcePrincipal, String sourceProof,
-            List<CriterionInput> criteria) {}
+            List<CriterionInput> criteria) {
+        // Never disclose the proof through record-generated diagnostics or logs.
+        @Override public String toString() {
+            return "Input[sourceOperationId="+sourceOperationId
+                +",sourceKind="+sourceKind+",methodId="+methodId
+                +",methodVersion="+methodVersion+",sourcePrincipal="+sourcePrincipal
+                +",sourceProof=<REDACTED>,criteriaCount="
+                +(criteria==null ? "null" : criteria.size())+"]";
+        }
+    }
 
     private final LearningRepository repo;
     private final LearningService learning;
@@ -52,13 +61,13 @@ public class LearningAssessmentWriter {
             throw new LearningProblem(HttpStatus.NOT_FOUND,"RESOURCE_NOT_FOUND");
         }
         var snapshot=repo.criteria(taskId);
-        var known=new HashSet<String>();
-        for (var criterion:snapshot) known.add(criterion.code());
+        var known=new java.util.HashMap<String,LearningRepository.Criterion>();
+        for (var criterion:snapshot) known.put(criterion.code(),criterion);
 
         var results=new ArrayList<Result>();
         var seen=new HashSet<String>();
         for (var item:input.criteria()) {
-            if (item==null || !known.contains(item.criterionCode())
+            if (item==null || !known.containsKey(item.criterionCode())
                     || !seen.add(item.criterionCode())) invalid();
             if (!"ASSESSED".equals(item.status()) && !"UNCERTAIN".equals(item.status())
                     && !"NOT_ASSESSED".equals(item.status())) invalid();
@@ -68,9 +77,14 @@ public class LearningAssessmentWriter {
             if (!assessed && (item.reasonCode()==null || item.reasonCode().isBlank())) invalid();
             if (item.reasonCode()!=null && !item.reasonCode().matches("[A-Z_]{2,80}")) invalid();
             if (item.evidenceText()!=null && item.evidenceText().length()>2000) invalid();
-            if ("VALIDATED_MEASUREMENT".equals(input.sourceKind()) && assessed
-                    && snapshot.stream().filter(c->c.code().equals(item.criterionCode()))
-                        .noneMatch(c->"VALIDATED_MEASUREMENT".equals(c.policy()))) invalid();
+            // A method grant cannot be reused for an unrelated criterion.
+            // HUMAN_REVIEW cannot claim automated-only criteria and vice versa.
+            if (assessed) {
+                var criterion=known.get(item.criterionCode());
+                if (!authority.canAssess(input.sourceKind(),input.methodId(),
+                        input.methodVersion(),criterion.skillCode(),criterion.code(),
+                        criterion.policy())) invalid();
+            }
             results.add(new Result(item.criterionCode(),item.status(),item.outcome(),
                 item.reasonCode(),item.evidenceText()));
         }
