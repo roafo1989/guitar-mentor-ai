@@ -9,6 +9,21 @@ import {
 import { metronomeUi, persistMetronomeConfig, resetMetronomePreferences } from './metronome-ui';
 import { MAX_BPM, MIN_BPM, parseMetronomeBpm, stepMetronomeBpm } from './metronome-input';
 
+
+const panel = ref<'settings' | 'presets' | null>(null);
+const quickMeters = ['2/4', '3/4', '4/4', '6/8', '7/8'];
+const otherMeters = FAST_METERS.filter(key => !quickMeters.includes(key));
+const unitMarks: Record<TempoUnit, string> = {
+  quarter: '♩', eighth: '♪', 'dotted-quarter': '♩.',
+};
+const accentMarks: Record<Accent, string> = {
+  strong: '●', medium: '◐', weak: '○', mute: '×',
+};
+function openPanel(kind: 'settings' | 'presets'): void {
+  panel.value = kind;
+}
+function closePanel(): void { panel.value = null; }
+
 const emit = defineEmits<{ close: []; minimize: [] }>();
 const { t } = useI18n();
 const state = ref<MetronomeState>(metronome.getState());
@@ -318,12 +333,15 @@ function togglePlayback(): void {
 }
 function onKeydown(event: KeyboardEvent): void {
   if (event.key === 'Escape') {
-    event.preventDefault(); event.stopPropagation(); emit('close'); return;
+    event.preventDefault(); event.stopPropagation();
+    if (panel.value) closePanel(); else emit('close');
+    return;
   }
   if (event.key !== 'Tab' || !dialog.value) return;
   const focusable = Array.from(dialog.value.querySelectorAll<HTMLElement>(
     'button:not([disabled]),input:not([disabled]),select:not([disabled]),textarea:not([disabled]),summary,[tabindex]:not([tabindex="-1"])'
-  )).filter(element => element.getClientRects().length > 0);
+  )).filter(element => element.getClientRects().length > 0 &&
+    (typeof element.closest !== 'function' || !element.closest('[inert]')));
   if (!focusable.length) { event.preventDefault(); dialog.value.focus(); return; }
   const first = focusable[0], last = focusable[focusable.length - 1];
   if (event.shiftKey && (document.activeElement === first || document.activeElement === dialog.value)) {
@@ -348,130 +366,234 @@ onBeforeUnmount(() => {
 <template>
   <Teleport to="body">
     <div class="metronome-backdrop">
-      <section ref="dialog" class="metronome-dialog" role="dialog" aria-modal="true"
+      <section ref="dialog" class="metronome-dialog m111" role="dialog" aria-modal="true"
         aria-labelledby="metronome-title" aria-describedby="metronome-description"
         tabindex="-1" @keydown="onKeydown">
-        <div class="metronome-dialog-heading">
-          <h2 id="metronome-title">{{ t('metronome.title') }}</h2>
+        <header class="metronome-dialog-heading m111-heading">
+          <div class="m111-brand"><span class="m111-brand-mark" aria-hidden="true">♩</span>
+            <h2 id="metronome-title">{{ t('metronome.title') }}</h2>
+          </div>
+          <span class="m111-status-pill">{{ t('metronome.status.' + state.status) }}</span>
           <button class="metronome-close" type="button" :aria-label="t('metronome.close')"
             :title="t('metronome.close')" @click="emit('close')">×</button>
-        </div>
-        <p id="metronome-description" class="metronome-note">{{ t('metronome.description') }}</p>
-        <div class="metronome-tempo">
-          <label for="metronome-bpm">{{ t('metronome.tempo') }}</label>
-          <div class="metronome-tempo-controls">
-            <button type="button" :aria-label="t('metronome.slower')" :disabled="stepReferenceBpm <= MIN_BPM" @click="stepTempo(-1)">−</button>
-            <input id="metronome-bpm" ref="bpmField" :value="draft" @input="onTempoInput"
-              type="number" inputmode="numeric" :min="MIN_BPM" :max="MAX_BPM" step="1"
-              :aria-invalid="!!error && state.error === null"
-              :aria-describedby="error ? 'metronome-error' : 'metronome-range'"
-              @change="commitTempo" @keydown.enter.prevent="commitTempo" />
-            <button type="button" :aria-label="t('metronome.faster')" :disabled="stepReferenceBpm >= MAX_BPM" @click="stepTempo(1)">+</button>
-            <span class="metronome-bpm-unit">BPM · {{ t('metronome.units.' + draftConfig.tempoUnit) }}</span>
-            <button type="button" class="metronome-tap" @click="tap">{{ t('metronome.tap') }}</button>
+        </header>
+        <p id="metronome-description" class="m111-sr-only">{{ t('metronome.description') }}</p>
+
+        <div class="m111-body" :inert="panel ? '' : undefined">
+          <div class="m111-cards">
+            <section class="metronome-tempo m111-tempo-card">
+              <div class="m111-section-head">
+                <label for="metronome-bpm">{{ t('metronome.tempo') }}</label>
+                <span class="m111-tempo-unit">{{ unitMarks[draftConfig.tempoUnit] }} · {{ t('metronome.units.' + draftConfig.tempoUnit) }}</span>
+              </div>
+              <div class="metronome-tempo-controls m111-tempo-controls">
+                <button class="m111-tempo-step" type="button" :aria-label="t('metronome.slower')"
+                  :disabled="stepReferenceBpm <= MIN_BPM" @click="stepTempo(-1)">−</button>
+                <div class="m111-tempo-center">
+                  <input id="metronome-bpm" ref="bpmField" :value="draft" @input="onTempoInput"
+                    type="number" inputmode="numeric" :min="MIN_BPM" :max="MAX_BPM" step="1"
+                    :aria-invalid="!!error && state.error === null"
+                    :aria-describedby="error ? 'metronome-error' : 'metronome-range'"
+                    @change="commitTempo" @keydown.enter.prevent="commitTempo" />
+                  <span class="m111-bpm-label">BPM</span>
+                  <span class="m111-edit-tip">{{ t('metronome.editTempo') }}</span>
+                </div>
+                <button class="m111-tempo-step" type="button" :aria-label="t('metronome.faster')"
+                  :disabled="stepReferenceBpm >= MAX_BPM" @click="stepTempo(1)">+</button>
+              </div>
+              <div class="m111-tempo-bottom">
+                <small id="metronome-range">{{ MIN_BPM }}–{{ MAX_BPM }} BPM</small>
+                <button type="button" class="metronome-tap m111-tap" @click="tap">{{ t('metronome.tap') }} · TAP</button>
+              </div>
+              <small v-if="state.status === 'running' && (dirty || metronome.getPendingConfig())"
+                class="metronome-tempo-comparison" role="status">
+                {{ t('metronome.soundingTempo', { bpm: state.bpm, unit: t('metronome.units.' + active.tempoUnit) }) }}
+                · {{ t(dirty ? 'metronome.editingTempo' : 'metronome.queuedTempo',
+                  { bpm: draftConfig.bpm, unit: t('metronome.units.' + draftConfig.tempoUnit) }) }}
+              </small>
+              <small v-if="tapStatus" class="m111-feedback" role="status">{{ tapStatus }}</small>
+              <p v-if="error" id="metronome-error" role="alert" class="metronome-error">{{ error }}</p>
+            </section>
+
+            <section class="m111-rhythm-card">
+              <div class="m111-rhythm-top">
+                <div class="m111-meter-display"><span>{{ t('metronome.meter') }}</span>
+                  <strong>{{ draftConfig.numerator }}/{{ draftConfig.denominator }}</strong>
+                  <small>{{ draftConfig.groups.join('+') }}</small>
+                </div>
+                <button type="button" class="m111-change" @click="openPanel('settings')">
+                  {{ t('metronome.changeMeter') }}
+                </button>
+              </div>
+              <div class="metronome-quick m111-quick" :aria-label="t('metronome.quickMeters')">
+                <button v-for="key in quickMeters" :key="key" type="button"
+                  :aria-pressed="draftConfig.numerator + '/' + draftConfig.denominator === key"
+                  @click="pickQuick(key)">{{ key }}</button>
+              </div>
+              <div v-if="differentPlayingPattern" class="metronome-playing-pattern">
+                <p class="m111-pattern-caption">{{ t('metronome.playingPattern') }}: {{ active.numerator }}/{{ active.denominator }}</p>
+                <div class="metronome-count metronome-count-active" :aria-label="t('metronome.playingPattern')">
+                  <div v-for="(position, index) in active.positions" :key="index"
+                    class="metronome-beat"
+                    :class="['accent-' + position.accent, { 'is-active': state.beat === index + 1 }]"
+                    :aria-label="t('metronome.beatAccent', { number:index + 1, accent:t('metronome.accents.' + position.accent) })">
+                    <span>{{ index + 1 }}</span><small>{{ accentMarks[position.accent] }}</small>
+                  </div>
+                </div>
+                <p class="m111-pattern-caption">{{ t('metronome.editingPattern') }}</p>
+              </div>
+              <div class="metronome-count" :aria-label="draftConfig.numerator + '/' + draftConfig.denominator">
+                <button v-for="(position, index) in draftConfig.positions" :key="index" type="button"
+                  class="metronome-beat"
+                  :class="['accent-' + position.accent, { 'is-active': !differentPlayingPattern && state.status === 'running' && state.beat === index + 1, 'is-selected': beatSelection === index }]"
+                  :aria-label="t('metronome.beatAccent', { number: index + 1, accent: t('metronome.accents.' + position.accent) })"
+                  :title="t('metronome.beatAccent', { number: index + 1, accent: t('metronome.accents.' + position.accent) })"
+                  @click="cycleAccent(index)">
+                  <span>{{ index + 1 }}</span><small aria-hidden="true">{{ accentMarks[position.accent] }}</small>
+                </button>
+              </div>
+              <small class="m111-beat-help">{{ t('metronome.beatHelp') }}</small>
+              <div class="m111-subdivision">
+                <span>{{ t('metronome.subdivision') }}</span>
+                <div class="m111-subdivision-controls">
+                  <button v-for="n in widths" :key="n" type="button"
+                    :aria-pressed="draftConfig.subdivision === n"
+                    :aria-label="t('metronome.subdivisionCount', { count: n })"
+                    @click="changeSubdivision(String(n))">{{ n }}</button>
+                </div>
+              </div>
+              <p v-if="silent" class="m111-silent" role="status">{{ t('metronome.silent') }}</p>
+              <p v-if="metronomeUi.sourceExercise" class="m111-feedback">{{ t('metronome.userMeterWarning') }}</p>
+            </section>
           </div>
-          <small id="metronome-range">{{ MIN_BPM }}–{{ MAX_BPM }} BPM · {{ t('metronome.current', { bpm: state.bpm }) }}</small>
-          <small v-if="state.status === 'running' && (dirty || metronome.getPendingConfig())"
-            class="metronome-tempo-comparison" role="status">
-            {{ t('metronome.soundingTempo', { bpm: state.bpm, unit: t('metronome.units.' + active.tempoUnit) }) }}
-            · {{ t(dirty ? 'metronome.editingTempo' : 'metronome.queuedTempo',
-              { bpm: draftConfig.bpm, unit: t('metronome.units.' + draftConfig.tempoUnit) }) }}
-          </small>
-          <small v-if="tapStatus" role="status">{{ tapStatus }}</small>
-          <p v-if="error" id="metronome-error" role="alert" class="metronome-error">{{ error }}</p>
+
+          <div class="m111-tools">
+            <button type="button" @click="openPanel('presets')">{{ t('metronome.presets') }} <span aria-hidden="true">⌄</span></button>
+            <button type="button" @click="openPanel('settings')">{{ t('metronome.details') }} <span aria-hidden="true">⚙</span></button>
+          </div>
+          <div class="metronome-apply m111-apply" :class="{ 'm111-apply-quiet': !dirty && !metronome.getPendingConfig() && !error }">
+            <button type="button" :disabled="!dirty" @click="apply">{{ t('metronome.apply') }}</button>
+            <button type="button" :disabled="!dirty && parseMetronomeBpm(draft) !== null" @click="discard">{{ t('metronome.discard') }}</button>
+            <small v-if="metronome.getPendingConfig()" role="status">{{ t('metronome.pending') }}</small>
+          </div>
         </div>
 
-        <div class="metronome-master">
-          <label for="metronome-master">{{ t('metronome.master') }} · {{ draftConfig.masterVolumePercent }}%</label>
-          <input id="metronome-master" type="range" min="0" max="100" step="1"
-            :value="draftConfig.masterVolumePercent" @input="changeMaster(($event.target as HTMLInputElement).value)" />
-        </div>
-        <p v-if="metronomeUi.sourceExercise" class="metronome-note">{{ t('metronome.userMeterWarning') }}</p>
-        <div class="metronome-meter-picker">
-          <label for="metronome-numerator">{{ t('metronome.meter') }}</label>
-          <select id="metronome-numerator" :value="meterN" @change="meterN = Number(($event.target as HTMLSelectElement).value); changeMeter()">
-            <option v-for="n in 16" :key="n" :value="n">{{ n }}</option>
-          </select>
-          <span aria-hidden="true">/</span>
-          <select :value="meterD" :aria-label="t('metronome.denominator')" @change="meterD = Number(($event.target as HTMLSelectElement).value) as 2 | 4 | 8 | 16; changeMeter()">
-            <option v-for="d in denominators" :key="d" :value="d">{{ d }}</option>
-          </select>
-        </div>
-        <div class="metronome-quick" :aria-label="t('metronome.quickMeters')">
-          <button v-for="key in FAST_METERS" :key="key" type="button"
-            :aria-pressed="draftConfig.numerator + '/' + draftConfig.denominator === key"
-            @click="pickQuick(key)">{{ key }}</button>
-        </div>
+        <footer class="m111-footer" :inert="panel ? '' : undefined">
+          <p v-if="configError || metronomeUi.storageError" role="alert" class="metronome-error">
+            {{ configError || t('metronome.storeFailure') }}
+          </p>
+          <p class="metronome-state m111-state" role="status" aria-live="polite">
+            {{ t('metronome.status.' + state.status) }}
+            <span v-if="metronome.getPendingConfig()"> · {{ t('metronome.pending') }}</span>
+          </p>
+          <p v-if="state.error" role="alert" class="metronome-error">{{ t('metronome.unavailable') }}</p>
+          <div class="metronome-actions m111-actions">
+            <button type="button" class="action-button m111-primary"
+              :aria-disabled="state.status === 'starting'" @click="togglePlayback">
+              {{ state.status === 'running' ? t('metronome.stop') : t('metronome.start') }}
+            </button>
+            <button v-if="state.status === 'running'" type="button"
+              class="recorder-button secondary-button m111-minimize" @click="emit('minimize')">
+              {{ t('metronome.minimize') }}
+            </button>
+          </div>
+          <p class="m111-warning">{{ t('metronome.warning') }}</p>
+        </footer>
 
-        <div v-if="differentPlayingPattern" class="metronome-playing-pattern">
-          <p class="metronome-note">{{ t('metronome.playingPattern') }}: {{ active.numerator }}/{{ active.denominator }}</p>
-          <div class="metronome-count metronome-count-active" :aria-label="t('metronome.playingPattern')">
-            <div v-for="(position, index) in active.positions" :key="index"
-              class="metronome-beat"
-              :class="['accent-' + position.accent, { 'is-active': state.beat === index + 1 }]"
-              :aria-label="t('metronome.beatAccent', { number:index + 1, accent:t('metronome.accents.' + position.accent) })">
-              <span>{{ index + 1 }}</span><small>{{ t('metronome.accents.' + position.accent) }}</small>
+        <div class="m111-sheet" :class="{ 'is-open': panel === 'settings' }"
+          :aria-hidden="panel !== 'settings'" aria-labelledby="m111-settings-title">
+          <div class="m111-sheet-head"><h3 id="m111-settings-title">{{ t('metronome.details') }}</h3>
+            <button type="button" :aria-label="t('metronome.closeSettings')" @click="closePanel">×</button></div>
+          <div class="m111-sheet-scroll">
+            <div class="metronome-settings">
+              <div class="metronome-meter-picker">
+                <label for="metronome-numerator">{{ t('metronome.meter') }}</label>
+                <select id="metronome-numerator" :value="meterN"
+                  @change="meterN = Number(($event.target as HTMLSelectElement).value); changeMeter()">
+                  <option v-for="n in 16" :key="n" :value="n">{{ n }}</option>
+                </select>
+                <span aria-hidden="true">/</span>
+                <select :value="meterD" :aria-label="t('metronome.denominator')"
+                  @change="meterD = Number(($event.target as HTMLSelectElement).value) as 2 | 4 | 8 | 16; changeMeter()">
+                  <option v-for="d in denominators" :key="d" :value="d">{{ d }}</option>
+                </select>
+              </div>
+              <div class="metronome-quick m111-extra-meters">
+                <button v-for="key in otherMeters" :key="key" type="button"
+                  :aria-pressed="draftConfig.numerator + '/' + draftConfig.denominator === key"
+                  @click="pickQuick(key)">{{ key }}</button>
+              </div>
+              <label for="metronome-groups">{{ t('metronome.groups') }}</label>
+              <input id="metronome-groups" :value="groupInput"
+                @input="groupInput = ($event.target as HTMLInputElement).value"
+                @change="changeGroups" placeholder="2+2+3" />
+              <span class="m111-setting-label">{{ t('metronome.tempoUnit') }}</span>
+              <div class="m111-unit-grid" role="group" :aria-label="t('metronome.tempoUnit')">
+                <button v-for="unit in tempoUnits" :key="unit" type="button"
+                  :aria-pressed="draftConfig.tempoUnit === unit" @click="changeTempoUnit(unit)">
+                  {{ unitMarks[unit] }} <small>{{ t('metronome.units.' + unit) }}</small>
+                </button>
+              </div>
+              <div class="metronome-master">
+                <label for="metronome-master">{{ t('metronome.master') }} · {{ draftConfig.masterVolumePercent }}%</label>
+                <input id="metronome-master" type="range" min="0" max="100" step="1"
+                  :value="draftConfig.masterVolumePercent" @input="changeMaster(($event.target as HTMLInputElement).value)" />
+              </div>
+              <label for="metronome-beat-selection">{{ t('metronome.selectBeatForVolume') }}</label>
+              <select id="metronome-beat-selection" :value="beatSelection"
+                @change="beatSelection = Number(($event.target as HTMLSelectElement).value)">
+                <option v-for="(_position, index) in draftConfig.positions" :key="index" :value="index">{{ index + 1 }}</option>
+              </select>
+              <label for="metronome-position-volume">{{ t('metronome.positionVolume', { number:beatSelection+1 }) }} · {{ draftConfig.positions[beatSelection]?.volumePercent }}%</label>
+              <input id="metronome-position-volume" type="range" min="0" max="100" step="1"
+                :value="draftConfig.positions[beatSelection]?.volumePercent"
+                @input="changePositionVolume(($event.target as HTMLInputElement).value)" />
+              <template v-for="accent in (['strong','medium','weak'] as const)" :key="accent">
+                <label :for="'metronome-gain-' + accent">{{ t('metronome.accents.' + accent) }} · {{ draftConfig.accentVolumes[accent] }}%</label>
+                <input :id="'metronome-gain-' + accent" type="range" min="0" max="100" step="1"
+                  :value="draftConfig.accentVolumes[accent]"
+                  @input="changeAccentVolume(accent, ($event.target as HTMLInputElement).value)" />
+              </template>
+              <label for="metronome-sub-gain">{{ t('metronome.subdivisionVolume') }} · {{ draftConfig.subdivisionVolumePercent }}%</label>
+              <input id="metronome-sub-gain" type="range" min="0" max="100" step="1"
+                :value="draftConfig.subdivisionVolumePercent"
+                @input="changeSubdivisionVolume(($event.target as HTMLInputElement).value)" />
+              <div class="m111-sheet-actions">
+                <button type="button" :disabled="!dirty" @click="apply">{{ t('metronome.apply') }}</button>
+                <button type="button" :disabled="!dirty && parseMetronomeBpm(draft) !== null" @click="discard">{{ t('metronome.discard') }}</button>
+              </div>
+              <button v-if="!confirmReset" type="button" class="m111-reset" @click="confirmReset = true">{{ t('metronome.resetStorage') }}</button>
+              <div v-else class="metronome-confirm">
+                <span>{{ t(metronomeUi.storageBlocked ? 'metronome.confirmResetCorrupt' : 'metronome.confirmReset') }}</span>
+                <button type="button" @click="resetPreferences">{{ t('metronome.confirm') }}</button>
+                <button type="button" @click="confirmReset = false">{{ t('metronome.cancel') }}</button>
+              </div>
             </div>
           </div>
-          <p class="metronome-note">{{ t('metronome.editingPattern') }}</p>
         </div>
-        <div class="metronome-count" :aria-label="draftConfig.numerator + '/' + draftConfig.denominator">
-          <button v-for="(position, index) in draftConfig.positions" :key="index" type="button"
-            class="metronome-beat"
-            :class="['accent-' + position.accent, { 'is-active': !differentPlayingPattern && state.status === 'running' && state.beat === index + 1, 'is-selected': beatSelection === index }]"
-            :aria-label="t('metronome.beatAccent', { number: index + 1, accent: t('metronome.accents.' + position.accent) })"
-            @click="cycleAccent(index)">
-            <span>{{ index + 1 }}</span><small>{{ t('metronome.accents.' + position.accent) }}</small>
-          </button>
-        </div>
-        <p v-if="silent" class="metronome-note">{{ t('metronome.silent') }}</p>
 
-        <details class="metronome-details">
-          <summary>{{ t('metronome.details') }}</summary>
-          <div class="metronome-settings">
-            <label for="metronome-groups">{{ t('metronome.groups') }}</label>
-            <input id="metronome-groups" :value="groupInput" @input="groupInput = ($event.target as HTMLInputElement).value"
-              @change="changeGroups" placeholder="2+2+3" />
-            <label for="metronome-unit">{{ t('metronome.tempoUnit') }}</label>
-            <select id="metronome-unit" :value="draftConfig.tempoUnit"
-              @change="changeTempoUnit(($event.target as HTMLSelectElement).value)">
-              <option v-for="unit in tempoUnits" :key="unit" :value="unit">{{ t('metronome.units.' + unit) }}</option>
-            </select>
-            <label for="metronome-subdivision">{{ t('metronome.subdivision') }}</label>
-            <select id="metronome-subdivision" :value="draftConfig.subdivision"
-              @change="changeSubdivision(($event.target as HTMLSelectElement).value)">
-              <option v-for="n in widths" :key="n" :value="n">{{ n }}</option>
-            </select>
-            <label for="metronome-beat-selection">{{ t('metronome.selectBeatForVolume') }}</label>
-            <select id="metronome-beat-selection" :value="beatSelection"
-              @change="beatSelection = Number(($event.target as HTMLSelectElement).value)">
-              <option v-for="(_position, index) in draftConfig.positions" :key="index" :value="index">{{ index + 1 }}</option>
-            </select>
-            <label for="metronome-position-volume">{{ t('metronome.positionVolume', { number:beatSelection+1 }) }} · {{ draftConfig.positions[beatSelection]?.volumePercent }}%</label>
-            <input id="metronome-position-volume" type="range" min="0" max="100" step="1"
-              :value="draftConfig.positions[beatSelection]?.volumePercent"
-              @input="changePositionVolume(($event.target as HTMLInputElement).value)" />
-            <template v-for="accent in (['strong','medium','weak'] as const)" :key="accent">
-              <label :for="'metronome-gain-' + accent">{{ t('metronome.accents.' + accent) }} · {{ draftConfig.accentVolumes[accent] }}%</label>
-              <input :id="'metronome-gain-' + accent" type="range" min="0" max="100" step="1"
-                :value="draftConfig.accentVolumes[accent]"
-                @input="changeAccentVolume(accent, ($event.target as HTMLInputElement).value)" />
-            </template>
-            <label for="metronome-sub-gain">{{ t('metronome.subdivisionVolume') }} · {{ draftConfig.subdivisionVolumePercent }}%</label>
-            <input id="metronome-sub-gain" type="range" min="0" max="100" step="1"
-              :value="draftConfig.subdivisionVolumePercent"
-              @input="changeSubdivisionVolume(($event.target as HTMLInputElement).value)" />
+        <div class="m111-sheet" :class="{ 'is-open': panel === 'presets' }"
+          :aria-hidden="panel !== 'presets'" aria-labelledby="m111-presets-title">
+          <div class="m111-sheet-head"><h3 id="m111-presets-title">{{ t('metronome.presets') }}</h3>
+            <button type="button" :aria-label="t('metronome.closeSettings')" @click="closePanel">×</button></div>
+          <div class="m111-sheet-scroll">
             <div class="metronome-presets">
               <label for="metronome-preset-list">{{ t('metronome.presets') }}</label>
-              <select id="metronome-preset-list" :value="selectedPreset" @change="selectedPreset = ($event.target as HTMLSelectElement).value">
+              <select id="metronome-preset-list" :value="selectedPreset"
+                @change="selectedPreset = ($event.target as HTMLSelectElement).value">
                 <option value="">{{ t('metronome.selectPreset') }}</option>
                 <option v-for="p in metronomeUi.presets" :key="p.id" :value="p.id">{{ p.name }}</option>
               </select>
+              <button type="button" :disabled="!chosenPreset" @click="loadPreset">{{ t('metronome.loadPreset') }}</button>
               <label for="metronome-preset-name">{{ t('metronome.presetName') }}</label>
-              <input id="metronome-preset-name" :value="presetName" @input="presetName = ($event.target as HTMLInputElement).value" maxlength="60" />
+              <input id="metronome-preset-name" :value="presetName"
+                @input="presetName = ($event.target as HTMLInputElement).value" maxlength="60" />
+              <p class="m111-preset-review">{{ t('metronome.savingPreview') }}:
+                {{ draft }} BPM · {{ draftConfig.numerator }}/{{ draftConfig.denominator }}
+                · {{ t('metronome.units.' + draftConfig.tempoUnit) }} · {{ draftConfig.groups.join('+') }}
+              </p>
               <div class="metronome-preset-actions">
                 <button type="button" @click="savePreset">{{ t('metronome.savePreset') }}</button>
-                <button type="button" :disabled="!chosenPreset" @click="loadPreset">{{ t('metronome.loadPreset') }}</button>
                 <button type="button" :disabled="!chosenPreset" @click="renamePreset">{{ t('metronome.renamePreset') }}</button>
                 <button type="button" :disabled="!chosenPreset" @click="confirmAction = 'replace'">{{ t('metronome.replacePreset') }}</button>
                 <button type="button" :disabled="!chosenPreset" @click="confirmAction = 'delete'">{{ t('metronome.deletePreset') }}</button>
@@ -482,33 +604,8 @@ onBeforeUnmount(() => {
                 <button type="button" @click="confirmAction = null">{{ t('metronome.cancel') }}</button>
               </div>
             </div>
-            <button v-if="!confirmReset" type="button" @click="confirmReset = true">{{ t('metronome.resetStorage') }}</button>
-            <div v-else class="metronome-confirm">
-              <span>{{ t(metronomeUi.storageBlocked ? 'metronome.confirmResetCorrupt' : 'metronome.confirmReset') }}</span>
-              <button type="button" @click="resetPreferences">{{ t('metronome.confirm') }}</button>
-              <button type="button" @click="confirmReset = false">{{ t('metronome.cancel') }}</button>
-            </div>
           </div>
-        </details>
-        <div class="metronome-apply">
-          <button type="button" :disabled="!dirty" @click="apply">{{ t('metronome.apply') }}</button>
-          <button type="button" :disabled="!dirty && parseMetronomeBpm(draft) !== null" @click="discard">{{ t('metronome.discard') }}</button>
-          <small v-if="metronome.getPendingConfig()" role="status">{{ t('metronome.pending') }}</small>
         </div>
-        <p v-if="configError || metronomeUi.storageError" role="alert" class="metronome-error">
-          {{ configError || t('metronome.storeFailure') }}
-        </p>
-        <p class="metronome-state" role="status" aria-live="polite">{{ t('metronome.status.' + state.status) }}</p>
-        <p v-if="state.error" role="alert" class="metronome-error">{{ t('metronome.unavailable') }}</p>
-        <div class="metronome-actions">
-          <button type="button" class="action-button"
-            :aria-disabled="state.status === 'starting'" @click="togglePlayback">
-            {{ state.status === 'running' ? t('metronome.stop') : t('metronome.start') }}
-          </button>
-          <button v-if="state.status === 'running'" type="button"
-            class="recorder-button secondary-button" @click="emit('minimize')">{{ t('metronome.minimize') }}</button>
-        </div>
-        <p class="metronome-note">{{ t('metronome.warning') }}</p>
       </section>
     </div>
   </Teleport>
