@@ -14,7 +14,7 @@ const { t } = useI18n();
 const state = ref<MetronomeState>(metronome.getState());
 const active = ref<MetronomeConfig>(metronome.getConfig());
 const draftConfig = ref<MetronomeConfig>(copyConfig(metronome.getPendingConfig() ?? active.value));
-const draft = ref(String(state.value.bpm));
+const draft = ref(String(draftConfig.value.bpm));
 const dirty = ref(false);
 const error = ref('');
 const configError = ref('');
@@ -91,7 +91,7 @@ function onTempoInput(event: Event): void {
   store();
 }
 function stepTempo(step: -1 | 1): void {
-  const bpm = stepMetronomeBpm(state.value.bpm, step);
+  const bpm = stepMetronomeBpm(parseMetronomeBpm(draft.value) ?? state.value.bpm, step);
   draft.value = String(bpm);
   error.value = '';
   metronome.setBpm(bpm);
