@@ -83,6 +83,8 @@ export class MetronomeEngine {
     this.state = { ...this.state, bpm };
     if (this.state.status === 'running' && this.context) {
       this.cancelScheduledBeats();
+      // Remove gain automation from a superseded future bar, too.
+      this.updateMasterGainNow(this.config.masterVolumePercent);
       this.nextBeatIndex = 0;
       this.nextSubIndex = 0;
       this.deferPendingFirstBeat = this.pendingConfig !== null;
