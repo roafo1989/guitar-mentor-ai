@@ -262,9 +262,14 @@ export class MetronomeEngine {
     if (!this.context || !this.masterGain) return;
     const gain = this.masterGain.gain;
     const now = this.context.currentTime;
-    const current = gain.value;
-    gain.cancelScheduledValues(now);
-    gain.setValueAtTime(current, now);
+    // Hold the *rendered* gain, not AudioParam.value (which can be an intrinsic
+    // value different from its in-flight automation). Fallback for older engines.
+    if (typeof gain.cancelAndHoldAtTime === 'function') gain.cancelAndHoldAtTime(now);
+    else {
+      const current = gain.value;
+      gain.cancelScheduledValues(now);
+      gain.setValueAtTime(current, now);
+    }
     gain.linearRampToValueAtTime(percent / 100, now + 0.008);
     if (this.scheduledBoundaryAt !== null && this.scheduledConfig &&
         this.scheduledBoundaryAt > now) {
