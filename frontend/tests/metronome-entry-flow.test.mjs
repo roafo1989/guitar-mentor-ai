@@ -9,6 +9,9 @@ const audioUrl = asModule([
   'export const metronome = {',
   '  getState: () => globalThis.__exerciseMetronome.getState(),',
   '  stop: () => globalThis.__exerciseMetronome.stop(),',
+  '  getConfig: () => globalThis.__exerciseMetronome.getConfig(),',
+  '  getPendingConfig: () => null,',
+  '  applyConfig: c => globalThis.__exerciseMetronome.applyConfig(c),',
   '  setBpm: bpm => globalThis.__exerciseMetronome.setBpm(bpm)',
   '};',
 ].join('\n'));
@@ -22,6 +25,7 @@ async function loadRealController() {
     const mapping = {
       vue: vueUrl,
       '../../shared/audio/metronome': audioUrl,
+      '../../shared/audio/metronome-config.ts': asModule('export const copyConfig=c=>structuredClone(c); export const defaultMetronomeConfig=()=>({bpm:80}); export const readMetronomeStore=()=>({store:null,error:false}); export const saveMetronomeStore=()=>true;'),
     };
     assert.ok(mapping[specifier], 'unexpected controller dependency: ' + specifier);
     return 'from ' + JSON.stringify(mapping[specifier]);
@@ -35,6 +39,8 @@ test('real exercise/controller entries keep existing playback/BPM and do not res
   const appliedBpms = [];
   globalThis.__exerciseMetronome = {
     getState: () => ({ ...state }),
+    getConfig: () => ({ bpm:state.bpm }),
+    applyConfig: () => true,
     stop() { stops++; state.status = 'stopped'; },
     setBpm(bpm) {
       appliedBpms.push(bpm);
