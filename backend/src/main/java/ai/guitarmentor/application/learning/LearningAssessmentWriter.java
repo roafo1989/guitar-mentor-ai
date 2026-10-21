@@ -10,7 +10,6 @@ import java.util.List;
 import java.util.Objects;
 import java.util.UUID;
 import org.springframework.http.HttpStatus;
-import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -24,24 +23,18 @@ public class LearningAssessmentWriter {
     public record CriterionInput(String criterionCode, String status, String outcome,
             String reasonCode, String evidenceText) {}
     public record Input(UUID sourceOperationId, String sourceKind, String methodId,
-            String methodVersion, boolean trustedInternalSource,
+            String methodVersion, String sourcePrincipal, String sourceProof,
             List<CriterionInput> criteria) {}
 
     private final LearningRepository repo;
     private final LearningService learning;
-    private final JdbcTemplate jdbc;
-    private final java.util.Set<String> permittedMeasurementMethods;
+    private final LearningAssessmentAuthorizer authority;
 
     public LearningAssessmentWriter(LearningRepository repo, LearningService learning,
-            JdbcTemplate jdbc,
-            @org.springframework.beans.factory.annotation.Value(
-                "${guitarmentor.learning.validated-methods:}") String validatedMethods) {
+            LearningAssessmentAuthorizer authority) {
         this.repo=repo;
         this.learning=learning;
-        this.jdbc=jdbc;
-        this.permittedMeasurementMethods=java.util.Arrays.stream(validatedMethods.split(","))
-                .map(String::trim).filter(s->!s.isEmpty())
-                .collect(java.util.stream.Collectors.toUnmodifiableSet());
+        this.authority=authority;
     }
 
     @Transactional
@@ -49,11 +42,10 @@ public class LearningAssessmentWriter {
             UUID attemptId, Input input) {
         learning.available();
         validateInput(input);
-        // No validated measurement methods are enabled before #22 approves them.
-        if ("VALIDATED_MEASUREMENT".equals(input.sourceKind())
-                && !permittedMeasurementMethods.contains(input.methodId()+":"+input.methodVersion())) {
-            invalid();
-        }
+        // Fail closed: both the principal and its private server-provisioned proof
+        // are required. Never persist, log or return the proof.
+        if (!authority.authorized(input.sourceKind(),input.methodId(),
+                input.methodVersion(),input.sourcePrincipal(),input.sourceProof())) invalid();
         learning.lockOwned(learnerId,sessionId,taskId);
         learning.state(taskId,true); // Same lock order as learner decisions.
         if (!repo.attemptBelongs(attemptId,taskId)) {
@@ -85,14 +77,14 @@ public class LearningAssessmentWriter {
         results.sort(java.util.Comparator.comparing(Result::code));
         String recommendation=LearningRules.recommendation(snapshot,results);
 
-        // Technical processing != assessment. A failed media file cannot earn PASS.
-        String technicalStatus=jdbc.queryForObject(
-            "SELECT status FROM submission_attempts WHERE id=?",String.class,attemptId);
-        if ("FAILED".equals(technicalStatus) && "PASS".equals(recommendation)) {
-            throw new LearningProblem(HttpStatus.BAD_REQUEST,"INVALID_ASSESSMENT");
+        // PASS is meaningful only AFTER the upload has successfully completed
+        // its technical validation. PROCESSED is monotonic under the worker API.
+        if ("PASS".equals(recommendation) && !repo.technicallyProcessed(attemptId)) {
+            throw new LearningProblem(HttpStatus.CONFLICT,"ASSESSMENT_NOT_READY");
         }
         String canonical=input.sourceOperationId()+"|"+input.sourceKind()+"|"
-                +input.methodId()+"|"+input.methodVersion()+"|"+recommendation;
+                +input.sourcePrincipal()+"|"+input.methodId()+"|"
+                +input.methodVersion()+"|"+recommendation;
         for (var result:results) {
             canonical+="|"+result.code()+"|"+result.status()+"|"
                 +Objects.toString(result.outcome(),"")+"|"
@@ -112,15 +104,15 @@ public class LearningAssessmentWriter {
         UUID id=UUID.randomUUID();
         int revision=repo.nextRevision(attemptId);
         repo.insertAssessment(id,taskId,attemptId,revision,input.sourceOperationId(),
-            hash,input.sourceKind(),input.methodId(),input.methodVersion(),
-            recommendation,Instant.now());
+            hash,input.sourceKind(),input.sourcePrincipal(),input.methodId(),
+            input.methodVersion(),recommendation,Instant.now());
         for (var result:results) repo.insertCriterionResult(id,taskId,result);
         // Neither terminal state nor learner_skill_signal_history is modified.
         return learning.assessmentView(taskId,repo.latestAssessment(attemptId).orElseThrow());
     }
 
     private static void validateInput(Input input) {
-        if (input==null || input.sourceOperationId()==null || !input.trustedInternalSource()
+        if (input==null || input.sourceOperationId()==null
                 || (!"HUMAN_REVIEW".equals(input.sourceKind())
                     && !"VALIDATED_MEASUREMENT".equals(input.sourceKind()))
                 || input.methodId()==null || !input.methodId().matches("[A-Za-z0-9_.:-]{1,100}")
