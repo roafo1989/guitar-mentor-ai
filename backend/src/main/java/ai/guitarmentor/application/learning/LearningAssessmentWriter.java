@@ -77,11 +77,6 @@ public class LearningAssessmentWriter {
         results.sort(java.util.Comparator.comparing(Result::code));
         String recommendation=LearningRules.recommendation(snapshot,results);
 
-        // PASS is meaningful only AFTER the upload has successfully completed
-        // its technical validation. PROCESSED is monotonic under the worker API.
-        if ("PASS".equals(recommendation) && !repo.technicallyProcessed(attemptId)) {
-            throw new LearningProblem(HttpStatus.CONFLICT,"ASSESSMENT_NOT_READY");
-        }
         String canonical=input.sourceOperationId()+"|"+input.sourceKind()+"|"
                 +input.sourcePrincipal()+"|"+input.methodId()+"|"
                 +input.methodVersion()+"|"+recommendation;
@@ -100,6 +95,11 @@ public class LearningAssessmentWriter {
                 throw new LearningProblem(HttpStatus.CONFLICT,"IDEMPOTENCY_CONFLICT");
             }
             return learning.assessmentView(taskId,existing.get());
+        }
+        // PASS is meaningful only AFTER the upload has successfully completed
+        // its technical validation. PROCESSED is monotonic under the worker API.
+        if ("PASS".equals(recommendation) && !repo.technicallyProcessed(attemptId)) {
+            throw new LearningProblem(HttpStatus.CONFLICT,"ASSESSMENT_NOT_READY");
         }
         UUID id=UUID.randomUUID();
         int revision=repo.nextRevision(attemptId);
