@@ -54,3 +54,16 @@ Metronome tests include 100 simulated bars per supported representative meter (4
 ## Deployment, rollback
 
 Frontend-only build, no new env variables, permissions, backend schema or services. Keep owner acceptance before merge. If transitions/double sounds/lifecycle fail, stop and redeploy the frontend at the merged #87 commit 88bc39e; refresh and smoke-test 4/4/Start/Stop/minimize/recording. The v1 storage key is ignored by the older frontend, so deleting it is unnecessary.
+
+## Review #5595284493 — addressed (21 Oct 2026)
+
+Six review findings and follow-up fixes in PR #105 (no merge until product acceptance):
+
+1. **Audio lookahead / last request**: the scheduler keeps the actual active config separate from its future scheduled bar. A request inside 100ms lookahead cancels pending future oscillator/visual events and replans the very next bar. This also handles a first request after the unchanged next downbeat was already queued, plus fast single-position meters. Test cases in `metronome.test.mjs` cover competing pending requests, the first request and 1/16.
+2. **Exercise BPM semantics**: recommendations from the practice catalogue explicitly set a quarter-note BPM when not playing, while retaining the user's meter/grouping. Running/starting entry is read-only regarding engine settings; the dialog warns that the user-defined meter must be checked against the score. See `metronome-entry-flow.test.mjs`.
+3. **Master-gain race and clicks**: manual master override cancels stale future AudioParam automation, updates queued configs and ramps gain, using `cancelAndHoldAtTime` when supported. Scheduled full-preset master changes ramp at barline; live BPM cancellation also cancels future gain events. See audio clock and gain timeline tests.
+4. **Draft versus audible grid**: when the editable meter/pattern differs, the actual sounding beat grid remains separately visible and active; the draft edit grid no longer masquerades as currently playing. See mounted dialog tests.
+5. **Normal reset**: the settings include a confirmation-based reset to default even with valid storage. It also clears local presets; corrupted-data recovery still requires explicit confirmation.
+6. **Primary master control**: the always-visible master slider has been moved outside the collapsed advanced settings. Advanced beat selection now has an independent selector that does not cycle accents when adjusting position gain.
+
+Automated CI checks cannot replace the specified real audio/recording/tuner/manual mobile QA. The GitHub issue stays open and the PR must not be merged until owner acceptance.
