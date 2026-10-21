@@ -469,4 +469,79 @@ class LearningPostgresIntegrationTest {
             command(attempt,"COMPLETE",0,humanMissing.id(),UUID.randomUUID()));
         assertEquals("COMPLETED_BY_LEARNER",decision.result().taskState());
     }
+
+    // QA coverage of AC18-02: technically PROCESSED is not pedagogical PASS.
+    @Test void technicallyProcessedWithoutProviderRemainsNoAssessment() {
+        UUID attempt=upload();
+        markProcessed(attempt);
+        var state=service.learning(learner,session,task);
+        assertEquals("NO_ASSESSMENT",state.assessmentState());
+        assertNull(state.latestAssessmentId());
+        assertEquals("ACTIVE",state.taskState());
+        assertFalse(uploads.list(learner,session,task).getFirst().assessmentAvailable());
+        assertTrue(service.assessments(learner,session,task,attempt,20,null).items().isEmpty());
+        assertEquals(0,jdbc.queryForObject("SELECT COUNT(*) FROM learner_skill_signal_history"
+            +" WHERE instrument_profile_id=?",Integer.class,profile));
+    }
+
+    // QA coverage of AC18-07: continue permits a distinct new attempt without losing history.
+    @Test void continuingAllowsNextAttemptAndPreservesFirstReview() {
+        UUID firstAttempt=upload();
+        var firstReview=writer.record(learner,session,task,firstAttempt,assessment("NEEDS_WORK"));
+        var continuation=service.decide(learner,session,task,
+            command(firstAttempt,"CONTINUE_PRACTICING",0,firstReview.id(),UUID.randomUUID()));
+        assertEquals("ACTIVE",continuation.result().taskState());
+        assertEquals(1,continuation.result().version());
+
+        UUID secondAttempt=upload();
+        assertNotEquals(firstAttempt,secondAttempt);
+        var attempts=uploads.list(learner,session,task);
+        assertEquals(2,attempts.size());
+        assertEquals(secondAttempt,attempts.getFirst().id());
+        assertEquals(firstAttempt,attempts.getLast().id());
+        assertEquals("NO_ASSESSMENT",service.learning(learner,session,task).assessmentState());
+        assertEquals(secondAttempt,service.learning(learner,session,task).latestAttemptId());
+        assertEquals(firstReview.id(),service.assessments(learner,session,task,firstAttempt,20,null)
+            .items().getFirst().id());
+        assertTrue(service.assessments(learner,session,task,secondAttempt,20,null).items().isEmpty());
+        assertEquals(1,service.decisions(learner,session,task,20,null).items().size());
+    }
+
+    // QA coverage of the actual HTTP POST contract, not just service methods.
+    @Test void httpDecisionReturns201Then200ReplayAnd409ForConflict() throws Exception {
+        UUID attempt=upload(),requestId=UUID.randomUUID();
+        String base="/api/v1/learners/"+learner+"/diagnostic-sessions/"+session
+            +"/tasks/"+task;
+        String payload="{\"requestId\":\""+requestId+"\",\"attemptId\":\""+attempt
+            +"\",\"action\":\"COMPLETE\",\"expectedVersion\":0,"
+            +"\"baseAssessmentId\":null,\"reason\":null}";
+        var mvc=org.springframework.test.web.servlet.setup.MockMvcBuilders
+            .webAppContextSetup(webContext).build();
+        var create=org.springframework.test.web.servlet.request.MockMvcRequestBuilders
+            .post(base+"/decisions")
+            .contentType(org.springframework.http.MediaType.APPLICATION_JSON).content(payload);
+        var first=mvc.perform(create)
+            .andExpect(org.springframework.test.web.servlet.result.MockMvcResultMatchers.status()
+                .isCreated()).andReturn();
+        assertTrue(first.getResponse().getContentAsString()
+            .contains("\"taskState\":\"COMPLETED_BY_LEARNER\""));
+        mvc.perform(org.springframework.test.web.servlet.request.MockMvcRequestBuilders
+            .post(base+"/decisions")
+            .contentType(org.springframework.http.MediaType.APPLICATION_JSON).content(payload))
+            .andExpect(org.springframework.test.web.servlet.result.MockMvcResultMatchers.status().isOk());
+        String changed=payload.replace("\"COMPLETE\"","\"CONTINUE_PRACTICING\"");
+        mvc.perform(org.springframework.test.web.servlet.request.MockMvcRequestBuilders
+            .post(base+"/decisions")
+            .contentType(org.springframework.http.MediaType.APPLICATION_JSON).content(changed))
+            .andExpect(org.springframework.test.web.servlet.result.MockMvcResultMatchers.status()
+                .isConflict());
+        assertEquals(1,jdbc.queryForObject(
+            "SELECT COUNT(*) FROM learner_decisions WHERE task_id=?",Integer.class,task));
+        mvc.perform(org.springframework.test.web.servlet.request.MockMvcRequestBuilders
+            .get(base+"/learning"))
+            .andExpect(org.springframework.test.web.servlet.result.MockMvcResultMatchers.status()
+                .isOk())
+            .andExpect(org.springframework.test.web.servlet.result.MockMvcResultMatchers
+                .jsonPath("$.taskState").value("COMPLETED_BY_LEARNER"));
+    }
 }
