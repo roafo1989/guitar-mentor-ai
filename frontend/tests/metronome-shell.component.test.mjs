@@ -63,7 +63,7 @@ async function compileRealTuner(instance) {
     return 'from ' + JSON.stringify(imports[name]);
   }).replace("import './tuner.css';",
     'import ' + JSON.stringify(imports['./tuner.css']) + ';');
-  return asModule(mapped + '\\n// actual tuner ' + instance);
+  return asModule(mapped + '\n// actual tuner ' + instance);
 }
 
 let appInstance = 0;
