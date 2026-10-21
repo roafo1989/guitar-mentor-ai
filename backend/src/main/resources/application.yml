@@ -29,6 +29,12 @@ guitar-mentor:
     poll-delay-ms: ${GUITAR_MENTOR_PROCESS_POLL_MS:3000}
     ffprobe-command: ${GUITAR_MENTOR_FFPROBE:ffprobe}
 
+# #18: explicitly opt in only after applying Flyway V15 on a local QA database.
+# Disabling the API must not remove the terminal guard from existing uploads.
+guitarmentor:
+  learning:
+    enabled: ${GUITAR_MENTOR_ENABLE_LEARNING:false}
+
 management:
   endpoints:
     web:
