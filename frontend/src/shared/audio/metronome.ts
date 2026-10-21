@@ -38,6 +38,8 @@ export class MetronomeEngine {
   private nextBeatTime = 0;
   private nextBeatIndex = 0;
   private nextSubIndex = 0;
+  /** A BPM reset is a new first beat, not permission to consume an older queued pattern. */
+  private deferPendingFirstBeat = false;
   private generation = 0;
   private pendingStart: Promise<boolean> | null = null;
   private closing: Promise<void> | null = null;
@@ -76,6 +78,7 @@ export class MetronomeEngine {
       this.cancelScheduledBeats();
       this.nextBeatIndex = 0;
       this.nextSubIndex = 0;
+      this.deferPendingFirstBeat = this.pendingConfig !== null;
       this.nextBeatTime = this.context.currentTime + INITIAL_DELAY_SECONDS;
       this.state.beat = null;
       this.emit();
@@ -123,6 +126,7 @@ export class MetronomeEngine {
   stop(): void {
     ++this.generation;
     this.pendingStart = null;
+    this.deferPendingFirstBeat = false;
     this.cleanup();
     // Stopping accepts the last requested valid config, not an obsolete bar.
     if (this.pendingConfig) {
@@ -159,6 +163,7 @@ export class MetronomeEngine {
       this.masterGain = master;
       this.nextBeatIndex = 0;
       this.nextSubIndex = 0;
+      this.deferPendingFirstBeat = false;
       this.nextBeatTime = context.currentTime + INITIAL_DELAY_SECONDS;
       this.state = { ...this.state, status:'running', beat:null, error:null };
       this.emit();
@@ -211,13 +216,17 @@ export class MetronomeEngine {
         if (this.nextBeatTime < context.currentTime) this.nextBeatTime = context.currentTime;
       }
       while (this.nextBeatTime < context.currentTime + AHEAD_SECONDS) {
-        if (this.nextBeatIndex === 0 && this.nextSubIndex === 0 && this.pendingConfig) {
-          this.config = this.pendingConfig;
-          this.pendingConfig = null;
-          this.masterGain?.gain.setValueAtTime(this.config.masterVolumePercent / 100, this.nextBeatTime);
-          interval = positionSeconds(this.config) / this.config.subdivision;
-          this.state = { ...this.state, bpm:this.config.bpm };
-          this.emit();
+        if (this.nextBeatIndex === 0 && this.nextSubIndex === 0) {
+          if (this.deferPendingFirstBeat) {
+            this.deferPendingFirstBeat = false;
+          } else if (this.pendingConfig) {
+            this.config = this.pendingConfig;
+            this.pendingConfig = null;
+            this.masterGain?.gain.setValueAtTime(this.config.masterVolumePercent / 100, this.nextBeatTime);
+            interval = positionSeconds(this.config) / this.config.subdivision;
+            this.state = { ...this.state, bpm:this.config.bpm };
+            this.emit();
+          }
         }
         const beatIndex = this.nextBeatIndex;
         const beat = beatIndex + 1;
