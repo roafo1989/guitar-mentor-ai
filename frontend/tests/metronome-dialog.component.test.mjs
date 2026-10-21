@@ -858,7 +858,7 @@ test('TOOL-04 panels keep deep metronome controls and Escape closes panel before
     await nextTick();
     assert.ok(view.find('div',n=>n.props.class==='m111-sheet'));
     const dialog=view.find('section',n=>n.props.role==='dialog');
-    view.find('button',n=>n.text.includes('metronome.details')).props.onClick();
+    view.find('div',n=>n.props.class==='m111-tools').children.filter(n=>n.tag==='button')[1].props.onClick();
     await nextTick();
     assert.ok(view.find('div',n=>n.props.class==='m111-sheet is-open'),
       'settings panel is open without destroying the metronome');
@@ -869,7 +869,7 @@ test('TOOL-04 panels keep deep metronome controls and Escape closes panel before
     await nextTick();
     assert.equal(closed,0,'Escape in open panel does not close the entire tool');
     assert.equal(view.find('div',n=>n.props.class==='m111-sheet is-open'),undefined);
-    view.find('button',n=>n.text.includes('metronome.presets')).props.onClick();
+    view.find('div',n=>n.props.class==='m111-tools').children.filter(n=>n.tag==='button')[0].props.onClick();
     await nextTick();
     assert.ok(view.find('select',n=>n.props.id==='metronome-preset-list'));
     assert.ok(view.find('button',n=>n.text==='metronome.savePreset'));
