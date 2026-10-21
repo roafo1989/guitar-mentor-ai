@@ -34,6 +34,8 @@ guitar-mentor:
 guitarmentor:
   learning:
     enabled: ${GUITAR_MENTOR_ENABLE_LEARNING:false}
+    # Empty until #22 approves a real measurement method and version.
+    validated-methods: ${GUITAR_MENTOR_VALIDATED_METHODS:}
 
 management:
   endpoints:
