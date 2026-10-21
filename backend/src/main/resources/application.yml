@@ -36,6 +36,9 @@ guitarmentor:
     enabled: ${GUITAR_MENTOR_ENABLE_LEARNING:false}
     # Empty until #22 approves a real measurement method and version.
     validated-methods: ${GUITAR_MENTOR_VALIDATED_METHODS:}
+    # Exact grants: methodId:methodVersion|SKILL_CODE|CRITERION_CODE separated by semicolons.
+    # A registered method alone never authorizes all criteria. No wildcard grants.
+    validated-method-scopes: ${GUITAR_MENTOR_VALIDATED_METHOD_SCOPES:}
     # Internal writer: empty credentials mean all HUMAN_REVIEW and measurement writes are denied.
     # Supply only via local secured deployment environment, never via HTTP or source control.
     review-principal: ${GUITAR_MENTOR_REVIEW_PRINCIPAL:}
