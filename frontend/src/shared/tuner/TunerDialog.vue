@@ -195,11 +195,9 @@ watch(() => props.open, async open => {
   await nextTick();
   if (!props.open || !dialog.value) return;
   clearFocusIsolation();
-  const page = document.querySelector<HTMLElement>('.app-shell');
-  releaseFocusIsolation = page
-    ? isolateDialogFocus(page, dialog.value)
-    : null;
-  if (!page) dialog.value.focus();
+  // App.vue exclusively controls app-shell.inert. This guard only traps
+  // focus inside the Teleported dialog; it never rewrites the shell state.
+  releaseFocusIsolation = isolateDialogFocus(dialog.value);
 }, { flush: 'post' });
 onBeforeUnmount(() => {
   clearFocusIsolation();

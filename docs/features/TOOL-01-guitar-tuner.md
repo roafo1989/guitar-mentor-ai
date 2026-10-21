@@ -49,3 +49,10 @@ The Auto mode now asks the shared YIN+FFT detector for a **conservative monophon
 Regression tests include 150 synthesized mixtures covering every open-string pair and five relative volume levels with two phase profiles, plus clean-string/overtone/inharmonic checks in Auto. The conservative filter will sometimes withhold a single pluck with unusual harmonic content, but it must not invent a positive "in tune" result from an observably polyphonic signal.
 
 **Physical limit:** an E2 harmonic series can have spectral frequencies identical to independent B3/E4 tones at about 3×/4× the fundamental. No algorithm examining a short monophonic waveform can unambiguously infer how many strings were plucked if the spectra overlap. A weak E4 (20% of E2 in these deterministic synthetic fixtures) may remain indistinguishable and therefore yield E2. The UI asks users to pluck just one open string; manual target selection is available. Do **not** claim perfect chord detection or that green is a guarantee of a single physical source. Real acoustic microphone acceptance is still required.
+
+
+## BUG-98-REVIEW-04 — modal inert lifecycle (21 October 2026)
+
+The parent `App.vue` is now the **single owner** of `.app-shell.inert` through its reactive `:inert="metronomeUi.open || tunerOpen"` binding. `modal-focus.ts` is strictly a focus guard (document-level `focusin` trap and removal); it never sets, snapshots or restores the shell's `inert` property. This removes the parent/child race: Vue clears `inert` on close, and a post-flush tuner cleanup can no longer reapply a stale true value.
+
+The updated unit regression recreates this ordering. A new integrated headless Vue component regression mounts **real App.vue and real TunerDialog.vue**, not a tuner stub, verifying teleported focus isolation, `inert` ownership, close button, Escape, route change, focus return, listener cleanup and repeated opening. The metronome shell/recording tests remain part of frontend CI. Follow up with real browser keyboard and mic testing; a headless renderer is not a full browser.

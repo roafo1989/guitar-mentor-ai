@@ -79,7 +79,7 @@ test('tuning tolerances and meter use bounded accessibility values', () => {
   assert.equal(tunerReading(Number.NaN, target), null);
 });
 
-test('modal isolation preserves previous inert state and guards programmatic focus', () => {
+test('modal focus guard never restores stale app-shell inert state', () => {
   let handler;
   let addCount = 0;
   let removeCount = 0;
@@ -100,23 +100,24 @@ test('modal isolation preserves previous inert state and guards programmatic foc
       assert.equal(capture, true); removeCount++;
     },
   };
-  const root = { inert: false };
-  const release = isolateDialogFocus(root, dialog, doc);
-  assert.equal(root.inert, true);
+  // The *parent* Vue component opens the modal and owns inert.
+  const shell = { inert: true };
+  const release = isolateDialogFocus(dialog, doc);
+  assert.equal(shell.inert, true, 'guard must not alter parent binding');
   assert.equal(focused, 1);
   handler({ target: inside });
   assert.equal(focused, 1);
   handler({ target: outside });
   assert.equal(focused, 2);
+
+  // Reproduce the P1 ordering: App patch clears inert before the
+  // post-flush dialog watcher releases the focus guard.
+  shell.inert = false;
   release();
   release();
-  assert.equal(root.inert, false);
+  assert.equal(shell.inert, false, 'releasing focus must not re-inert the shell');
   assert.equal(addCount, 1);
   assert.equal(removeCount, 1);
-
-  const previouslyInert = { inert: true };
-  isolateDialogFocus(previouslyInert, dialog, doc)();
-  assert.equal(previouslyInert.inert, true);
 });
 
 const harmonics = (frequency, rate, amplitudes, detuneCents = 0, withNoise = false) => {

@@ -1,16 +1,13 @@
 /**
- * Focus isolation for the Teleported tuner: the app shell becomes inert while
- * the dialog remains in document.body. A document-level guard also handles
- * attempted programmatic focus outside the modal.
+ * Guard keyboard/programmatic focus inside the Teleported tuner dialog.
+ * App.vue is the sole owner of app-shell.inert via its reactive binding.
+ * This helper MUST NOT capture, set or restore that property: a post-flush
+ * cleanup could otherwise re-inert the entire app after the parent closes it.
  */
 export function isolateDialogFocus(
-  page: HTMLElement,
   dialog: HTMLElement,
   hostDocument: Document = document,
 ): () => void {
-  const previousInert = page.inert;
-  page.inert = true;
-
   const keepInside = (event: FocusEvent) => {
     if (!dialog.contains(event.target as Node)) dialog.focus();
   };
@@ -22,6 +19,5 @@ export function isolateDialogFocus(
     if (released) return;
     released = true;
     hostDocument.removeEventListener('focusin', keepInside, true);
-    page.inert = previousInert;
   };
 }
