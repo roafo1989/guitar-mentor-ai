@@ -4,6 +4,7 @@ import { readFile } from 'node:fs/promises';
 import { parse, compileScript } from '@vue/compiler-sfc';
 import ts from 'typescript';
 import { createRenderer, h, nextTick } from 'vue';
+import { meterConfig, copyConfig } from '../src/shared/audio/metronome-config.ts';
 
 // Integration regression: mount the actual MetronomeDialog.vue compiled from source.
 // A simulated user enters BPM and clicks Start; pure parser tests missed the old
@@ -14,12 +15,17 @@ const fakeAudioUrl = asModule([
   'export const metronome = {',
   'getState: (...args)=>globalThis.__testMetronome87.getState(...args),',
   'subscribe: (...args)=>globalThis.__testMetronome87.subscribe(...args),',
-  'setBpm: (...args)=>globalThis.__testMetronome87.setBpm(...args),',
+  'setBpm: (...args)=>globalThis.__testMetronome87.setBpm(...args),
+  'getConfig: (...args)=>globalThis.__testMetronome87.getConfig(...args),
+  'getPendingConfig: (...args)=>globalThis.__testMetronome87.getPendingConfig(...args),
+  'applyConfig: (...args)=>globalThis.__testMetronome87.applyConfig(...args),
+  'setMasterVolume: (...args)=>globalThis.__testMetronome87.setMasterVolume(...args),',
   'start: (...args)=>globalThis.__testMetronome87.start(...args),',
   'stop: (...args)=>globalThis.__testMetronome87.stop(...args)',
   '};',
 ].join(String.fromCharCode(10)));
 const fakeI18nUrl = asModule('export const useI18n = () => ({ t: (key) => key });');
+const fakeUiUrl = asModule('export const metronomeUi = {presets:[],storageError:false,storageBlocked:false}; export function persistMetronomeConfig(){return true;} export function resetMetronomePreferences(){return true;}');
 let Component;
 
 async function compileDialog() {
@@ -38,6 +44,8 @@ async function compileDialog() {
       'vue-i18n': fakeI18nUrl,
       '../../shared/audio/metronome': fakeAudioUrl,
       './metronome-input': inputUrl,
+      '../../shared/audio/metronome-config.ts': new URL('../src/shared/audio/metronome-config.ts', import.meta.url).href,
+      './metronome-ui': fakeUiUrl,
     };
     if (!sources[name]) throw Error('Unmocked MetronomeDialog runtime dependency ' + name);
     return 'from ' + JSON.stringify(sources[name]);
@@ -108,10 +116,15 @@ function fakeEngine() {
   const listeners = new Set();
   const state = { status: 'stopped', bpm: 60, beat: null, error: null };
   let starts = 0;
+  let config = meterConfig(4,4,60);
   function emit() { for (const callback of listeners) callback({ ...state }); }
   return {
     get starts() { return starts; },
     getState: () => ({ ...state }),
+    getConfig: () => copyConfig(config),
+    getPendingConfig: () => null,
+    applyConfig(value) { config = copyConfig(value); state.bpm=config.bpm; emit(); return true; },
+    setMasterVolume(value) { config.masterVolumePercent=value; emit(); return true; },
     setStatus(status) { state.status = status; emit(); },
     subscribe(callback) {
       listeners.add(callback);
@@ -120,7 +133,7 @@ function fakeEngine() {
     },
     setBpm(bpm) {
       assert.ok(Number.isInteger(bpm) && bpm >= 20 && bpm <= 240);
-      state.bpm = bpm; emit();
+      state.bpm = bpm; config.bpm=bpm; emit();
       return true;
     },
     start() { starts++; state.status = 'running'; emit(); return Promise.resolve(true); },
