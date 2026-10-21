@@ -6,7 +6,7 @@
 | --- | --- | --- |
 | 1.0 | 2026-10-21 | Implements TOOL-02 v1.1 against accepted #86/#87; QA checklist |
 
-Source: [specification TOOL-02 v1.1](../../docs/specifications/TOOL-02-flexible-metronome.md) (analysis branch PR #64 if not yet merged). Development PR #105. Parent #57 / epic #53.
+Source: [specification TOOL-02 v1.1](https://github.com/roafo1989/guitar-mentor-ai/blob/analysis/system-analysis-standard/docs/specifications/TOOL-02-flexible-metronome.md) (analysis branch PR #64 if not yet merged). Development PR #105. Parent #57 / epic #53.
 
 ## Architecture
 
