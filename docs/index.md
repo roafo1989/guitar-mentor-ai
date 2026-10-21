@@ -22,7 +22,9 @@
 
 - [#104 / TOOL-02 — гибкий метроном](specifications/TOOL-02-flexible-metronome.md) — размеры, акценты, индивидуальная громкость, подразделения/Tap/пресеты; v1.1,36 ч; база — принятая #87, запись/minimize/reopen сохраняются
 
-- [Бизнес-требования 0.7](requirements/business-requirements.md)
+- [Бизнес-требования 0.8](requirements/business-requirements.md) — ответы первого интервью, репертуарная цель и инициатива наставника; ТЗ ещё не синхронизировано с BT-017/018
+- [Бизнес-анализ и варианты](https://github.com/roafo1989/guitar-mentor-ai/blob/main/docs/requirements/discovery/business-analysis-2026-10-20.md) — v0.2, уточнение по ответам 21.10.2026
+- [Интервью заказчика](https://github.com/roafo1989/guitar-mentor-ai/blob/main/docs/requirements/discovery/customer-interview-2026-10-20.md) — v0.2, ответы BA-Q01–05 и следующий блок
 - [Техническое задание 0.12](requirements/technical-specification.md) — 9 US / 33 FT, НФТ/SEC и открытые вопросы
 - [Системная спецификация 0.6](specifications/system-specification.md) — текущие API/данные и целевой остаток
 - [MVP Scope & Acceptance 1.1](project/mvp-scope-v1.md)
