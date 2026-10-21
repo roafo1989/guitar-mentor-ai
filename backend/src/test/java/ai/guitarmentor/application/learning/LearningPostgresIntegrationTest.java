@@ -147,7 +147,7 @@ class LearningPostgresIntegrationTest {
         assertEquals(1,revise.revision());
         assertTrue(uploads.list(learner,session,task).getFirst().assessmentAvailable());
         var choice=service.decide(learner,session,task,new DecisionRequest(
-            UUID.randomUUID(),attempt,"COMPLETE",0,revise.id(),"I accept the imperfections"));
+            UUID.randomUUID(),attempt,"COMPLETE",0L,revise.id(),"I accept the imperfections"));
         assertEquals("COMPLETED_BY_LEARNER",choice.result().taskState());
         var pass=writer.record(learner,session,task,attempt,assessment("MEETS"));
         assertEquals("PASS",pass.recommendation());
