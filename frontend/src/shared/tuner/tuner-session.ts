@@ -46,6 +46,25 @@ export function trackPitch(state: PitchTrackState, candidate: number | null, now
 }
 
 /**
+ * A historical three-frame median is useful for smooth pitch tracking, but
+ * it must not be passed off as a *fresh* reading after the latest credible
+ * candidate changes. A difference over the tuning tolerance suppresses the
+ * visual reading for that frame while tracking continues normally.
+ *
+ * Null candidates still return the bounded hold value; the caller marks it
+ * explicitly as held, never green. No new device/stream is acquired here.
+ */
+export function displayPitch(
+  state: PitchTrackState, candidate: number | null, nowMs: number,
+): number | null {
+  const stabilized = trackPitch(state, candidate, nowMs);
+  if (stabilized !== null && candidate !== null &&
+      Number.isFinite(candidate) && candidate > 0 &&
+      Math.abs(cents(candidate, stabilized)) > 5) return null;
+  return stabilized;
+}
+
+/**
  * Auto mode considers only known open-string targets. Large detunings beyond
  * 175 cents are deliberately left to manual selection on first detection.
  * While tracking an established string, tolerate up to 235 cents to avoid
