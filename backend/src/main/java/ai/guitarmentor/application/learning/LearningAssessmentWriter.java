@@ -57,9 +57,11 @@ public class LearningAssessmentWriter {
         for (var item:input.criteria()) {
             if (item==null || !known.contains(item.criterionCode())
                     || !seen.add(item.criterionCode())) invalid();
-            if (!List.of("ASSESSED","UNCERTAIN","NOT_ASSESSED").contains(item.status())) invalid();
+            if (!"ASSESSED".equals(item.status()) && !"UNCERTAIN".equals(item.status())
+                    && !"NOT_ASSESSED".equals(item.status())) invalid();
             boolean assessed="ASSESSED".equals(item.status());
-            if (assessed != List.of("MEETS","NEEDS_WORK").contains(item.outcome())) invalid();
+            if (assessed != ("MEETS".equals(item.outcome())
+                    || "NEEDS_WORK".equals(item.outcome()))) invalid();
             if (!assessed && (item.reasonCode()==null || item.reasonCode().isBlank())) invalid();
             if (item.reasonCode()!=null && !item.reasonCode().matches("[A-Z_]{2,80}")) invalid();
             if (item.evidenceText()!=null && item.evidenceText().length()>2000) invalid();
@@ -108,7 +110,8 @@ public class LearningAssessmentWriter {
 
     private static void validateInput(Input input) {
         if (input==null || input.sourceOperationId()==null || !input.trustedInternalSource()
-                || !List.of("HUMAN_REVIEW","VALIDATED_MEASUREMENT").contains(input.sourceKind())
+                || (!"HUMAN_REVIEW".equals(input.sourceKind())
+                    && !"VALIDATED_MEASUREMENT".equals(input.sourceKind()))
                 || input.methodId()==null || !input.methodId().matches("[A-Za-z0-9_.:-]{1,100}")
                 || input.methodVersion()==null
                 || !input.methodVersion().matches("[A-Za-z0-9_.:-]{1,60}")
