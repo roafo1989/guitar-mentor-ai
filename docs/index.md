@@ -1,6 +1,6 @@
 # Guitar Mentor AI — документация
 
-**[Состояние проекта и датированные результаты сверки](project/current-state.md)**. Последние дополнения: [гибкий метроном #104 — 21.10.2026](specifications/TOOL-02-flexible-metronome.md), [анализ четырёх задач — 20.10.2026](project/analysis-refresh-2026-10-20.md). Приложение работает локально, без авторизации.
+**[Состояние проекта и датированные результаты сверки](project/current-state.md)**. Последние дополнения: [тюнер: интерфейс и строи #108 — 21.10.2026](specifications/TOOL-03-tuner-interface-and-tunings.md), [гибкий метроном #104 — 21.10.2026](specifications/TOOL-02-flexible-metronome.md), [анализ четырёх задач — 20.10.2026](project/analysis-refresh-2026-10-20.md). Приложение работает локально, без авторизации.
 
 ## Навигация и регламенты
 
@@ -18,10 +18,12 @@
 
 ## Требования и спецификации
 
+- [#108 / TOOL-03 — интерфейс тюнера и выбор строя](specifications/TOOL-03-tuner-interface-and-tunings.md) — голова грифа/подсветка колка, Standard/Drop D/Open G; новая постановка после #98, макет/оценка впереди
+
 - [#104 / TOOL-02 — гибкий метроном](specifications/TOOL-02-flexible-metronome.md) — размеры, акценты, индивидуальная громкость, подразделения/Tap/пресеты; v1.1,36 ч; база — принятая #87, запись/minimize/reopen сохраняются
 
-- [Бизнес-требования 0.6](requirements/business-requirements.md)
-- [Техническое задание 0.11](requirements/technical-specification.md) — 9 US / 32 FT, НФТ/SEC и открытые вопросы
+- [Бизнес-требования 0.7](requirements/business-requirements.md)
+- [Техническое задание 0.12](requirements/technical-specification.md) — 9 US / 33 FT, НФТ/SEC и открытые вопросы
 - [Системная спецификация 0.6](specifications/system-specification.md) — текущие API/данные и целевой остаток
 - [MVP Scope & Acceptance 1.1](project/mvp-scope-v1.md)
 - [Roadmap 1.1](project/roadmap-mvp-v1.md) — исходные оценки исторические, не текущий остаток

@@ -1,0 +1,7 @@
+flowchart TB
+  UI["Голова грифа, колки и шкала"] --> Target["Выбранный строй и targets 6→1"]
+  Target --> Classifier["Auto / Manual и отклонение"]
+  Detector["Существующий detector #98"] --> Classifier
+  Classifier --> UI
+  Target <--> Prefs["Локальный ID строя, без listening"]
+  Lease["Микрофон, Stop и close #98"] --> Detector
