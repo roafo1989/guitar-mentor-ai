@@ -40,6 +40,7 @@ class LearningPostgresIntegrationTest {
     @Autowired LearningAssessmentWriter writer;
     @Autowired ai.guitarmentor.infrastructure.persistence.LearningRepository learningRepo;
     @Autowired SubmissionAttemptService uploads;
+    @Autowired ai.guitarmentor.infrastructure.persistence.DiagnosticSessionRepository sessionsRepository;
 
     UUID learner,profile,session,task;
     Path mediaRoot=Path.of("target","r4-learning-media").toAbsolutePath();
@@ -253,4 +254,47 @@ class LearningPostgresIntegrationTest {
         }
         assertEquals(1,service.learning(learner,session,task).version());
     }
+
+    @Test void terminalUploadReplayIsStillAvailableAndNewRequestRejected() {
+        var wav=new MockMultipartFile("file","replay.wav","audio/wav",
+            new byte[]{'R','I','F','F',4,0,0,0,'W','A','V','E',0,0,0,0});
+        UUID uploadId=UUID.randomUUID();
+        var original=uploads.submit(learner,session,task,uploadId,null,wav);
+        service.decide(learner,session,task,
+            command(original.id(),"COMPLETE",0,null,UUID.randomUUID()));
+        var replay=uploads.submit(learner,session,task,uploadId,null,wav);
+        assertEquals(original.id(),replay.id());
+        assertEquals(1,uploads.list(learner,session,task).size());
+        assertEquals(409,assertThrows(ResponseStatusException.class,
+            ()->uploads.submit(learner,session,task,UUID.randomUUID(),null,wav))
+            .getStatusCode().value());
+    }
+
+    @Test void failingStateUpdateRollsBackDecisionInsertion() {
+        UUID attempt=upload();
+        jdbc.execute("ALTER TABLE task_learning_state "
+            +"ADD CONSTRAINT r4_test_forbid_completion CHECK (state='ACTIVE')");
+        try {
+            assertThrows(org.springframework.dao.DataAccessException.class,
+                ()->service.decide(learner,session,task,
+                    command(attempt,"COMPLETE",0,null,UUID.randomUUID())));
+            assertEquals(0,jdbc.queryForObject(
+                "SELECT COUNT(*) FROM learner_decisions WHERE task_id=?",Integer.class,task));
+            assertEquals("ACTIVE",service.learning(learner,session,task).taskState());
+            assertEquals(0,service.learning(learner,session,task).version());
+        } finally {
+            jdbc.execute("ALTER TABLE task_learning_state "
+                +"DROP CONSTRAINT IF EXISTS r4_test_forbid_completion");
+        }
+    }
+
+    @Test void disabledLearningRoutesDoNotDisableOldUploads() {
+        var disabled=new LearningService(learningRepo,
+            // A disabled instance never uses session locking, but still has valid collaborators.
+            sessionsRepository,false);
+        code("LEARNING_DISABLED",()->disabled.learning(learner,session,task));
+        assertNotNull(upload());
+        assertEquals("ACTIVE",service.learning(learner,session,task).taskState());
+    }
+
 }
