@@ -556,3 +556,121 @@ test('TOOL-02 Discard clears invalid BPM and restores accepted settings and play
     delete globalThis.__testMetronome87;
   }
 });
+
+test('TOOL-02 invalid BPM cannot be bypassed by changing meter and pressing Apply', async () => {
+  const previousDocument=globalThis.document;
+  const engine=fakeEngine({queueWhileRunning:true});
+  const view=createTestRenderer();
+  globalThis.__testMetronome87=engine;
+  globalThis.document={body:view.body,activeElement:null};
+  let app;
+  try {
+    engine.applyConfig(meterConfig(4,4,80));
+    engine.setStatus('running');
+    const Dialog=await compileDialog();
+    app=view.renderer.createApp({render:()=>h(Dialog)});
+    app.mount(view.node('root'));
+    await nextTick();
+    const input=view.find('input',n=>n.props.id==='metronome-bpm');
+    input.props.onInput({target:{value:'999'}});
+    await nextTick();
+    view.find('button',n=>n.text==='6/8').props.onClick();
+    await nextTick();
+    const apply=view.find('button',n=>n.text==='metronome.apply');
+    assert.equal(Boolean(apply.props.disabled),false,'meter change offers Apply');
+    apply.props.onClick();
+    await nextTick();
+    assert.equal(engine.getConfig().numerator,4,'invalid BPM cannot alter audible meter');
+    assert.equal(engine.getConfig().bpm,80);
+    assert.equal(engine.getPendingConfig(),null,'invalid BPM cannot queue any meter change');
+    assert.equal(input.props.value,'999','invalid typed value remains visible for correction');
+    assert.ok(view.find('p',n=>n.props.id==='metronome-error'));
+    assert.equal(Boolean(apply.props.disabled),false,'rejected rhythm edit remains cancellable');
+    const discard=view.find('button',n=>n.text==='metronome.discard');
+    discard.props.onClick();
+    await nextTick();
+    assert.equal(input.props.value,'80');
+    assert.equal(view.find('p',n=>n.props.id==='metronome-error'),undefined);
+  } finally {
+    app?.unmount();
+    globalThis.document=previousDocument;
+    delete globalThis.__testMetronome87;
+  }
+});
+
+test('TOOL-02 audio ticks never erase blurred invalid BPM without resolving its error', async () => {
+  const previousDocument=globalThis.document;
+  const engine=fakeEngine({queueWhileRunning:true});
+  const view=createTestRenderer();
+  globalThis.__testMetronome87=engine;
+  globalThis.document={body:view.body,activeElement:null};
+  let app;
+  try {
+    engine.applyConfig(meterConfig(4,4,80));
+    engine.setStatus('running');
+    const Dialog=await compileDialog();
+    app=view.renderer.createApp({render:()=>h(Dialog)});
+    app.mount(view.node('root'));
+    await nextTick();
+    const input=view.find('input',n=>n.props.id==='metronome-bpm');
+    input.props.onInput({target:{value:'999'}});
+    await nextTick();
+    const stop=view.find('button',n=>n.text==='metronome.stop');
+    stop.focus(); // editable BPM has lost focus, before the next audio tick
+    for(let index=0;index<3;index++)engine.emitTick();
+    await nextTick();
+    assert.equal(input.props.value,'999','scheduler must not silently replace invalid draft');
+    assert.ok(view.find('p',n=>n.props.id==='metronome-error'),
+      'invalid BPM message must remain consistent with visible input');
+    assert.equal(engine.getState().bpm,80);
+    const discard=view.find('button',n=>n.text==='metronome.discard');
+    assert.ok(discard);
+    assert.equal(Boolean(discard.props.disabled),false,'invalid BPM alone can be discarded');
+    discard.props.onClick();
+    await nextTick();
+    assert.equal(input.props.value,'80');
+    assert.equal(view.find('p',n=>n.props.id==='metronome-error'),undefined);
+    input.props.onInput({target:{value:'95'}});
+    await nextTick();
+    assert.equal(engine.getState().bpm,95,'valid correction still takes effect immediately');
+    assert.equal(input.props.value,'95');
+  } finally {
+    app?.unmount();
+    globalThis.document=previousDocument;
+    delete globalThis.__testMetronome87;
+  }
+});
+
+test('TOOL-02 explicitly loading a preset replaces invalid BPM and clears stale validation', async () => {
+  const previousDocument=globalThis.document;
+  const engine=fakeEngine();
+  const view=createTestRenderer();
+  globalThis.__testMetronome87=engine;
+  globalThis.document={body:view.body,activeElement:null};
+  fakeUiState.presets=[{id:'valid-95',name:'Valid preset',config:meterConfig(6,8,95)}];
+  let app;
+  try {
+    engine.applyConfig(meterConfig(4,4,80));
+    const Dialog=await compileDialog();
+    app=view.renderer.createApp({render:()=>h(Dialog)});
+    app.mount(view.node('root'));
+    await nextTick();
+    const input=view.find('input',n=>n.props.id==='metronome-bpm');
+    input.props.onInput({target:{value:'999'}});
+    await nextTick();
+    view.find('select',n=>n.props.id==='metronome-preset-list')
+      .props.onChange({target:{value:'valid-95'}});
+    await nextTick();
+    view.find('button',n=>n.text==='metronome.loadPreset').props.onClick();
+    await nextTick();
+    assert.equal(input.props.value,'95');
+    assert.equal(view.find('p',n=>n.props.id==='metronome-error'),undefined);
+    assert.equal(engine.getConfig().numerator,6);
+    assert.equal(engine.getConfig().bpm,95);
+  } finally {
+    app?.unmount();
+    fakeUiState.presets=[];
+    globalThis.document=previousDocument;
+    delete globalThis.__testMetronome87;
+  }
+});
