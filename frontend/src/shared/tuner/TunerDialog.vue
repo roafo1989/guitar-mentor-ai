@@ -33,9 +33,16 @@ const stringPaths = [
   'M148 356 L128 246', 'M160 356 L128 166', 'M172 356 L128 86',
   'M188 356 L232 86', 'M200 356 L232 166', 'M212 356 L232 246',
 ] as const;
+// Even when the rolling median is inside ±5c, the newest trustworthy
+// sample might already have crossed the threshold. Treat that transition as
+// stabilization, not as uncertain string identity or a tuned measurement.
+const staleInTune = computed(() => phase.value === 'listening' && target.value !== null &&
+  frequency.value !== null && lastCandidate.value !== null &&
+  Math.abs(cents(frequency.value, target.value.hz)) <= 5 &&
+  Math.abs(cents(lastCandidate.value, target.value.hz)) > 5);
 // An unrecognized (or heavily detuned) pitch must not silently choose a target.
 const reading = computed(() => {
-  if (phase.value !== 'listening' || !target.value) return null;
+  if (phase.value !== 'listening' || !target.value || staleInTune.value) return null;
   const result = tunerReading(frequency.value, target.value.hz);
   // A median can be inside ±5c even when its newest credible input is
   // outside the tolerance. Never publish a misleading green/meter reading.
@@ -45,7 +52,7 @@ const reading = computed(() => {
 });
 const note = computed(() => frequency.value === null ? '—' : noteName(frequency.value));
 const held = ref(false);
-const status = computed(() => reading.value
+const status = computed(() => staleInTune.value ? 'tuner.stabilizing' : reading.value
   ? held.value ? 'tuner.holding' : 'tuner.' + reading.value.status
   : phase.value === 'listening' && frequency.value !== null && mode.value === 'auto'
     ? 'tuner.autoUncertain' : message.value);
