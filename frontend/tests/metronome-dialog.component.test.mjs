@@ -370,3 +370,105 @@ test('TOOL-02 separate beat volume selection does not cycle the selected accent'
     delete globalThis.__testMetronome87;
   }
 });
+
+test('TOOL-02 pending preset preserves BPM and sound mix through quick meter selection', async () => {
+  const previousDocument=globalThis.document;
+  const engine=fakeEngine({queueWhileRunning:true});
+  const view=createTestRenderer();
+  globalThis.__testMetronome87=engine;
+  globalThis.document={body:view.body,activeElement:null};
+  const preset=meterConfig(7,8,95);
+  preset.tempoUnit='eighth';
+  preset.accentVolumes={strong:77,medium:41,weak:13};
+  preset.subdivisionVolumePercent=62;
+  preset.subdivision=3;
+  preset.masterVolumePercent=67;
+  fakeUiState.presets=[{id:'p95',name:'Seven',config:copyConfig(preset)}];
+  let app;
+  try {
+    engine.applyConfig(meterConfig(4,4,80));
+    engine.setStatus('running');
+    const Dialog=await compileDialog();
+    app=view.renderer.createApp({render:()=>h(Dialog)});
+    app.mount(view.node('root'));
+    await nextTick();
+    const presetList=view.find('select',n=>n.props.id==='metronome-preset-list');
+    assert.ok(presetList);
+    presetList.props.onChange({target:{value:'p95'}});
+    await nextTick();
+    view.find('button',n=>n.text==='metronome.loadPreset').props.onClick();
+    await nextTick();
+    engine.emitTick();
+    await nextTick();
+    assert.equal(engine.getConfig().bpm,80);
+    assert.equal(engine.getPendingConfig().bpm,95);
+    assert.equal(view.find('input',n=>n.props.id==='metronome-bpm').props.value,'95');
+    const comparison=view.find('small',n=>n.props.class==='metronome-tempo-comparison');
+    assert.ok(comparison,'separate sounding and queued tempo required');
+    const flatten=node=>[node.text,...node.children.map(flatten)].join(' ');
+    assert.match(flatten(comparison),/metronome.soundingTempo.*80/);
+    assert.match(flatten(comparison),/metronome.queuedTempo.*95/);
+    assert.match(flatten(comparison),/eighth/);
+    view.find('button',n=>n.text==='6/8').props.onClick();
+    await nextTick();
+    assert.equal(engine.getPendingConfig().numerator,7,'draft is not committed before Apply');
+    view.find('button',n=>n.text==='metronome.apply').props.onClick();
+    await nextTick();
+    const requested=engine.getPendingConfig();
+    assert.equal(requested.numerator,6);
+    assert.equal(requested.denominator,8);
+    assert.equal(requested.bpm,95,'meter choice must not revert pending BPM');
+    assert.equal(requested.tempoUnit,'dotted-quarter','6/8 offers its default beat unit');
+    assert.deepEqual(requested.accentVolumes,preset.accentVolumes);
+    assert.equal(requested.subdivisionVolumePercent,62);
+    assert.equal(requested.subdivision,3);
+    assert.equal(requested.masterVolumePercent,67);
+    assert.deepEqual(requested.groups,[3,3]);
+    assert.equal(engine.getConfig().bpm,80);
+    engine.emitTick();
+    await nextTick();
+    assert.equal(view.find('input',n=>n.props.id==='metronome-bpm').props.value,'95',
+      'scheduler ticks cannot replace requested BPM with sounding BPM');
+    engine.transitionBar();
+    await nextTick();
+    assert.equal(engine.getConfig().bpm,95);
+    assert.equal(engine.getPendingConfig(),null);
+  } finally {
+    app?.unmount();
+    fakeUiState.presets=[];
+    globalThis.document=previousDocument;
+    delete globalThis.__testMetronome87;
+  }
+});
+
+test('TOOL-02 opening during pending change shows requested BPM; +/- steps from it', async () => {
+  const previousDocument=globalThis.document;
+  const engine=fakeEngine({queueWhileRunning:true});
+  const view=createTestRenderer();
+  globalThis.__testMetronome87=engine;
+  globalThis.document={body:view.body,activeElement:null};
+  let app;
+  try {
+    engine.applyConfig(meterConfig(4,4,80));
+    engine.setStatus('running');
+    const next=meterConfig(7,8,95);
+    next.tempoUnit='eighth';
+    engine.applyConfig(next);
+    const Dialog=await compileDialog();
+    app=view.renderer.createApp({render:()=>h(Dialog)});
+    app.mount(view.node('root'));
+    await nextTick();
+    assert.equal(engine.getState().bpm,80);
+    assert.equal(view.find('input',n=>n.props.id==='metronome-bpm').props.value,'95');
+    const faster=view.find('button',n=>n.props['aria-label']==='metronome.faster');
+    assert.ok(faster);
+    faster.props.onClick();
+    await nextTick();
+    assert.equal(engine.getState().bpm,96);
+    assert.equal(engine.getPendingConfig().bpm,96);
+  } finally {
+    app?.unmount();
+    globalThis.document=previousDocument;
+    delete globalThis.__testMetronome87;
+  }
+});
