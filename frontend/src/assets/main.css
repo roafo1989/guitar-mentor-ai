@@ -506,3 +506,13 @@ footer { text-align: center; font-size: 12px; padding: 24px; color: #8793a4; }
 /* #111 review: visible errors inside sheets and complete config review. */
 .m111 .m111-sheet-error { margin:0 2px 12px; padding:9px 10px; background:#51343b; border:1px solid #b76e71; border-radius:9px; }
 .m111 .m111-preset-review { display:flex; flex-direction:column; gap:5px; overflow-wrap:anywhere; }
+
+
+/* Number + one-to-four audible subdivision ticks; no misleading note value. */
+.m111 .m111-subdivision-controls button {
+  height:40px;min-height:40px;min-width:38px;
+  display:flex;flex-direction:column;align-items:center;justify-content:center;gap:1px;
+}
+.m111 .m111-subdivision-controls strong {font-size:12px;line-height:14px}
+.m111 .m111-sub-notes {font-size:11px;line-height:11px;letter-spacing:-1px;white-space:nowrap}
+@media (max-width:370px) {.m111 .m111-subdivision-controls button {min-width:35px}}
