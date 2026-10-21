@@ -305,6 +305,12 @@
     "playingInBackground": "Metronome is playing — open controls"
   },
   "tuner": {
+    "tuning": "Guitar tuning",
+    "standard": "Standard · E A D G B E",
+    "dropD": "Drop D · D A D G B E",
+    "openG": "Open G · D G D G B D",
+    "autoMode": "Automatic selection",
+    "manualMode": "Manual selection",
     "title": "Guitar tuner",
     "open": "Open guitar tuner",
     "close": "Close tuner",

@@ -305,6 +305,12 @@
     "playingInBackground": "Метроном играет — открыть управление"
   },
   "tuner": {
+    "tuning": "Строй гитары",
+    "standard": "Стандартный · E A D G B E",
+    "dropD": "Drop D · D A D G B E",
+    "openG": "Open G · D G D G B D",
+    "autoMode": "Автоматический выбор",
+    "manualMode": "Ручной выбор",
     "title": "Гитарный тюнер",
     "open": "Открыть гитарный тюнер",
     "close": "Закрыть тюнер",

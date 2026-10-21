@@ -2,7 +2,8 @@
 import { computed, nextTick, onBeforeUnmount, ref, watch } from 'vue';
 import { useI18n } from 'vue-i18n';
 import { acquireAudio, releaseAudio } from '../audio/audio-session';
-import { STRINGS, detectPitch, noteName } from './pitch';
+import { detectPitch, noteName } from './pitch';
+import { TUNING_IDS, TUNINGS, readTuningPreference, saveTuningPreference, type TuningId } from './tuning-profiles';
 import { autoStringIndex, newPitchTrack, resetPitchTrack, trackPitch } from './tuner-session';
 import { isolateDialogFocus } from './modal-focus';
 import { tunerReading } from './tuner-reading';
@@ -18,7 +19,19 @@ const phase = ref<'idle' | 'requesting' | 'listening'>('idle');
 const message = ref('tuner.ready');
 const error = ref('');
 const frequency = ref<number | null>(null);
-const target = computed(() => selected.value === null ? null : STRINGS[selected.value]);
+const tuningId = ref<TuningId>(readTuningPreference());
+const tuning = computed(() => TUNINGS[tuningId.value]);
+const strings = computed(() => tuning.value.strings);
+const target = computed(() => selected.value === null ? null : strings.value[selected.value]);
+const pegs = [
+  { x: 54, y: 246 }, { x: 54, y: 166 }, { x: 54, y: 86 },
+  { x: 306, y: 86 }, { x: 306, y: 166 }, { x: 306, y: 246 },
+] as const;
+// Each path stays tied to the physical string number, not its pitch class.
+const stringPaths = [
+  'M148 356 L128 246', 'M160 356 L128 166', 'M172 356 L128 86',
+  'M188 356 L232 86', 'M200 356 L232 166', 'M212 356 L232 246',
+] as const;
 // An unrecognized (or heavily detuned) pitch must not silently choose a target.
 const reading = computed(() => phase.value === 'listening' && target.value
   ? tunerReading(frequency.value, target.value.hz) : null);
@@ -29,6 +42,8 @@ const status = computed(() => reading.value
   : phase.value === 'listening' && frequency.value !== null && mode.value === 'auto'
     ? 'tuner.autoUncertain' : message.value);
 const position = computed(() => 50 + (reading.value?.meterValue ?? 0));
+const isTuned = computed(() => phase.value === 'listening' && !held.value &&
+  reading.value?.status === 'inTune');
 const token = Symbol('tuner');
 const tracking = newPitchTrack();
 let generation = 0;
@@ -139,7 +154,7 @@ async function start(): Promise<void> {
         frequency.value = trackPitch(tracking, candidate, now);
         held.value = candidate === null && frequency.value !== null;
         if (mode.value === 'auto') {
-          selected.value = autoStringIndex(frequency.value, selected.value);
+          selected.value = autoStringIndex(frequency.value, selected.value, strings.value);
         }
         message.value = candidate === null ? 'tuner.noSignal' :
           frequency.value === null ? 'tuner.stabilizing' : 'tuner.wrongString';
@@ -153,6 +168,16 @@ async function start(): Promise<void> {
       error.value = microphoneError(cause);
     }
   }
+}
+function changeTuning(event: Event): void {
+  const id = (event.target as HTMLSelectElement).value;
+  if (!TUNING_IDS.some(item => item === id) || id === tuningId.value) return;
+  tuningId.value = id as TuningId;
+  saveTuningPreference(tuningId.value);
+  // Auto loses its target; Manual keeps the physical string but never
+  // carries over the old pitch/hold/green status from another tuning.
+  resetPitch();
+  if (phase.value === 'listening') message.value = 'tuner.stabilizing';
 }
 function choose(index: number): void {
   mode.value = 'manual';
@@ -171,7 +196,8 @@ function handleKey(event: KeyboardEvent): void {
     close();
   }
   if (event.key !== 'Tab' || !dialog.value) return;
-  const focusable = Array.from(dialog.value.querySelectorAll<HTMLElement>('button:not([disabled])'));
+  const focusable = Array.from(dialog.value.querySelectorAll<HTMLElement>(
+    'button:not([disabled]), select:not([disabled])'));
   if (!focusable.length) return;
   const first = focusable[0], last = focusable[focusable.length - 1];
   if (event.shiftKey && (document.activeElement === first || document.activeElement === dialog.value)) {
@@ -207,55 +233,117 @@ onBeforeUnmount(() => {
 
 <template>
   <Teleport to="body">
-    <!-- Backdrop clicks are intentionally ignored: don't interrupt tuning. -->
+    <!-- Backdrop is deliberately non-dismissive during microphone work. -->
     <div v-if="open" class="tuner-overlay">
       <section ref="dialog" role="dialog" aria-modal="true" class="tuner-modal"
         :aria-label="t('tuner.title')" tabindex="-1" @keydown="handleKey">
-        <div class="tuner-heading">
-          <h2>{{ t('tuner.title') }}</h2>
-          <button type="button" class="tuner-close" :title="t('tuner.close')" :aria-label="t('tuner.close')" @click="close">×</button>
-        </div>
-        <p>{{ t('tuner.instructions') }}</p>
-        <div class="tuner-mode">
-          <button type="button" class="tuner-auto-button" :class="{ selected: mode === 'auto' }"
-            :aria-pressed="mode === 'auto'" @click="chooseAuto">{{ t('tuner.auto') }}</button>
-          <span>{{ t('tuner.manualHint') }}</span>
-        </div>
-        <div role="group" :aria-label="t('tuner.strings')" class="tuner-strings">
-          <button v-for="(string, index) in STRINGS" :key="string.number" type="button"
-            :class="{ selected: index === selected }" :aria-pressed="index === selected"
-            :aria-label="t('tuner.string', { number: string.number, note: string.note })"
-            @click="choose(index)">
-            <small>{{ string.number }}</small><strong>{{ string.note }}</strong>
-          </button>
-        </div>
-        <div class="tuner-screen">
-          <p>{{ t('tuner.target') }}: <strong>{{ target?.note ?? '—' }}</strong>
-            <span v-if="target"> · {{ target.hz.toFixed(1) }} Hz</span>
-          </p>
-          <div class="tuner-note"><small>{{ t('tuner.detected') }}</small>
-            <strong>{{ note }}</strong>
+        <header class="tuner-heading">
+          <div class="tuner-ident">
+            <span class="tuner-kicker">GUITAR MENTOR <span aria-hidden="true">/</span> TOOLS</span>
+            <h2>{{ t('tuner.title') }}</h2>
           </div>
-          <p role="status" aria-live="polite" class="tuner-status" :class="{ tuned: reading?.status === 'inTune' && !held }">
-            {{ t(status) }}
-          </p>
-          <div class="tuner-meter" :role="reading ? 'meter' : undefined"
-            :aria-hidden="reading ? undefined : true"
-            :aria-label="reading ? t('tuner.deviation') : undefined"
-            :aria-valuemin="reading ? -50 : undefined"
-            :aria-valuemax="reading ? 50 : undefined"
-            :aria-valuenow="reading?.meterValue ?? undefined"
-            :aria-valuetext="reading ? t('tuner.cents', { value: Math.round(reading.cents) }) : undefined">
-            <span class="tuner-zero"></span>
-            <span v-if="reading" class="tuner-needle" :style="{ left: position + '%' }"></span>
+          <button type="button" class="tuner-close" :title="t('tuner.close')"
+            :aria-label="t('tuner.close')" @click="close" aria-keyshortcuts="Escape">×</button>
+        </header>
+
+        <div class="tuner-toolbar">
+          <label class="tuner-tuning-picker">
+            <span>{{ t('tuner.tuning') }}</span>
+            <select :value="tuningId" :aria-label="t('tuner.tuning')" @change="changeTuning">
+              <option v-for="id in TUNING_IDS" :key="id" :value="id">{{ t(TUNINGS[id].labelKey) }}</option>
+            </select>
+          </label>
+          <div class="tuner-auto-group">
+            <span>{{ t(mode === 'auto' ? 'tuner.autoMode' : 'tuner.manualMode') }}</span>
+            <button type="button" class="tuner-auto-button" :class="{ selected: mode === 'auto' }"
+              :aria-pressed="mode === 'auto'" @click="chooseAuto">{{ t('tuner.auto') }}</button>
           </div>
-          <div class="tuner-scale"><span>−50</span><span>0</span><span>+50</span></div>
-          <p>{{ reading ? t('tuner.cents', { value: Math.round(reading.cents) }) : t('tuner.noReading') }}</p>
         </div>
-        <p v-if="error" role="alert" class="attempt-error">{{ t(error) }}</p>
+
+        <div class="tuner-stage">
+          <div class="tuner-readout">
+            <div class="tuner-small-label">{{ t('tuner.detected') }}</div>
+            <div class="tuner-note" :class="{ 'is-tuned': isTuned }">{{ note }}</div>
+            <div class="tuner-readout-target">
+              {{ t('tuner.target') }} <strong>{{ target?.note ?? '—' }}</strong>
+              <span v-if="target">{{ target.hz.toFixed(1) }} Hz</span>
+            </div>
+          </div>
+          <div class="tuner-meter-wrap">
+            <div class="tuner-meter" :role="reading ? 'meter' : undefined"
+              :aria-hidden="reading ? undefined : true"
+              :aria-label="reading ? t('tuner.deviation') : undefined"
+              :aria-valuemin="reading ? -50 : undefined"
+              :aria-valuemax="reading ? 50 : undefined"
+              :aria-valuenow="reading?.meterValue ?? undefined"
+              :aria-valuetext="reading ? t('tuner.cents', { value: Math.round(reading.cents) }) : undefined">
+              <span class="tuner-zero" aria-hidden="true"></span>
+              <span v-if="reading" class="tuner-needle" :class="{ 'is-tuned': isTuned, 'is-held': held }"
+                :style="{ left: position + '%' }" aria-hidden="true"></span>
+            </div>
+            <div class="tuner-scale" aria-hidden="true"><span>−50</span><span>0</span><span>+50</span></div>
+            <div class="tuner-cents">{{ reading ? t('tuner.cents', { value: Math.round(reading.cents) }) : t('tuner.noReading') }}</div>
+          </div>
+          <p role="status" aria-live="polite" class="tuner-status"
+            :class="{ tuned: isTuned, held: held }">{{ t(status) }}</p>
+          <div class="tuner-headstock" role="group" :aria-label="t('tuner.strings')">
+            <svg viewBox="0 0 360 385" class="tuner-headstock-art" aria-hidden="true">
+              <defs>
+                <linearGradient id="gm-tuner-wood" x1="0" y1="0" x2="1" y2="0">
+                  <stop offset="0" stop-color="#29282b" />
+                  <stop offset=".28" stop-color="#504440" />
+                  <stop offset=".65" stop-color="#403631" />
+                  <stop offset="1" stop-color="#211f22" />
+                </linearGradient>
+                <linearGradient id="gm-tuner-metal" x1="0" y1="0" x2="1" y2="1">
+                  <stop offset="0" stop-color="#fff4da" />
+                  <stop offset=".48" stop-color="#b4a99c" />
+                  <stop offset="1" stop-color="#494c50" />
+                </linearGradient>
+              </defs>
+              <path d="M145 385 V334 Q111 320 111 277 V91 Q111 61 144 49 L180 23
+                L216 49 Q249 61 249 91 V277 Q249 320 215 334 V385Z"
+                fill="url(#gm-tuner-wood)" stroke="#827265" stroke-width="2" />
+              <path d="M151 385 V331 Q122 317 122 272 V94 Q122 71 154 51 L180 36
+                L206 51 Q238 71 238 94 V272 Q238 317 209 331 V385"
+                fill="none" stroke="#c3a27e" stroke-opacity=".18" stroke-width="2" />
+              <path d="M180 51 V330 M154 83 V302 M206 83 V302" stroke="#a4907d"
+                stroke-opacity=".10" stroke-width="1.5" />
+              <g v-for="(peg, index) in pegs" :key="'fixture-' + index">
+                <line :x1="peg.x < 180 ? 129 : 231" :x2="peg.x < 180 ? 84 : 276"
+                  :y1="peg.y" :y2="peg.y" stroke="#bfb7ab" stroke-width="10" stroke-linecap="round" />
+                <circle :cx="peg.x < 180 ? 129 : 231" :cy="peg.y" r="13"
+                  fill="#36383a" stroke="url(#gm-tuner-metal)" stroke-width="5" />
+                <circle :cx="peg.x < 180 ? 129 : 231" :cy="peg.y" r="3" fill="#d8c3a2" />
+              </g>
+              <path v-for="(string, index) in strings" :key="'wire-' + string.number"
+                :d="stringPaths[index]" class="tuner-wire"
+                :class="{ active: selected === index, tuned: selected === index && isTuned }"
+                :stroke-width="2.8 - index * .29" />
+              <path d="M142 348 H218" stroke="#d0b99c" stroke-width="8" stroke-linecap="round" />
+              <path d="M142 354 H218" stroke="#f1e0c3" stroke-opacity=".45" stroke-width="1.5" />
+            </svg>
+            <button v-for="(string, index) in strings" :key="string.number" type="button"
+              class="tuner-peg" :class="{ active: selected === index, tuned: selected === index && isTuned }"
+              :style="{ left: (pegs[index].x / 360 * 100) + '%', top: (pegs[index].y / 385 * 100) + '%' }"
+              :aria-pressed="selected === index"
+              :aria-label="t('tuner.string', { number: string.number, note: string.note })"
+              :title="t('tuner.string', { number: string.number, note: string.note })"
+              @click="choose(index)">
+              <small>{{ string.number }}</small><strong>{{ string.note }}</strong>
+            </button>
+          </div>
+          <p class="tuner-hint">{{ t('tuner.manualHint') }}</p>
+        </div>
+
+        <p v-if="error" role="alert" class="tuner-error">{{ t(error) }}</p>
         <div class="tuner-controls">
-          <button v-if="phase === 'idle'" type="button" class="action-button" @click="start">{{ t('tuner.start') }}</button>
-          <button v-else type="button" class="action-button secondary-button" @click="stop">{{ t('tuner.stop') }}</button>
+          <button v-if="phase === 'idle'" type="button" class="tuner-action" @click="start">
+            <span aria-hidden="true" class="tuner-action-dot"></span>{{ t('tuner.start') }}
+          </button>
+          <button v-else type="button" class="tuner-action tuner-stop" @click="stop">
+            {{ t('tuner.stop') }}
+          </button>
         </div>
         <p class="tuner-privacy">{{ t('tuner.privacy') }}</p>
       </section>
