@@ -798,3 +798,89 @@ test('TOOL-02 Save/Replace capture valid typed grouping without waiting for a ch
     }
   }
 });
+
+
+
+test('TOOL-04 B1 provides quick BPM, Tap, 7/8 and editable accent strip without altering sound until Apply', async () => {
+  const savedDocument = globalThis.document;
+  const engine = fakeEngine();
+  const view = createTestRenderer();
+  globalThis.__testMetronome87 = engine;
+  globalThis.document = { body:view.body, activeElement:null };
+  let app;
+  try {
+    const Dialog = await compileDialog();
+    app = view.renderer.createApp({ render:()=>h(Dialog) });
+    app.mount(view.node('root'));
+    await nextTick();
+    await nextTick();
+    assert.ok(view.find('input', n=>n.props.id==='metronome-bpm' && n.props.type==='number'),
+      'large BPM is a real keyboard-editable number input');
+    assert.ok(view.find('button', n=>n.props['aria-label']==='metronome.slower'));
+    assert.ok(view.find('button', n=>n.props['aria-label']==='metronome.faster'));
+    assert.ok(view.find('button', n=>String(n.text).includes('metronome.tap')),
+      'Tap Tempo remains on the primary screen');
+    assert.ok(view.find('button', n=>n.text==='metronome.start'),
+      'Start is independent from the detailed panel');
+    const quick=view.find('button', n=>n.text==='7/8');
+    assert.ok(quick,'asymmetric 7/8 is one tap away');
+    quick.props.onClick();
+    await nextTick();
+    const strip=view.find('div',n=>n.props.class==='metronome-count');
+    assert.equal(strip.children.filter(n=>n.tag==='button').length,7);
+    assert.equal(engine.getConfig().numerator,4,'the quick meter is only a draft before Apply');
+    view.find('button',n=>n.text==='metronome.apply').props.onClick();
+    await nextTick();
+    assert.equal(engine.getConfig().numerator,7);
+    assert.deepEqual(engine.getConfig().groups,[2,2,3]);
+    assert.equal(engine.getConfig().tempoUnit,'quarter');
+    assert.ok(view.find('button',n=>n.props['aria-label']==='metronome.subdivisionCount{"count":3}'),
+      'subdivision has an accessible text alternative');
+  } finally {
+    app?.unmount();
+    globalThis.document=savedDocument;
+    delete globalThis.__testMetronome87;
+  }
+});
+
+test('TOOL-04 panels keep deep metronome controls and Escape closes panel before modal', async () => {
+  const savedDocument=globalThis.document;
+  const engine=fakeEngine();
+  const view=createTestRenderer();
+  let closed=0;
+  globalThis.__testMetronome87=engine;
+  globalThis.document={body:view.body,activeElement:null};
+  let app;
+  try {
+    const Dialog=await compileDialog();
+    app=view.renderer.createApp({render:()=>h(Dialog,{onClose:()=>closed++})});
+    app.mount(view.node('root'));
+    await nextTick();
+    assert.ok(view.find('div',n=>n.props.class==='m111-sheet'));
+    const dialog=view.find('section',n=>n.props.role==='dialog');
+    view.find('button',n=>n.text.includes('metronome.details')).props.onClick();
+    await nextTick();
+    assert.ok(view.find('div',n=>n.props.class==='m111-sheet is-open'),
+      'settings panel is open without destroying the metronome');
+    assert.ok(view.find('input',n=>n.props.id==='metronome-groups'));
+    assert.ok(view.find('input',n=>n.props.id==='metronome-master'));
+    assert.ok(view.find('input',n=>n.props.id==='metronome-position-volume'));
+    dialog.props.onKeydown({key:'Escape',preventDefault(){},stopPropagation(){}});
+    await nextTick();
+    assert.equal(closed,0,'Escape in open panel does not close the entire tool');
+    assert.equal(view.find('div',n=>n.props.class==='m111-sheet is-open'),undefined);
+    view.find('button',n=>n.text.includes('metronome.presets')).props.onClick();
+    await nextTick();
+    assert.ok(view.find('select',n=>n.props.id==='metronome-preset-list'));
+    assert.ok(view.find('button',n=>n.text==='metronome.savePreset'));
+    dialog.props.onKeydown({key:'Escape',preventDefault(){},stopPropagation(){}});
+    await nextTick();
+    dialog.props.onKeydown({key:'Escape',preventDefault(){},stopPropagation(){}});
+    await nextTick();
+    assert.equal(closed,1,'Escape on the base dialog preserves the original close contract');
+  } finally {
+    app?.unmount();
+    globalThis.document=savedDocument;
+    delete globalThis.__testMetronome87;
+  }
+});
