@@ -61,7 +61,7 @@ async function compileRealTuner(instance) {
   const mapped = js.replace(/from (['"])(.*?)\1/g, (_full, _q, name) => {
     if (!imports[name]) throw Error('Unexpected real tuner dependency: ' + name);
     return 'from ' + JSON.stringify(imports[name]);
-  }).replace(/import (['"])\\.\\/tuner\\.css\\1\\s*;?/g,
+  }).replace("import './tuner.css';",
     'import ' + JSON.stringify(imports['./tuner.css']) + ';');
   return asModule(mapped + '\\n// actual tuner ' + instance);
 }
