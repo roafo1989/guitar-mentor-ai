@@ -249,3 +249,43 @@ test('focused Start remains enabled, focusable and stable while audio is startin
     delete globalThis.__testMetronome87;
   }
 });
+
+
+test('TOOL-02 mounted dialog edits six-beat meter and accent only after explicit Apply', async () => {
+  const savedDocument = globalThis.document;
+  const engine = fakeEngine();
+  const view = createTestRenderer();
+  globalThis.__testMetronome87 = engine;
+  globalThis.document = { body:view.body, activeElement:null };
+  let app;
+  try {
+    const Dialog = await compileDialog();
+    app = view.renderer.createApp({render:()=>h(Dialog)});
+    app.mount(view.node('root'));
+    await nextTick();
+    const quick = view.find('button', n => n.text === '6/8');
+    assert.ok(quick, 'quick-meter chooser rendered');
+    quick.props.onClick();
+    await nextTick();
+    const grid = view.find('div', n => n.props.class === 'metronome-count');
+    assert.ok(grid);
+    assert.equal(grid.children.filter(n => n.tag === 'button').length,6);
+    assert.equal(engine.getConfig().numerator,4,'draft is not applied immediately');
+    const beat2 = grid.children.filter(n => n.tag === 'button')[1];
+    assert.ok(beat2);
+    beat2.props.onClick();
+    await nextTick();
+    const apply = view.find('button', n => n.text === 'metronome.apply');
+    assert.ok(apply);
+    apply.props.onClick();
+    await nextTick();
+    assert.equal(engine.getConfig().numerator,6);
+    assert.equal(engine.getConfig().positions[1].accent,'mute',
+      'weak second beat cycles to mute; unlike fixed 4/4, it is individually editable');
+    assert.equal(engine.getState().status,'stopped');
+  } finally {
+    app?.unmount();
+    globalThis.document = savedDocument;
+    delete globalThis.__testMetronome87;
+  }
+});
