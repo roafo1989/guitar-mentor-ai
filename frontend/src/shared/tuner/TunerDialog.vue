@@ -2,9 +2,9 @@
 import { computed, nextTick, onBeforeUnmount, ref, watch } from 'vue';
 import { useI18n } from 'vue-i18n';
 import { acquireAudio, releaseAudio } from '../audio/audio-session';
-import { detectPitch, noteName } from './pitch';
+import { cents, detectPitch, noteName } from './pitch';
 import { TUNING_IDS, TUNINGS, readTuningPreference, saveTuningPreference, type TuningId } from './tuning-profiles';
-import { autoStringIndex, newPitchTrack, resetPitchTrack, trackPitch } from './tuner-session';
+import { autoStringIndex, newPitchTrack, resetPitchTrack, displayPitch } from './tuner-session';
 import { isolateDialogFocus } from './modal-focus';
 import { tunerReading } from './tuner-reading';
 import './tuner.css';
@@ -19,6 +19,7 @@ const phase = ref<'idle' | 'requesting' | 'listening'>('idle');
 const message = ref('tuner.ready');
 const error = ref('');
 const frequency = ref<number | null>(null);
+const lastCandidate = ref<number | null>(null);
 const tuningId = ref<TuningId>(readTuningPreference());
 const tuning = computed(() => TUNINGS[tuningId.value]);
 const strings = computed(() => tuning.value.strings);
@@ -33,8 +34,15 @@ const stringPaths = [
   'M188 356 L232 86', 'M200 356 L232 166', 'M212 356 L232 246',
 ] as const;
 // An unrecognized (or heavily detuned) pitch must not silently choose a target.
-const reading = computed(() => phase.value === 'listening' && target.value
-  ? tunerReading(frequency.value, target.value.hz) : null);
+const reading = computed(() => {
+  if (phase.value !== 'listening' || !target.value) return null;
+  const result = tunerReading(frequency.value, target.value.hz);
+  // A median can be inside ±5c even when its newest credible input is
+  // outside the tolerance. Never publish a misleading green/meter reading.
+  if (result?.status === 'inTune' && lastCandidate.value !== null &&
+      Math.abs(cents(lastCandidate.value, target.value.hz)) > 5) return null;
+  return result;
+});
 const note = computed(() => frequency.value === null ? '—' : noteName(frequency.value));
 const held = ref(false);
 const status = computed(() => reading.value
@@ -43,7 +51,8 @@ const status = computed(() => reading.value
     ? 'tuner.autoUncertain' : message.value);
 const position = computed(() => 50 + (reading.value?.meterValue ?? 0));
 const isTuned = computed(() => phase.value === 'listening' && !held.value &&
-  reading.value?.status === 'inTune');
+  reading.value?.status === 'inTune' && lastCandidate.value !== null &&
+  target.value !== null && Math.abs(cents(lastCandidate.value, target.value.hz)) <= 5);
 const token = Symbol('tuner');
 const tracking = newPitchTrack();
 let generation = 0;
@@ -62,6 +71,7 @@ function clearFocusIsolation(): void {
 function resetPitch(): void {
   resetPitchTrack(tracking);
   frequency.value = null;
+  lastCandidate.value = null;
   held.value = false;
   if (mode.value === 'auto') selected.value = null;
 }
@@ -151,7 +161,8 @@ async function start(): Promise<void> {
         // Auto mode must not confirm tuning when a competing pitch is detected.
         // Manual mode remains available for difficult or severely detuned notes.
         const candidate = detectPitch(samples, context.sampleRate, mode.value === 'auto');
-        frequency.value = trackPitch(tracking, candidate, now);
+        lastCandidate.value = candidate;
+        frequency.value = displayPitch(tracking, candidate, now);
         held.value = candidate === null && frequency.value !== null;
         if (mode.value === 'auto') {
           selected.value = autoStringIndex(frequency.value, selected.value, strings.value);
