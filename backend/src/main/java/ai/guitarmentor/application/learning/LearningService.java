@@ -119,7 +119,10 @@ public class LearningService {
         return new AssessmentView(assessment.id(),assessment.attemptId(),
             assessment.revision(),assessment.sourceKind(),assessment.sourcePrincipal(),assessment.methodId(),
             assessment.methodVersion(),assessment.recommendation(),assessment.createdAt(),
-            criteria,List.of("Criterion evidence is not a confirmed skill level"));
+            criteria,"LEGACY_UNVERIFIED".equals(assessment.sourcePrincipal())
+                ? List.of("Legacy assessment has unverified provenance and cannot grant PASS",
+                    "Criterion evidence is not a confirmed skill level")
+                : List.of("Criterion evidence is not a confirmed skill level"));
     }
 
     @Transactional(readOnly=true)
@@ -228,7 +231,14 @@ public class LearningService {
         String recommendation=assessment.map(Assessment::recommendation).orElse("UNCERTAIN");
         // Protect against assessments written by pre-fix code or direct DB changes.
         // The upload worker cannot normally turn a finalized PROCESSED into FAILED.
-        if ("PASS".equals(recommendation) && !repo.technicallyProcessed(request.attemptId())) {
+        if ("PASS".equals(recommendation)
+                && (!repo.technicallyProcessed(request.attemptId())
+                    || assessment.isEmpty()
+                    || assessment.get().sourcePrincipal()==null
+                    || "LEGACY_UNVERIFIED".equals(assessment.get().sourcePrincipal()))) {
+            // Historical V15 rows had only a caller-supplied trust boolean and
+            // were backfilled as LEGACY_UNVERIFIED in V16. They remain visible
+            // but can never confer a verified PASS.
             recommendation="UNCERTAIN";
         }
         String resulting=LearningRules.resultingState(request.action(),recommendation);
