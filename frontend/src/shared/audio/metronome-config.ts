@@ -34,8 +34,8 @@ const configKeys = ['bpm','numerator','denominator','tempoUnit','groups','subdiv
 export function validConfig(value: unknown): value is MetronomeConfig {
   if (!object(value) || !exactKeys(value, configKeys)) return false;
   const n = value.numerator;
-  if (!Number.isInteger(value.bpm) || (value.bpm as number) < 20 || (value.bpm as number) > 240 ||
-      !Number.isInteger(n) || (n as number) < 1 || (n as number) > 16 ||
+  if (typeof value.bpm !== 'number' || !Number.isInteger(value.bpm) || (value.bpm as number) < 20 || (value.bpm as number) > 240 ||
+      (typeof n !== 'number' || !Number.isInteger(n)) || (n as number) < 1 || (n as number) > 16 ||
       !DENOMINATORS.includes(value.denominator as 2) ||
       !TEMPO_UNITS.includes(value.tempoUnit as TempoUnit) ||
       ![1, 2, 3, 4].includes(value.subdivision as number) ||
