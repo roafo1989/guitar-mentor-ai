@@ -424,4 +424,49 @@ class LearningPostgresIntegrationTest {
                 .isServiceUnavailable());
     }
 
+
+    @Test void legacyUnverifiedPassCannotGrantVerifiedCompletion() {
+        UUID attempt=upload();
+        markProcessed(attempt);
+        var pass=writer.record(learner,session,task,attempt,assessment("MEETS"));
+        // A V15 PASS had only caller-asserted trust; V16 backfills this marker.
+        jdbc.update("UPDATE attempt_assessments SET source_principal='LEGACY_UNVERIFIED'"
+            +" WHERE id=?",pass.id());
+        var history=service.assessments(learner,session,task,attempt,20,null)
+            .items().getFirst();
+        assertEquals("PASS",history.recommendation()); // preserve immutable old verdict
+        assertEquals("LEGACY_UNVERIFIED",history.sourcePrincipal());
+        assertTrue(history.limitations().stream().anyMatch(v->v.contains("unverified")));
+        var decision=service.decide(learner,session,task,
+            command(attempt,"COMPLETE",0,pass.id(),UUID.randomUUID()));
+        assertEquals("COMPLETED_BY_LEARNER",decision.result().taskState());
+        assertEquals("LEARNER_CHOICE",service.decisions(learner,session,task,20,null)
+            .items().getFirst().reasonCode());
+        assertEquals(pass.id(),decision.result().assessmentId());
+        assertEquals(0,jdbc.queryForObject("SELECT COUNT(*) FROM learner_skill_signal_history"
+            +" WHERE instrument_profile_id=?",Integer.class,profile));
+    }
+
+    @Test void humanReviewCannotGradeMeasurementOnlySnapshot() {
+        UUID attempt=upload();
+        jdbc.update("UPDATE task_criterion_snapshots"
+            +" SET assessment_policy='VALIDATED_MEASUREMENT'"
+            +" WHERE task_id=? AND criterion_code='PULSE_STEADY'",task);
+        code("INVALID_ASSESSMENT",()->writer.record(learner,session,task,attempt,
+            assessment("MEETS")));
+        code("INVALID_ASSESSMENT",()->writer.record(learner,session,task,attempt,
+            assessment("NEEDS_WORK")));
+        assertTrue(service.assessments(learner,session,task,attempt,20,null).items().isEmpty());
+        var humanMissing=writer.record(learner,session,task,attempt,
+            new Input(UUID.randomUUID(),"HUMAN_REVIEW","INTERNAL_REVIEW","v1",
+                "QA_TEST_REVIEWER","qa-only-secret-not-for-production-18",List.of(
+                new CriterionInput("PULSE_STEADY","NOT_ASSESSED",null,
+                    "METHOD_NOT_APPLICABLE",null),
+                new CriterionInput("BASS_STEADY","ASSESSED","MEETS",null,null),
+                new CriterionInput("MELODY_CLEAR","ASSESSED","MEETS",null,null))));
+        assertEquals("UNCERTAIN",humanMissing.recommendation());
+        var decision=service.decide(learner,session,task,
+            command(attempt,"COMPLETE",0,humanMissing.id(),UUID.randomUUID()));
+        assertEquals("COMPLETED_BY_LEARNER",decision.result().taskState());
+    }
 }
