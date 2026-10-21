@@ -302,6 +302,7 @@
       "unavailable": "No audio output"
     },
     "minimize": "Minimize and keep playing",
-    "playingInBackground": "Metronome is playing — open controls"
+    "playingInBackground": "Metronome is playing — open controls",
+    "confirmReset": "Reset will replace the corrupted local data with defaults. Continue?"
   }
 }
