@@ -395,6 +395,7 @@ test('TOOL-02 pending preset preserves BPM and sound mix through quick meter sel
     const presetList=view.find('select',n=>n.props.id==='metronome-preset-list');
     assert.ok(presetList);
     presetList.props.onChange({target:{value:'p95'}});
+    presetList.focus(); // simulate leaving the BPM input before asynchronous scheduler notifications
     await nextTick();
     view.find('button',n=>n.text==='metronome.loadPreset').props.onClick();
     await nextTick();
