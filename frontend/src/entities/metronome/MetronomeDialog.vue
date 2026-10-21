@@ -379,7 +379,7 @@ onBeforeUnmount(() => {
         </header>
         <p id="metronome-description" class="m111-sr-only">{{ t('metronome.description') }}</p>
 
-        <div class="m111-body" :inert="panel ? '' : undefined">
+        <div class="m111-body" :inert="panel !== null">
           <div class="m111-cards">
             <section class="metronome-tempo m111-tempo-card">
               <div class="m111-section-head">
@@ -478,7 +478,7 @@ onBeforeUnmount(() => {
           </div>
         </div>
 
-        <footer class="m111-footer" :inert="panel ? '' : undefined">
+        <footer class="m111-footer" :inert="panel !== null">
           <p v-if="configError || metronomeUi.storageError" role="alert" class="metronome-error">
             {{ configError || t('metronome.storeFailure') }}
           </p>
