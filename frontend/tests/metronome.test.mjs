@@ -363,3 +363,86 @@ test('malformed listener cannot alter next subscriber state', async () => {
     assert.equal(env.engine.getState().bpm, 84);
   } finally { env.restore(); }
 });
+
+
+test('TOOL-02 schedules 100 bars per meter on the audio clock, including 16/16 subdivision 4', async () => {
+  const { meterConfig, positionSeconds } = await import('../src/shared/audio/metronome-config.ts');
+  const cases = [[4,4,'quarter',60,1], [3,4,'quarter',60,1],
+    [6,8,'dotted-quarter',60,1], [7,8,'eighth',140,1],
+    [16,16,'quarter',80,4]];
+  for (const [n,d,unit,bpm,sub] of cases) {
+    const env=setup();
+    try {
+      const config=meterConfig(n,d,bpm);
+      config.tempoUnit=unit;
+      config.subdivision=sub;
+      assert.equal(env.engine.applyConfig(config),true);
+      assert.equal(await env.engine.start(),true);
+      const barMillis=n*positionSeconds(config)*1000;
+      // Chunks avoid the fake timer simulator's 5000-step per-call guard.
+      for (let bar=0;bar<100;bar++) env.clock.advance(barMillis);
+      const clicks=env.contexts[0].oscillators;
+      const expected=100*n*sub;
+      assert.ok(clicks.length>=expected, n+'/'+d+' scheduled '+clicks.length+'/'+expected);
+      const interval=positionSeconds(config)/sub;
+      for(let i=0;i<expected;i++) {
+        assert.ok(Math.abs(clicks[i].at-(0.03+i*interval))<=1e-6,
+          n+'/'+d+' unexpected scheduled click '+i+' at '+clicks[i].at);
+      }
+      env.engine.stop();
+      assert.equal(env.clock.tasks.size,0,'no timers survive Stop');
+    } finally { env.restore(); }
+  }
+});
+
+test('TOOL-02 queued meter/preset swaps once at bar line; live BPM updates queued tempo too', async () => {
+  const { meterConfig } = await import('../src/shared/audio/metronome-config.ts');
+  const env=setup();
+  try {
+    assert.equal(await env.engine.start(),true);
+    env.clock.advance(1100); // after 4/4's first quarter, before first bar ends
+    const preset=meterConfig(7,8,95);
+    preset.tempoUnit='eighth';
+    preset.groups=[3,2,2];
+    assert.equal(env.engine.applyConfig(preset),true);
+    assert.equal(env.engine.getConfig().numerator,4,'current bar is unchanged');
+    assert.equal(env.engine.getPendingConfig().numerator,7);
+    assert.equal(env.engine.getPendingConfig().bpm,95,'composite preset retains its BPM');
+    env.clock.advance(1100); // cross 2.03s bar line
+    assert.equal(env.engine.getConfig().numerator,7);
+    assert.equal(env.engine.getConfig().bpm,95);
+    const next=meterConfig(6,8,82);
+    assert.equal(env.engine.applyConfig(next),true);
+    assert.equal(env.engine.setBpm(90),true);
+    assert.equal(env.engine.getState().bpm,90);
+    assert.equal(env.engine.getPendingConfig().bpm,90,'new tap BPM cannot be reverted by old pending');
+    env.clock.advance(7500);
+    assert.equal(env.engine.getConfig().numerator,6);
+    assert.equal(env.engine.getConfig().bpm,90);
+    env.engine.stop();
+    assert.equal(env.clock.tasks.size,0);
+  } finally { env.restore(); }
+});
+
+test('TOOL-02 all-muted beat cells still count; per-position gain and master zero remain safe', async () => {
+  const { meterConfig } = await import('../src/shared/audio/metronome-config.ts');
+  const env=setup();
+  try {
+    const c=meterConfig(4,4,120);
+    c.subdivision=4;
+    c.positions[1].accent='mute';
+    c.positions[2].volumePercent=0;
+    assert.equal(env.engine.applyConfig(c),true);
+    const heard=[];
+    env.engine.subscribe(s=>{ if(s.status==='running' && s.beat!==null) heard.push(s.beat); });
+    assert.equal(await env.engine.start(),true);
+    env.clock.advance(2100);
+    assert.deepEqual(heard.slice(0,4),[1,2,3,4]);
+    const at=env.contexts[0].oscillators.map(o=>o.at);
+    assert.ok(!at.some(t=>t>=.53 && t<1.03), 'mute removes entire subdivided second beat');
+    assert.ok(!at.some(t=>t>=1.03 && t<1.53), 'volume zero removes third beat');
+    assert.equal(env.engine.setMasterVolume(0),true);
+    assert.equal(env.engine.getConfig().masterVolumePercent,0);
+    env.engine.stop();
+  } finally { env.restore(); }
+});
