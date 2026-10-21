@@ -102,3 +102,14 @@ are not redistributed; headstock artwork is repo-authored SVG/CSS.
 **Remaining gates:** independent code review on the new HEAD, live browser/mobile
 and acoustic QA, owner approval of the visual design. Do not merge PR #110
 without explicit owner acceptance.
+
+
+// REVIEW P1-2 (2026-10-21): continuously turning a peg must not hide the
+// pitch or erase its Auto physical string selection. Once the pitch tracker
+// is established, the latest reliable candidate is shown if a rolling
+// median lags by more than 5 cents. The green "in tune" indicator requires
+// BOTH the three-frame confirmed frequency and the latest candidate within
+// +/-5c of the target; a single transient crossing cannot go green.
+// Regression matrix: 10 live +6c/100ms and 10 live -6c/100ms frames on A2
+// (note, needle, correct physical peg, sharp/flat), a brief return crossing,
+// and a separate A2-to-D3 jump requiring three confirmations.

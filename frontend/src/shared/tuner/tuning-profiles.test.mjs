@@ -103,8 +103,10 @@ test('REVIEW P1: a newly detected +20/-20 cents must never inherit green median'
     assert.equal(tunerReading(displayPitch(track,target,350),target).status,'inTune');
     const changed=target*2**(offset/1200);
     const first=displayPitch(track,changed,400);
-    assert.equal(first,null,'a stale tuned median is not a fresh measurement');
-    assert.equal(tunerReading(first,target),null,'green, cents and meter are all cleared');
+    assert.ok(first!==null,'a credible pitch stays visible while turning the peg');
+    assert.ok(Math.abs(cents(first,changed))<0.01);
+    assert.equal(tunerReading(first,target).status,offset>0?'sharp':'flat',
+      'the display must not use the stale green median');
     const second=displayPitch(track,changed,500);
     assert.ok(second !== null);
     assert.equal(tunerReading(second,target).status,offset>0?'sharp':'flat');
@@ -206,4 +208,40 @@ test('REVIEW P2: profile switch never carries history, hold or a tuned verdict',
   assert.ok(confirmed !== null);
   assert.equal(autoStringIndex(confirmed,null,open),0);
   assert.equal(tunerReading(confirmed,open[0].hz).status,'inTune');
+});
+
+test('REVIEW P1-2: continuous clockwise/counterclockwise tuning keeps note, meter and Auto target', () => {
+  // 100ms frames model a guitarist turning one peg steadily: the moving
+  // fundamental leads the historical median by 6c on every frame.
+  const target=TUNINGS.STANDARD.strings[1]; // physical A2, fifth string
+  for (const direction of [-1, 1]) {
+    const track=newPitchTrack();
+    let selected=null;
+    for (const time of [100,200,300]) {
+      const shown=displayPitch(track,target.hz,time);
+      selected=autoStringIndex(shown,selected,TUNINGS.STANDARD.strings);
+    }
+    assert.equal(selected,1,'A2 must be acquired after three stable frames');
+    for(let step=1;step<=10;step++) {
+      const current=target.hz*2**(direction*step*6/1200);
+      const shown=displayPitch(track,current,300+100*step);
+      assert.notEqual(shown,null,'valid moving pitch hidden at '+(direction*step*6)+' cents');
+      assert.ok(Math.abs(cents(shown,current)) < 1,
+        'live needle must track movement at '+(direction*step*6)+' cents');
+      const reading=tunerReading(shown,target.hz);
+      assert.equal(reading.status,direction>0?'sharp':'flat');
+      assert.ok(Math.abs(reading.cents)>5 && Math.abs(reading.cents)<=65);
+      selected=autoStringIndex(shown,selected,TUNINGS.STANDARD.strings);
+      assert.equal(selected,1,'physical A2 peg must remain selected while moving');
+    }
+  }
+});
+
+test('REVIEW P1-2: onset of another guitar string still requires fresh stabilization', () => {
+  const state=newPitchTrack();
+  for(const t of [100,200,300]) displayPitch(state,110,t);
+  assert.equal(displayPitch(state,146.832384,400),null,
+    'a jump from A2 to D3 must not be mistaken for continuous peg tuning');
+  assert.equal(displayPitch(state,146.832384,500),null);
+  assert.ok(displayPitch(state,146.832384,600)!==null);
 });

@@ -462,6 +462,10 @@ test('TOOL-03 review P2: real tuner swaps profiles during live microphone sessio
       openButton.props.onClick();
       await nextTick(); await nextTick();
       const findStatus=()=>dom.find(dom.body,n=>n.tag==='p'&&n.props.role==='status');
+      const findNote=()=>dom.find(dom.body,n=>n.tag==='div' &&
+        typeof n.props.class==='string' && n.props.class.includes('tuner-note'));
+      const findNeedle=()=>dom.find(dom.body,n=>n.tag==='span' &&
+        typeof n.props.class==='string' && n.props.class.includes('tuner-needle'));
       const findSelect=()=>dom.find(dom.body,n=>n.tag==='select');
       const findPegs=()=>{
         const headstock=dom.find(dom.body,n=>n.tag==='div'&&n.props.class==='tuner-headstock');
@@ -495,6 +499,34 @@ test('TOOL-03 review P2: real tuner swaps profiles during live microphone sessio
       await pulse(600);
       assert.equal(findStatus()?.text,'tuner.stabilizing',
         'fresh +8c candidate invalidates a previously green +4c median');
+      // Both directions must remain readable *throughout* a peg adjustment,
+      // not only when the sound becomes steady again.
+      let time=600;
+      for(const direction of [1,-1]) {
+        currentHz=110;
+        for(let k=0;k<3;k++) {time+=100;await pulse(time);}
+        assert.equal(findStatus()?.text,'tuner.inTune','steady note stabilizes before ramp');
+        for(let step=1;step<=10;step++) {
+          currentHz=110*2**(direction*step*6/1200);
+          time+=100;
+          await pulse(time);
+          assert.equal(findNote()?.text,'A2','note stays on screen during ramp');
+          assert.ok(findNeedle(),'needle does not disappear during ramp');
+          assert.equal(findPegs()[1].props['aria-pressed'],true,
+            'Auto stays on physical A2 while the note changes');
+          assert.equal(findStatus()?.text,direction>0?'tuner.sharp':'tuner.flat',
+            'moving pitch has an honest, non-green direction');
+        }
+      }
+      // A single candidate crossing into the target must not flash green
+      // while the confirmed three-frame median is still out of tune.
+      currentHz=110*2**(20/1200);
+      for(let k=0;k<3;k++) {time+=100;await pulse(time);}
+      assert.equal(findStatus()?.text,'tuner.sharp');
+      currentHz=110;
+      time+=100;await pulse(time);
+      assert.notEqual(findStatus()?.text,'tuner.inTune',
+        'one transient target-frequency frame cannot assert tuned');
       const select=findSelect();
       select.props.onChange({target:{value:'DROP_D'}});
       await nextTick();
@@ -504,7 +536,7 @@ test('TOOL-03 review P2: real tuner swaps profiles during live microphone sessio
       assert.equal(contexts,1,'switching profile must reuse AudioContext');
 
       currentHz=73.41619;
-      for(const at of [700,800,900]) await pulse(at);
+      for(let k=0;k<3;k++) {time+=100;await pulse(time);}
       assert.equal(findStatus()?.text,'tuner.inTune','drop D becomes valid only after three fresh frames');
       assert.equal(findPegs()[0].props['aria-pressed'],true);
       const sixth=findPegs()[0];

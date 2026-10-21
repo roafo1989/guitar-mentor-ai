@@ -20,6 +20,9 @@ const message = ref('tuner.ready');
 const error = ref('');
 const frequency = ref<number | null>(null);
 const lastCandidate = ref<number | null>(null);
+// Independent from the live display value: three-frame confirmation is
+// required before showing "in tune", even during a glissando.
+const confirmedFrequency = ref<number | null>(null);
 const tuningId = ref<TuningId>(readTuningPreference());
 const tuning = computed(() => TUNINGS[tuningId.value]);
 const strings = computed(() => tuning.value.strings);
@@ -33,33 +36,32 @@ const stringPaths = [
   'M148 356 L128 246', 'M160 356 L128 166', 'M172 356 L128 86',
   'M188 356 L232 86', 'M200 356 L232 166', 'M212 356 L232 246',
 ] as const;
-// Even when the rolling median is inside ±5c, the newest trustworthy
-// sample might already have crossed the threshold. Treat that transition as
-// stabilization, not as uncertain string identity or a tuned measurement.
-const staleInTune = computed(() => phase.value === 'listening' && target.value !== null &&
+// A live reading inside tolerance is not a *confirmed* tuned string until
+// both the latest candidate and the three-frame median are also inside.
+// In particular, a glissando passing through the target must not flash green.
+const unconfirmedInTune = computed(() => phase.value === 'listening' && target.value !== null &&
   frequency.value !== null && lastCandidate.value !== null &&
   Math.abs(cents(frequency.value, target.value.hz)) <= 5 &&
-  Math.abs(cents(lastCandidate.value, target.value.hz)) > 5);
+  (confirmedFrequency.value === null ||
+   Math.abs(cents(confirmedFrequency.value, target.value.hz)) > 5 ||
+   Math.abs(cents(lastCandidate.value, target.value.hz)) > 5));
 // An unrecognized (or heavily detuned) pitch must not silently choose a target.
 const reading = computed(() => {
-  if (phase.value !== 'listening' || !target.value || staleInTune.value) return null;
-  const result = tunerReading(frequency.value, target.value.hz);
-  // A median can be inside ±5c even when its newest credible input is
-  // outside the tolerance. Never publish a misleading green/meter reading.
-  if (result?.status === 'inTune' && lastCandidate.value !== null &&
-      Math.abs(cents(lastCandidate.value, target.value.hz)) > 5) return null;
-  return result;
+  if (phase.value !== 'listening' || !target.value || unconfirmedInTune.value) return null;
+  return tunerReading(frequency.value, target.value.hz);
 });
 const note = computed(() => frequency.value === null ? '—' : noteName(frequency.value));
 const held = ref(false);
-const status = computed(() => staleInTune.value ? 'tuner.stabilizing' : reading.value
+const status = computed(() => unconfirmedInTune.value ? 'tuner.stabilizing' : reading.value
   ? held.value ? 'tuner.holding' : 'tuner.' + reading.value.status
   : phase.value === 'listening' && frequency.value !== null && mode.value === 'auto'
     ? 'tuner.autoUncertain' : message.value);
 const position = computed(() => 50 + (reading.value?.meterValue ?? 0));
 const isTuned = computed(() => phase.value === 'listening' && !held.value &&
   reading.value?.status === 'inTune' && lastCandidate.value !== null &&
-  target.value !== null && Math.abs(cents(lastCandidate.value, target.value.hz)) <= 5);
+  target.value !== null && confirmedFrequency.value !== null &&
+  Math.abs(cents(lastCandidate.value, target.value.hz)) <= 5 &&
+  Math.abs(cents(confirmedFrequency.value, target.value.hz)) <= 5);
 const token = Symbol('tuner');
 const tracking = newPitchTrack();
 let generation = 0;
@@ -79,6 +81,7 @@ function resetPitch(): void {
   resetPitchTrack(tracking);
   frequency.value = null;
   lastCandidate.value = null;
+  confirmedFrequency.value = null;
   held.value = false;
   if (mode.value === 'auto') selected.value = null;
 }
@@ -170,6 +173,7 @@ async function start(): Promise<void> {
         const candidate = detectPitch(samples, context.sampleRate, mode.value === 'auto');
         lastCandidate.value = candidate;
         frequency.value = displayPitch(tracking, candidate, now);
+        confirmedFrequency.value = tracking.frequency;
         held.value = candidate === null && frequency.value !== null;
         if (mode.value === 'auto') {
           selected.value = autoStringIndex(frequency.value, selected.value, strings.value);

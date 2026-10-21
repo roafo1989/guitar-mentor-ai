@@ -46,22 +46,29 @@ export function trackPitch(state: PitchTrackState, candidate: number | null, now
 }
 
 /**
- * A historical three-frame median is useful for smooth pitch tracking, but
- * it must not be passed off as a *fresh* reading after the latest credible
- * candidate changes. A difference over the tuning tolerance suppresses the
- * visual reading for that frame while tracking continues normally.
+ * A historical three-frame median smooths a steady pitch and establishes
+ * which note is tracked. During a continuous tuning adjustment the latest
+ * credible pitch naturally leads this median: hiding it would remove the
+ * needle and physical string highlight exactly while a peg is being turned.
  *
- * Null candidates still return the bounded hold value; the caller marks it
- * explicitly as held, never green. No new device/stream is acquired here.
+ * Once the tracker has stabilized, display the most recent reliable candidate
+ * when the median lags it by >5 cents. A *separate* stability check is required
+ * before confirming "in tune" in the UI: the latest candidate alone is never
+ * proof of a steady, correctly tuned string.
+ *
+ * Null candidates still return the bounded held measurement. Large jumps
+ * between strings invalidate the tracker and require three fresh readings.
  */
 export function displayPitch(
   state: PitchTrackState, candidate: number | null, nowMs: number,
 ): number | null {
   const stabilized = trackPitch(state, candidate, nowMs);
-  if (stabilized !== null && candidate !== null &&
-      Number.isFinite(candidate) && candidate > 0 &&
-      Math.abs(cents(candidate, stabilized)) > 5) return null;
-  return stabilized;
+  if (stabilized === null || candidate === null ||
+      !Number.isFinite(candidate) || candidate <= 0) return stabilized;
+  // The track is already confirmed: expose its current valid pitch even
+  // while the median catches up. trackPitch has already rejected large
+  // note changes (>25 cents between successive samples).
+  return Math.abs(cents(candidate, stabilized)) > 5 ? candidate : stabilized;
 }
 
 /**
