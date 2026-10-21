@@ -516,3 +516,42 @@ footer { text-align: center; font-size: 12px; padding: 24px; color: #8793a4; }
 .m111 .m111-subdivision-controls strong {font-size:12px;line-height:14px}
 .m111 .m111-sub-notes {font-size:11px;line-height:11px;letter-spacing:-1px;white-space:nowrap}
 @media (max-width:370px) {.m111 .m111-subdivision-controls button {min-width:35px}}
+
+
+/* #111 visual QA, 2026-10-22: fix beat strip collapsed in real Chrome layout.
+ * The rhythm card is a vertical flex container; overflow:auto + a zero min-height
+ * allowed the beat strip to shrink to a thin horizontal sliver.
+ * Preserve full beat touch targets before allowing the card to scroll. */
+@media (min-width:651px) {
+  .metronome-dialog.m111 {
+    height:min(626px,calc(100dvh - 24px));
+  }
+}
+.m111 .metronome-count {
+  flex-shrink:0;
+  min-height:62px;
+}
+.m111 .metronome-playing-pattern {
+  flex-shrink:0;
+}
+.m111 .metronome-playing-pattern .metronome-count {
+  min-height:48px;
+}
+.m111 .m111-rhythm-card {
+  gap:7px;
+  padding:12px;
+}
+.m111 .m111-rhythm-top,
+.m111 .metronome-quick.m111-quick,
+.m111 .m111-subdivision,
+.m111 .m111-beat-help {
+  flex-shrink:0;
+}
+/* Greater specificity than .m111 .metronome-apply.m111-apply {display:flex}. */
+.m111 .metronome-apply.m111-apply.m111-apply-quiet {
+  display:none;
+}
+@media (max-width:650px) {
+  .m111 .metronome-count {min-height:56px}
+  .m111 .m111-rhythm-card {gap:6px;padding:9px 10px}
+}
