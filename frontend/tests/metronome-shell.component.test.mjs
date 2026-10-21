@@ -405,3 +405,127 @@ test('P1 REVIEW-04: real tuner opens, closes, restores shell/focus, and reopens'
     }
   }
 });
+
+
+test('TOOL-03 review P2: real tuner swaps profiles during live microphone session without stale green or duplicate stream', async () => {
+  const originals = Object.fromEntries(['document','window','CustomEvent','AudioContext',
+    'requestAnimationFrame','cancelAnimationFrame'].map(key=>[key,
+      Object.getOwnPropertyDescriptor(globalThis,key)]));
+  const savedNavigator=Object.getOwnPropertyDescriptor(globalThis,'navigator');
+  const dom=createHeadlessDocument();
+  const listeners=new Set();
+  let permissions=0,stops=0,contexts=0,frameId=0,pending=null,currentHz=110;
+  const track={onended:null,stop(){stops++;}};
+  const stream={getTracks:()=>[track],getAudioTracks:()=>[track]};
+  try {
+    globalThis.document={
+      activeElement:null,body:dom.body,
+      addEventListener(type,listener){if(type==='focusin')listeners.add(listener);},
+      removeEventListener(type,listener){if(type==='focusin')listeners.delete(listener);},
+    };
+    globalThis.window={dispatchEvent(){return true;}};
+    globalThis.CustomEvent=class {constructor(type,options){this.type=type;this.detail=options?.detail;}};
+    Object.defineProperty(globalThis,'navigator',{configurable:true,value:{
+      mediaDevices:{async getUserMedia(){permissions++;return stream;}},
+    }});
+    globalThis.AudioContext=class {
+      constructor(){contexts++;this.sampleRate=48000;this.state='running';}
+      createMediaStreamSource(){return {connect(){},disconnect(){}};}
+      createAnalyser(){return {
+        fftSize:8192,smoothingTimeConstant:0,disconnect(){},
+        getFloatTimeDomainData(buffer){
+          for(let i=0;i<buffer.length;i++) buffer[i]=.3*Math.sin(2*Math.PI*currentHz*i/48000);
+        },
+      };}
+      close(){return Promise.resolve();}
+    };
+    globalThis.requestAnimationFrame=fn=>{pending={id:++frameId,fn};return frameId;};
+    globalThis.cancelAnimationFrame=id=>{if(pending?.id===id)pending=null;};
+    globalThis.__shellUi=reactive({open:false,sourceExercise:null,returnFocus:null});
+    globalThis.__shellRoute=reactive({fullPath:'/diagnostics'});
+    globalThis.__shellStops=0;
+    globalThis.__shellAudio={
+      getState:()=>({status:'stopped'}),
+      subscribe:()=>()=>{},
+    };
+    const App=await compileRealApp(true);
+    const app=dom.renderer.createApp(App);
+    app.component('RouterLink',{
+      props:['to'],render(){return h('a',{href:this.to},this.$slots.default?.());},
+    });
+    app.component('RouterView',{render(){return h('div',{id:'route'},'Route');}});
+    try {
+      app.mount(dom.root);
+      await nextTick();
+      const openButton=dom.find(dom.root,n=>n.tag==='button'&&n.props['aria-label']==='tuner.open');
+      assert.ok(openButton);
+      openButton.props.onClick();
+      await nextTick(); await nextTick();
+      const findStatus=()=>dom.find(dom.body,n=>n.tag==='p'&&n.props.role==='status');
+      const findSelect=()=>dom.find(dom.body,n=>n.tag==='select');
+      const findPegs=()=>{
+        const headstock=dom.find(dom.body,n=>n.tag==='div'&&n.props.class==='tuner-headstock');
+        return headstock?.children.filter(n=>n.tag==='button')??[];
+      };
+      const start=dom.find(dom.body,n=>n.tag==='button'&&
+        typeof n.props.class==='string'&&n.props.class.includes('tuner-action'));
+      assert.ok(start);
+      start.props.onClick();
+      await Promise.resolve();await nextTick();await nextTick();
+      assert.equal(permissions,1);
+      assert.equal(contexts,1);
+      async function pulse(at) {
+        assert.ok(pending,'WebAudio requestAnimationFrame must remain scheduled');
+        const callback=pending.fn;
+        pending=null;
+        callback(at);
+        await nextTick();
+      }
+      for(const at of [100,200,300]) await pulse(at);
+      assert.equal(findStatus()?.text,'tuner.inTune');
+      assert.equal(findPegs()[1].props['aria-pressed'],true,'Auto recognizes standard A2');
+      const select=findSelect();
+      select.props.onChange({target:{value:'DROP_D'}});
+      await nextTick();
+      assert.notEqual(findStatus()?.text,'tuner.inTune','changing profile clears green immediately');
+      assert.equal(findPegs().filter(p=>p.props['aria-pressed']).length,0);
+      assert.equal(permissions,1,'switching profile must not reacquire microphone');
+      assert.equal(contexts,1,'switching profile must reuse AudioContext');
+
+      currentHz=73.41619;
+      for(const at of [400,500,600]) await pulse(at);
+      assert.equal(findStatus()?.text,'tuner.inTune','drop D becomes valid only after three fresh frames');
+      assert.equal(findPegs()[0].props['aria-pressed'],true);
+      const sixth=findPegs()[0];
+      sixth.props.onClick();
+      await nextTick();
+      select.props.onChange({target:{value:'OPEN_G'}});
+      await nextTick();
+      assert.equal(findPegs()[0].props['aria-pressed'],true,'manual mode keeps physical sixth string');
+      assert.equal(findPegs()[0].children.find(c=>c.tag==='strong')?.text,'D2');
+      assert.notEqual(findStatus()?.text,'tuner.inTune','manual tune change also clears green');
+      assert.equal(permissions,1);
+      assert.equal(contexts,1);
+
+      const close=dom.find(dom.body,n=>n.tag==='button'&&n.props['aria-label']==='tuner.close');
+      close.props.onClick();
+      await nextTick();await nextTick();
+      assert.equal(stops,1,'mic track is released on close');
+      assert.equal(listeners.size,0);
+      openButton.props.onClick();
+      await nextTick();await nextTick();
+      assert.equal(permissions,1,'reopening must not autoplay microphone');
+      assert.ok(findSelect(),'reopened tuner still exposes saved profile choice');
+    } finally {
+      app.unmount();
+    }
+  } finally {
+    for(const [key,desc] of Object.entries(originals)) {
+      if(desc) Object.defineProperty(globalThis,key,desc);
+      else delete globalThis[key];
+    }
+    if(savedNavigator) Object.defineProperty(globalThis,'navigator',savedNavigator);
+    else delete globalThis.navigator;
+    for(const key of ['__shellUi','__shellRoute','__shellStops','__shellAudio']) delete globalThis[key];
+  }
+});
