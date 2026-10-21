@@ -2,7 +2,7 @@ import { reactive } from 'vue';
 import { metronome } from '../../shared/audio/metronome';
 import {
   type MetronomeConfig, type MetronomePreset, copyConfig, defaultMetronomeConfig,
-  readMetronomeStore, saveMetronomeStore,
+  readMetronomeStore, saveMetronomeStore, validConfig,
 } from '../../shared/audio/metronome-config.ts';
 
 const restored = readMetronomeStore();
@@ -47,7 +47,13 @@ export function openExerciseMetronome(trigger: HTMLElement, source: string, bpm:
     return;
   }
   metronomeUi.sourceExercise = source;
-  if (!metronome.setBpm(bpm)) metronomeUi.sourceExercise = null;
+  // The catalogue's recommended tempo is a QUARTER-note BPM, regardless
+  // of the user's previous eighth/dotted-quarter beat unit.
+  const requested = metronome.getConfig();
+  requested.bpm = bpm;
+  requested.tempoUnit = 'quarter';
+  if (!validConfig(requested) || !metronome.applyConfig(requested))
+    metronomeUi.sourceExercise = null;
   else persistMetronomeConfig();
   openMetronome(trigger);
 }
