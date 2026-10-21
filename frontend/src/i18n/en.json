@@ -360,7 +360,7 @@
     "queuedTempo": "Next bar: {bpm} BPM · {unit}",
     "editTempo": "Tap the number to enter BPM",
     "changeMeter": "Change",
-    "beatHelp": "Tap a beat to change its accent · ● strong · ◐ medium · ○ weak · × mute",
+    "beatHelp": "Tap a beat: ● strong · ◐ medium · ○ weak · × mute",
     "subdivisionCount": "Clicks per beat: {count}",
     "closeSettings": "Close panel",
     "savingPreview": "Configuration to save"
