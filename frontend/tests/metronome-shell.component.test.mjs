@@ -510,7 +510,8 @@ test('TOOL-03 review P2: real tuner swaps profiles during live microphone sessio
           currentHz=110*2**(direction*step*6/1200);
           time+=100;
           await pulse(time);
-          assert.equal(findNote()?.text,'A2','note stays on screen during ramp');
+          assert.ok(findNote()?.text && findNote().text !== '—',
+            'live note stays visible even when its displayed pitch class changes');
           assert.ok(findNeedle(),'needle does not disappear during ramp');
           assert.equal(findPegs()[1].props['aria-pressed'],true,
             'Auto stays on physical A2 while the note changes');
