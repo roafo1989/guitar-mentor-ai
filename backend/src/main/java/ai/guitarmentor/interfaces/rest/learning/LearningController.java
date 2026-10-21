@@ -48,9 +48,11 @@ public class LearningController {
     }
 
     @GetMapping("/learning/evidence")
-    public List<SkillEvidenceView> evidence(@PathVariable UUID learnerId,
-            @PathVariable UUID sessionId,@PathVariable UUID taskId) {
-        return service.evidence(learnerId,sessionId,taskId);
+    public Page<SkillEvidenceView> evidence(@PathVariable UUID learnerId,
+            @PathVariable UUID sessionId,@PathVariable UUID taskId,
+            @RequestParam(required=false) Integer limit,
+            @RequestParam(required=false) String cursor) {
+        return service.evidence(learnerId,sessionId,taskId,limit,cursor);
     }
 
     @PostMapping("/decisions")
