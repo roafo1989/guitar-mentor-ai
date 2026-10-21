@@ -10,9 +10,9 @@
 
 ## Сценарии и требования
 
-- **[Бизнес-требования — версия в main и история изменений](requirements/business-requirements.md)**. [Редакция 0.8 в открытом PR #64](https://github.com/roafo1989/guitar-mentor-ai/blob/350a220f96a61a9f0cbe4d9ee648fb7062a9ebf5/docs/requirements/business-requirements.md) — репертуарная цель и инициатива наставника; ТЗ требует синхронизации.
-- [Бизнес-анализ: варианты и открытые решения](requirements/discovery/business-analysis-2026-10-20.md) — v0.2, выводы с учётом ответов 21.10.2026.
-- [Опросник заказчика](requirements/discovery/customer-interview-2026-10-20.md) — v0.2, ответы первого разговора и уточнение репертуарной цели.
+- **[Бизнес-требования — версия в main и история изменений](requirements/business-requirements.md)**. [Редакция 0.9 в открытом PR #64](https://github.com/roafo1989/guitar-mentor-ai/blob/493f566cd886fdd0425c859555c54db312f10947/docs/requirements/business-requirements.md) — репертуарная цель и инициатива наставника; ТЗ требует синхронизации.
+- [Бизнес-анализ: варианты и открытые решения](requirements/discovery/business-analysis-2026-10-20.md) — v0.3, выводы с учётом двух блоков ответов 21.10.2026.
+- [Опросник заказчика](requirements/discovery/customer-interview-2026-10-20.md) — v0.3, ответы двух блоков; дальше — занятие, запись и отзыв.
 - **[Регламент бизнес-анализа](project/business-analysis-workflow.md)** — чат БА, обработка идей, версии, критерии приёмки и связь с задачами.
 
 - [UC-01 — Профиль ученика](use-cases/UC-01-learner-profile-api.md) — реализовано
