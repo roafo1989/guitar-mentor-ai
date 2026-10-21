@@ -161,7 +161,8 @@ public class LearningService {
         available();
         if (request==null || request.requestId()==null || request.attemptId()==null
                 || request.expectedVersion()==null || request.expectedVersion()<0
-                || !List.of("COMPLETE","CONTINUE_PRACTICING").contains(request.action())) {
+                || (!"COMPLETE".equals(request.action())
+                    && !"CONTINUE_PRACTICING".equals(request.action()))) {
             throw new LearningProblem(HttpStatus.BAD_REQUEST,"INVALID_DECISION");
         }
         String reason=request.reason()==null ? null : request.reason().trim();
