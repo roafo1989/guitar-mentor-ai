@@ -69,8 +69,16 @@ public class LearningController {
             return ResponseEntity.status(ex.status()).body(Map.of("code",ex.code()));
         }
         @ExceptionHandler(org.springframework.web.method.annotation.MethodArgumentTypeMismatchException.class)
-        public ResponseEntity<Map<String,String>> invalidId() {
-            return ResponseEntity.badRequest().body(Map.of("code","INVALID_DECISION"));
+        public ResponseEntity<Map<String,String>> invalidId(
+                org.springframework.web.method.annotation.MethodArgumentTypeMismatchException error) {
+            return ResponseEntity.badRequest().body(Map.of("code",
+                "limit".equals(error.getName()) ? "INVALID_PAGINATION" : "INVALID_DECISION"));
+        }
+        @ExceptionHandler(Exception.class)
+        public ResponseEntity<Map<String,String>> internalError(Exception error) {
+            // Never echo SQL errors, audio paths, comments or stack traces to a client.
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
+                    .body(Map.of("code","LEARNING_INTERNAL_ERROR"));
         }
         @ExceptionHandler(org.springframework.http.converter.HttpMessageNotReadableException.class)
         public ResponseEntity<Map<String,String>> invalidBody() {
