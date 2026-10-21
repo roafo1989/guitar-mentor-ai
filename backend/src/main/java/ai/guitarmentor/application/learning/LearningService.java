@@ -117,7 +117,7 @@ public class LearningService {
                 result==null ? null : result.evidenceText(),null));
         }
         return new AssessmentView(assessment.id(),assessment.attemptId(),
-            assessment.revision(),assessment.sourceKind(),assessment.methodId(),
+            assessment.revision(),assessment.sourceKind(),assessment.sourcePrincipal(),assessment.methodId(),
             assessment.methodVersion(),assessment.recommendation(),assessment.createdAt(),
             criteria,List.of("Criterion evidence is not a confirmed skill level"));
     }
@@ -149,10 +149,31 @@ public class LearningService {
     }
 
     @Transactional(readOnly=true)
-    public List<SkillEvidenceView> evidence(UUID learnerId, UUID sessionId, UUID taskId) {
+    public Page<SkillEvidenceView> evidence(UUID learnerId, UUID sessionId,
+            UUID taskId, Integer limit, String cursor) {
         available();
         owned(learnerId,sessionId,taskId);
-        return repo.evidence(taskId);
+        int size=pageLimit(limit);
+        Instant before=null;
+        UUID assessmentId=null;
+        String criterionCode=null;
+        if (cursor!=null) {
+            String[] parts=parseCursor(cursor,5);
+            if (!"E".equals(parts[0]) || !taskId.toString().equals(parts[1]))
+                throw invalidPagination();
+            try {
+                before=Instant.parse(parts[2]);
+                assessmentId=UUID.fromString(parts[3]);
+                criterionCode=parts[4];
+                if (!criterionCode.matches("[A-Za-z0-9_-]{1,60}")) throw invalidPagination();
+            } catch (RuntimeException invalid) { throw invalidPagination(); }
+        }
+        var rows=repo.evidence(taskId,before,assessmentId,criterionCode,size+1);
+        var items=rows.stream().limit(size).toList();
+        String next=rows.size()>size ? cursor("E|"+taskId+"|"
+                +items.getLast().createdAt()+"|"+items.getLast().assessmentId()
+                +"|"+items.getLast().criterionCode()) : null;
+        return new Page<>(items,next);
     }
 
     @Transactional
@@ -205,6 +226,11 @@ public class LearningService {
             throw new LearningProblem(HttpStatus.CONFLICT,"ASSESSMENT_CHANGED");
         }
         String recommendation=assessment.map(Assessment::recommendation).orElse("UNCERTAIN");
+        // Protect against assessments written by pre-fix code or direct DB changes.
+        // The upload worker cannot normally turn a finalized PROCESSED into FAILED.
+        if ("PASS".equals(recommendation) && !repo.technicallyProcessed(request.attemptId())) {
+            recommendation="UNCERTAIN";
+        }
         String resulting=LearningRules.resultingState(request.action(),recommendation);
         String reasonCode="CONTINUE_PRACTICING".equals(request.action())
             ? "CONTINUE_PRACTICING"
