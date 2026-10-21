@@ -27,7 +27,7 @@
  <text x="387" y="454" text-anchor="end" fill="#b3c2ce" font-size="11">+50</text>
  <text x="225" y="475" text-anchor="middle" font-size="13" fill="#d6dde3">Нет уверенного измерения</text>
  <text x="225" y="506" text-anchor="middle" font-size="14" font-weight="750" fill="#ffd18e">Микрофон выключен</text>
- <g transform="translate(75,447)">
+ <g transform="translate(150,525) scale(0.5)">
   <path d="M121 315V275Q92 262 92 229V55Q92 35 119 25L150 5L181 25Q208 35 208 55V229Q208 262 179 275V315Z" fill="url(#wood)" stroke="#847567" stroke-width="2"/>
   <path d="M121 285 V55 M179 285V55" stroke="#a7957d" opacity=".2"/>
  <path d="M125 304 L106 195" stroke="#d3b994" stroke-width="2.80" stroke-linecap="round" opacity="0.7"/><path d="M135 304 L106 133" stroke="#d3b994" stroke-width="2.52" stroke-linecap="round" opacity="0.7"/><path d="M145 304 L106 71" stroke="#d3b994" stroke-width="2.24" stroke-linecap="round" opacity="0.7"/><path d="M155 304 L194 71" stroke="#d3b994" stroke-width="1.96" stroke-linecap="round" opacity="0.7"/><path d="M165 304 L194 133" stroke="#d3b994" stroke-width="1.68" stroke-linecap="round" opacity="0.7"/><path d="M175 304 L194 195" stroke="#d3b994" stroke-width="1.40" stroke-linecap="round" opacity="0.7"/><path d="M121 302H179" stroke="#eee0c4" stroke-width="5"/><line x1="104" y1="195" x2="70" y2="195" stroke="#b6afa6" stroke-width="7" stroke-linecap="round"/>
@@ -75,7 +75,7 @@
  <text x="821" y="454" text-anchor="end" fill="#b3c2ce" font-size="11">+50</text>
  <text x="659" y="475" text-anchor="middle" font-size="13" fill="#d6dde3">-24 центов</text>
  <text x="659" y="506" text-anchor="middle" font-size="14" font-weight="750" fill="#ffd18e">Ниже — подтяни струну</text>
- <g transform="translate(509,447)">
+ <g transform="translate(584,525) scale(0.5)">
   <path d="M121 315V275Q92 262 92 229V55Q92 35 119 25L150 5L181 25Q208 35 208 55V229Q208 262 179 275V315Z" fill="url(#wood)" stroke="#847567" stroke-width="2"/>
   <path d="M121 285 V55 M179 285V55" stroke="#a7957d" opacity=".2"/>
  <path d="M125 304 L106 195" stroke="#ffd18e" stroke-width="2.80" stroke-linecap="round" opacity="1"/><path d="M135 304 L106 133" stroke="#d3b994" stroke-width="2.52" stroke-linecap="round" opacity="0.7"/><path d="M145 304 L106 71" stroke="#d3b994" stroke-width="2.24" stroke-linecap="round" opacity="0.7"/><path d="M155 304 L194 71" stroke="#d3b994" stroke-width="1.96" stroke-linecap="round" opacity="0.7"/><path d="M165 304 L194 133" stroke="#d3b994" stroke-width="1.68" stroke-linecap="round" opacity="0.7"/><path d="M175 304 L194 195" stroke="#d3b994" stroke-width="1.40" stroke-linecap="round" opacity="0.7"/><path d="M121 302H179" stroke="#eee0c4" stroke-width="5"/><line x1="104" y1="195" x2="70" y2="195" stroke="#b6afa6" stroke-width="7" stroke-linecap="round"/>
@@ -123,7 +123,7 @@
  <text x="1255" y="454" text-anchor="end" fill="#b3c2ce" font-size="11">+50</text>
  <text x="1093" y="475" text-anchor="middle" font-size="13" fill="#d6dde3">17 центов</text>
  <text x="1093" y="506" text-anchor="middle" font-size="14" font-weight="750" fill="#ffd18e">Выше — ослабь струну</text>
- <g transform="translate(943,447)">
+ <g transform="translate(1018,525) scale(0.5)">
   <path d="M121 315V275Q92 262 92 229V55Q92 35 119 25L150 5L181 25Q208 35 208 55V229Q208 262 179 275V315Z" fill="url(#wood)" stroke="#847567" stroke-width="2"/>
   <path d="M121 285 V55 M179 285V55" stroke="#a7957d" opacity=".2"/>
  <path d="M125 304 L106 195" stroke="#d3b994" stroke-width="2.80" stroke-linecap="round" opacity="0.7"/><path d="M135 304 L106 133" stroke="#ffd18e" stroke-width="2.52" stroke-linecap="round" opacity="1"/><path d="M145 304 L106 71" stroke="#d3b994" stroke-width="2.24" stroke-linecap="round" opacity="0.7"/><path d="M155 304 L194 71" stroke="#d3b994" stroke-width="1.96" stroke-linecap="round" opacity="0.7"/><path d="M165 304 L194 133" stroke="#d3b994" stroke-width="1.68" stroke-linecap="round" opacity="0.7"/><path d="M175 304 L194 195" stroke="#d3b994" stroke-width="1.40" stroke-linecap="round" opacity="0.7"/><path d="M121 302H179" stroke="#eee0c4" stroke-width="5"/><line x1="104" y1="195" x2="70" y2="195" stroke="#b6afa6" stroke-width="7" stroke-linecap="round"/>
@@ -171,7 +171,7 @@
  <text x="387" y="1172" text-anchor="end" fill="#b3c2ce" font-size="11">+50</text>
  <text x="225" y="1193" text-anchor="middle" font-size="13" fill="#d6dde3">0 центов</text>
  <text x="225" y="1224" text-anchor="middle" font-size="14" font-weight="750" fill="#a6edbe">Струна настроена!</text>
- <g transform="translate(75,1165)">
+ <g transform="translate(150,1243) scale(0.5)">
   <path d="M121 315V275Q92 262 92 229V55Q92 35 119 25L150 5L181 25Q208 35 208 55V229Q208 262 179 275V315Z" fill="url(#wood)" stroke="#847567" stroke-width="2"/>
   <path d="M121 285 V55 M179 285V55" stroke="#a7957d" opacity=".2"/>
  <path d="M125 304 L106 195" stroke="#a6edbe" stroke-width="2.80" stroke-linecap="round" opacity="1"/><path d="M135 304 L106 133" stroke="#d3b994" stroke-width="2.52" stroke-linecap="round" opacity="0.7"/><path d="M145 304 L106 71" stroke="#d3b994" stroke-width="2.24" stroke-linecap="round" opacity="0.7"/><path d="M155 304 L194 71" stroke="#d3b994" stroke-width="1.96" stroke-linecap="round" opacity="0.7"/><path d="M165 304 L194 133" stroke="#d3b994" stroke-width="1.68" stroke-linecap="round" opacity="0.7"/><path d="M175 304 L194 195" stroke="#d3b994" stroke-width="1.40" stroke-linecap="round" opacity="0.7"/><path d="M121 302H179" stroke="#eee0c4" stroke-width="5"/><line x1="104" y1="195" x2="70" y2="195" stroke="#b6afa6" stroke-width="7" stroke-linecap="round"/>
@@ -219,7 +219,7 @@
  <text x="821" y="1172" text-anchor="end" fill="#b3c2ce" font-size="11">+50</text>
  <text x="659" y="1193" text-anchor="middle" font-size="13" fill="#d6dde3">1 центов</text>
  <text x="659" y="1224" text-anchor="middle" font-size="14" font-weight="750" fill="#98a6b4">Последнее уверенное измерение</text>
- <g transform="translate(509,1165)">
+ <g transform="translate(584,1243) scale(0.5)">
   <path d="M121 315V275Q92 262 92 229V55Q92 35 119 25L150 5L181 25Q208 35 208 55V229Q208 262 179 275V315Z" fill="url(#wood)" stroke="#847567" stroke-width="2"/>
   <path d="M121 285 V55 M179 285V55" stroke="#a7957d" opacity=".2"/>
  <path d="M125 304 L106 195" stroke="#d3b994" stroke-width="2.80" stroke-linecap="round" opacity="0.7"/><path d="M135 304 L106 133" stroke="#98a6b4" stroke-width="2.52" stroke-linecap="round" opacity="1"/><path d="M145 304 L106 71" stroke="#d3b994" stroke-width="2.24" stroke-linecap="round" opacity="0.7"/><path d="M155 304 L194 71" stroke="#d3b994" stroke-width="1.96" stroke-linecap="round" opacity="0.7"/><path d="M165 304 L194 133" stroke="#d3b994" stroke-width="1.68" stroke-linecap="round" opacity="0.7"/><path d="M175 304 L194 195" stroke="#d3b994" stroke-width="1.40" stroke-linecap="round" opacity="0.7"/><path d="M121 302H179" stroke="#eee0c4" stroke-width="5"/><line x1="104" y1="195" x2="70" y2="195" stroke="#b6afa6" stroke-width="7" stroke-linecap="round"/>
@@ -267,7 +267,7 @@
  <text x="1255" y="1172" text-anchor="end" fill="#b3c2ce" font-size="11">+50</text>
  <text x="1093" y="1193" text-anchor="middle" font-size="13" fill="#d6dde3">Нет уверенного измерения</text>
  <text x="1093" y="1224" text-anchor="middle" font-size="14" font-weight="750" fill="#ffd18e">Микрофон выключен</text>
- <g transform="translate(943,1165)">
+ <g transform="translate(1018,1243) scale(0.5)">
   <path d="M121 315V275Q92 262 92 229V55Q92 35 119 25L150 5L181 25Q208 35 208 55V229Q208 262 179 275V315Z" fill="url(#wood)" stroke="#847567" stroke-width="2"/>
   <path d="M121 285 V55 M179 285V55" stroke="#a7957d" opacity=".2"/>
  <path d="M125 304 L106 195" stroke="#d3b994" stroke-width="2.80" stroke-linecap="round" opacity="0.7"/><path d="M135 304 L106 133" stroke="#d3b994" stroke-width="2.52" stroke-linecap="round" opacity="0.7"/><path d="M145 304 L106 71" stroke="#d3b994" stroke-width="2.24" stroke-linecap="round" opacity="0.7"/><path d="M155 304 L194 71" stroke="#d3b994" stroke-width="1.96" stroke-linecap="round" opacity="0.7"/><path d="M165 304 L194 133" stroke="#d3b994" stroke-width="1.68" stroke-linecap="round" opacity="0.7"/><path d="M175 304 L194 195" stroke="#d3b994" stroke-width="1.40" stroke-linecap="round" opacity="0.7"/><path d="M121 302H179" stroke="#eee0c4" stroke-width="5"/><line x1="104" y1="195" x2="70" y2="195" stroke="#b6afa6" stroke-width="7" stroke-linecap="round"/>
