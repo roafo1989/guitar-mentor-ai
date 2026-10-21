@@ -67,8 +67,11 @@ function sync(next: MetronomeState): void {
   }
   // The editable BPM follows the last requested configuration, not the still
   // sounding BPM while a preset/configuration waits for the next bar.
-  // Do not overwrite unsaved edits or a focused number input.
-  if (!dirty.value && document.activeElement !== bpmField.value)
+  // A partially typed or invalid BPM is an unsaved edit even when the rhythm
+  // config is clean. Scheduler ticks must not silently erase it or leave a
+  // valid-looking number alongside an obsolete validation error.
+  if (!dirty.value && parseMetronomeBpm(draft.value) !== null &&
+      document.activeElement !== bpmField.value)
     draft.value = String(requested.bpm);
   if (next.error) error.value = '';
 }
@@ -200,6 +203,13 @@ function changeSubdivisionVolume(value: string): void {
   dirty.value = true;
 }
 function apply(): boolean {
+  // Validate the *visible* tempo before accepting any composite changes. An
+  // invalid number input does not update draftConfig.bpm, so validConfig alone
+  // would mistakenly accept a rhythm while the BPM field still shows 999.
+  if (parseMetronomeBpm(draft.value) === null) {
+    error.value = t('metronome.invalidBpm');
+    return false;
+  }
   const groups = parseGroups(groupInput.value, draftConfig.value.numerator);
   if (!groups) { configError.value = t('metronome.invalidGroups'); return false; }
   draftConfig.value.groups = groups;
@@ -245,6 +255,7 @@ function loadPreset(): void {
   meterD.value = p.config.denominator;
   groupInput.value = p.config.groups.join('+');
   draft.value = String(p.config.bpm);
+  error.value = ''; // Preset selection explicitly replaces an invalid BPM edit.
   beatSelection.value = 0;
   dirty.value = true;
   apply();
@@ -467,7 +478,7 @@ onBeforeUnmount(() => {
         </details>
         <div class="metronome-apply">
           <button type="button" :disabled="!dirty" @click="apply">{{ t('metronome.apply') }}</button>
-          <button type="button" :disabled="!dirty" @click="discard">{{ t('metronome.discard') }}</button>
+          <button type="button" :disabled="!dirty && parseMetronomeBpm(draft) !== null" @click="discard">{{ t('metronome.discard') }}</button>
           <small v-if="metronome.getPendingConfig()" role="status">{{ t('metronome.pending') }}</small>
         </div>
         <p v-if="configError || metronomeUi.storageError" role="alert" class="metronome-error">
