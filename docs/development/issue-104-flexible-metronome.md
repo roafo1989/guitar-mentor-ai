@@ -67,3 +67,16 @@ Six review findings and follow-up fixes in PR #105 (no merge until product accep
 6. **Primary master control**: the always-visible master slider has been moved outside the collapsed advanced settings. Advanced beat selection now has an independent selector that does not cycle accents when adjusting position gain.
 
 Automated CI checks cannot replace the specified real audio/recording/tuner/manual mobile QA. The GitHub issue stays open and the PR must not be merged until owner acceptance.
+
+
+## Repeat review #5595745400 — follow-up corrections (21 Oct 2026)
+
+The three new findings from [repeat PR review](https://github.com/roafo1989/guitar-mentor-ai/pull/105#pullrequestreview-5595745400) are addressed as follows:
+
+- **Pending BPM must survive a meter change:** meter selection derives its BPM from the editable/requested `draftConfig`, not from the older sounding `state.bpm`. A new quick-meter pattern may intentionally suggest a new BPM note unit (e.g. 6/8 → dotted quarter), but its **numeric 95 BPM** is retained when 4/4 at 80 is still sounding.
+- **Preserve global sound mix:** switching the meter replaces its grouping and beat-position accent template only. Existing `masterVolumePercent`, `accentVolumes`, `subdivisionVolumePercent` and `subdivision` are retained from the draft. New meter positions start with suggested accent/default position gain, not incompatible per-beat values.
+- **Active vs pending BPM display:** the editable BPM field shows the requested BPM, including on modal reopening; the read-only comparison separately names the *sounding* BPM/unit and the *queued* BPM/unit (or an unapplied edit). Beat indicators continue to show the sounding pattern. Manual +/− acts on the displayed BPM, immediately updating both sounding and pending tempo per the #87 contract.
+
+A mounted-dialog integration regression exercises the real Vue component and a mock engine with distinct active/pending states: 4/4 quarter 80 playing → load 7/8 eighth 95 preset with custom sound levels → choose 6/8 → Apply → keep 6/8 dotted-quarter 95 and sound levels pending until the simulated barline. Another mounted regression covers reopening and +1 with queued BPM.
+
+These tests supplement but do not replace physical audio and mobile browser QA. The issue remains open until independent review and owner acceptance.
