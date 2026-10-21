@@ -16,7 +16,8 @@ import static org.junit.jupiter.api.Assertions.*;
 
 /**
  * A genuinely pre-V15 database: migrate V1..V14, create task + submitted attempt,
- * then apply V15/V16 and assert stable identifiers and full criterion backfill.
+ * apply V15, insert a legacy PASS, then V16; preserve immutable history while
+ * explicitly marking the inherited assessment provenance as unverified.
  * Each run uses an isolated PostgreSQL schema, never the application's public schema.
  */
 @SpringBootTest
@@ -30,7 +31,8 @@ class LearningMigrationUpgradePostgresTest {
             throws Exception {
         String schema="r18_upgrade_"+UUID.randomUUID().toString().replace("-","");
         UUID learner=UUID.randomUUID(), profile=UUID.randomUUID(),session=UUID.randomUUID(),
-            task=UUID.randomUUID(),attempt=UUID.randomUUID(),request=UUID.randomUUID();
+            task=UUID.randomUUID(),attempt=UUID.randomUUID(),request=UUID.randomUUID(),
+            assessment=UUID.randomUUID();
         try(Connection admin=datasource.getConnection();
             var statement=admin.createStatement()) {
             statement.execute("CREATE SCHEMA "+schema);
@@ -65,6 +67,37 @@ class LearningMigrationUpgradePostgresTest {
                     connection.setSchema(previousSchema==null ? "public" : previousSchema);
                 }
             }
+            // Upgrade the pre-existing task and attempt into V15, then create an
+            // assessment using the old caller-controlled trust model before V16.
+            Flyway.configure().dataSource(datasource).schemas(schema)
+                .defaultSchema(schema).target("15").load().migrate();
+            try(Connection connection=datasource.getConnection()) {
+                String previousSchema=connection.getSchema();
+                try {
+                    connection.setSchema(schema);
+                    var now=Timestamp.from(Instant.now());
+                    insert(connection,"UPDATE submission_attempts SET status='PROCESSED',"
+                        +" processing_finished_at=?,processing_finalized_at=? WHERE id=?",
+                        now,now,attempt);
+                    insert(connection,"INSERT INTO attempt_assessments"
+                        +"(id,task_id,attempt_id,revision,source_operation_id,"
+                        +" input_fingerprint,source_kind,method_id,method_version,"
+                        +" recommendation,created_at)"
+                        +" VALUES(?,?,?,1,?,?,'HUMAN_REVIEW','INTERNAL_REVIEW','v1','PASS',?)",
+                        assessment,task,attempt,UUID.randomUUID(),"a".repeat(64),now);
+                    try(var results=connection.prepareStatement(
+                        "INSERT INTO assessment_criterion_results"
+                        +"(assessment_id,task_id,criterion_code,status,outcome)"
+                        +" SELECT ?,task_id,criterion_code,'ASSESSED','MEETS'"
+                        +" FROM task_criterion_snapshots WHERE task_id=?")) {
+                        results.setObject(1,assessment);
+                        results.setObject(2,task);
+                        assertEquals(3,results.executeUpdate());
+                    }
+                } finally {
+                    connection.setSchema(previousSchema==null ? "public" : previousSchema);
+                }
+            }
             Flyway.configure().dataSource(datasource).schemas(schema)
                 .defaultSchema(schema).load().migrate();
             try(Connection connection=datasource.getConnection()) {
@@ -78,8 +111,11 @@ class LearningMigrationUpgradePostgresTest {
                     +" WHERE task_id=? AND state='ACTIVE' AND version=0",task));
                 assertEquals(3L,count(connection,"SELECT count(*) FROM task_criterion_snapshots"
                     +" WHERE task_id=?",task));
-                assertEquals(0L,count(connection,"SELECT count(*) FROM attempt_assessments"
-                    +" WHERE task_id=?",task));
+                assertEquals(1L,count(connection,"SELECT count(*) FROM attempt_assessments"
+                    +" WHERE task_id=? AND id=? AND source_principal='LEGACY_UNVERIFIED'"
+                    +" AND recommendation='PASS'",task,assessment));
+                assertEquals(3L,count(connection,"SELECT count(*) FROM assessment_criterion_results"
+                    +" WHERE assessment_id=?",assessment));
                 assertEquals(0L,count(connection,"SELECT count(*) FROM learner_skill_signal_history"
                     +" WHERE instrument_profile_id=? AND source_type <> 'SELF_REPORTED'",profile));
                 assertEquals(16L,count(connection,
