@@ -6,6 +6,8 @@ import ai.guitarmentor.application.attempt.AttemptMediaStore;
 import ai.guitarmentor.infrastructure.persistence.DiagnosticSessionRepository;
 import ai.guitarmentor.infrastructure.persistence.DiagnosticTaskRepository;
 import ai.guitarmentor.infrastructure.persistence.SubmissionAttemptRepository;
+import ai.guitarmentor.infrastructure.persistence.LearningRepository;
+import ai.guitarmentor.application.learning.LearningService;
 import ai.guitarmentor.interfaces.rest.attempt.AttemptDtos.AttemptView;
 import jakarta.persistence.EntityNotFoundException;
 import java.util.List;
@@ -26,6 +28,10 @@ public class SubmissionAttemptService {
     private final AttemptMediaStore media;
     private final MediaTransactionGuard transactions;
     private final boolean enabled;
+    @org.springframework.beans.factory.annotation.Autowired(required = false)
+    private LearningRepository learningRepository;
+    @org.springframework.beans.factory.annotation.Autowired(required = false)
+    private LearningService learningService;
     @org.springframework.beans.factory.annotation.Autowired(required = false)
     private MediaUseCoordinator mediaCoordinator;
 
@@ -48,7 +54,7 @@ public class SubmissionAttemptService {
     public List<AttemptView> list(UUID learnerId, UUID sessionId, UUID taskId) {
         checkOwnership(learnerId, sessionId, taskId);
         return attempts.findByTask_IdOrderByAttemptNumberDesc(taskId).stream()
-                .map(AttemptView::from).toList();
+                .map(a -> view(a)).toList();
     }
 
     @Transactional
@@ -77,7 +83,11 @@ public class SubmissionAttemptService {
         sessions.findLockedById(sessionId)
                 .orElseThrow(() -> new EntityNotFoundException("Session not found"));
         var prior = attempts.findByTask_IdAndRequestId(taskId, requestId);
-        if (prior.isPresent()) return AttemptView.from(prior.get());
+        if (prior.isPresent()) return view(prior.get()); // Replay before terminal guard.
+        // A closed task rejects NEW media even if the learning API is disabled.
+        if (learningService != null && learningService.isTerminal(taskId)) {
+            throw new ResponseStatusException(HttpStatus.CONFLICT,"TASK_COMPLETED");
+        }
         String cleanComment = comment == null ? null : comment.trim();
         if (cleanComment != null && cleanComment.length() > 2000) {
             throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Comment too long");
@@ -91,6 +101,11 @@ public class SubmissionAttemptService {
                 Math.toIntExact(attempts.countByTask_Id(taskId) + 1),
                 cleanComment, stored.key(), stored.format(), stored.size());
         return AttemptView.from(attempts.saveAndFlush(attempt));
+    }
+
+    private AttemptView view(SubmissionAttempt attempt) {
+        return AttemptView.from(attempt,learningRepository != null
+                && learningRepository.hasAssessment(attempt.getId()));
     }
 
     private void checkOwnership(UUID learnerId, UUID sessionId, UUID taskId) {
