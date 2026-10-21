@@ -26,6 +26,7 @@ const groupInput = ref(draftConfig.value.groups.join('+'));
 const presetName = ref('');
 const selectedPreset = ref('');
 const confirmAction = ref<'replace' | 'delete' | null>(null);
+const confirmReset = ref(false);
 const tapper = new TapTempo();
 const dialog = ref<HTMLElement | null>(null);
 const bpmField = ref<HTMLInputElement | null>(null);
@@ -241,7 +242,7 @@ function confirmPreset(): void {
   store();
 }
 function resetPreferences(): void {
-  if (resetMetronomePreferences()) discard();
+  if (resetMetronomePreferences()) { discard(); confirmReset.value = false; }
   else configError.value = t('metronome.storeFailure');
 }
 function start(): void {
@@ -394,7 +395,14 @@ onBeforeUnmount(() => {
                 <button type="button" @click="confirmAction = null">{{ t('metronome.cancel') }}</button>
               </div>
             </div>
-            <button v-if="metronomeUi.storageBlocked" type="button" @click="resetPreferences">{{ t('metronome.resetStorage') }}</button>
+            <template v-if="metronomeUi.storageBlocked">
+              <button v-if="!confirmReset" type="button" @click="confirmReset = true">{{ t('metronome.resetStorage') }}</button>
+              <div v-else class="metronome-confirm">
+                <span>{{ t('metronome.confirmReset') }}</span>
+                <button type="button" @click="resetPreferences">{{ t('metronome.confirm') }}</button>
+                <button type="button" @click="confirmReset = false">{{ t('metronome.cancel') }}</button>
+              </div>
+            </template>
           </div>
         </details>
         <div class="metronome-apply">
