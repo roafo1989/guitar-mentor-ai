@@ -42,6 +42,8 @@ class LearningPostgresIntegrationTest {
     @Autowired LearningAssessmentWriter writer;
     @Autowired ai.guitarmentor.infrastructure.persistence.LearningRepository learningRepo;
     @Autowired SubmissionAttemptService uploads;
+    @Autowired ai.guitarmentor.application.attempt.MediaCleanupService mediaCleanup;
+    @Autowired org.springframework.web.context.WebApplicationContext webContext;
     @Autowired ai.guitarmentor.infrastructure.persistence.DiagnosticSessionRepository sessionsRepository;
 
     UUID learner,profile,session,task;
@@ -311,6 +313,115 @@ class LearningPostgresIntegrationTest {
         code("LEARNING_DISABLED",()->disabled.learning(learner,session,task));
         assertNotNull(upload());
         assertEquals("ACTIVE",service.learning(learner,session,task).taskState());
+    }
+
+
+    @Test void prematurePassAndLateFailureNeverGrantCompletion() {
+        UUID attempt=upload();
+        code("ASSESSMENT_NOT_READY",()->writer.record(learner,session,task,attempt,
+            assessment("MEETS"))); // UPLOADED: no trustworthy finished technical result.
+        jdbc.update("UPDATE submission_attempts SET status='FAILED',"
+            +" processing_finalized_at=CURRENT_TIMESTAMP WHERE id=?",attempt);
+        code("ASSESSMENT_NOT_READY",()->writer.record(learner,session,task,attempt,
+            assessment("MEETS"))); // Failed source can never yield PASS.
+        assertTrue(service.assessments(learner,session,task,attempt,20,null).items().isEmpty());
+        // Simulate an incorrectly persisted PASS by pre-fix code (V15) and a later FAILED.
+        markProcessed(attempt);
+        var historicPass=writer.record(learner,session,task,attempt,assessment("MEETS"));
+        jdbc.update("UPDATE submission_attempts SET status='FAILED' WHERE id=?",attempt);
+        var result=service.decide(learner,session,task,
+            command(attempt,"COMPLETE",0,historicPass.id(),UUID.randomUUID()));
+        assertEquals("COMPLETED_BY_LEARNER",result.result().taskState());
+        assertEquals("LEARNER_CHOICE",service.decisions(learner,session,task,20,null)
+            .items().getFirst().reasonCode());
+    }
+
+    @Test void forgedReviewPrincipalAndProofAreDeniedAndNeverSaved() {
+        UUID attempt=upload();
+        var permitted=assessment("NEEDS_WORK");
+        code("INVALID_ASSESSMENT",()->writer.record(learner,session,task,attempt,
+            new Input(permitted.sourceOperationId(),"HUMAN_REVIEW","INTERNAL_REVIEW","v1",
+                "QA_TEST_REVIEWER","wrong-private-proof-0000000000",permitted.criteria())));
+        code("INVALID_ASSESSMENT",()->writer.record(learner,session,task,attempt,
+            new Input(permitted.sourceOperationId(),"HUMAN_REVIEW","INTERNAL_REVIEW","v1",
+                "IMPOSTOR","qa-only-secret-not-for-production-18",permitted.criteria())));
+        assertEquals(0,service.assessments(learner,session,task,attempt,20,null).items().size());
+        var saved=writer.record(learner,session,task,attempt,permitted);
+        assertEquals("QA_TEST_REVIEWER",saved.sourcePrincipal());
+        assertEquals("QA_TEST_REVIEWER",jdbc.queryForObject(
+            "SELECT source_principal FROM attempt_assessments WHERE id=?",
+            String.class,saved.id()));
+    }
+
+    @Test void evidencePagesReachAllRowsWithoutTruncationOrCrossResourceCursors() {
+        UUID attempt=upload();
+        for(int n=0;n<36;n++) writer.record(learner,session,task,attempt,assessment("NEEDS_WORK"));
+        int total=0;String cursor=null;
+        var seen=new java.util.HashSet<String>();
+        do {
+            var page=service.evidence(learner,session,task,19,cursor);
+            assertTrue(page.items().size()<=19);
+            for(var entry:page.items()) {
+                assertTrue(seen.add(entry.assessmentId()+"/"+entry.criterionCode()));
+                assertNull(entry.confirmedSkillLevel());
+            }
+            total+=page.items().size();
+            cursor=page.nextCursor();
+        } while(cursor!=null);
+        assertEquals(108,total); // 36 revisions × 3 assessment criteria
+        assertEquals(108,seen.size());
+        code("INVALID_PAGINATION",()->service.evidence(learner,session,task,10,"not-a-cursor"));
+        code("INVALID_PAGINATION",()->service.evidence(learner,session,task,101,null));
+    }
+
+    @Test void mediaTtlRemovesFileButNotGradingAndDecisionHistory() throws Exception {
+        UUID attempt=upload();
+        markProcessed(attempt);
+        var review=writer.record(learner,session,task,attempt,assessment("NEEDS_WORK"));
+        service.decide(learner,session,task,
+            command(attempt,"COMPLETE",0,review.id(),UUID.randomUUID()));
+        var earlier=Timestamp.from(Instant.now().minusSeconds(49*3600));
+        jdbc.update("UPDATE submission_attempts SET processing_finalized_at=?,"
+            +" processing_finished_at=? WHERE id=?",earlier,earlier,attempt);
+        mediaCleanup.runCycle(Instant.now(),
+            new ai.guitarmentor.application.attempt.MediaRetentionPolicy.Policy(
+                java.time.Duration.ofHours(48),java.time.Duration.ofHours(48),
+                java.time.Duration.ofHours(1)));
+        assertEquals("DELETED",jdbc.queryForObject("SELECT media_state"
+            +" FROM submission_attempts WHERE id=?",String.class,attempt));
+        assertEquals(review.id(),service.assessments(learner,session,task,attempt,20,null)
+            .items().getFirst().id());
+        assertEquals(1,service.decisions(learner,session,task,20,null).items().size());
+        assertEquals(3,service.evidence(learner,session,task,20,null).items().size());
+    }
+
+    @Test void httpStatusesAndDisabledLearningAreSafe() throws Exception {
+        String base="/api/v1/learners/"+learner+"/diagnostic-sessions/"+session
+            +"/tasks/"+task;
+        var mvc=org.springframework.test.web.servlet.setup.MockMvcBuilders
+            .webAppContextSetup(webContext).build();
+        mvc.perform(org.springframework.test.web.servlet.request.MockMvcRequestBuilders
+            .get(base+"/learning")).andExpect(
+            org.springframework.test.web.servlet.result.MockMvcResultMatchers.status().isOk());
+        mvc.perform(org.springframework.test.web.servlet.request.MockMvcRequestBuilders
+            .get(base+"/decisions?limit=0")).andExpect(
+            org.springframework.test.web.servlet.result.MockMvcResultMatchers.status().isBadRequest());
+        mvc.perform(org.springframework.test.web.servlet.request.MockMvcRequestBuilders
+            .get(base+"/learning".replace("/learning","/decisions")+"?cursor=garbage")).andExpect(
+            org.springframework.test.web.servlet.result.MockMvcResultMatchers.status().isBadRequest());
+        mvc.perform(org.springframework.test.web.servlet.request.MockMvcRequestBuilders
+            .get("/api/v1/learners/"+UUID.randomUUID()+"/diagnostic-sessions/"
+                +session+"/tasks/"+task+"/learning")).andExpect(
+            org.springframework.test.web.servlet.result.MockMvcResultMatchers.status().isNotFound());
+        var disabled=new LearningService(learningRepo,sessionsRepository,false);
+        var off=org.springframework.test.web.servlet.setup.MockMvcBuilders.standaloneSetup(
+            new ai.guitarmentor.interfaces.rest.learning.LearningController(disabled))
+            .setControllerAdvice(new ai.guitarmentor.interfaces.rest.learning.LearningController
+                .LearningExceptionHandler()).build();
+        off.perform(org.springframework.test.web.servlet.request.MockMvcRequestBuilders
+            .get(base+"/learning")).andExpect(
+            org.springframework.test.web.servlet.result.MockMvcResultMatchers.status()
+                .isServiceUnavailable());
     }
 
 }
