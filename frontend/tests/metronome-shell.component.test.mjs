@@ -471,6 +471,25 @@ test('TOOL-03 review P2: real tuner swaps profiles during live microphone sessio
         const headstock=dom.find(dom.body,n=>n.tag==='div'&&n.props.class==='tuner-headstock');
         return headstock?.children.filter(n=>n.tag==='button')??[];
       };
+      // Approved mockup regression: no button is outside the scalable
+      // headstock coordinate system, physical labels still map 6..1.
+      const headstock=dom.find(dom.body,n=>n.tag==='div'&&n.props.class==='tuner-headstock');
+      const svg=dom.find(headstock,n=>n.tag==='svg');
+      assert.equal(svg?.props.viewBox,'0 0 440 340');
+      assert.equal(findPegs().length,6);
+      const nodes=findPegs();
+      for(const node of nodes) {
+        const x=parseFloat(node.props.style.left),y=parseFloat(node.props.style.top);
+        assert.ok(x>8 && x<92 && y>10 && y<90,
+          'a peg cannot be clipped by the frame: '+x+'% / '+y+'%');
+      }
+      assert.deepEqual(nodes.map(n=>n.children.find(c=>c.tag==='strong')?.text),
+        ['E','A','D','G','B','E']);
+      assert.deepEqual(nodes.map(n=>n.children.find(c=>c.tag==='span' &&
+        c.props.class==='tuner-peg-note')?.text),['E2','A2','D3','G3','B3','E4']);
+      const micBar=dom.find(dom.body,n=>n.tag==='div'&&n.props.class?.includes('tuner-microphone'));
+      assert.ok(micBar,'new microphone status bar is present');
+
       const start=dom.find(dom.body,n=>n.tag==='button'&&
         typeof n.props.class==='string'&&n.props.class.includes('tuner-action'));
       assert.ok(start);

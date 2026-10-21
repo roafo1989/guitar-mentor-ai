@@ -160,3 +160,28 @@ small ±1-cent jitter, dropped/held frames, profile changes and earlier
 glissando/false-green regressions in unit and real mounted Vue-SFC tests.
 The four-frame rule adds conservatism intentionally; physical acoustic QA
 remains necessary before owner acceptance.
+
+
+## Approved mockup implementation — 22 Oct 2026
+
+The owner approved the frontal 3+3 headstock and compact dark tuner mockup
+in this project conversation, with colours coordinated to metronome #111.
+Implementation retains original SVG authored in the repository (no borrowed
+brand artwork), shifts the tuning meter into a separate instrument panel,
+uses a deliberately compact 506px modal and a centered 440:340-scaled
+headstock panel with all six real, accessible peg buttons strictly inside
+its bounds. An angled guitar headstock is explicitly **not** acceptable.
+
+- Six string selectors are always physical numbers 6→1, with octave labels.
+  Metal hardware and strings share the headstock's SVG coordinate system;
+  CSS cannot independently crop a last string on narrow displays.
+- Min 44×44 interactive selector size, responsive 320–360px styling,
+  explicit overflow-y for short screens/zoom (never hide content), keyboard
+  focus visibility and reduced motion preserved.
+- Auto control is a semantic toggle button; preset is an accessible select;
+  mic status is separate from acoustic pitch/green confirmation.
+- DSP, 700ms hold, four fresh in-tune candidates, tuning presets, audio
+  lease, recorder, focus lifecycle and metronome integration are unchanged.
+- Automated component tests verify six rendered peg labels, insets and
+  screen paths; live physical browser sizing and owner's visual sign-off
+  of implementation remain part of final manual QA.

@@ -398,6 +398,7 @@
     "dropD": "Drop D · D A D G B E",
     "openG": "Open G · D G D G B D",
     "autoMode": "Automatic selection",
-    "manualMode": "Manual selection"
+    "manualMode": "Manual selection",
+    "microphoneOn": "Microphone is on"
   }
 }
