@@ -355,9 +355,9 @@ test('P1 REVIEW-04: real tuner opens, closes, restores shell/focus, and reopens'
     await nextTick();
     pegs = findPegs();
     assert.equal(pegs[0].props['aria-pressed'], true, 'manual physical 6th string survives change');
-    assert.equal(pegs[0].children.find(c => c.tag === 'strong')?.text, 'D2');
-    assert.equal(pegs[1].children.find(c => c.tag === 'strong')?.text, 'G2');
-    assert.equal(pegs[5].children.find(c => c.tag === 'strong')?.text, 'D4');
+    assert.equal(pegs[0].children.find(c => c.tag === 'span' && c.props.class === 'tuner-peg-note')?.text, 'D2');
+    assert.equal(pegs[1].children.find(c => c.tag === 'span' && c.props.class === 'tuner-peg-note')?.text, 'G2');
+    assert.equal(pegs[5].children.find(c => c.tag === 'span' && c.props.class === 'tuner-peg-note')?.text, 'D4');
     const auto = dom.find(dom.body, n => n.tag === 'button' &&
       typeof n.props.class === 'string' && n.props.class.includes('tuner-auto-button'));
     assert.ok(auto);
@@ -587,7 +587,7 @@ test('TOOL-03 review P2: real tuner swaps profiles during live microphone sessio
       select.props.onChange({target:{value:'OPEN_G'}});
       await nextTick();
       assert.equal(findPegs()[0].props['aria-pressed'],true,'manual mode keeps physical sixth string');
-      assert.equal(findPegs()[0].children.find(c=>c.tag==='strong')?.text,'D2');
+      assert.equal(findPegs()[0].children.find(c=>c.tag==='span' && c.props.class==='tuner-peg-note')?.text,'D2');
       assert.notEqual(findStatus()?.text,'tuner.inTune','manual tune change also clears green');
       assert.equal(permissions,1);
       assert.equal(contexts,1);
