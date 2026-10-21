@@ -51,14 +51,17 @@ export function trackPitch(state: PitchTrackState, candidate: number | null, now
  * While tracking an established string, tolerate up to 235 cents to avoid
  * flicker close to the G3/B3 boundary; switch only for a clearly nearer target.
  */
-export function autoStringIndex(frequency: number | null, previous: number | null): number | null {
+export function autoStringIndex(
+  frequency: number | null, previous: number | null,
+  strings: ReadonlyArray<{ hz: number }> = STRINGS,
+): number | null {
   if (frequency === null || !Number.isFinite(frequency) || frequency <= 0) return null;
-  const distances = STRINGS.map(string => Math.abs(cents(frequency, string.hz)));
+  const distances = strings.map(string => Math.abs(cents(frequency, string.hz)));
   let closest = 0;
   for (let i = 1; i < distances.length; i++) {
     if (distances[i] < distances[closest]) closest = i;
   }
-  const hasPrevious = previous !== null && previous >= 0 && previous < STRINGS.length;
+  const hasPrevious = previous !== null && previous >= 0 && previous < strings.length;
   if (hasPrevious && distances[previous] <= 235) {
     // At a boundary, prefer the last verified open string. A new one must
     // become substantially closer before it can displace the current target.
