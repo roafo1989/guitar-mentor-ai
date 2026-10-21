@@ -19,10 +19,23 @@ const unitMarks: Record<TempoUnit, string> = {
 const accentMarks: Record<Accent, string> = {
   strong: '●', medium: '◐', weak: '○', mute: '×',
 };
-function openPanel(kind: 'settings' | 'presets'): void {
+const settingsClose = ref<HTMLButtonElement | null>(null);
+const presetsClose = ref<HTMLButtonElement | null>(null);
+let panelOpener: HTMLElement | null = null;
+function openPanel(kind: 'settings' | 'presets', event?: MouseEvent): void {
+  panelOpener = event?.currentTarget as HTMLElement | null ?? null;
   panel.value = kind;
+  void nextTick(() => (kind === 'settings' ? settingsClose.value : presetsClose.value)?.focus());
 }
-function closePanel(): void { panel.value = null; }
+function closePanel(): void {
+  panel.value = null;
+  const opener = panelOpener;
+  panelOpener = null;
+  void nextTick(() => {
+    if (opener && opener.isConnected !== false) opener.focus();
+    else bpmField.value?.focus();
+  });
+}
 
 const emit = defineEmits<{ close: []; minimize: [] }>();
 const { t } = useI18n();
@@ -421,7 +434,7 @@ onBeforeUnmount(() => {
                   <strong>{{ draftConfig.numerator }}/{{ draftConfig.denominator }}</strong>
                   <small>{{ draftConfig.groups.join('+') }}</small>
                 </div>
-                <button type="button" class="m111-change" @click="openPanel('settings')">
+                <button type="button" class="m111-change" @click="openPanel('settings', $event)">
                   {{ t('metronome.changeMeter') }}
                 </button>
               </div>
@@ -468,8 +481,8 @@ onBeforeUnmount(() => {
           </div>
 
           <div class="m111-tools">
-            <button type="button" @click="openPanel('presets')">{{ t('metronome.presets') }} <span aria-hidden="true">⌄</span></button>
-            <button type="button" @click="openPanel('settings')">{{ t('metronome.details') }} <span aria-hidden="true">⚙</span></button>
+            <button type="button" @click="openPanel('presets', $event)">{{ t('metronome.presets') }} <span aria-hidden="true">⌄</span></button>
+            <button type="button" @click="openPanel('settings', $event)">{{ t('metronome.details') }} <span aria-hidden="true">⚙</span></button>
           </div>
           <div class="metronome-apply m111-apply" :class="{ 'm111-apply-quiet': !dirty && !metronome.getPendingConfig() && !error }">
             <button type="button" :disabled="!dirty" @click="apply">{{ t('metronome.apply') }}</button>
@@ -503,8 +516,11 @@ onBeforeUnmount(() => {
         <div class="m111-sheet" :class="{ 'is-open': panel === 'settings' }"
           :aria-hidden="panel !== 'settings'" aria-labelledby="m111-settings-title">
           <div class="m111-sheet-head"><h3 id="m111-settings-title">{{ t('metronome.details') }}</h3>
-            <button type="button" :aria-label="t('metronome.closeSettings')" @click="closePanel">×</button></div>
+            <button ref="settingsClose" type="button" :aria-label="t('metronome.closeSettings')" @click="closePanel">×</button></div>
           <div class="m111-sheet-scroll">
+            <p v-if="configError || error || metronomeUi.storageError" role="alert" class="metronome-error m111-sheet-error">
+              {{ error || configError || t('metronome.storeFailure') }}
+            </p>
             <div class="metronome-settings">
               <div class="metronome-meter-picker">
                 <label for="metronome-numerator">{{ t('metronome.meter') }}</label>
@@ -575,8 +591,11 @@ onBeforeUnmount(() => {
         <div class="m111-sheet" :class="{ 'is-open': panel === 'presets' }"
           :aria-hidden="panel !== 'presets'" aria-labelledby="m111-presets-title">
           <div class="m111-sheet-head"><h3 id="m111-presets-title">{{ t('metronome.presets') }}</h3>
-            <button type="button" :aria-label="t('metronome.closeSettings')" @click="closePanel">×</button></div>
+            <button ref="presetsClose" type="button" :aria-label="t('metronome.closeSettings')" @click="closePanel">×</button></div>
           <div class="m111-sheet-scroll">
+            <p v-if="configError || error || metronomeUi.storageError" role="alert" class="metronome-error m111-sheet-error">
+              {{ error || configError || t('metronome.storeFailure') }}
+            </p>
             <div class="metronome-presets">
               <label for="metronome-preset-list">{{ t('metronome.presets') }}</label>
               <select id="metronome-preset-list" :value="selectedPreset"
@@ -588,10 +607,19 @@ onBeforeUnmount(() => {
               <label for="metronome-preset-name">{{ t('metronome.presetName') }}</label>
               <input id="metronome-preset-name" :value="presetName"
                 @input="presetName = ($event.target as HTMLInputElement).value" maxlength="60" />
-              <p class="m111-preset-review">{{ t('metronome.savingPreview') }}:
-                {{ draft }} BPM · {{ draftConfig.numerator }}/{{ draftConfig.denominator }}
-                · {{ t('metronome.units.' + draftConfig.tempoUnit) }} · {{ draftConfig.groups.join('+') }}
-              </p>
+              <div class="m111-preset-review">
+                <strong>{{ t('metronome.savingPreview') }}</strong>
+                <span>{{ draft }} BPM · {{ draftConfig.numerator }}/{{ draftConfig.denominator }}
+                  · {{ t('metronome.units.' + draftConfig.tempoUnit) }} · {{ draftConfig.groups.join('+') }}</span>
+                <span>{{ t('metronome.subdivision') }}: {{ draftConfig.subdivision }} · {{ t('metronome.master') }}: {{ draftConfig.masterVolumePercent }}%</span>
+                <span>{{ t('metronome.subdivisionVolume') }}: {{ draftConfig.subdivisionVolumePercent }}% ·
+                  {{ t('metronome.accents.strong') }}: {{ draftConfig.accentVolumes.strong }}% ·
+                  {{ t('metronome.accents.medium') }}: {{ draftConfig.accentVolumes.medium }}% ·
+                  {{ t('metronome.accents.weak') }}: {{ draftConfig.accentVolumes.weak }}%</span>
+                <span v-for="(position, index) in draftConfig.positions" :key="index">
+                  {{ index + 1 }}: {{ t('metronome.accents.' + position.accent) }} · {{ position.volumePercent }}%
+                </span>
+              </div>
               <div class="metronome-preset-actions">
                 <button type="button" @click="savePreset">{{ t('metronome.savePreset') }}</button>
                 <button type="button" :disabled="!chosenPreset" @click="renamePreset">{{ t('metronome.renamePreset') }}</button>
