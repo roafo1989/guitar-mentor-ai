@@ -674,3 +674,127 @@ test('TOOL-02 explicitly loading a preset replaces invalid BPM and clears stale 
     delete globalThis.__testMetronome87;
   }
 });
+
+test('TOOL-02 Save/Replace reject invalid visible BPM or group text without modifying presets', async () => {
+  const previousDocument=globalThis.document;
+  const Dialog=await compileDialog();
+  for (const operation of ['save','replace']) {
+    for (const invalidField of ['bpm','groups']) {
+      const engine=fakeEngine();
+      const view=createTestRenderer();
+      globalThis.__testMetronome87=engine;
+      globalThis.document={body:view.body,activeElement:null};
+      const original=meterConfig(4,4,80);
+      fakeUiState.presets=operation==='replace'
+        ? [{id:'existing',name:'Existing',config:copyConfig(original)}] : [];
+      let app;
+      try {
+        engine.applyConfig(original);
+        app=view.renderer.createApp({render:()=>h(Dialog)});
+        app.mount(view.node('root'));
+        await nextTick();
+        if (invalidField==='bpm') {
+          view.find('input',n=>n.props.id==='metronome-bpm')
+            .props.onInput({target:{value:'999'}});
+        } else {
+          view.find('input',n=>n.props.id==='metronome-groups')
+            .props.onInput({target:{value:'3+3'}});
+        }
+        await nextTick();
+        if (operation==='save') {
+          view.find('input',n=>n.props.id==='metronome-preset-name')
+            .props.onInput({target:{value:'New preset'}});
+          await nextTick();
+          view.find('button',n=>n.text==='metronome.savePreset').props.onClick();
+        } else {
+          view.find('select',n=>n.props.id==='metronome-preset-list')
+            .props.onChange({target:{value:'existing'}});
+          await nextTick();
+          view.find('button',n=>n.text==='metronome.replacePreset').props.onClick();
+          await nextTick();
+          view.find('button',n=>n.text==='metronome.confirm').props.onClick();
+        }
+        await nextTick();
+        assert.equal(fakeUiState.presets.length,operation==='save'?0:1,
+          operation+' must not create or delete any preset with invalid '+invalidField);
+        if(operation==='replace')
+          assert.deepEqual(fakeUiState.presets[0].config,original,
+            'Replace must never overwrite accepted preset with stale draft settings');
+        assert.deepEqual(engine.getConfig(),original,
+          'preset validation does not change playing/accepted metronome config');
+        if(invalidField==='bpm') {
+          assert.equal(view.find('input',n=>n.props.id==='metronome-bpm').props.value,'999');
+          assert.ok(view.find('p',n=>n.props.id==='metronome-error'),
+            'invalid BPM must remain visible for correction');
+        } else {
+          assert.equal(view.find('input',n=>n.props.id==='metronome-groups').props.value,'3+3');
+          assert.ok(view.find('p',n=>n.props.class==='metronome-error' &&
+            n.text==='metronome.invalidGroups'),
+            'invalid group error should identify the exact field');
+        }
+      } finally {
+        app?.unmount();
+        fakeUiState.presets=[];
+        globalThis.document=previousDocument;
+        delete globalThis.__testMetronome87;
+      }
+    }
+  }
+});
+
+test('TOOL-02 Save/Replace capture valid typed grouping without waiting for a change/blur event', async () => {
+  const previousDocument=globalThis.document;
+  const Dialog=await compileDialog();
+  for(const operation of ['save','replace']) {
+    const engine=fakeEngine();
+    const view=createTestRenderer();
+    globalThis.__testMetronome87=engine;
+    globalThis.document={body:view.body,activeElement:null};
+    const original=meterConfig(4,4,80);
+    fakeUiState.presets=operation==='replace'
+      ? [{id:'existing',name:'Existing',config:copyConfig(original)}] : [];
+    let app;
+    try {
+      engine.applyConfig(original);
+      app=view.renderer.createApp({render:()=>h(Dialog)});
+      app.mount(view.node('root'));
+      await nextTick();
+      view.find('button',n=>n.text==='7/8').props.onClick();
+      await nextTick();
+      const groupInput=view.find('input',n=>n.props.id==='metronome-groups');
+      groupInput.props.onInput({target:{value:'3+2+2'}});
+      // Deliberately do NOT call onChange: the Save/Replace command itself
+      // must reconcile the visible grouping, even in an unblurred editor.
+      await nextTick();
+      if(operation==='save') {
+        view.find('input',n=>n.props.id==='metronome-preset-name')
+          .props.onInput({target:{value:'Seven'}});
+        await nextTick();
+        view.find('button',n=>n.text==='metronome.savePreset').props.onClick();
+      } else {
+        view.find('select',n=>n.props.id==='metronome-preset-list')
+          .props.onChange({target:{value:'existing'}});
+        await nextTick();
+        view.find('button',n=>n.text==='metronome.replacePreset').props.onClick();
+        await nextTick();
+        view.find('button',n=>n.text==='metronome.confirm').props.onClick();
+      }
+      await nextTick();
+      assert.equal(fakeUiState.presets.length,1);
+      const saved=fakeUiState.presets[0].config;
+      assert.equal(saved.numerator,7);
+      assert.deepEqual(saved.groups,[3,2,2],
+        operation+' must reflect the visible new grouping, not stale 2+2+3');
+      assert.deepEqual(saved.positions.map(p=>p.accent),
+        ['strong','weak','weak','medium','weak','medium','weak'],
+        'newly typed group starts must receive suggested accents');
+      assert.equal(engine.getConfig().numerator,4,
+        'saving a draft is distinct from applying the meter to playback');
+    } finally {
+      app?.unmount();
+      fakeUiState.presets=[];
+      globalThis.document=previousDocument;
+      delete globalThis.__testMetronome87;
+    }
+  }
+});
