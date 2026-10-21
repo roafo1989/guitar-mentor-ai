@@ -489,6 +489,27 @@ test('TOOL-03 review P2: real tuner swaps profiles during live microphone sessio
         c.props.class==='tuner-peg-note')?.text),['E2','A2','D3','G3','B3','E4']);
       const micBar=dom.find(dom.body,n=>n.tag==='div'&&n.props.class?.includes('tuner-microphone'));
       assert.ok(micBar,'new microphone status bar is present');
+      // Verify the entire approved 3+3 headstock is functional, not merely
+      // decorative, including the highest (right-bottom) string.
+      const expected=['E2','A2','D3','G3','B3','E4'];
+      const getTarget=()=>dom.find(dom.body,n=>n.tag==='div' &&
+        n.props.class==='tuner-readout-target')?.children.find(n=>n.tag==='strong')?.text;
+      for(let index=0;index<6;index++) {
+        findPegs()[index].props.onClick();
+        await nextTick();
+        assert.equal(findPegs().filter(p=>p.props['aria-pressed']).length,1,
+          'exactly one physical string selected in manual mode');
+        assert.equal(findPegs()[index].props['aria-pressed'],true);
+        assert.equal(getTarget(),expected[index],
+          'peg '+(6-index)+' selects its own target with octave');
+      }
+      const auto=dom.find(dom.body,n=>n.tag==='button' &&
+        typeof n.props.class==='string' && n.props.class.includes('tuner-auto-button'));
+      assert.ok(auto);
+      auto.props.onClick();
+      await nextTick();
+      assert.equal(findPegs().filter(p=>p.props['aria-pressed']).length,0,
+        'switching back to Auto clears manual string');
 
       const start=dom.find(dom.body,n=>n.tag==='button'&&
         typeof n.props.class==='string'&&n.props.class.includes('tuner-action'));
