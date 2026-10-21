@@ -28,6 +28,8 @@ import static org.junit.jupiter.api.Assertions.*;
 /** #18 integration tests against Flyway V15, real PostgreSQL locks and REST service logic. */
 @SpringBootTest(properties={
     "guitarmentor.learning.enabled=true",
+    "guitarmentor.learning.review-principal=QA_TEST_REVIEWER",
+    "guitarmentor.learning.review-token=qa-only-secret-not-for-production-18",
     "guitar-mentor.submissions.enabled=true",
     "guitar-mentor.submissions.poll-delay-ms=999999",
     "guitar-mentor.submissions.storage-path=./target/r4-learning-media"
@@ -88,12 +90,20 @@ class LearningPostgresIntegrationTest {
         return uploads.submit(learner,session,task,UUID.randomUUID(),null,wav).id();
     }
 
+    private void markProcessed(UUID attempt) {
+        var now=Timestamp.from(Instant.now());
+        jdbc.update("UPDATE submission_attempts SET status='PROCESSED',"
+          +" processing_finalized_at=?,processing_finished_at=? WHERE id=?",
+          now,now,attempt);
+    }
+
     private DecisionRequest command(UUID attempt,String action,long version,UUID assessment,UUID id) {
         return new DecisionRequest(id,attempt,action,version,assessment,null);
     }
 
     private Input assessment(String firstOutcome) {
-        return new Input(UUID.randomUUID(),"HUMAN_REVIEW","INTERNAL_REVIEW","v1",true,List.of(
+        return new Input(UUID.randomUUID(),"HUMAN_REVIEW","INTERNAL_REVIEW","v1",
+            "QA_TEST_REVIEWER","qa-only-secret-not-for-production-18",List.of(
             new CriterionInput("PULSE_STEADY","ASSESSED",firstOutcome,null,"observed pulse"),
             new CriterionInput("BASS_STEADY","ASSESSED","MEETS",null,null),
             new CriterionInput("MELODY_CLEAR","ASSESSED","MEETS",null,null)));
@@ -150,6 +160,7 @@ class LearningPostgresIntegrationTest {
         var choice=service.decide(learner,session,task,new DecisionRequest(
             UUID.randomUUID(),attempt,"COMPLETE",0L,revise.id(),"I accept the imperfections"));
         assertEquals("COMPLETED_BY_LEARNER",choice.result().taskState());
+        markProcessed(attempt);
         var pass=writer.record(learner,session,task,attempt,assessment("MEETS"));
         assertEquals("PASS",pass.recommendation());
         assertEquals(2,pass.revision());
@@ -161,9 +172,9 @@ class LearningPostgresIntegrationTest {
         assertEquals("COMPLETED_BY_LEARNER",service.learning(learner,session,task).taskState());
         assertEquals(revise.id(),service.decisions(learner,session,task,20,null)
             .items().getFirst().assessmentId());
-        assertEquals(3,service.evidence(learner,session,task).stream()
+        assertEquals(3,service.evidence(learner,session,task,20,null).items().stream()
             .filter(e->e.assessmentId().equals(pass.id())).count());
-        assertTrue(service.evidence(learner,session,task).stream()
+        assertTrue(service.evidence(learner,session,task,20,null).items().stream()
             .allMatch(e->e.confirmedSkillLevel()==null));
         assertEquals(0,jdbc.queryForObject("SELECT COUNT(*) FROM learner_skill_signal_history "
             +"WHERE instrument_profile_id=?",Integer.class,profile));
@@ -171,6 +182,7 @@ class LearningPostgresIntegrationTest {
 
     @Test void passedOnlyByValidatedFullCriteria() {
         UUID attempt=upload();
+        markProcessed(attempt);
         var pass=writer.record(learner,session,task,attempt,assessment("MEETS"));
         var result=service.decide(learner,session,task,
             command(attempt,"COMPLETE",0,pass.id(),UUID.randomUUID()));
@@ -203,15 +215,19 @@ class LearningPostgresIntegrationTest {
     @Test void invalidSourceAndCriterionCannotIssuePass() {
         UUID attempt=upload();
         code("INVALID_ASSESSMENT",()->writer.record(learner,session,task,attempt,
-            new Input(UUID.randomUUID(),"DEMO","fake","1",true,List.of())));
+            new Input(UUID.randomUUID(),"DEMO","fake","1",
+                "QA_TEST_REVIEWER","qa-only-secret-not-for-production-18",List.of())));
         code("INVALID_ASSESSMENT",()->writer.record(learner,session,task,attempt,
-            new Input(UUID.randomUUID(),"HUMAN_REVIEW","INTERNAL_REVIEW","v1",false,List.of())));
+            new Input(UUID.randomUUID(),"HUMAN_REVIEW","INTERNAL_REVIEW","v1",
+                "FAKE_REVIEWER","invalid",List.of())));
         code("INVALID_ASSESSMENT",()->writer.record(learner,session,task,attempt,
-            new Input(UUID.randomUUID(),"VALIDATED_MEASUREMENT","unapproved","1",true,
+            new Input(UUID.randomUUID(),"VALIDATED_MEASUREMENT","unapproved","1",
+                "QA_TEST_REVIEWER","qa-only-secret-not-for-production-18",
                 List.of(new CriterionInput("PULSE_STEADY","ASSESSED","MEETS",null,null)))));
         assertTrue(service.assessments(learner,session,task,attempt,20,null).items().isEmpty());
         assertEquals("UNCERTAIN",writer.record(learner,session,task,attempt,
-            new Input(UUID.randomUUID(),"HUMAN_REVIEW","INTERNAL_REVIEW","v1",true,
+            new Input(UUID.randomUUID(),"HUMAN_REVIEW","INTERNAL_REVIEW","v1",
+                "QA_TEST_REVIEWER","qa-only-secret-not-for-production-18",
                 List.of(new CriterionInput("PULSE_STEADY","ASSESSED","MEETS",null,null))))
             .recommendation());
     }
@@ -225,7 +241,7 @@ class LearningPostgresIntegrationTest {
         assertEquals(1,service.assessments(learner,session,task,attempt,20,null).items().size());
         code("IDEMPOTENCY_CONFLICT",()->writer.record(learner,session,task,attempt,
             new Input(input.sourceOperationId(),input.sourceKind(),input.methodId(),
-                input.methodVersion(),true,assessment("MEETS").criteria())));
+                input.methodVersion(),input.sourcePrincipal(),input.sourceProof(),assessment("MEETS").criteria())));
     }
 
     @Test void twoConcurrentTransitionsOfOneVersionOnlyOneSucceeds() throws Exception {
