@@ -29,13 +29,19 @@ guitar-mentor:
     poll-delay-ms: ${GUITAR_MENTOR_PROCESS_POLL_MS:3000}
     ffprobe-command: ${GUITAR_MENTOR_FFPROBE:ffprobe}
 
-# #18: explicitly opt in only after applying Flyway V15 on a local QA database.
+# #18: explicitly opt in only after applying Flyway V16 on a local QA database.
 # Disabling the API must not remove the terminal guard from existing uploads.
 guitarmentor:
   learning:
     enabled: ${GUITAR_MENTOR_ENABLE_LEARNING:false}
     # Empty until #22 approves a real measurement method and version.
     validated-methods: ${GUITAR_MENTOR_VALIDATED_METHODS:}
+    # Internal writer: empty credentials mean all HUMAN_REVIEW and measurement writes are denied.
+    # Supply only via local secured deployment environment, never via HTTP or source control.
+    review-principal: ${GUITAR_MENTOR_REVIEW_PRINCIPAL:}
+    review-token: ${GUITAR_MENTOR_REVIEW_TOKEN:}
+    measurement-principal: ${GUITAR_MENTOR_MEASUREMENT_PRINCIPAL:}
+    measurement-token: ${GUITAR_MENTOR_MEASUREMENT_TOKEN:}
 
 management:
   endpoints:
