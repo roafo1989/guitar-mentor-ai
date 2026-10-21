@@ -92,3 +92,16 @@ Addressed two P2 findings in [review #5597827990](https://github.com/roafo1989/g
 Added actual Vue-dialog component regressions in `frontend/tests/metronome-dialog.component.test.mjs`: a four-case active-vs-requested BPM boundary matrix, and invalid 999 BPM → draft 6/8 → Discard → valid 4/4 80 BPM → Start.
 
 **Verification status:** changes and regression tests are committed on the PR branch. A passing CI run **against these commits** has not yet been observed; the most recent known green workflow #388 belongs to an older revision. Pending a full frontend CI check, independent code review, then manual Web Audio/mobile/microphone verification and owner acceptance. No claim of test PASS or feature completion is made in advance.
+
+
+## Review #5599589428 — invalid BPM draft consistency (21 Oct 2026)
+
+Addressed both P2 findings in [review #5599589428](https://github.com/roafo1989/guitar-mentor-ai/pull/105#pullrequestreview-5599589428):
+
+1. **Reject composite Apply on invalid BPM.** `apply()` now validates the *visible* BPM input before validating/applying the rhythmic configuration. With 4/4 80 active → input 999 → choose 6/8 → Apply, no configuration is queued or applied, the invalid value/error remain available for correction, and the uncommitted rhythm remains cancellable.
+2. **Keep invalid BPM and error coherent across scheduler ticks.** `sync()` updates the editable BPM from the requested configuration only when there is no unsaved rhythmic edit **and the field's BPM is valid and unfocused**. Invalid or incomplete edits (999, empty) are not silently overwritten after blur/timer notifications. The student can explicitly correct BPM, tap/step to a valid BPM, or use Discard. Discard remains available for a standalone invalid BPM, even if no rhythmic settings were changed.
+3. **Preset override is an explicit correction.** Loading a valid preset replaces the BPM editor with its saved tempo and clears any prior BPM validation error, allowing its complete configuration to be applied.
+
+Three mounted Vue-dialog regression cases cover: invalid BPM → meter choice → rejected Apply and Discard; invalid BPM → focus elsewhere → repeated audio ticks → invalid editor and message retained → Discard/valid correction; and invalid BPM → explicit valid preset → error cleared and preset applied.
+
+**Verification:** code and tests are committed to PR #105. GitHub Actions CI for the final head must pass before transferring to independent review / tester. Real audible timing and mobile device checks remain separate. Until then, issue #104 / PR #105 remain open and unmerged.
