@@ -62,7 +62,11 @@ function sync(next: MetronomeState): void {
     groupInput.value = requested.groups.join('+');
     lastRequestedJson = signature;
   }
-  if (document.activeElement !== bpmField.value) draft.value = String(next.bpm);
+  // The editable BPM follows the last requested configuration, not the still
+  // sounding BPM while a preset/configuration waits for the next bar.
+  // Do not overwrite unsaved edits or a focused number input.
+  if (!dirty.value && document.activeElement !== bpmField.value)
+    draft.value = String(requested.bpm);
   if (next.error) error.value = '';
 }
 function store(): void {
@@ -112,8 +116,16 @@ function setMeter(n: number, d: number): void {
   if (!Number.isInteger(n) || n < 1 || n > 16 || !denominators.includes(d)) {
     configError.value = t('metronome.invalidConfig'); return;
   }
-  const next = meterConfig(n, d as 2 | 4 | 8 | 16, state.value.bpm);
-  next.masterVolumePercent = draftConfig.value.masterVolumePercent;
+  const previous = draftConfig.value;
+  // Meter selection replaces the rhythmic pattern but must not revert a
+  // requested preset tempo to the BPM still sounding in the current bar.
+  const next = meterConfig(n, d as 2 | 4 | 8 | 16, previous.bpm);
+  // Sound mix and subdivision are not meter-specific. Preserve the user's
+  // draft choices; new beat positions receive the meter's suggested accents.
+  next.masterVolumePercent = previous.masterVolumePercent;
+  next.accentVolumes = { ...previous.accentVolumes };
+  next.subdivisionVolumePercent = previous.subdivisionVolumePercent;
+  next.subdivision = previous.subdivision;
   draftConfig.value = next;
   meterN.value = n;
   meterD.value = d as 2 | 4 | 8 | 16;
@@ -326,6 +338,12 @@ onBeforeUnmount(() => {
             <button type="button" class="metronome-tap" @click="tap">{{ t('metronome.tap') }}</button>
           </div>
           <small id="metronome-range">{{ MIN_BPM }}–{{ MAX_BPM }} BPM · {{ t('metronome.current', { bpm: state.bpm }) }}</small>
+          <small v-if="state.status === 'running' && (dirty || metronome.getPendingConfig())"
+            class="metronome-tempo-comparison" role="status">
+            {{ t('metronome.soundingTempo', { bpm: state.bpm, unit: t('metronome.units.' + active.tempoUnit) }) }}
+            · {{ t(dirty ? 'metronome.editingTempo' : 'metronome.queuedTempo',
+              { bpm: draftConfig.bpm, unit: t('metronome.units.' + draftConfig.tempoUnit) }) }}
+          </small>
           <small v-if="tapStatus" role="status">{{ tapStatus }}</small>
           <p v-if="error" id="metronome-error" role="alert" class="metronome-error">{{ error }}</p>
         </div>
