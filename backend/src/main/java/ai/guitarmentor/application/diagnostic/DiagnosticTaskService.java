@@ -22,15 +22,15 @@ public class DiagnosticTaskService {
     private final DiagnosticTaskRepository tasks;
     private final ExerciseRepository exercises;
     private final LearnerRepository learners;
-    @org.springframework.beans.factory.annotation.Autowired(required = false)
-    private LearningRepository learning;
+    private final LearningRepository learning;
 
     public DiagnosticTaskService(DiagnosticSessionRepository sessions, DiagnosticTaskRepository tasks,
-            ExerciseRepository exercises, LearnerRepository learners) {
+            ExerciseRepository exercises, LearnerRepository learners, LearningRepository learning) {
         this.sessions = sessions;
         this.tasks = tasks;
         this.exercises = exercises;
         this.learners = learners;
+        this.learning = learning;
     }
 
     @Transactional(readOnly = true)
@@ -60,7 +60,7 @@ public class DiagnosticTaskService {
             throw new IllegalStateException("Exercise is not suitable for this instrument and technique");
         }
         var task = tasks.saveAndFlush(new DiagnosticTask(session, exercise));
-        if (learning != null) learning.initialize(task.getId()); // Same transaction as assignment.
+        learning.initialize(task.getId()); // Same transaction as assignment.
         session.markTaskAssigned();
         return TaskView.from(task);
     }
