@@ -484,6 +484,17 @@ test('TOOL-03 review P2: real tuner swaps profiles during live microphone sessio
       for(const at of [100,200,300]) await pulse(at);
       assert.equal(findStatus()?.text,'tuner.inTune');
       assert.equal(findPegs()[1].props['aria-pressed'],true,'Auto recognizes standard A2');
+      // Direct rendered-UI regression: +4c still counts as tuned, but
+      // crossing to +8c on the following fresh sample must not display
+      // the stale green median at +4c (even though both differ <5c).
+      currentHz=110*2**(4/1200);
+      await pulse(400);
+      await pulse(500);
+      assert.equal(findStatus()?.text,'tuner.inTune');
+      currentHz=110*2**(8/1200);
+      await pulse(600);
+      assert.equal(findStatus()?.text,'tuner.stabilizing',
+        'fresh +8c candidate invalidates a previously green +4c median');
       const select=findSelect();
       select.props.onChange({target:{value:'DROP_D'}});
       await nextTick();
@@ -493,7 +504,7 @@ test('TOOL-03 review P2: real tuner swaps profiles during live microphone sessio
       assert.equal(contexts,1,'switching profile must reuse AudioContext');
 
       currentHz=73.41619;
-      for(const at of [400,500,600]) await pulse(at);
+      for(const at of [700,800,900]) await pulse(at);
       assert.equal(findStatus()?.text,'tuner.inTune','drop D becomes valid only after three fresh frames');
       assert.equal(findPegs()[0].props['aria-pressed'],true);
       const sixth=findPegs()[0];
