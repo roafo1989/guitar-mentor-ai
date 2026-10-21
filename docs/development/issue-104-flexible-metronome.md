@@ -80,3 +80,15 @@ The three new findings from [repeat PR review](https://github.com/roafo1989/guit
 A mounted-dialog integration regression exercises the real Vue component and a mock engine with distinct active/pending states: 4/4 quarter 80 playing → load 7/8 eighth 95 preset with custom sound levels → choose 6/8 → Apply → keep 6/8 dotted-quarter 95 and sound levels pending until the simulated barline. Another mounted regression covers reopening and +1 with queued BPM.
 
 These tests supplement but do not replace physical audio and mobile browser QA. The issue remains open until independent review and owner acceptance.
+
+
+## Repeat review #5597827990 — additional corrections (21 Oct 2026)
+
+Addressed two P2 findings in [review #5597827990](https://github.com/roafo1989/guitar-mentor-ai/pull/105#pullrequestreview-5597827990):
+
+1. **Consistent BPM +/- limits.** A single computed `stepReferenceBpm` derives from the valid BPM shown in the editable field (falling back to the active BPM if that field is invalid). Both ± button disabled states and `stepTempo` use it. In active/pending transitions, an audible 240 with queued 95 still permits + to 96; an audible 20 with queued 95 permits − to 94. The buttons remain disabled at the requested 20/240 bounds.
+2. **Discard includes BPM input state.** `discard()` restores the accepted or pending BPM into the number field, clears the BPM validation error, refreshes the accepted-config signature and keeps beat-selection within the restored meter. A partial/invalid BPM edit no longer prevents Start after the user discards rhythm edits.
+
+Added actual Vue-dialog component regressions in `frontend/tests/metronome-dialog.component.test.mjs`: a four-case active-vs-requested BPM boundary matrix, and invalid 999 BPM → draft 6/8 → Discard → valid 4/4 80 BPM → Start.
+
+**Verification status:** changes and regression tests are committed on the PR branch. A passing CI run **against these commits** has not yet been observed; the most recent known green workflow #388 belongs to an older revision. Pending a full frontend CI check, independent code review, then manual Web Audio/mobile/microphone verification and owner acceptance. No claim of test PASS or feature completion is made in advance.
