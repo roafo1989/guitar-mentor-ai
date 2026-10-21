@@ -202,20 +202,35 @@ function changeSubdivisionVolume(value: string): void {
   draftConfig.value.subdivisionVolumePercent = v;
   dirty.value = true;
 }
-function apply(): boolean {
-  // Validate the *visible* tempo before accepting any composite changes. An
-  // invalid number input does not update draftConfig.bpm, so validConfig alone
-  // would mistakenly accept a rhythm while the BPM field still shows 999.
-  if (parseMetronomeBpm(draft.value) === null) {
+/** Validate the actual input fields for every action that accepts a config.
+ * Group text may not have dispatched its blur/change event before Save/Replace.
+ * Reconcile a valid uncommitted grouping, including its suggested accents.
+ */
+function validateDraftFields(): boolean {
+  const bpm = parseMetronomeBpm(draft.value);
+  if (bpm === null) {
     error.value = t('metronome.invalidBpm');
     return false;
   }
+  error.value = '';
   const groups = parseGroups(groupInput.value, draftConfig.value.numerator);
-  if (!groups) { configError.value = t('metronome.invalidGroups'); return false; }
-  draftConfig.value.groups = groups;
-  if (!validConfig(draftConfig.value)) {
-    configError.value = t('metronome.invalidConfig'); return false;
+  if (!groups) {
+    configError.value = t('metronome.invalidGroups');
+    return false;
   }
+  if (groups.length !== draftConfig.value.groups.length ||
+      groups.some((size, index) => size !== draftConfig.value.groups[index]))
+    changeGroups(); // reflects the newly entered grouping in draft and accents
+  draftConfig.value.bpm = bpm;
+  if (!validConfig(draftConfig.value)) {
+    configError.value = t('metronome.invalidConfig');
+    return false;
+  }
+  configError.value = '';
+  return true;
+}
+function apply(): boolean {
+  if (!validateDraftFields()) return false;
   // Composite loading may also carry a new BPM. It remains pending at the bar line.
   if (!metronome.applyConfig(draftConfig.value)) return false;
   dirty.value = false;
@@ -238,10 +253,10 @@ function discard(): void {
 }
 function savePreset(): void {
   const name = presetName.value.trim();
-  if (!name || name.length > 60 || metronomeUi.presets.length >= 20 ||
-      !validConfig(draftConfig.value)) {
+  if (!name || name.length > 60 || metronomeUi.presets.length >= 20) {
     configError.value = t('metronome.invalidPreset'); return;
   }
+  if (!validateDraftFields()) return;
   const id = globalThis.crypto?.randomUUID?.() ?? 'local-' + String(Date.now()) + '-' + String(Math.random());
   metronomeUi.presets.push({ id, name, config:copyConfig(draftConfig.value) });
   selectedPreset.value = id;
@@ -274,10 +289,9 @@ function confirmPreset(): void {
   if (confirmAction.value === 'delete') {
     metronomeUi.presets = metronomeUi.presets.filter(item => item.id !== p.id);
     selectedPreset.value = '';
-  } else if (validConfig(draftConfig.value)) {
-    p.config = copyConfig(draftConfig.value);
   } else {
-    configError.value = t('metronome.invalidConfig'); return;
+    if (!validateDraftFields()) return;
+    p.config = copyConfig(draftConfig.value);
   }
   confirmAction.value = null;
   store();
