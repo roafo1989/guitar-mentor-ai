@@ -17,7 +17,7 @@ Previously assigned tasks remain active, never retroactively passed.
 ## Local opt-in
 
 1. Pull this branch, back up the development database and run the Spring Boot backend.
-   Flyway upgrades the DB to V15; inspect `flyway_schema_history`.
+   Flyway upgrades the DB to V16; inspect `flyway_schema_history`.
 2. By default `GUITAR_MENTOR_ENABLE_LEARNING=false`: new learning routes
    respond `503 {"code":"LEARNING_DISABLED"}`, existing upload/list/profile/catalog work.
 3. For local QA **only**, restart with `GUITAR_MENTOR_ENABLE_LEARNING=true`.
@@ -27,7 +27,14 @@ Previously assigned tasks remain active, never retroactively passed.
    are created only by the integration fixture or internal trusted service.
    `VALIDATED_MEASUREMENT` is refused unless the approved `methodId:methodVersion`
    is explicitly allowlisted in `GUITAR_MENTOR_VALIDATED_METHODS` (empty by default).
-   Do not add a method without #22 validation and a dedicated review.
+   Both HUMAN_REVIEW and validated measurements additionally require the matching
+   server-provisioned principal and secret proof; empty credentials deny all writers.
+   Use `GUITAR_MENTOR_REVIEW_PRINCIPAL`/`GUITAR_MENTOR_REVIEW_TOKEN` for a local
+   authorized internal reviewer and `GUITAR_MENTOR_MEASUREMENT_PRINCIPAL`/
+   `GUITAR_MENTOR_MEASUREMENT_TOKEN` only for a validated #22 provider.
+   Never send the secret via REST, store it in the database, print it, or commit real
+   credentials. The saved assessment includes the reviewed principal, never its proof.
+   The local secret check does not replace real authentication planned in #38.
 
 The server is still local-only and has no login. Do not expose it to the internet
 until the separate authentication/deployment work (#38).
@@ -41,7 +48,7 @@ Base: `/api/v1/learners/{learnerId}/diagnostic-sessions/{sessionId}/tasks/{taskI
 | GET | `/learning` | `ACTIVE` or terminal, version, available actions, latest attempt and assessment state |
 | GET | `/attempts/{attemptId}/assessments?limit=20&cursor=...` | Immutable assessment revisions, newest first |
 | GET | `/decisions?limit=20&cursor=...` | Immutable decision history |
-| GET | `/learning/evidence` | Read-only criterion provenance, `confirmedSkillLevel=null` |
+| GET | `/learning/evidence?limit=20&cursor=...` | Paginated criterion provenance and attributable review source, `confirmedSkillLevel=null` |
 | POST | `/decisions` | Independent choice, server-computed resulting state |
 
 POST example:
@@ -66,12 +73,17 @@ Possible codes: `INVALID_DECISION`, `REASON_TOO_LONG`, `INVALID_PAGINATION` (400
 `RESOURCE_NOT_FOUND` (404, including cross-learner IDs);
 `NO_ATTEMPT`, `VERSION_CONFLICT`, `ASSESSMENT_CHANGED`,
 `IDEMPOTENCY_CONFLICT`, `TASK_COMPLETED` (409);
-`LEARNING_DISABLED` (503). A first successful POST returns 201, byte-equivalent
+`LEARNING_DISABLED` (503). Internal writer rejects `PASS` until the source
+attempt is technically `PROCESSED` with finalized processing; it returns
+`ASSESSMENT_NOT_READY` (409) otherwise. The student may still COMPLETE independently
+while a recording is unfinished or FAILED, but receives `COMPLETED_BY_LEARNER`,
+never an artificial PASS. A first successful POST returns 201, byte-equivalent
 normalized `requestId` replay returns 200 with the original saved result.
 Assessment/decision history are paginated using opaque resource-bound cursors,
 limit 1–100, default 20.
 
-A complete decision based on current fully assessed PASS becomes
+A complete decision based on current fully assessed PASS **and a successfully
+finalized technical check** becomes
 `COMPLETED_PASSED`. A complete decision after REVISE, UNCERTAIN or no assessment
 becomes `COMPLETED_BY_LEARNER`. A CONTINUE always stays ACTIVE.
 Nothing writes a MEASURED/OBSERVED level to skill history. New uploads of a
@@ -90,14 +102,17 @@ Java unit tests are always run. Real-PostgreSQL integration tests require the
 same CI env setup as the existing backend tests: `GUITAR_MENTOR_TEST_POSTGRES=true`
 and an accessible test PostgreSQL database. Avoid production data.
 
-Review matrix: AC18-01 backfill and snapshots; 02 truthful unassessed state;
+Review matrix: AC18-01 real V14→V16 migration upgrade/backfill and snapshots; 02 truthful unassessed state;
 03 revisions; 04–06 choices; 07 continue/new attempt; 08 replay;
-09 optimistic version and assessment CAS; 10 ownership; 11 TTL retained history;
-12 terminal replay/guard; 13 source validation/no false skill level; 14 flag/rollback.
+09 optimistic version and assessment CAS; 10 ownership; 11 real TTL retained history;
+12 terminal replay/guard; 13 source identity+secret, approved methods/no false skill level; 14 flag/rollback.
+Additional regression checks verify rejection of premature PASS and a defensive
+downgrade to learner-chosen completion for a historically saved PASS if its
+technical state later changes to FAILED. Evidence pagination is tested with >100 rows.
 The integration suite exercises service/repository transitions with real SQL;
 audio grading itself is not tested or claimed.
 
-For rollback: turn learning flag off and restart. Preserve V15 tables;
+For rollback: turn learning flag off and restart. Preserve V15/V16 tables;
 **do not** alter old Flyway migrations or auto-downgrade SQL. If deploying an
 older backend, also disable uploads: it will not know terminal-state guards.
 Recovery of discarded media requires an existing backup; the TTL cleaner does
