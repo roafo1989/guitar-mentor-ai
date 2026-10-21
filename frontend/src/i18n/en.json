@@ -303,6 +303,11 @@
     },
     "minimize": "Minimize and keep playing",
     "playingInBackground": "Metronome is playing — open controls",
-    "confirmReset": "Reset will replace the corrupted local data with defaults. Continue?"
+    "confirmReset": "Reset will restore default settings and delete saved presets. Continue?",
+    "confirmResetCorrupt": "Reset will replace corrupted local data with defaults. Continue?",
+    "playingPattern": "Currently playing",
+    "editingPattern": "Editing pattern (not yet playing)",
+    "selectBeatForVolume": "Select beat to adjust its volume (without changing accent)",
+    "userMeterWarning": "User-defined meter — check against the exercise sheet music."
   }
 }
