@@ -8,6 +8,7 @@ import ai.guitarmentor.infrastructure.persistence.DiagnosticSessionRepository;
 import ai.guitarmentor.infrastructure.persistence.DiagnosticTaskRepository;
 import ai.guitarmentor.infrastructure.persistence.ExerciseRepository;
 import ai.guitarmentor.infrastructure.persistence.LearnerRepository;
+import ai.guitarmentor.infrastructure.persistence.LearningRepository;
 import ai.guitarmentor.interfaces.rest.diagnostic.TaskDtos.TaskView;
 import jakarta.persistence.EntityNotFoundException;
 import java.util.Optional;
@@ -21,6 +22,8 @@ public class DiagnosticTaskService {
     private final DiagnosticTaskRepository tasks;
     private final ExerciseRepository exercises;
     private final LearnerRepository learners;
+    @org.springframework.beans.factory.annotation.Autowired(required = false)
+    private LearningRepository learning;
 
     public DiagnosticTaskService(DiagnosticSessionRepository sessions, DiagnosticTaskRepository tasks,
             ExerciseRepository exercises, LearnerRepository learners) {
@@ -57,6 +60,7 @@ public class DiagnosticTaskService {
             throw new IllegalStateException("Exercise is not suitable for this instrument and technique");
         }
         var task = tasks.saveAndFlush(new DiagnosticTask(session, exercise));
+        if (learning != null) learning.initialize(task.getId()); // Same transaction as assignment.
         session.markTaskAssigned();
         return TaskView.from(task);
     }
