@@ -354,6 +354,9 @@
     "resetStorage": "Reset settings and presets",
     "apply": "Apply",
     "discard": "Discard edits",
-    "pending": "New settings will start at the next bar."
+    "pending": "New settings will start at the next bar.",
+    "soundingTempo": "Playing: {bpm} BPM · {unit}",
+    "editingTempo": "Editing: {bpm} BPM · {unit}",
+    "queuedTempo": "Next bar: {bpm} BPM · {unit}"
   }
 }
