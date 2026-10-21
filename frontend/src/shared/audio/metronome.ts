@@ -98,10 +98,8 @@ export class MetronomeEngine {
     if (!validConfig(requested)) return false;
     const next = copyConfig(requested);
     if (this.state.status === 'running') {
-      // A separate BPM operation must still follow #87 even with an already pending config.
-      // Composite changes are held in full until the next bar.
-      next.bpm = this.config.bpm;
-      next.masterVolumePercent = this.config.masterVolumePercent;
+      // Composite changes (including a preset's BPM and master level) land together.
+      // Standalone setBpm/setMasterVolume remain immediate even with a pending config.
       this.pendingConfig = next;
     } else {
       this.config = next;
@@ -216,6 +214,7 @@ export class MetronomeEngine {
         if (this.nextBeatIndex === 0 && this.nextSubIndex === 0 && this.pendingConfig) {
           this.config = this.pendingConfig;
           this.pendingConfig = null;
+          this.masterGain?.gain.setValueAtTime(this.config.masterVolumePercent / 100, this.nextBeatTime);
           interval = positionSeconds(this.config) / this.config.subdivision;
           this.state = { ...this.state, bpm:this.config.bpm };
           this.emit();
