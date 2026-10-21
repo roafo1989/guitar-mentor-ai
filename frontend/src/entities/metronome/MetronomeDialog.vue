@@ -38,6 +38,9 @@ let unsubscribe: (() => void) | null = null;
 let previousOverflow = '';
 let lastRequestedJson = JSON.stringify(draftConfig.value);
 const silent = computed(() => !audible(draftConfig.value));
+// Use the same BPM for +/- and their disabled states. While a preset is
+// pending, the playing BPM can differ from the number in the editor.
+const stepReferenceBpm = computed(() => parseMetronomeBpm(draft.value) ?? state.value.bpm);
 const differentPlayingPattern = computed(() => state.value.status === 'running' &&
   JSON.stringify({
     n:active.value.numerator, d:active.value.denominator, groups:active.value.groups,
@@ -91,7 +94,7 @@ function onTempoInput(event: Event): void {
   store();
 }
 function stepTempo(step: -1 | 1): void {
-  const bpm = stepMetronomeBpm(parseMetronomeBpm(draft.value) ?? state.value.bpm, step);
+  const bpm = stepMetronomeBpm(stepReferenceBpm.value, step);
   draft.value = String(bpm);
   error.value = '';
   metronome.setBpm(bpm);
@@ -216,6 +219,11 @@ function discard(): void {
   meterN.value = draftConfig.value.numerator;
   meterD.value = draftConfig.value.denominator;
   groupInput.value = draftConfig.value.groups.join('+');
+  // Discard also abandons an invalid/partial BPM edit, not only rhythm fields.
+  draft.value = String(draftConfig.value.bpm);
+  error.value = '';
+  beatSelection.value = Math.min(beatSelection.value, draftConfig.value.numerator - 1);
+  lastRequestedJson = JSON.stringify(draftConfig.value);
   dirty.value = false; configError.value = '';
 }
 function savePreset(): void {
@@ -327,13 +335,13 @@ onBeforeUnmount(() => {
         <div class="metronome-tempo">
           <label for="metronome-bpm">{{ t('metronome.tempo') }}</label>
           <div class="metronome-tempo-controls">
-            <button type="button" :aria-label="t('metronome.slower')" :disabled="state.bpm <= MIN_BPM" @click="stepTempo(-1)">−</button>
+            <button type="button" :aria-label="t('metronome.slower')" :disabled="stepReferenceBpm <= MIN_BPM" @click="stepTempo(-1)">−</button>
             <input id="metronome-bpm" ref="bpmField" :value="draft" @input="onTempoInput"
               type="number" inputmode="numeric" :min="MIN_BPM" :max="MAX_BPM" step="1"
               :aria-invalid="!!error && state.error === null"
               :aria-describedby="error ? 'metronome-error' : 'metronome-range'"
               @change="commitTempo" @keydown.enter.prevent="commitTempo" />
-            <button type="button" :aria-label="t('metronome.faster')" :disabled="state.bpm >= MAX_BPM" @click="stepTempo(1)">+</button>
+            <button type="button" :aria-label="t('metronome.faster')" :disabled="stepReferenceBpm >= MAX_BPM" @click="stepTempo(1)">+</button>
             <span class="metronome-bpm-unit">BPM · {{ t('metronome.units.' + draftConfig.tempoUnit) }}</span>
             <button type="button" class="metronome-tap" @click="tap">{{ t('metronome.tap') }}</button>
           </div>
