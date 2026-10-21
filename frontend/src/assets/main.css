@@ -287,3 +287,11 @@ footer { text-align: center; font-size: 12px; padding: 24px; color: #8793a4; }
   .metronome-backdrop { padding: 8px; }
   .metronome-count { grid-template-columns: repeat(auto-fit, minmax(47px, 1fr)); }
 }
+
+/* TOOL-02 review: primary master and explicit audible-vs-editable grid. */
+.metronome-master { display: flex; flex-direction: column; gap: 5px; margin-top: 12px; }
+.metronome-master label { font-weight: 700; }
+.metronome-master input[type="range"] { min-height: 44px; width: 100%; accent-color: #27665b; }
+.metronome-playing-pattern { border: 1px solid #d8e7e2; padding: 8px; border-radius: 8px; margin-top: 10px; }
+.metronome-count-active { margin: 8px 0; }
+.metronome-count-active .metronome-beat { background: #f7faf9; justify-content: center; }
