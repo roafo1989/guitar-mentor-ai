@@ -130,3 +130,33 @@ real-device acoustic and mobile UX acceptance remain pending.
 **Verification:** [GitHub Actions 39674392779](https://github.com/roafo1989/guitar-mentor-ai/actions/runs/39674392779)
 passed metronome regressions, tuner DSP tests, TypeScript and Vite on
 `bb2420a4889dd0f0c92cb067b7620cd4a2b3519f`.
+
+
+## Strict-review P1-3 — sustained stability and continuously visible meter (22 Oct 2026)
+
+A pitch changing by 6 cents per 100 ms can pass the target while both
+the newest candidate and median are in the ±5-cent tuning band. That is
+**not** a stationary tuned string. A second defect was the conditional
+`reading=null`, which removed a valid needle and accessible cents exactly
+when passing through the centre.
+
+**Correct independent states:**
+
+- **Live valid pitch:** visual note, full signed cents, direction, target
+  and meter; independent of any stable/green verdict, including ±2 cents.
+- **Tracked pitch / hold:** three-frame initial stabilization and bounded
+  hold on missing candidates; holds are explicitly marked and never green.
+- **Verified in tune:** four **consecutive fresh candidate** measurements,
+  each within ±5 cents of the same physical string's target, with no more
+  than **3 cents** total spread and **2 cents** net drift over the window.
+  Larger drift, a single invalid frame, target/profile change or out-of-band
+  measurement resets the verification window. While waiting for confirmation,
+  the reading and needle remain visible, only the status says stabilizing.
+
+Regression coverage includes symmetric target crossings
+`+20→+14→+8→+2→−4→−10` and
+`−20→−14→−8→−2→+4→+10`, steady 0-cent confirmation,
+small ±1-cent jitter, dropped/held frames, profile changes and earlier
+glissando/false-green regressions in unit and real mounted Vue-SFC tests.
+The four-frame rule adds conservatism intentionally; physical acoustic QA
+remains necessary before owner acceptance.

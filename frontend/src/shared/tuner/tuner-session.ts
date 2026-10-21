@@ -72,6 +72,56 @@ export function displayPitch(
 }
 
 /**
+ * Fresh-signal stability used exclusively for visual "in tune" confirmation.
+ * The needle must never be hidden while this confirmation is pending.
+ *
+ * A four-frame window of pitch candidates, all within ±5 cents of the
+ * selected target, must have <=3 cents total spread and <=2 cents net drift.
+ * This rejects a continuous peg turn crossing through a tuned note even
+ * when the newest pitch and three-frame median simultaneously lie in range.
+ *
+ * An invalid/held frame, target change or out-of-tolerance candidate starts
+ * a new verification window. The caller additionally requires a confirmed
+ * three-frame pitch before feeding candidates to this verifier.
+ */
+export interface TuneConfirmationState {
+  targetHz: number | null;
+  deviations: number[];
+}
+export function newTuneConfirmation(): TuneConfirmationState {
+  return { targetHz: null, deviations: [] };
+}
+export function resetTuneConfirmation(state: TuneConfirmationState): void {
+  state.targetHz = null;
+  state.deviations.length = 0;
+}
+export function confirmTunedPitch(
+  state: TuneConfirmationState, candidate: number | null, targetHz: number | null,
+): boolean {
+  if (candidate === null || targetHz === null ||
+      !Number.isFinite(candidate) || candidate <= 0 ||
+      !Number.isFinite(targetHz) || targetHz <= 0) {
+    resetTuneConfirmation(state);
+    return false;
+  }
+  if (state.targetHz !== targetHz) {
+    resetTuneConfirmation(state);
+    state.targetHz = targetHz;
+  }
+  const deviation = cents(candidate, targetHz);
+  if (Math.abs(deviation) > 5) {
+    state.deviations.length = 0;
+    return false;
+  }
+  state.deviations.push(deviation);
+  if (state.deviations.length > 4) state.deviations.shift();
+  if (state.deviations.length < 4) return false;
+  const spread = Math.max(...state.deviations) - Math.min(...state.deviations);
+  const drift = Math.abs(state.deviations[3] - state.deviations[0]);
+  return spread <= 3 && drift <= 2;
+}
+
+/**
  * Auto mode considers only known open-string targets. Large detunings beyond
  * 175 cents are deliberately left to manual selection on first detection.
  * While tracking an established string, tolerate up to 235 cents to avoid

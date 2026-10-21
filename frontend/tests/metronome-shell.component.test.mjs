@@ -485,26 +485,26 @@ test('TOOL-03 review P2: real tuner swaps profiles during live microphone sessio
         callback(at);
         await nextTick();
       }
-      for(const at of [100,200,300]) await pulse(at);
+      let time=0;
+      for(let k=0;k<6;k++){time+=100;await pulse(time);}
       assert.equal(findStatus()?.text,'tuner.inTune');
       assert.equal(findPegs()[1].props['aria-pressed'],true,'Auto recognizes standard A2');
       // Direct rendered-UI regression: +4c still counts as tuned, but
       // crossing to +8c on the following fresh sample must not display
       // the stale green median at +4c (even though both differ <5c).
       currentHz=110*2**(4/1200);
-      await pulse(400);
-      await pulse(500);
-      assert.equal(findStatus()?.text,'tuner.inTune');
+      for(let k=0;k<2;k++){time+=100;await pulse(time);}
+      assert.notEqual(findStatus()?.text,'tuner.inTune',
+        'pitch change should invalidate earlier steady confirmation');
       currentHz=110*2**(8/1200);
-      await pulse(600);
+      time+=100;await pulse(time);
       assert.equal(findStatus()?.text,'tuner.stabilizing',
         'fresh +8c candidate invalidates a previously green +4c median');
       // Both directions must remain readable *throughout* a peg adjustment,
       // not only when the sound becomes steady again.
-      let time=600;
       for(const direction of [1,-1]) {
         currentHz=110;
-        for(let k=0;k<3;k++) {time+=100;await pulse(time);}
+        for(let k=0;k<6;k++) {time+=100;await pulse(time);}
         assert.equal(findStatus()?.text,'tuner.inTune','steady note stabilizes before ramp');
         for(let step=1;step<=10;step++) {
           currentHz=110*2**(direction*step*6/1200);
@@ -524,10 +524,32 @@ test('TOOL-03 review P2: real tuner swaps profiles during live microphone sessio
       currentHz=110*2**(20/1200);
       for(let k=0;k<3;k++) {time+=100;await pulse(time);}
       assert.equal(findStatus()?.text,'tuner.sharp');
+      // No phase of the downward crossing may flash green. The old logic
+      // went green at -4c because its last candidate and median both
+      // happened to be inside ±5c during the same moving window.
+      for(const offset of [14,8,2,-4,-10]) {
+        currentHz=110*2**(offset/1200);
+        time+=100;await pulse(time);
+        assert.ok(findNeedle(),'needle must remain visible at '+offset+'c');
+        assert.equal(findPegs()[1].props['aria-pressed'],true);
+        assert.notEqual(findStatus()?.text,'tuner.inTune',
+          'no transient green while passing through '+offset+'c');
+        if(Math.abs(offset)<=5) {
+          const meter=dom.find(dom.body,n=>n.tag==='div' && n.props.role==='meter');
+          assert.ok(meter,'meter remains accessible through target crossing');
+          assert.notEqual(findStatus()?.text,'tuner.inTune');
+        }
+      }
       currentHz=110;
+      for(let k=0;k<3;k++) {
+        time+=100;await pulse(time);
+        assert.notEqual(findStatus()?.text,'tuner.inTune',
+          'stability gate requires more than three settled frames');
+        assert.ok(findNeedle(),'needle remains visible during confirmation');
+      }
       time+=100;await pulse(time);
-      assert.notEqual(findStatus()?.text,'tuner.inTune',
-        'one transient target-frequency frame cannot assert tuned');
+      assert.equal(findStatus()?.text,'tuner.inTune',
+        'four stable fresh samples confirm target at rest');
       const select=findSelect();
       select.props.onChange({target:{value:'DROP_D'}});
       await nextTick();
@@ -537,8 +559,8 @@ test('TOOL-03 review P2: real tuner swaps profiles during live microphone sessio
       assert.equal(contexts,1,'switching profile must reuse AudioContext');
 
       currentHz=73.41619;
-      for(let k=0;k<3;k++) {time+=100;await pulse(time);}
-      assert.equal(findStatus()?.text,'tuner.inTune','drop D becomes valid only after three fresh frames');
+      for(let k=0;k<6;k++) {time+=100;await pulse(time);}
+      assert.equal(findStatus()?.text,'tuner.inTune','drop D becomes valid after fresh stable frames');
       assert.equal(findPegs()[0].props['aria-pressed'],true);
       const sixth=findPegs()[0];
       sixth.props.onClick();

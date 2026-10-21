@@ -3,7 +3,7 @@ import assert from 'node:assert/strict';
 import { TUNINGS, TUNING_IDS, TUNING_STORAGE_KEY, noteFrequency,
   readTuningPreference, saveTuningPreference } from './tuning-profiles.ts';
 import { detectPitch, cents } from './pitch.ts';
-import { autoStringIndex, newPitchTrack, resetPitchTrack, trackPitch, displayPitch, HOLD_MS } from './tuner-session.ts';
+import { autoStringIndex, newPitchTrack, resetPitchTrack, trackPitch, displayPitch, HOLD_MS, newTuneConfirmation, confirmTunedPitch, resetTuneConfirmation } from './tuner-session.ts';
 import { tunerReading } from './tuner-reading.ts';
 
 const expected = {
@@ -244,4 +244,70 @@ test('REVIEW P1-2: onset of another guitar string still requires fresh stabiliza
     'a jump from A2 to D3 must not be mistaken for continuous peg tuning');
   assert.equal(displayPitch(state,146.832384,500),null);
   assert.ok(displayPitch(state,146.832384,600)!==null);
+});
+
+//
+// Strict-review regressions: passing *through* a tuned pitch is not a stable
+// tuning result, and the meter remains readable while green is withheld.
+test('REVIEW P1-3: continuous ramp through target has visible cents but no false-green', () => {
+  for (const direction of [1,-1]) {
+    const target=110;
+    const tracker=newPitchTrack(), verifier=newTuneConfirmation();
+    const trajectory=direction===1
+      ? [-20,-20,-20,-14,-8,-2,4,10,16]
+      : [20,20,20,14,8,2,-4,-10,-16];
+    let selected=null;
+    for(let i=0;i<trajectory.length;i++) {
+      const offset=trajectory[i], candidate=target*2**(offset/1200);
+      const shown=displayPitch(tracker,candidate,100*(i+1));
+      selected=autoStringIndex(shown,selected,TUNINGS.STANDARD.strings);
+      const green=confirmTunedPitch(
+        verifier, tracker.frequency!==null?candidate:null,
+        selected===null?null:TUNINGS.STANDARD.strings[selected].hz);
+      if(i>=2) {
+        assert.notEqual(shown,null,'needle hidden at '+offset+'c');
+        const reading=tunerReading(shown,target);
+        assert.ok(reading!==null,'cents hidden at '+offset+'c');
+        assert.equal(selected,1,'Auto peg was lost at '+offset+'c');
+        if(Math.abs(offset)<5) assert.equal(reading.status,'inTune',
+          'displayed cents must remain available even while green is denied');
+      }
+      assert.equal(green,false,'false green at '+offset+'c when peg keeps moving');
+    }
+    // Returning to the target and actually holding it should confirm, but
+    // never on the first transient at the centre.
+    const greenStates=[];
+    for(let k=0;k<5;k++) {
+      const now=100*(trajectory.length+k+1);
+      const shown=displayPitch(tracker,target,now);
+      selected=autoStringIndex(shown,selected,TUNINGS.STANDARD.strings);
+      greenStates.push(confirmTunedPitch(
+        verifier,tracker.frequency!==null?target:null,
+        selected===null?null:TUNINGS.STANDARD.strings[selected].hz));
+    }
+    assert.deepEqual(greenStates,[false,false,false,true,true],
+      'four fresh quiet frames required to establish a tuned string');
+  }
+});
+
+test('REVIEW P1-3: fresh target confirmation demands low pitch spread and drift', () => {
+  const toHz=c=>110*2**(c/1200);
+  const stable=newTuneConfirmation();
+  for(const offset of [-4,-2,0,2]) {
+    assert.equal(confirmTunedPitch(stable,toHz(offset),110),false,
+      'slowly moving within ±5c must not be called stable');
+  }
+  resetTuneConfirmation(stable);
+  const states=[0,.5,-.4,.8].map(c=>confirmTunedPitch(stable,toHz(c),110));
+  assert.deepEqual(states,[false,false,false,true],
+    'small natural acoustic jitter may stabilize');
+  assert.equal(confirmTunedPitch(stable,toHz(6),110),false,
+    'leaving tolerance removes success immediately');
+  assert.equal(confirmTunedPitch(stable,toHz(0),110),false,
+    'one fresh reading must not restore success');
+  assert.equal(confirmTunedPitch(stable,null,110),false,
+    'held frames always reset the green confirmation window');
+  assert.equal(confirmTunedPitch(stable,toHz(0),110),false);
+  assert.equal(confirmTunedPitch(stable,toHz(0),146.832384),false,
+    'switching physical strings resets the verification window');
 });

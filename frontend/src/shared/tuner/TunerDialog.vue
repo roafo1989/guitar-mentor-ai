@@ -2,9 +2,9 @@
 import { computed, nextTick, onBeforeUnmount, ref, watch } from 'vue';
 import { useI18n } from 'vue-i18n';
 import { acquireAudio, releaseAudio } from '../audio/audio-session';
-import { cents, detectPitch, noteName } from './pitch';
+import { detectPitch, noteName } from './pitch';
 import { TUNING_IDS, TUNINGS, readTuningPreference, saveTuningPreference, type TuningId } from './tuning-profiles';
-import { autoStringIndex, newPitchTrack, resetPitchTrack, displayPitch } from './tuner-session';
+import { autoStringIndex, newPitchTrack, resetPitchTrack, displayPitch, newTuneConfirmation, resetTuneConfirmation, confirmTunedPitch } from './tuner-session';
 import { isolateDialogFocus } from './modal-focus';
 import { tunerReading } from './tuner-reading';
 import './tuner.css';
@@ -19,10 +19,9 @@ const phase = ref<'idle' | 'requesting' | 'listening'>('idle');
 const message = ref('tuner.ready');
 const error = ref('');
 const frequency = ref<number | null>(null);
-const lastCandidate = ref<number | null>(null);
-// Independent from the live display value: three-frame confirmation is
-// required before showing "in tune", even during a glissando.
-const confirmedFrequency = ref<number | null>(null);
+// Confirmation depends on multiple *fresh* candidate readings, never only
+// on the current pitch and its rolling median.
+const tunedStable = ref(false);
 const tuningId = ref<TuningId>(readTuningPreference());
 const tuning = computed(() => TUNINGS[tuningId.value]);
 const strings = computed(() => tuning.value.strings);
@@ -36,34 +35,24 @@ const stringPaths = [
   'M148 356 L128 246', 'M160 356 L128 166', 'M172 356 L128 86',
   'M188 356 L232 86', 'M200 356 L232 166', 'M212 356 L232 246',
 ] as const;
-// A live reading inside tolerance is not a *confirmed* tuned string until
-// both the latest candidate and the three-frame median are also inside.
-// In particular, a glissando passing through the target must not flash green.
-const unconfirmedInTune = computed(() => phase.value === 'listening' && target.value !== null &&
-  frequency.value !== null && lastCandidate.value !== null &&
-  Math.abs(cents(frequency.value, target.value.hz)) <= 5 &&
-  (confirmedFrequency.value === null ||
-   Math.abs(cents(confirmedFrequency.value, target.value.hz)) > 5 ||
-   Math.abs(cents(lastCandidate.value, target.value.hz)) > 5));
-// An unrecognized (or heavily detuned) pitch must not silently choose a target.
-const reading = computed(() => {
-  if (phase.value !== 'listening' || !target.value || unconfirmedInTune.value) return null;
-  return tunerReading(frequency.value, target.value.hz);
-});
+// Valid pitch/cents/meter are independent of green confirmation. In
+// particular, the needle remains visible while crossing the target.
+const reading = computed(() => phase.value === 'listening' && target.value
+  ? tunerReading(frequency.value, target.value.hz) : null);
 const note = computed(() => frequency.value === null ? '—' : noteName(frequency.value));
 const held = ref(false);
-const status = computed(() => unconfirmedInTune.value ? 'tuner.stabilizing' : reading.value
-  ? held.value ? 'tuner.holding' : 'tuner.' + reading.value.status
+const status = computed(() => reading.value
+  ? held.value ? 'tuner.holding' :
+    reading.value.status === 'inTune' && !isTuned.value
+      ? 'tuner.stabilizing' : 'tuner.' + reading.value.status
   : phase.value === 'listening' && frequency.value !== null && mode.value === 'auto'
     ? 'tuner.autoUncertain' : message.value);
 const position = computed(() => 50 + (reading.value?.meterValue ?? 0));
 const isTuned = computed(() => phase.value === 'listening' && !held.value &&
-  reading.value?.status === 'inTune' && lastCandidate.value !== null &&
-  target.value !== null && confirmedFrequency.value !== null &&
-  Math.abs(cents(lastCandidate.value, target.value.hz)) <= 5 &&
-  Math.abs(cents(confirmedFrequency.value, target.value.hz)) <= 5);
+  reading.value?.status === 'inTune' && tunedStable.value);
 const token = Symbol('tuner');
 const tracking = newPitchTrack();
+const tuneConfirmation = newTuneConfirmation();
 let generation = 0;
 let stream: MediaStream | null = null;
 let context: AudioContext | null = null;
@@ -80,8 +69,8 @@ function clearFocusIsolation(): void {
 function resetPitch(): void {
   resetPitchTrack(tracking);
   frequency.value = null;
-  lastCandidate.value = null;
-  confirmedFrequency.value = null;
+  tunedStable.value = false;
+  resetTuneConfirmation(tuneConfirmation);
   held.value = false;
   if (mode.value === 'auto') selected.value = null;
 }
@@ -171,13 +160,16 @@ async function start(): Promise<void> {
         // Auto mode must not confirm tuning when a competing pitch is detected.
         // Manual mode remains available for difficult or severely detuned notes.
         const candidate = detectPitch(samples, context.sampleRate, mode.value === 'auto');
-        lastCandidate.value = candidate;
         frequency.value = displayPitch(tracking, candidate, now);
-        confirmedFrequency.value = tracking.frequency;
         held.value = candidate === null && frequency.value !== null;
         if (mode.value === 'auto') {
           selected.value = autoStringIndex(frequency.value, selected.value, strings.value);
         }
+        const freshTarget = selected.value === null ? null : strings.value[selected.value];
+        tunedStable.value = confirmTunedPitch(
+          tuneConfirmation, tracking.frequency !== null && !held.value ? candidate : null,
+          freshTarget?.hz ?? null,
+        );
         message.value = candidate === null ? 'tuner.noSignal' :
           frequency.value === null ? 'tuner.stabilizing' : 'tuner.wrongString';
       }
