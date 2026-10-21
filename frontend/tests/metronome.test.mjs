@@ -52,6 +52,7 @@ function audioFactory(clock, contexts, options = {}) {
       destination: {},
       closed: 0,
       oscillators: [],
+      gains: [],
       listeners: new Map(),
       addEventListener(name, fn) { this.listeners.set(name, fn); },
       removeEventListener(name, fn) { if (this.listeners.get(name) === fn) this.listeners.delete(name); },
@@ -79,8 +80,16 @@ function audioFactory(clock, contexts, options = {}) {
         return osc;
       },
       createGain() {
-        return { gain: { setValueAtTime: () => {}, exponentialRampToValueAtTime: () => {} },
-          connect: () => {}, disconnect: () => {} };
+        const gain = {
+          value:1, events:[],
+          setValueAtTime(value, at) { this.events.push({ type:'set', value, at }); this.value=value; },
+          exponentialRampToValueAtTime(value, at) { this.events.push({ type:'exponential', value, at }); this.value=value; },
+          linearRampToValueAtTime(value, at) { this.events.push({ type:'linear', value, at }); this.value=value; },
+          cancelScheduledValues(at) { this.events=this.events.filter(event => event.at < at); },
+        };
+        const node = { gain, connect: () => {}, disconnect: () => {} };
+        this.gains.push(node);
+        return node;
       },
     };
     contexts.push(context);
@@ -361,5 +370,173 @@ test('malformed listener cannot alter next subscriber state', async () => {
     assert.equal(observed.at(-1).bpm, 84);
     assert.equal(observed.at(-1).beat, null);
     assert.equal(env.engine.getState().bpm, 84);
+  } finally { env.restore(); }
+});
+
+
+test('TOOL-02 schedules 100 bars per meter on the audio clock, including 16/16 subdivision 4', async () => {
+  const { meterConfig, positionSeconds } = await import('../src/shared/audio/metronome-config.ts');
+  const cases = [[4,4,'quarter',60,1], [3,4,'quarter',60,1],
+    [6,8,'dotted-quarter',60,1], [7,8,'eighth',140,1],
+    [16,16,'quarter',80,4]];
+  for (const [n,d,unit,bpm,sub] of cases) {
+    const env=setup();
+    try {
+      const config=meterConfig(n,d,bpm);
+      config.tempoUnit=unit;
+      config.subdivision=sub;
+      assert.equal(env.engine.applyConfig(config),true);
+      assert.equal(await env.engine.start(),true);
+      const barMillis=n*positionSeconds(config)*1000;
+      // Chunks avoid the fake timer simulator's 5000-step per-call guard.
+      for (let bar=0;bar<100;bar++) env.clock.advance(barMillis);
+      const clicks=env.contexts[0].oscillators;
+      const expected=100*n*sub;
+      assert.ok(clicks.length>=expected, n+'/'+d+' scheduled '+clicks.length+'/'+expected);
+      const interval=positionSeconds(config)/sub;
+      for(let i=0;i<expected;i++) {
+        assert.ok(Math.abs(clicks[i].at-(0.03+i*interval))<=1e-6,
+          n+'/'+d+' unexpected scheduled click '+i+' at '+clicks[i].at);
+      }
+      env.engine.stop();
+      assert.equal(env.clock.tasks.size,0,'no timers survive Stop');
+    } finally { env.restore(); }
+  }
+});
+
+test('TOOL-02 queued meter/preset swaps once at bar line; live BPM updates queued tempo too', async () => {
+  const { meterConfig } = await import('../src/shared/audio/metronome-config.ts');
+  const env=setup();
+  try {
+    assert.equal(await env.engine.start(),true);
+    env.clock.advance(1100); // after 4/4's first quarter, before first bar ends
+    const preset=meterConfig(7,8,95);
+    preset.tempoUnit='eighth';
+    preset.groups=[3,2,2];
+    assert.equal(env.engine.applyConfig(preset),true);
+    assert.equal(env.engine.getConfig().numerator,4,'current bar is unchanged');
+    assert.equal(env.engine.getPendingConfig().numerator,7);
+    assert.equal(env.engine.getPendingConfig().bpm,95,'composite preset retains its BPM');
+    env.clock.advance(2200); // cross default 4/4 at 80 BPM: 3.03s bar line
+    assert.equal(env.engine.getConfig().numerator,7);
+    assert.equal(env.engine.getConfig().bpm,95);
+    const next=meterConfig(6,8,82);
+    assert.equal(env.engine.applyConfig(next),true);
+    assert.equal(env.engine.setBpm(90),true);
+    assert.equal(env.engine.getState().bpm,90);
+    assert.equal(env.engine.getPendingConfig().bpm,90,'new tap BPM cannot be reverted by old pending');
+    env.clock.advance(7500);
+    assert.equal(env.engine.getConfig().numerator,6);
+    assert.equal(env.engine.getConfig().bpm,90);
+    env.engine.stop();
+    assert.equal(env.clock.tasks.size,0);
+  } finally { env.restore(); }
+});
+
+test('TOOL-02 all-muted beat cells still count; per-position gain and master zero remain safe', async () => {
+  const { meterConfig } = await import('../src/shared/audio/metronome-config.ts');
+  const env=setup();
+  try {
+    const c=meterConfig(4,4,120);
+    c.subdivision=4;
+    c.positions[1].accent='mute';
+    c.positions[2].volumePercent=0;
+    assert.equal(env.engine.applyConfig(c),true);
+    const heard=[];
+    env.engine.subscribe(s=>{ if(s.status==='running' && s.beat!==null) heard.push(s.beat); });
+    assert.equal(await env.engine.start(),true);
+    env.clock.advance(2100);
+    assert.deepEqual(heard.slice(0,4),[1,2,3,4]);
+    const at=env.contexts[0].oscillators.map(o=>o.at);
+    assert.ok(!at.some(t=>t>=.53 && t<1.03), 'mute removes entire subdivided second beat');
+    assert.ok(!at.some(t=>t>=1.03 && t<1.53), 'volume zero removes third beat');
+    assert.equal(env.engine.setMasterVolume(0),true);
+    assert.equal(env.engine.getConfig().masterVolumePercent,0);
+    env.engine.stop();
+  } finally { env.restore(); }
+});
+
+test('TOOL-02 lookahead: last request wins at the imminent bar, not the next one', async () => {
+  const { meterConfig } = await import('../src/shared/audio/metronome-config.ts');
+  const env=setup();
+  try {
+    assert.equal(await env.engine.start(),true);
+    env.clock.advance(2940); // next bar begins at 3.03s (4/4, 80 quarter BPM)
+    const p1=meterConfig(3,4,70);
+    assert.equal(env.engine.applyConfig(p1),true);
+    env.clock.advance(35); // the scheduler has planned the next bar inside its 100ms lookahead
+    assert.equal(env.engine.getConfig().numerator,4,'audio has not reached the boundary');
+    const p2=meterConfig(7,8,120);
+    p2.tempoUnit='eighth';
+    assert.equal(env.engine.applyConfig(p2),true);
+    assert.equal(env.engine.getPendingConfig().numerator,7);
+    assert.equal(env.engine.getConfig().numerator,4,'future clicks are not treated as already audible');
+    env.clock.advance(70);
+    assert.equal(env.engine.getConfig().numerator,7,'latest config reaches the imminent bar');
+    assert.equal(env.engine.getConfig().bpm,120);
+    const activeBoundaryClicks=env.contexts[0].oscillators.filter(o =>
+      !o.disconnected && o.at >=3.03-1e-6 && o.at<3.04);
+    assert.equal(activeBoundaryClicks.length,1,'no stale or double first click');
+    env.engine.stop();
+    assert.equal(env.clock.tasks.size,0);
+  } finally { env.restore(); }
+});
+
+test('TOOL-02 master override cancels upcoming stale gain automation, then ramps smoothly', async () => {
+  const { meterConfig } = await import('../src/shared/audio/metronome-config.ts');
+  const env=setup();
+  try {
+    assert.equal(await env.engine.start(),true);
+    env.clock.advance(2940);
+    const preset=meterConfig(6,8,90);
+    preset.masterVolumePercent=10;
+    assert.equal(env.engine.applyConfig(preset),true);
+    env.clock.advance(35);
+    const gain=env.contexts[0].gains[0].gain;
+    assert.ok(gain.events.some(e=>e.at>=3.03 && e.value===0.1),'old preset gain was queued');
+    assert.equal(env.engine.setMasterVolume(85),true);
+    assert.equal(env.engine.getPendingConfig().masterVolumePercent,85);
+    assert.ok(!gain.events.some(e=>e.at>=3.03 && e.value===0.1),'stale future automation removed');
+    assert.ok(gain.events.some(e=>e.type==='linear' && e.value===0.85 && e.at>=2.975));
+    env.clock.advance(80);
+    assert.equal(env.engine.getConfig().masterVolumePercent,85);
+    env.engine.stop();
+  } finally { env.restore(); }
+});
+
+test('TOOL-02 first pending request also replaces an already queued unchanged first beat', async () => {
+  const { meterConfig } = await import('../src/shared/audio/metronome-config.ts');
+  const env=setup();
+  try {
+    await env.engine.start();
+    env.clock.advance(2975); // 3.03s bar-one click for the old 4/4 pattern was queued at 2.95s
+    assert.equal(env.engine.getConfig().numerator,4);
+    const next=meterConfig(3,4,100);
+    assert.equal(env.engine.applyConfig(next),true);
+    assert.equal(env.engine.getConfig().numerator,4);
+    env.clock.advance(70);
+    assert.equal(env.engine.getConfig().numerator,3,'new pattern must begin on 3.03s, not one bar later');
+    const audibleFirstBeats=env.contexts[0].oscillators.filter(o =>
+      !o.disconnected && o.at >= 3.03-1e-6 && o.at < 3.04);
+    assert.equal(audibleFirstBeats.length,1,'old queued click was stopped');
+    assert.equal(audibleFirstBeats[0].freq,1150);
+    env.engine.stop();
+  } finally { env.restore(); }
+});
+
+test('TOOL-02 fast single-position meter allows mid-lookahead next-bar changes', async () => {
+  const { meterConfig, positionSeconds } = await import('../src/shared/audio/metronome-config.ts');
+  const env=setup();
+  try {
+    const fast=meterConfig(1,16,240);
+    assert.equal(env.engine.applyConfig(fast),true);
+    await env.engine.start();
+    env.clock.advance(40); // 1/16 lasts 62.5ms; the 92.5ms second-bar first beat is already queued.
+    const next=meterConfig(2,16,240);
+    assert.equal(env.engine.applyConfig(next),true);
+    env.clock.advance(60);
+    assert.equal(env.engine.getConfig().numerator,2,'next short bar must adopt latest pattern');
+    assert.ok(Math.abs(positionSeconds(fast)-0.0625)<1e-9);
+    env.engine.stop();
   } finally { env.restore(); }
 });
