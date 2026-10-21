@@ -24,8 +24,10 @@ const fakeAudioUrl = asModule([
   'stop: (...args)=>globalThis.__testMetronome87.stop(...args)',
   '};',
 ].join(String.fromCharCode(10)));
-const fakeI18nUrl = asModule('export const useI18n = () => ({ t: (key) => key });');
-const fakeUiUrl = asModule('export const metronomeUi = {presets:[],storageError:false,storageBlocked:false}; export function persistMetronomeConfig(){return true;} export function resetMetronomePreferences(){return true;}');
+const fakeI18nUrl = asModule('export const useI18n = () => ({ t: (key, args) => args ? key + JSON.stringify(args) : key });');
+const fakeUiState={presets:[],storageError:false,storageBlocked:false,sourceExercise:null};
+globalThis.__testMetronomeUi104=fakeUiState;
+const fakeUiUrl = asModule('export const metronomeUi = globalThis.__testMetronomeUi104; export function persistMetronomeConfig(){return true;} export function resetMetronomePreferences(){return true;}');
 let Component;
 
 async function compileDialog() {
@@ -112,18 +114,28 @@ function createTestRenderer() {
   return { node, renderer, body, find };
 }
 
-function fakeEngine() {
+function fakeEngine({ queueWhileRunning=false }={}) {
   const listeners = new Set();
   const state = { status: 'stopped', bpm: 60, beat: null, error: null };
   let starts = 0;
   let config = meterConfig(4,4,60);
+  let pendingConfig=null;
   function emit() { for (const callback of listeners) callback({ ...state }); }
   return {
     get starts() { return starts; },
     getState: () => ({ ...state }),
     getConfig: () => copyConfig(config),
-    getPendingConfig: () => null,
-    applyConfig(value) { config = copyConfig(value); state.bpm=config.bpm; emit(); return true; },
+    getPendingConfig: () => pendingConfig ? copyConfig(pendingConfig) : null,
+    applyConfig(value) {
+      if (queueWhileRunning && state.status==='running') pendingConfig=copyConfig(value);
+      else { config=copyConfig(value); pendingConfig=null; state.bpm=config.bpm; }
+      emit(); return true;
+    },
+    transitionBar() {
+      if (pendingConfig) { config=pendingConfig; pendingConfig=null; state.bpm=config.bpm; }
+      emit();
+    },
+    emitTick() { emit(); },
     setMasterVolume(value) { config.masterVolumePercent=value; emit(); return true; },
     setStatus(status) { state.status = status; emit(); },
     subscribe(callback) {
@@ -133,7 +145,7 @@ function fakeEngine() {
     },
     setBpm(bpm) {
       assert.ok(Number.isInteger(bpm) && bpm >= 20 && bpm <= 240);
-      state.bpm = bpm; config.bpm=bpm; emit();
+      state.bpm=bpm; config.bpm=bpm; if(pendingConfig)pendingConfig.bpm=bpm; emit();
       return true;
     },
     start() { starts++; state.status = 'running'; emit(); return Promise.resolve(true); },
