@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import { computed, onBeforeUnmount, ref } from 'vue';
 import { useI18n } from 'vue-i18n';
+import { acquireAudio, releaseAudio } from '../../shared/audio/audio-session';
 
 const props = defineProps<{ disabled: boolean; maxBytes: number }>();
 const emit = defineEmits<{ recorded: [file: File]; active: [value: boolean] }>();
@@ -31,6 +32,7 @@ const timeLabel = computed(() => {
   return String(minutes).padStart(2, '0') + ':' + String(seconds.value % 60).padStart(2, '0');
 });
 
+const audioToken = Symbol('recording');
 let stream: MediaStream | null = null;
 let recorder: MediaRecorder | null = null;
 let chunks: Blob[] = [];
@@ -107,6 +109,7 @@ function release() {
   }
   stream?.getTracks().forEach(track => track.stop());
   stream = null;
+  releaseAudio(audioToken);
   recorder = null;
   chunks = [];
   state.value = 'idle';
@@ -139,15 +142,19 @@ async function start() {
   if (props.disabled || state.value !== 'idle' || !supported) return;
   const choice = preferences.find(item => MediaRecorder.isTypeSupported(item.mime));
   if (!choice) return;
+  if (!acquireAudio('recorder', audioToken, cancel)) {
+    error.value = t('attempt.microphoneBusy');
+    return;
+  }
   error.value = '';
   cancelled = false;
   chunks = [];
   seconds.value = 0;
   state.value = 'requesting';
   emit('active', true);
-  // The learner may practise to a running metronome. Record only getUserMedia's
-  // microphone stream; headphone monitoring minimizes acoustic click bleed.
   try {
+    // The learner may practise to a running metronome. Record only getUserMedia's
+    // microphone stream; headphone monitoring minimizes acoustic click bleed.
     const microphone = await navigator.mediaDevices.getUserMedia({ audio: true, video: false });
     if (props.disabled || cancelled) {
       microphone.getTracks().forEach(track => track.stop());

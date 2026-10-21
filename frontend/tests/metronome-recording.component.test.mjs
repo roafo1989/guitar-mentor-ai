@@ -53,8 +53,16 @@ async function compileRealRecorder(source) {
   const js = ts.transpileModule(component.content, {
     compilerOptions: { target: ts.ScriptTarget.ES2022, module: ts.ModuleKind.ESNext },
   }).outputText;
+  // Load the real microphone lease module; metronome playback must remain
+  // unaffected by recorder acquisition, even when tuner code is present.
+  const sessionSource = await readFile(new URL('../src/shared/audio/audio-session.ts', import.meta.url), 'utf8');
+  const sessionJs = ts.transpileModule(sessionSource, {
+    compilerOptions: { target: ts.ScriptTarget.ES2022, module: ts.ModuleKind.ESNext },
+  }).outputText;
+  const sessionUrl = asModule(sessionJs);
   const mapped = js.replace(/from (['"])(.*?)\1/g, (_matched, _q, name) => {
-    const path = { vue: vueUrl, 'vue-i18n': i18nUrl }[name];
+    const path = { vue: vueUrl, 'vue-i18n': i18nUrl,
+      '../../shared/audio/audio-session': sessionUrl }[name];
     if (!path) throw Error('Unexpected microphone runtime dependency: ' + name);
     return 'from ' + JSON.stringify(path);
   });
