@@ -503,3 +503,40 @@ test('TOOL-02 master override cancels upcoming stale gain automation, then ramps
     env.engine.stop();
   } finally { env.restore(); }
 });
+
+test('TOOL-02 first pending request also replaces an already queued unchanged first beat', async () => {
+  const { meterConfig } = await import('../src/shared/audio/metronome-config.ts');
+  const env=setup();
+  try {
+    await env.engine.start();
+    env.clock.advance(2975); // 3.03s bar-one click for the old 4/4 pattern was queued at 2.95s
+    assert.equal(env.engine.getConfig().numerator,4);
+    const next=meterConfig(3,4,100);
+    assert.equal(env.engine.applyConfig(next),true);
+    assert.equal(env.engine.getConfig().numerator,4);
+    env.clock.advance(70);
+    assert.equal(env.engine.getConfig().numerator,3,'new pattern must begin on 3.03s, not one bar later');
+    const audibleFirstBeats=env.contexts[0].oscillators.filter(o =>
+      !o.disconnected && o.at >= 3.03-1e-6 && o.at < 3.04);
+    assert.equal(audibleFirstBeats.length,1,'old queued click was stopped');
+    assert.equal(audibleFirstBeats[0].freq,1150);
+    env.engine.stop();
+  } finally { env.restore(); }
+});
+
+test('TOOL-02 fast single-position meter allows mid-lookahead next-bar changes', async () => {
+  const { meterConfig, positionSeconds } = await import('../src/shared/audio/metronome-config.ts');
+  const env=setup();
+  try {
+    const fast=meterConfig(1,16,240);
+    assert.equal(env.engine.applyConfig(fast),true);
+    await env.engine.start();
+    env.clock.advance(40); // 1/16 lasts 62.5ms; the 92.5ms second-bar first beat is already queued.
+    const next=meterConfig(2,16,240);
+    assert.equal(env.engine.applyConfig(next),true);
+    env.clock.advance(60);
+    assert.equal(env.engine.getConfig().numerator,2,'next short bar must adopt latest pattern');
+    assert.ok(Math.abs(positionSeconds(fast)-0.0625)<1e-9);
+    env.engine.stop();
+  } finally { env.restore(); }
+});
