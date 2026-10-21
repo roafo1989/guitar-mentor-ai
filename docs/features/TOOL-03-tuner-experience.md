@@ -73,14 +73,14 @@ are not redistributed; headstock artwork is repo-authored SVG/CSS.
 
 ## Review remediation — 21 Oct 2026 (PR #110)
 
-- **P1 (stale green, fixed):** the three-frame median remains the tracker, but
-  `displayPitch` suppresses a stale median when the newest accepted pitch
-  moves by over ±5 cents. The Vue component also gates `inTune` and its
-  meter on the current measured candidate relative to the **current target**,
-  including boundary transitions where the median is within ±5 cents but the
-  latest candidate has crossed outside. A temporary neutral/stabilizing state
-  is preferable to a false green reading; the 700-ms explicitly labeled hold
-  stays intact and never asserts tuning success.
+- **P1 (stale green, fixed):** the three-frame median remains the note
+  confirmation and smoothing tracker. A fresh, reliable candidate is shown
+  while the median trails a continuously moving pitch by more than ±5 cents.
+  The Vue component only confirms `inTune` if **both** the current candidate
+  and the confirmed three-frame median are inside the target's ±5-cent
+  tolerance. A transient candidate crossing a tuned target while the median
+  is still detuned shows stabilization instead of a false green; the bounded
+  700-ms hold remains explicitly labeled and never confirms tuning.
 - **P2 (acoustic testing, added):** alternative presets have harmonically rich,
   decaying and inharmonic synthetic profiles, 44.1/48 kHz, ±25 cents,
   weak fundamentals and observable two-string competition; ambiguous audio
@@ -104,12 +104,29 @@ and acoustic QA, owner approval of the visual design. Do not merge PR #110
 without explicit owner acceptance.
 
 
-// REVIEW P1-2 (2026-10-21): continuously turning a peg must not hide the
-// pitch or erase its Auto physical string selection. Once the pitch tracker
-// is established, the latest reliable candidate is shown if a rolling
-// median lags by more than 5 cents. The green "in tune" indicator requires
-// BOTH the three-frame confirmed frequency and the latest candidate within
-// +/-5c of the target; a single transient crossing cannot go green.
-// Regression matrix: 10 live +6c/100ms and 10 live -6c/100ms frames on A2
-// (note, needle, correct physical peg, sharp/flat), a brief return crossing,
-// and a separate A2-to-D3 jump requiring three confirmations.
+## Follow-up P1: continuous turning of the tuning peg — fixed 21 Oct 2026
+
+The previous safeguard mistakenly treated a valid pitch changing by 6 cents
+per ~100 ms as no signal. That repeatedly cleared the Auto-selected physical
+string, note and meter while the musician was actively adjusting the peg.
+
+**New behavior:** Once a string's pitch is established (three consistent
+frames), the latest reliable candidate continues to drive the live needle
+and detected note while the median catches up. A pitch jump indicating a new
+string still resets tracking and requires three fresh frames before selecting
+the next target. `inTune` stays conservative: **current candidate AND
+three-frame median must both be within ±5 cents of the selected target**.
+A brief crossing from an out-of-tune pitch into the target does not turn
+green without stable confirmation.
+
+**Regression tests:** ten successive +6c/100-ms increments and ten −6c/100-ms
+increments on A2 check that the pitch, needle and physical fifth-string peg
+stay visible in Auto, with correct sharp/flat status and no green.
+Additional unit and mounted Vue tests cover initial acquisition, +4→+8c,
+±20c, a momentary return to target, and A2→D3 requiring fresh confirmation.
+The waveform path is exercised via a mocked Web Audio analyser;
+real-device acoustic and mobile UX acceptance remain pending.
+
+**Verification:** [GitHub Actions 39674392779](https://github.com/roafo1989/guitar-mentor-ai/actions/runs/39674392779)
+passed metronome regressions, tuner DSP tests, TypeScript and Vite on
+`bb2420a4889dd0f0c92cb067b7620cd4a2b3519f`.
