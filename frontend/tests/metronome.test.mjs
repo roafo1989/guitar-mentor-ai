@@ -408,7 +408,7 @@ test('TOOL-02 queued meter/preset swaps once at bar line; live BPM updates queue
     assert.equal(env.engine.getConfig().numerator,4,'current bar is unchanged');
     assert.equal(env.engine.getPendingConfig().numerator,7);
     assert.equal(env.engine.getPendingConfig().bpm,95,'composite preset retains its BPM');
-    env.clock.advance(1100); // cross 2.03s bar line
+    env.clock.advance(2200); // cross default 4/4 at 80 BPM: 3.03s bar line
     assert.equal(env.engine.getConfig().numerator,7);
     assert.equal(env.engine.getConfig().bpm,95);
     const next=meterConfig(6,8,82);
