@@ -70,3 +70,35 @@ Open G G2 and D4 with an independent reference tuner.
 
 No backend, external SDK, streaming or file uploads. The supplied screenshots
 are not redistributed; headstock artwork is repo-authored SVG/CSS.
+
+## Review remediation — 21 Oct 2026 (PR #110)
+
+- **P1 (stale green, fixed):** the three-frame median remains the tracker, but
+  `displayPitch` suppresses a stale median when the newest accepted pitch
+  moves by over ±5 cents. The Vue component also gates `inTune` and its
+  meter on the current measured candidate relative to the **current target**,
+  including boundary transitions where the median is within ±5 cents but the
+  latest candidate has crossed outside. A temporary neutral/stabilizing state
+  is preferable to a false green reading; the 700-ms explicitly labeled hold
+  stays intact and never asserts tuning success.
+- **P2 (acoustic testing, added):** alternative presets have harmonically rich,
+  decaying and inharmonic synthetic profiles, 44.1/48 kHz, ±25 cents,
+  weak fundamentals and observable two-string competition; ambiguous audio
+  may return no measurement, never a confident wrong octave/target.
+  One regression reproduces the exact +20/-20 cents P1 sequence; another
+  uses a real compiled Vue shell with a mocked Web Audio stream to verify
+  live Standard→Drop D→Open G changes without permission/stream duplication,
+  stale green, and microphone autoplay. Real-guitar QA remains NOT_RUN.
+- **P2 (design preview, prepared for owner):** see
+  [six visual states](../ux/TOOL-03-tuner-state-preview.svg),
+  [360px mobile proposal](../ux/TOOL-03-tuner-mobile-preview.svg)
+  and [preview notes](../ux/TOOL-03-visual-preview.md).
+  These are static illustrations, not screenshots of a browser execution;
+  the owner must still confirm visual acceptance of the running frontend.
+- The branch was merged with current `main` as a two-parent history-preserving
+  commit before final CI; no source files overlapped in that main update.
+  This preserves other in-progress work without rewriting history.
+
+**Remaining gates:** independent code review on the new HEAD, live browser/mobile
+and acoustic QA, owner approval of the visual design. Do not merge PR #110
+without explicit owner acceptance.
