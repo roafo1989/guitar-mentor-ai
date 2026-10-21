@@ -40,7 +40,9 @@ class LearningMigrationUpgradePostgresTest {
                 .defaultSchema(schema).target("14").load();
             old.migrate();
             try(Connection connection=datasource.getConnection()) {
-                connection.setSchema(schema);
+                String previousSchema=connection.getSchema();
+                try {
+                    connection.setSchema(schema);
                 var now=Timestamp.from(Instant.now());
                 insert(connection,"INSERT INTO learners(id,display_name,created_at) VALUES(?,?,?)",
                     learner,"Legacy learner",now);
@@ -59,11 +61,16 @@ class LearningMigrationUpgradePostgresTest {
                     +" VALUES(?,?,?,?,?,'UPLOADED',?,?,?,?)",
                     attempt,task,request,1,now,"Legacy preserved",
                     UUID.randomUUID()+".wav","wav",32L);
+                } finally {
+                    connection.setSchema(previousSchema==null ? "public" : previousSchema);
+                }
             }
             Flyway.configure().dataSource(datasource).schemas(schema)
                 .defaultSchema(schema).load().migrate();
             try(Connection connection=datasource.getConnection()) {
-                connection.setSchema(schema);
+                String previousSchema=connection.getSchema();
+                try {
+                    connection.setSchema(schema);
                 assertEquals(1L,count(connection,"SELECT count(*) FROM diagnostic_tasks WHERE id=?",task));
                 assertEquals(1L,count(connection,"SELECT count(*) FROM submission_attempts"
                     +" WHERE id=? AND request_id=?",attempt,request));
@@ -77,6 +84,9 @@ class LearningMigrationUpgradePostgresTest {
                     +" WHERE instrument_profile_id=? AND source_type <> 'SELF_REPORTED'",profile));
                 assertEquals(16L,count(connection,
                     "SELECT max(installed_rank) FROM flyway_schema_history WHERE success=true"));
+                } finally {
+                    connection.setSchema(previousSchema==null ? "public" : previousSchema);
+                }
             }
         } finally {
             try(Connection admin=datasource.getConnection();
