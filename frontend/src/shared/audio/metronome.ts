@@ -1,27 +1,22 @@
-/**
- * Local, 4/4 Web Audio metronome. No audio is created until a user calls start().
- * Keep one instance for all entry points (header and exercise card).
- */
+/** Singleton Web Audio metronome. All timing comes from the audio clock. */
+import {
+  type MetronomeConfig, copyConfig, defaultMetronomeConfig, validConfig,
+  positionSeconds, cellGain,
+} from './metronome-config.ts';
 export type MetronomeStatus = 'ready' | 'starting' | 'running' | 'stopped' | 'unavailable';
-
 export interface MetronomeState {
   status: MetronomeStatus;
   bpm: number;
-  /** Beat that has sounded (not the next scheduled beat); null when silent. */
-  beat: 1 | 2 | 3 | 4 | null;
-  /** Stable, localizable error code; do not surface raw browser error details. */
+  /** The last sounded denominator-position, never a future scheduled position. */
+  beat: number | null;
   error: 'web-audio-unavailable' | null;
 }
-
 type Listener = (state: Readonly<MetronomeState>) => void;
-type ClickNodes = { oscillator: OscillatorNode; gain: GainNode };
-
-const MIN_BPM = 20;
-const MAX_BPM = 240;
+type ClickNodes = { oscillator: OscillatorNode; gain: GainNode; at: number };
 const LOOKAHEAD_MS = 25;
-const SCHEDULE_AHEAD_SECONDS = 0.1;
-const FIRST_BEAT_DELAY_SECONDS = 0.03;
-const CLICK_SECONDS = 0.045;
+const AHEAD_SECONDS = 0.1;
+const INITIAL_DELAY_SECONDS = 0.03;
+const MAX_CLICK_SECONDS = 0.018;
 
 function browserAudioContext(): AudioContext {
   const browser = globalThis as typeof globalThis & { webkitAudioContext?: typeof AudioContext };
@@ -29,95 +24,141 @@ function browserAudioContext(): AudioContext {
   if (!AudioContextClass) throw new Error('Web Audio unavailable');
   return new AudioContextClass();
 }
-
 export class MetronomeEngine {
   private state: MetronomeState;
+  private config: MetronomeConfig;
+  private pendingConfig: MetronomeConfig | null = null;
   private readonly listeners = new Set<Listener>();
   private readonly makeContext: () => AudioContext;
   private context: AudioContext | null = null;
+  private masterGain: GainNode | null = null;
   private interval: ReturnType<typeof setInterval> | null = null;
-  private readonly visualTimers = new Set<ReturnType<typeof setTimeout>>();
+  private readonly visualTimers = new Map<ReturnType<typeof setTimeout>, number>();
+  /** A future bar may be queued in Web Audio, but is not active until the audio clock reaches it. */
+  private scheduledConfig: MetronomeConfig | null = null;
+  private scheduledBoundaryAt: number | null = null;
+  /** Bar-one clicks already queued in the audio graph, whether or not a transition was pending. */
+  private readonly futureBarBeginnings: number[] = [];
   private readonly clicks = new Set<ClickNodes>();
   private nextBeatTime = 0;
   private nextBeatIndex = 0;
+  private nextSubIndex = 0;
+  /** A BPM reset is a new first beat, not permission to consume an older queued pattern. */
+  private deferPendingFirstBeat = false;
   private generation = 0;
   private pendingStart: Promise<boolean> | null = null;
-  /** Closing can be asynchronous: never allocate a replacement before it finishes. */
   private closing: Promise<void> | null = null;
 
   constructor(options: { bpm?: number; createAudioContext?: () => AudioContext } = {}) {
-    const bpm = options.bpm ?? 80;
-    if (!MetronomeEngine.isValidBpm(bpm)) throw new RangeError('BPM must be an integer from 20 to 240');
-    this.state = { status: 'ready', bpm, beat: null, error: null };
+    const config = defaultMetronomeConfig();
+    if (options.bpm !== undefined) {
+      if (!MetronomeEngine.isValidBpm(options.bpm)) throw new RangeError('BPM must be an integer from 20 to 240');
+      config.bpm = options.bpm;
+    }
+    this.config = config;
+    this.state = { status:'ready', bpm:config.bpm, beat:null, error:null };
     this.makeContext = options.createAudioContext ?? browserAudioContext;
   }
-
   static isValidBpm(bpm: number): boolean {
-    return Number.isInteger(bpm) && bpm >= MIN_BPM && bpm <= MAX_BPM;
+    return Number.isInteger(bpm) && bpm >= 20 && bpm <= 240;
   }
-
-  getState(): Readonly<MetronomeState> {
-    return { ...this.state };
+  getState(): Readonly<MetronomeState> { return { ...this.state }; }
+  getConfig(): MetronomeConfig { return copyConfig(this.config); }
+  getPendingConfig(): MetronomeConfig | null {
+    return this.pendingConfig ? copyConfig(this.pendingConfig) : null;
   }
-
   subscribe(listener: Listener): () => void {
     this.listeners.add(listener);
-    listener(this.getState());
+    try { listener(this.getState()); } catch { /* one subscriber must not break audio */ }
     return () => { this.listeners.delete(listener); };
   }
-
-  /** Invalid values do not overwrite the previous tempo. A live change restarts on beat 1. */
+  /** A live BPM-only change restarts immediately on beat one (contract of #87). */
   setBpm(bpm: number): boolean {
     if (!MetronomeEngine.isValidBpm(bpm)) return false;
-    if (bpm === this.state.bpm) return true;
+    if (bpm === this.config.bpm && (!this.pendingConfig || this.pendingConfig.bpm === bpm)) return true;
+    this.commitScheduledIfDue();
+    this.config.bpm = bpm;
+    if (this.pendingConfig) this.pendingConfig.bpm = bpm;
+    // A tempo reset invalidates all future audio events, including an ahead-planned bar.
+    this.scheduledConfig = null;
+    this.scheduledBoundaryAt = null;
+    this.futureBarBeginnings.length = 0;
     this.state = { ...this.state, bpm };
     if (this.state.status === 'running' && this.context) {
       this.cancelScheduledBeats();
+      // Remove gain automation from a superseded future bar, too.
+      this.updateMasterGainNow(this.config.masterVolumePercent);
       this.nextBeatIndex = 0;
-      this.nextBeatTime = this.context.currentTime + FIRST_BEAT_DELAY_SECONDS;
-      this.state = { ...this.state, beat: null };
+      this.nextSubIndex = 0;
+      this.deferPendingFirstBeat = this.pendingConfig !== null;
+      this.nextBeatTime = this.context.currentTime + INITIAL_DELAY_SECONDS;
+      this.state.beat = null;
       this.emit();
       this.schedule(this.generation);
-    } else {
-      this.emit();
-    }
+    } else this.emit();
     return true;
   }
-
-  /** Call directly from a user gesture; repeated calls share one pending start. */
+  /** Master is immediately effective even during playback. */
+  setMasterVolume(value: number): boolean {
+    if (!Number.isInteger(value) || value < 0 || value > 100) return false;
+    this.commitScheduledIfDue();
+    this.config.masterVolumePercent = value;
+    if (this.pendingConfig) this.pendingConfig.masterVolumePercent = value;
+    if (this.scheduledConfig) this.scheduledConfig.masterVolumePercent = value;
+    this.updateMasterGainNow(value);
+    this.emit();
+    return true;
+  }
+  /** Changes to meter, groups, accent or unit are atomic at the next bar line. */
+  applyConfig(requested: MetronomeConfig): boolean {
+    if (!validConfig(requested)) return false;
+    const next = copyConfig(requested);
+    if (this.state.status === 'running') {
+      this.commitScheduledIfDue();
+      // Last valid composite request wins even if the next bar was scheduled ahead.
+      this.pendingConfig = next;
+      const now = this.context?.currentTime ?? 0;
+      const nextQueuedBoundary = this.futureBarBeginnings.find(at => at > now + 1e-6);
+      // Even a previously unchanged pattern may already have its next first click queued.
+      if (nextQueuedBoundary !== undefined) this.replanScheduledBoundary(nextQueuedBoundary);
+    } else {
+      this.config = next;
+      this.pendingConfig = null;
+      this.state = { ...this.state, bpm:next.bpm, beat:null };
+    }
+    this.emit();
+    return true;
+  }
   start(): Promise<boolean> {
     if (this.state.status === 'running') return Promise.resolve(true);
     if (this.pendingStart) return this.pendingStart;
-
     const generation = ++this.generation;
-    this.state = { ...this.state, status: 'starting', beat: null, error: null };
+    this.state = { ...this.state, status:'starting', beat:null, error:null };
     this.emit();
-    const startPromise = this.begin(generation);
-    this.pendingStart = startPromise;
-    void startPromise.finally(() => {
-      if (this.pendingStart === startPromise) this.pendingStart = null;
-    });
-    return startPromise;
+    const p = this.begin(generation);
+    this.pendingStart = p;
+    void p.finally(() => { if (this.pendingStart === p) this.pendingStart = null; });
+    return p;
   }
-
   stop(): void {
     ++this.generation;
     this.pendingStart = null;
+    this.deferPendingFirstBeat = false;
     this.cleanup();
-    this.state = { ...this.state, status: 'stopped', beat: null, error: null };
+    this.scheduledConfig = null;
+    this.scheduledBoundaryAt = null;
+    this.futureBarBeginnings.length = 0;
+    // Stopping accepts the last requested valid config, not an obsolete bar.
+    if (this.pendingConfig) {
+      this.config = this.pendingConfig;
+      this.pendingConfig = null;
+    }
+    this.state = { ...this.state, bpm:this.config.bpm, status:'stopped', beat:null, error:null };
     this.emit();
   }
-
-  /** Call on component unmount if the component owns the engine. */
-  dispose(): void {
-    this.stop();
-    this.listeners.clear();
-  }
-
+  dispose(): void { this.stop(); this.listeners.clear(); }
   private async begin(generation: number): Promise<boolean> {
     try {
-      // Wait only when a previous AudioContext is still closing. Normal initial
-      // start/resume stays in the user gesture; no browser autoplay is attempted.
       if (this.closing) {
         await this.closing;
         if (generation !== this.generation) return false;
@@ -129,19 +170,22 @@ export class MetronomeEngine {
       }
       this.context = context;
       context.addEventListener('statechange', this.onAudioStateChange);
-      // Also handle pagehide while a browser is waiting for resume() to settle.
       this.addLifecycleListeners();
       await context.resume();
       if (generation !== this.generation) return false;
       if (typeof document !== 'undefined' && document.visibilityState === 'hidden') {
-        this.stop();
-        return false;
+        this.stop(); return false;
       }
       if (context.state !== 'running') throw new Error('Audio context did not resume');
-
+      const master = context.createGain();
+      master.gain.setValueAtTime(this.config.masterVolumePercent / 100, context.currentTime);
+      master.connect(context.destination);
+      this.masterGain = master;
       this.nextBeatIndex = 0;
-      this.nextBeatTime = context.currentTime + FIRST_BEAT_DELAY_SECONDS;
-      this.state = { ...this.state, status: 'running', beat: null, error: null };
+      this.nextSubIndex = 0;
+      this.deferPendingFirstBeat = false;
+      this.nextBeatTime = context.currentTime + INITIAL_DELAY_SECONDS;
+      this.state = { ...this.state, status:'running', beat:null, error:null };
       this.emit();
       this.schedule(generation);
       if (generation !== this.generation) return false;
@@ -152,136 +196,215 @@ export class MetronomeEngine {
       return false;
     }
   }
-
   private readonly onVisibilityChange = (): void => {
     if (typeof document !== 'undefined' && document.visibilityState === 'hidden') this.stop();
   };
   private readonly onPageHide = (): void => { this.stop(); };
   private readonly onAudioStateChange = (): void => {
-    // Do not confuse the initial suspended state with an interruption, or a
-    // deliberate close with an audio failure. Never automatically resume.
-    if (this.state.status === 'running' && this.context?.state !== 'running') {
-      this.failAudio();
-    }
+    if (this.state.status === 'running' && this.context?.state !== 'running') this.failAudio();
   };
-
   private failAudio(): void {
     ++this.generation;
     this.pendingStart = null;
     this.cleanup();
-    this.state = { ...this.state, status: 'unavailable', beat: null, error: 'web-audio-unavailable' };
+    this.scheduledConfig = null;
+    this.scheduledBoundaryAt = null;
+    this.futureBarBeginnings.length = 0;
+    this.state = { ...this.state, status:'unavailable', beat:null, error:'web-audio-unavailable' };
     this.emit();
   }
-
   private addLifecycleListeners(): void {
     if (typeof document !== 'undefined') document.addEventListener('visibilitychange', this.onVisibilityChange);
     if (typeof window !== 'undefined') window.addEventListener('pagehide', this.onPageHide);
   }
-
   private removeLifecycleListeners(): void {
     if (typeof document !== 'undefined') document.removeEventListener('visibilitychange', this.onVisibilityChange);
     if (typeof window !== 'undefined') window.removeEventListener('pagehide', this.onPageHide);
   }
-
+  /** Advance the reported playing pattern only when its boundary actually arrives. */
+  private commitScheduledIfDue(): void {
+    if (!this.context || this.scheduledBoundaryAt === null ||
+        this.context.currentTime + 1e-6 < this.scheduledBoundaryAt || !this.scheduledConfig) return;
+    this.config = this.scheduledConfig;
+    this.scheduledConfig = null;
+    this.scheduledBoundaryAt = null;
+    this.pendingConfig = null;
+    this.state = { ...this.state, bpm:this.config.bpm };
+    this.emit();
+  }
+  /** Cancel only events in the future bar. Already sounding and current-bar clicks remain. */
+  private replanScheduledBoundary(at: number): void {
+    for (const click of this.clicks) {
+      if (click.at < at) continue;
+      click.oscillator.onended = null;
+      try { click.oscillator.stop(); } catch {}
+      try { click.oscillator.disconnect(); } catch {}
+      try { click.gain.disconnect(); } catch {}
+      this.clicks.delete(click);
+    }
+    for (const [timer, when] of this.visualTimers) {
+      if (when < at) continue;
+      clearTimeout(timer);
+      this.visualTimers.delete(timer);
+    }
+    this.masterGain?.gain.cancelScheduledValues(at);
+    this.scheduledConfig = null;
+    this.scheduledBoundaryAt = null;
+    this.futureBarBeginnings.splice(0, this.futureBarBeginnings.length,
+      ...this.futureBarBeginnings.filter(t => t < at));
+    this.nextBeatTime = at;
+    this.nextBeatIndex = 0;
+    this.nextSubIndex = 0;
+    this.schedule(this.generation);
+  }
+  /** Master overrides are immediate and smooth, including already scheduled audio. */
+  private updateMasterGainNow(percent: number): void {
+    if (!this.context || !this.masterGain) return;
+    const gain = this.masterGain.gain;
+    const now = this.context.currentTime;
+    // Hold the *rendered* gain, not AudioParam.value (which can be an intrinsic
+    // value different from its in-flight automation). Fallback for older engines.
+    if (typeof gain.cancelAndHoldAtTime === 'function') gain.cancelAndHoldAtTime(now);
+    else {
+      const current = gain.value;
+      gain.cancelScheduledValues(now);
+      gain.setValueAtTime(current, now);
+    }
+    gain.linearRampToValueAtTime(percent / 100, now + 0.008);
+    if (this.scheduledBoundaryAt !== null && this.scheduledConfig &&
+        this.scheduledBoundaryAt > now) {
+      const at = this.scheduledBoundaryAt;
+      gain.setValueAtTime(percent / 100, at);
+      gain.linearRampToValueAtTime(this.scheduledConfig.masterVolumePercent / 100, at + 0.008);
+    }
+  }
+  private scheduleMasterForBoundary(at: number, upcoming: MetronomeConfig): void {
+    if (!this.masterGain) return;
+    const gain = this.masterGain.gain;
+    gain.setValueAtTime(this.config.masterVolumePercent / 100, at);
+    gain.linearRampToValueAtTime(upcoming.masterVolumePercent / 100, at + 0.008);
+  }
   private schedule(generation: number): void {
     const context = this.context;
     if (generation !== this.generation || this.state.status !== 'running' || !context) return;
-    if (context.state !== 'running') {
-      this.failAudio();
-      return;
-    }
+    if (context.state !== 'running') { this.failAudio(); return; }
     try {
-      const beatSeconds = 60 / this.state.bpm;
-      // On a throttled tab, skip missed beats rather than playing a burst of old ones.
+      // Clock stalls skip old events without a catch-up burst. Do not accumulate
+      // nextBeatTime using repeated additions when thousands of ticks were missed.
+      this.commitScheduledIfDue();
+      this.futureBarBeginnings.splice(0, this.futureBarBeginnings.length,
+        ...this.futureBarBeginnings.filter(at => at > context.currentTime + 1e-6));
+      const clockConfig = this.scheduledConfig ?? this.config;
+      let interval = positionSeconds(clockConfig) / clockConfig.subdivision;
       if (this.nextBeatTime < context.currentTime) {
-        const skipped = Math.ceil((context.currentTime - this.nextBeatTime) / beatSeconds);
-        this.nextBeatIndex = (this.nextBeatIndex + skipped) % 4;
-        this.nextBeatTime += skipped * beatSeconds;
+        const skipped = Math.ceil((context.currentTime - this.nextBeatTime) / interval);
+        const ticksPerBar = clockConfig.numerator * clockConfig.subdivision;
+        const nextIndex = (this.nextBeatIndex * clockConfig.subdivision + this.nextSubIndex + skipped) % ticksPerBar;
+        this.nextBeatIndex = Math.floor(nextIndex / clockConfig.subdivision);
+        this.nextSubIndex = nextIndex % clockConfig.subdivision;
+        this.nextBeatTime += skipped * interval;
         if (this.nextBeatTime < context.currentTime) this.nextBeatTime = context.currentTime;
       }
-      while (this.nextBeatTime < context.currentTime + SCHEDULE_AHEAD_SECONDS) {
-        const beat = (this.nextBeatIndex + 1) as 1 | 2 | 3 | 4;
-        this.scheduleClick(context, this.nextBeatTime, beat);
-        const delay = Math.max(0, (this.nextBeatTime - context.currentTime) * 1000);
-        const timer = setTimeout(() => {
-          this.visualTimers.delete(timer);
-          if (generation !== this.generation || this.state.status !== 'running') return;
-          this.state = { ...this.state, beat };
-          this.emit();
-        }, delay);
-        this.visualTimers.add(timer);
-        this.nextBeatTime += beatSeconds;
-        this.nextBeatIndex = (this.nextBeatIndex + 1) % 4;
+      while (this.nextBeatTime < context.currentTime + AHEAD_SECONDS) {
+        if (this.nextBeatIndex === 0 && this.nextSubIndex === 0) {
+          if (this.nextBeatTime > context.currentTime + 1e-6 &&
+              !this.futureBarBeginnings.some(t => Math.abs(t - this.nextBeatTime) <= 1e-6))
+            this.futureBarBeginnings.push(this.nextBeatTime);
+          if (this.deferPendingFirstBeat) {
+            this.deferPendingFirstBeat = false;
+          } else if (this.pendingConfig && !this.scheduledConfig) {
+            this.scheduledConfig = copyConfig(this.pendingConfig);
+            this.scheduledBoundaryAt = this.nextBeatTime;
+            this.scheduleMasterForBoundary(this.nextBeatTime, this.scheduledConfig);
+            interval = positionSeconds(this.scheduledConfig) / this.scheduledConfig.subdivision;
+          }
+        }
+        const beatIndex = this.nextBeatIndex;
+        const beat = beatIndex + 1;
+        const sub = this.nextSubIndex;
+        const at = this.nextBeatTime;
+        this.scheduleClick(context, at, beatIndex, sub, interval, this.scheduledConfig ?? this.config);
+        if (sub === 0) {
+          const delay = Math.max(0, (at - context.currentTime) * 1000);
+          const timer = setTimeout(() => {
+            this.visualTimers.delete(timer);
+            if (generation !== this.generation || this.state.status !== 'running') return;
+            this.commitScheduledIfDue();
+            this.state = { ...this.state, beat };
+            this.emit();
+          }, delay);
+          this.visualTimers.set(timer, at);
+        }
+        this.nextBeatTime += interval;
+        ++this.nextSubIndex;
+        const scheduled = this.scheduledConfig ?? this.config;
+        if (this.nextSubIndex >= scheduled.subdivision) {
+          this.nextSubIndex = 0;
+          this.nextBeatIndex = (this.nextBeatIndex + 1) % scheduled.numerator;
+        }
       }
-    } catch {
-      if (generation === this.generation) this.failAudio();
-    }
+    } catch { if (generation === this.generation) this.failAudio(); }
   }
-
-  private scheduleClick(context: AudioContext, at: number, beat: 1 | 2 | 3 | 4): void {
+  private scheduleClick(context: AudioContext, at: number, beatIndex: number, subIndex: number, stepSeconds: number, config: MetronomeConfig): void {
+    const gainValue = cellGain(config, beatIndex, subIndex !== 0);
+    // Master is a separate GainNode; a later master adjustment must unmute future clicks.
+    if (gainValue <= 0) return;
+    const accent = config.positions[beatIndex].accent;
+    const frequency = subIndex !== 0 ? 560 : accent === 'strong' ? 1150 : accent === 'medium' ? 940 : 760;
+    const length = Math.min(MAX_CLICK_SECONDS, stepSeconds * 0.48);
     const oscillator = context.createOscillator();
     const gain = context.createGain();
-    const click: ClickNodes = { oscillator, gain };
+    const click: ClickNodes = { oscillator, gain, at };
     this.clicks.add(click);
     oscillator.onended = () => {
-      oscillator.disconnect();
-      gain.disconnect();
-      this.clicks.delete(click);
+      oscillator.disconnect(); gain.disconnect(); this.clicks.delete(click);
     };
     oscillator.type = 'sine';
-    oscillator.frequency.setValueAtTime(beat === 1 ? 1150 : 760, at);
+    oscillator.frequency.setValueAtTime(frequency, at);
     gain.gain.setValueAtTime(0.0001, at);
-    gain.gain.exponentialRampToValueAtTime(beat === 1 ? 0.28 : 0.13, at + 0.002);
-    gain.gain.exponentialRampToValueAtTime(0.0001, at + CLICK_SECONDS);
+    gain.gain.exponentialRampToValueAtTime(Math.max(0.0002, 0.28 * gainValue), at + Math.min(.002, length / 4));
+    gain.gain.exponentialRampToValueAtTime(0.0001, at + length);
     oscillator.connect(gain);
-    gain.connect(context.destination);
+    gain.connect(this.masterGain ?? context.destination);
     oscillator.start(at);
-    oscillator.stop(at + CLICK_SECONDS);
+    oscillator.stop(at + length);
   }
-
   private cancelScheduledBeats(): void {
-    for (const timer of this.visualTimers) clearTimeout(timer);
+    for (const timer of this.visualTimers.keys()) clearTimeout(timer);
     this.visualTimers.clear();
     for (const { oscillator, gain } of this.clicks) {
       oscillator.onended = null;
-      try { oscillator.stop(); } catch { /* already stopped */ }
-      try { oscillator.disconnect(); } catch { /* already disconnected */ }
-      try { gain.disconnect(); } catch { /* already disconnected */ }
+      try { oscillator.stop(); } catch {}
+      try { oscillator.disconnect(); } catch {}
+      try { gain.disconnect(); } catch {}
     }
     this.clicks.clear();
   }
-
   private cleanup(): void {
     if (this.interval !== null) clearInterval(this.interval);
     this.interval = null;
     this.removeLifecycleListeners();
     this.cancelScheduledBeats();
+    try { this.masterGain?.disconnect(); } catch {}
+    this.masterGain = null;
     const context = this.context;
     this.context = null;
     if (context) {
       context.removeEventListener('statechange', this.onAudioStateChange);
       if (context.state !== 'closed') {
         try {
-          // Store the promise before a new start() can create another context.
-          // Even a rejected close must unblock a future explicit user start.
           const pending = Promise.resolve(context.close()).then(() => {}, () => {});
           this.closing = pending;
-          void pending.then(() => {
-            if (this.closing === pending) this.closing = null;
-          });
-        } catch { /* browser context failed to close synchronously */ }
+          void pending.then(() => { if (this.closing === pending) this.closing = null; });
+        } catch {}
       }
     }
   }
-
   private emit(): void {
     for (const listener of this.listeners) {
-      // Each subscriber receives an independent snapshot. Readonly<T> is only
-      // compile-time; an errant JS subscriber must not corrupt other listeners.
-      try { listener(this.getState()); } catch { /* one faulty consumer must not stop audio */ }
+      try { listener(this.getState()); } catch {}
     }
   }
 }
-
-/** Singleton to be shared by the header and exercise UI in #87. */
+/** One engine shared by header, practice card and modal. */
 export const metronome = new MetronomeEngine();
