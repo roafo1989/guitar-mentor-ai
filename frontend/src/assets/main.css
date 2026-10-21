@@ -502,3 +502,7 @@ footer { text-align: center; font-size: 12px; padding: 24px; color: #8793a4; }
 @media (prefers-reduced-motion:reduce) {
   .m111 * {animation:none!important;transition:none!important}
 }
+
+/* #111 review: visible errors inside sheets and complete config review. */
+.m111 .m111-sheet-error { margin:0 2px 12px; padding:9px 10px; background:#51343b; border:1px solid #b76e71; border-radius:9px; }
+.m111 .m111-preset-review { display:flex; flex-direction:column; gap:5px; overflow-wrap:anywhere; }
