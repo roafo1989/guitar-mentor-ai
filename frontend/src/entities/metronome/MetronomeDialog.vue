@@ -206,6 +206,7 @@ function loadPreset(): void {
   meterD.value = p.config.denominator;
   groupInput.value = p.config.groups.join('+');
   draft.value = String(p.config.bpm);
+  beatSelection.value = 0;
   dirty.value = true;
   apply();
 }
@@ -306,11 +307,11 @@ onBeforeUnmount(() => {
 
         <div class="metronome-meter-picker">
           <label for="metronome-numerator">{{ t('metronome.meter') }}</label>
-          <select id="metronome-numerator" v-model.number="meterN" @change="changeMeter">
+          <select id="metronome-numerator" :value="meterN" @change="meterN = Number(($event.target as HTMLSelectElement).value); changeMeter()">
             <option v-for="n in 16" :key="n" :value="n">{{ n }}</option>
           </select>
           <span aria-hidden="true">/</span>
-          <select v-model.number="meterD" :aria-label="t('metronome.denominator')" @change="changeMeter">
+          <select :value="meterD" :aria-label="t('metronome.denominator')" @change="meterD = Number(($event.target as HTMLSelectElement).value) as 2 | 4 | 8 | 16; changeMeter()">
             <option v-for="d in denominators" :key="d" :value="d">{{ d }}</option>
           </select>
         </div>
@@ -366,12 +367,12 @@ onBeforeUnmount(() => {
               @input="changeSubdivisionVolume(($event.target as HTMLInputElement).value)" />
             <div class="metronome-presets">
               <label for="metronome-preset-list">{{ t('metronome.presets') }}</label>
-              <select id="metronome-preset-list" v-model="selectedPreset">
+              <select id="metronome-preset-list" :value="selectedPreset" @change="selectedPreset = ($event.target as HTMLSelectElement).value">
                 <option value="">{{ t('metronome.selectPreset') }}</option>
                 <option v-for="p in metronomeUi.presets" :key="p.id" :value="p.id">{{ p.name }}</option>
               </select>
               <label for="metronome-preset-name">{{ t('metronome.presetName') }}</label>
-              <input id="metronome-preset-name" v-model="presetName" maxlength="60" />
+              <input id="metronome-preset-name" :value="presetName" @input="presetName = ($event.target as HTMLInputElement).value" maxlength="60" />
               <div class="metronome-preset-actions">
                 <button type="button" @click="savePreset">{{ t('metronome.savePreset') }}</button>
                 <button type="button" :disabled="!chosenPreset" @click="loadPreset">{{ t('metronome.loadPreset') }}</button>
