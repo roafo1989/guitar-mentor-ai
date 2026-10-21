@@ -37,6 +37,8 @@ export class MetronomeEngine {
   /** A future bar may be queued in Web Audio, but is not active until the audio clock reaches it. */
   private scheduledConfig: MetronomeConfig | null = null;
   private scheduledBoundaryAt: number | null = null;
+  /** Bar-one clicks already queued in the audio graph, whether or not a transition was pending. */
+  private readonly futureBarBeginnings: number[] = [];
   private readonly clicks = new Set<ClickNodes>();
   private nextBeatTime = 0;
   private nextBeatIndex = 0;
@@ -80,6 +82,7 @@ export class MetronomeEngine {
     // A tempo reset invalidates all future audio events, including an ahead-planned bar.
     this.scheduledConfig = null;
     this.scheduledBoundaryAt = null;
+    this.futureBarBeginnings.length = 0;
     this.state = { ...this.state, bpm };
     if (this.state.status === 'running' && this.context) {
       this.cancelScheduledBeats();
@@ -114,10 +117,10 @@ export class MetronomeEngine {
       this.commitScheduledIfDue();
       // Last valid composite request wins even if the next bar was scheduled ahead.
       this.pendingConfig = next;
-      if (this.scheduledBoundaryAt !== null && this.context &&
-          this.scheduledBoundaryAt > this.context.currentTime) {
-        this.replanScheduledBoundary();
-      }
+      const now = this.context?.currentTime ?? 0;
+      const nextQueuedBoundary = this.futureBarBeginnings.find(at => at > now + 1e-6);
+      // Even a previously unchanged pattern may already have its next first click queued.
+      if (nextQueuedBoundary !== undefined) this.replanScheduledBoundary(nextQueuedBoundary);
     } else {
       this.config = next;
       this.pendingConfig = null;
@@ -144,6 +147,7 @@ export class MetronomeEngine {
     this.cleanup();
     this.scheduledConfig = null;
     this.scheduledBoundaryAt = null;
+    this.futureBarBeginnings.length = 0;
     // Stopping accepts the last requested valid config, not an obsolete bar.
     if (this.pendingConfig) {
       this.config = this.pendingConfig;
@@ -205,6 +209,7 @@ export class MetronomeEngine {
     this.cleanup();
     this.scheduledConfig = null;
     this.scheduledBoundaryAt = null;
+    this.futureBarBeginnings.length = 0;
     this.state = { ...this.state, status:'unavailable', beat:null, error:'web-audio-unavailable' };
     this.emit();
   }
@@ -228,9 +233,7 @@ export class MetronomeEngine {
     this.emit();
   }
   /** Cancel only events in the future bar. Already sounding and current-bar clicks remain. */
-  private replanScheduledBoundary(): void {
-    const at = this.scheduledBoundaryAt;
-    if (at === null) return;
+  private replanScheduledBoundary(at: number): void {
     for (const click of this.clicks) {
       if (click.at < at) continue;
       click.oscillator.onended = null;
@@ -247,6 +250,8 @@ export class MetronomeEngine {
     this.masterGain?.gain.cancelScheduledValues(at);
     this.scheduledConfig = null;
     this.scheduledBoundaryAt = null;
+    this.futureBarBeginnings.splice(0, this.futureBarBeginnings.length,
+      ...this.futureBarBeginnings.filter(t => t < at));
     this.nextBeatTime = at;
     this.nextBeatIndex = 0;
     this.nextSubIndex = 0;
@@ -282,6 +287,8 @@ export class MetronomeEngine {
       // Clock stalls skip old events without a catch-up burst. Do not accumulate
       // nextBeatTime using repeated additions when thousands of ticks were missed.
       this.commitScheduledIfDue();
+      this.futureBarBeginnings.splice(0, this.futureBarBeginnings.length,
+        ...this.futureBarBeginnings.filter(at => at > context.currentTime + 1e-6));
       const clockConfig = this.scheduledConfig ?? this.config;
       let interval = positionSeconds(clockConfig) / clockConfig.subdivision;
       if (this.nextBeatTime < context.currentTime) {
@@ -295,6 +302,9 @@ export class MetronomeEngine {
       }
       while (this.nextBeatTime < context.currentTime + AHEAD_SECONDS) {
         if (this.nextBeatIndex === 0 && this.nextSubIndex === 0) {
+          if (this.nextBeatTime > context.currentTime + 1e-6 &&
+              !this.futureBarBeginnings.some(t => Math.abs(t - this.nextBeatTime) <= 1e-6))
+            this.futureBarBeginnings.push(this.nextBeatTime);
           if (this.deferPendingFirstBeat) {
             this.deferPendingFirstBeat = false;
           } else if (this.pendingConfig && !this.scheduledConfig) {
