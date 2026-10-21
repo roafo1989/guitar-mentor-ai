@@ -1,13 +1,66 @@
-# TOOL-03 / #108 — Visual design preview (for owner review)
+# TOOL-03 / #108 — Tuner visual direction and UX sign-off
 
-**Status: candidate design, not accepted.** The actual Vue/CSS tuner in PR #110 implements this instrument-inspired layout. These SVG previews are static state samples (not measurements), provided for review of visual hierarchy and desktop/mobile composition. Original repo-owned vector artwork; no borrowed brand assets.
+## Approved direction (customer, 22 October 2026)
 
-## Desktop/state sheet
-![Six interface states: idle, flat, sharp, in tune, held and mic error](TOOL-03-tuner-state-preview.svg)
+The owner **approved the revised static mockup** of the tuner in the project
+conversation after rejecting the earlier rudimentary headstock and clipping.
+The agreed version is a **compact dark modal**, *not a full-screen standalone
+phone app*. The reference drawing is `tuner_mockup_mobile_v1.png` in the
+customer conversation; it depicts the microphone-off state. It is a visual
+target, not a screenshot of a running application.
 
-## Mobile (360 CSS px)
-![Mobile proposal, Open G D2 tuned](TOOL-03-tuner-mobile-preview.svg)
+- Straight-on acoustic guitar headstock, **not tilted**, symmetric 3+3;
+  recognizable outline, wood finish, six metal machine heads and six strings.
+- Six equally usable, fully visible circles: physical guitar strings
+  **6/E2, 5/A2, 4/D3** on the left bottom-to-top and
+  **3/G3, 2/B3, 1/E4** on the right top-to-bottom. Other tunings change
+  octave labels without changing physical position.
+- Compact header with modal close, tuning selector and Auto button; detected
+  note with cents/scale above the headstock.
+- Separated microphone status bar and primary Start/Stop control below.
+- Original dark guitar-mentor palette aligned to the #111 metronome direction:
+  charcoal/graphite `#0e151e`, mint `#96e7ca` for active/confirmed
+  states, amber `#eab46b` for call-to-action. No brand logo or third-party
+  headstock asset is included in application source.
 
-The panel intentionally uses a dark navy instrument surface, warm amber for selection, and green **only** for a fresh reliable in-tune signal. All six peg buttons carry physical string numbers and the target note with octave. These mock screens illustrate the planned visual treatment, not a screenshot from a running app.
+## Implementation in PR #110
 
-**Owner acceptance still required:** verify actual application in a desktop browser and at 360 CSS px, including keyboard focus, accessibility, readability and scrolling. The live Vue implementation and these mockups must be compared visually before marking AC-TUI-01 PASS. Tests and screenshots cannot substitute for owner design sign-off.
+- `frontend/src/shared/tuner/TunerDialog.vue`: replaces the old placeholder
+  headstock with an original detailed frontal SVG (wood gradients and grain,
+  chrome tuners, six physically correct strings, truss-rod cover and nut).
+  The six circular selectors remain semantic, keyboard/touch accessible
+  buttons with both note and octave visible.
+- `frontend/src/shared/tuner/tuner.css`: modal capped at 506px, standalone
+  pitch panel, scaled 440:340 headstock stage and all peg buttons **inside**
+  the scene bounds. For compact 360×640 and narrow 320px viewports, size and
+  spacing adapt. Short screens and zoom allow vertical scrolling of modal
+  contents rather than clipping or making a control unreachable.
+- `frontend/src/i18n/ru.json` and `en.json`: explicit live microphone label.
+  Tuner signal processing, four-frame stable-green confirmation, input
+  permissions, playback arbitration and recording/metric functions are not
+  modified by this visual iteration.
+- Headless Vue component tests verify all six control positions, octave
+  labels, manual selection and return to Auto; CI checks the whole frontend
+  and metronome as before.
+
+**Important:** The graphic uses original inline SVG and CSS; its appearance
+is inspired by the approved static mock, but it is not a pixel-perfect photo
+composite. Final visual match and real-browser responsive/mobile behavior
+still require the owner's acceptance after independent code review.
+
+## Historical explorations (superseded)
+
+The earlier [six-state preview](TOOL-03-tuner-state-preview.svg) and
+[360px proposal](TOOL-03-tuner-mobile-preview.svg) remain available only for
+history. They are **not the approved #108 visual baseline** and must not be
+treated as proof of current browser layout.
+
+## Visual/manual acceptance still required
+
+At desktop and **360×640 CSS px** and, where possible, at **320px width**,
+check physical 6-to-1 order, all peg circles/strings visible without
+horizontal clipping, short-height scroll accessibility, labels, scaling,
+Tab/Shift+Tab, Escape, microphone-on/off, Standard/Drop D/Open G, live tuner
+green/amber/neutral/hold/error states. Approve only after reviewing the
+**running UI** against the customer-approved mock. No unperformed real-device
+checks are marked PASS.
