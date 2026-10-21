@@ -56,3 +56,15 @@ Regression tests include 150 synthesized mixtures covering every open-string pai
 The parent `App.vue` is now the **single owner** of `.app-shell.inert` through its reactive `:inert="metronomeUi.open || tunerOpen"` binding. `modal-focus.ts` is strictly a focus guard (document-level `focusin` trap and removal); it never sets, snapshots or restores the shell's `inert` property. This removes the parent/child race: Vue clears `inert` on close, and a post-flush tuner cleanup can no longer reapply a stale true value.
 
 The updated unit regression recreates this ordering. A new integrated headless Vue component regression mounts **real App.vue and real TunerDialog.vue**, not a tuner stub, verifying teleported focus isolation, `inert` ownership, close button, Escape, route change, focus return, listener cleanup and repeated opening. The metronome shell/recording tests remain part of frontend CI. Follow up with real browser keyboard and mic testing; a headless renderer is not a full browser.
+
+## User acceptance UX change: outside click must not dismiss (21 October 2026)
+
+During the actual guitar test, the owner confirmed **all six strings auto-recognized**, **pitch sustained into the decay**, and **the full guitar successfully tuned**. The owner also successfully tested closing via X, Escape and backdrop; however, backdrop dismissal was judged inconvenient and explicitly removed from the intended behavior.
+
+**Accepted interaction contract:**
+- Closing with the **X** button and **Escape** remains supported.
+- Clicking the darkened/background area outside the dialog **does not close the tuner** and must not stop audio capture.
+- The page remains inert while the dialog is open, and focus is restored when an explicit dismissal happens.
+- Navigating away (if applicable) or unmounting must still release the microphone.
+
+Implementation: remove the `@mousedown.self="close"` handler from the Teleported backdrop; no alternative click/pointer dismissal listeners. The integrated real-Vue-component regression asserts the absence of dismiss handlers while the modal remains open, and verifies Escape still closes and restores focus. Manual verification on real browser still required for the updated UX.

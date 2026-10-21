@@ -207,7 +207,8 @@ onBeforeUnmount(() => {
 
 <template>
   <Teleport to="body">
-    <div v-if="open" class="tuner-overlay" @mousedown.self="close">
+    <!-- Backdrop clicks are intentionally ignored: don't interrupt tuning. -->
+    <div v-if="open" class="tuner-overlay">
       <section ref="dialog" role="dialog" aria-modal="true" class="tuner-modal"
         :aria-label="t('tuner.title')" tabindex="-1" @keydown="handleKey">
         <div class="tuner-heading">

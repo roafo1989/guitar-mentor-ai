@@ -348,11 +348,18 @@ test('P1 REVIEW-04: real tuner opens, closes, restores shell/focus, and reopens'
     globalThis.__shellRoute.fullPath = '/profile';
     await assertClosed();
 
-    // A backdrop click closes the Teleported tuner without leaving the shell inert.
-    await open();
+    // UX feedback MT-98-04: accidental clicks outside the tuner must NOT
+    // stop tuning or release microphone; closing is explicit (X / Escape).
+    const backdropModal = await open();
     const overlay = dom.find(dom.body, n => n.props.class === 'tuner-overlay');
-    assert.ok(overlay && overlay.props.onMousedown, 'actual backdrop click available');
-    overlay.props.onMousedown({ target: overlay, currentTarget: overlay });
+    assert.ok(overlay, 'real tuner backdrop remains rendered');
+    assert.equal(overlay.props.onMousedown, undefined, 'backdrop has no dismiss on mousedown');
+    assert.equal(overlay.props.onClick, undefined, 'backdrop has no dismiss on click');
+    assert.equal(overlay.props.onPointerdown, undefined, 'backdrop has no pointer dismiss');
+    assert.equal(shell.props.inert, true, 'page remains inert while tuner is visible');
+    assert.equal(dom.find(dom.body, n => n.tag === 'section' &&
+      n.props['aria-label'] === 'tuner.title'), backdropModal, 'tuner remains open');
+    backdropModal.props.onKeydown({ key: 'Escape', preventDefault() {} });
     await assertClosed();
 
     assert.ok(metroButton.props.onClick, 'metronome button remains interactive');
