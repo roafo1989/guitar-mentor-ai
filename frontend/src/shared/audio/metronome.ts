@@ -12,7 +12,7 @@ export interface MetronomeState {
   error: 'web-audio-unavailable' | null;
 }
 type Listener = (state: Readonly<MetronomeState>) => void;
-type ClickNodes = { oscillator: OscillatorNode; gain: GainNode };
+type ClickNodes = { oscillator: OscillatorNode; gain: GainNode; at: number };
 const LOOKAHEAD_MS = 25;
 const AHEAD_SECONDS = 0.1;
 const INITIAL_DELAY_SECONDS = 0.03;
@@ -33,7 +33,10 @@ export class MetronomeEngine {
   private context: AudioContext | null = null;
   private masterGain: GainNode | null = null;
   private interval: ReturnType<typeof setInterval> | null = null;
-  private readonly visualTimers = new Set<ReturnType<typeof setTimeout>>();
+  private readonly visualTimers = new Map<ReturnType<typeof setTimeout>, number>();
+  /** A future bar may be queued in Web Audio, but is not active until the audio clock reaches it. */
+  private scheduledConfig: MetronomeConfig | null = null;
+  private scheduledBoundaryAt: number | null = null;
   private readonly clicks = new Set<ClickNodes>();
   private nextBeatTime = 0;
   private nextBeatIndex = 0;
@@ -71,8 +74,12 @@ export class MetronomeEngine {
   setBpm(bpm: number): boolean {
     if (!MetronomeEngine.isValidBpm(bpm)) return false;
     if (bpm === this.config.bpm && (!this.pendingConfig || this.pendingConfig.bpm === bpm)) return true;
+    this.commitScheduledIfDue();
     this.config.bpm = bpm;
     if (this.pendingConfig) this.pendingConfig.bpm = bpm;
+    // A tempo reset invalidates all future audio events, including an ahead-planned bar.
+    this.scheduledConfig = null;
+    this.scheduledBoundaryAt = null;
     this.state = { ...this.state, bpm };
     if (this.state.status === 'running' && this.context) {
       this.cancelScheduledBeats();
@@ -89,10 +96,11 @@ export class MetronomeEngine {
   /** Master is immediately effective even during playback. */
   setMasterVolume(value: number): boolean {
     if (!Number.isInteger(value) || value < 0 || value > 100) return false;
+    this.commitScheduledIfDue();
     this.config.masterVolumePercent = value;
     if (this.pendingConfig) this.pendingConfig.masterVolumePercent = value;
-    if (this.context && this.masterGain)
-      this.masterGain.gain.setValueAtTime(value / 100, this.context.currentTime);
+    if (this.scheduledConfig) this.scheduledConfig.masterVolumePercent = value;
+    this.updateMasterGainNow(value);
     this.emit();
     return true;
   }
@@ -101,9 +109,13 @@ export class MetronomeEngine {
     if (!validConfig(requested)) return false;
     const next = copyConfig(requested);
     if (this.state.status === 'running') {
-      // Composite changes (including a preset's BPM and master level) land together.
-      // Standalone setBpm/setMasterVolume remain immediate even with a pending config.
+      this.commitScheduledIfDue();
+      // Last valid composite request wins even if the next bar was scheduled ahead.
       this.pendingConfig = next;
+      if (this.scheduledBoundaryAt !== null && this.context &&
+          this.scheduledBoundaryAt > this.context.currentTime) {
+        this.replanScheduledBoundary();
+      }
     } else {
       this.config = next;
       this.pendingConfig = null;
@@ -128,6 +140,8 @@ export class MetronomeEngine {
     this.pendingStart = null;
     this.deferPendingFirstBeat = false;
     this.cleanup();
+    this.scheduledConfig = null;
+    this.scheduledBoundaryAt = null;
     // Stopping accepts the last requested valid config, not an obsolete bar.
     if (this.pendingConfig) {
       this.config = this.pendingConfig;
@@ -187,6 +201,8 @@ export class MetronomeEngine {
     ++this.generation;
     this.pendingStart = null;
     this.cleanup();
+    this.scheduledConfig = null;
+    this.scheduledBoundaryAt = null;
     this.state = { ...this.state, status:'unavailable', beat:null, error:'web-audio-unavailable' };
     this.emit();
   }
@@ -198,6 +214,64 @@ export class MetronomeEngine {
     if (typeof document !== 'undefined') document.removeEventListener('visibilitychange', this.onVisibilityChange);
     if (typeof window !== 'undefined') window.removeEventListener('pagehide', this.onPageHide);
   }
+  /** Advance the reported playing pattern only when its boundary actually arrives. */
+  private commitScheduledIfDue(): void {
+    if (!this.context || this.scheduledBoundaryAt === null ||
+        this.context.currentTime < this.scheduledBoundaryAt || !this.scheduledConfig) return;
+    this.config = this.scheduledConfig;
+    this.scheduledConfig = null;
+    this.scheduledBoundaryAt = null;
+    this.pendingConfig = null;
+    this.state = { ...this.state, bpm:this.config.bpm };
+    this.emit();
+  }
+  /** Cancel only events in the future bar. Already sounding and current-bar clicks remain. */
+  private replanScheduledBoundary(): void {
+    const at = this.scheduledBoundaryAt;
+    if (at === null) return;
+    for (const click of this.clicks) {
+      if (click.at < at) continue;
+      click.oscillator.onended = null;
+      try { click.oscillator.stop(); } catch {}
+      try { click.oscillator.disconnect(); } catch {}
+      try { click.gain.disconnect(); } catch {}
+      this.clicks.delete(click);
+    }
+    for (const [timer, when] of this.visualTimers) {
+      if (when < at) continue;
+      clearTimeout(timer);
+      this.visualTimers.delete(timer);
+    }
+    this.masterGain?.gain.cancelScheduledValues(at);
+    this.scheduledConfig = null;
+    this.scheduledBoundaryAt = null;
+    this.nextBeatTime = at;
+    this.nextBeatIndex = 0;
+    this.nextSubIndex = 0;
+    this.schedule(this.generation);
+  }
+  /** Master overrides are immediate and smooth, including already scheduled audio. */
+  private updateMasterGainNow(percent: number): void {
+    if (!this.context || !this.masterGain) return;
+    const gain = this.masterGain.gain;
+    const now = this.context.currentTime;
+    const current = gain.value;
+    gain.cancelScheduledValues(now);
+    gain.setValueAtTime(current, now);
+    gain.linearRampToValueAtTime(percent / 100, now + 0.008);
+    if (this.scheduledBoundaryAt !== null && this.scheduledConfig &&
+        this.scheduledBoundaryAt > now) {
+      const at = this.scheduledBoundaryAt;
+      gain.setValueAtTime(percent / 100, at);
+      gain.linearRampToValueAtTime(this.scheduledConfig.masterVolumePercent / 100, at + 0.008);
+    }
+  }
+  private scheduleMasterForBoundary(at: number, upcoming: MetronomeConfig): void {
+    if (!this.masterGain) return;
+    const gain = this.masterGain.gain;
+    gain.setValueAtTime(this.config.masterVolumePercent / 100, at);
+    gain.linearRampToValueAtTime(upcoming.masterVolumePercent / 100, at + 0.008);
+  }
   private schedule(generation: number): void {
     const context = this.context;
     if (generation !== this.generation || this.state.status !== 'running' || !context) return;
@@ -205,13 +279,15 @@ export class MetronomeEngine {
     try {
       // Clock stalls skip old events without a catch-up burst. Do not accumulate
       // nextBeatTime using repeated additions when thousands of ticks were missed.
-      let interval = positionSeconds(this.config) / this.config.subdivision;
+      this.commitScheduledIfDue();
+      const clockConfig = this.scheduledConfig ?? this.config;
+      let interval = positionSeconds(clockConfig) / clockConfig.subdivision;
       if (this.nextBeatTime < context.currentTime) {
         const skipped = Math.ceil((context.currentTime - this.nextBeatTime) / interval);
-        const ticksPerBar = this.config.numerator * this.config.subdivision;
-        const nextIndex = (this.nextBeatIndex * this.config.subdivision + this.nextSubIndex + skipped) % ticksPerBar;
-        this.nextBeatIndex = Math.floor(nextIndex / this.config.subdivision);
-        this.nextSubIndex = nextIndex % this.config.subdivision;
+        const ticksPerBar = clockConfig.numerator * clockConfig.subdivision;
+        const nextIndex = (this.nextBeatIndex * clockConfig.subdivision + this.nextSubIndex + skipped) % ticksPerBar;
+        this.nextBeatIndex = Math.floor(nextIndex / clockConfig.subdivision);
+        this.nextSubIndex = nextIndex % clockConfig.subdivision;
         this.nextBeatTime += skipped * interval;
         if (this.nextBeatTime < context.currentTime) this.nextBeatTime = context.currentTime;
       }
@@ -219,48 +295,49 @@ export class MetronomeEngine {
         if (this.nextBeatIndex === 0 && this.nextSubIndex === 0) {
           if (this.deferPendingFirstBeat) {
             this.deferPendingFirstBeat = false;
-          } else if (this.pendingConfig) {
-            this.config = this.pendingConfig;
-            this.pendingConfig = null;
-            this.masterGain?.gain.setValueAtTime(this.config.masterVolumePercent / 100, this.nextBeatTime);
-            interval = positionSeconds(this.config) / this.config.subdivision;
-            this.state = { ...this.state, bpm:this.config.bpm };
-            this.emit();
+          } else if (this.pendingConfig && !this.scheduledConfig) {
+            this.scheduledConfig = copyConfig(this.pendingConfig);
+            this.scheduledBoundaryAt = this.nextBeatTime;
+            this.scheduleMasterForBoundary(this.nextBeatTime, this.scheduledConfig);
+            interval = positionSeconds(this.scheduledConfig) / this.scheduledConfig.subdivision;
           }
         }
         const beatIndex = this.nextBeatIndex;
         const beat = beatIndex + 1;
         const sub = this.nextSubIndex;
         const at = this.nextBeatTime;
-        this.scheduleClick(context, at, beatIndex, sub, interval);
+        this.scheduleClick(context, at, beatIndex, sub, interval, this.scheduledConfig ?? this.config);
         if (sub === 0) {
           const delay = Math.max(0, (at - context.currentTime) * 1000);
           const timer = setTimeout(() => {
             this.visualTimers.delete(timer);
             if (generation !== this.generation || this.state.status !== 'running') return;
+            this.commitScheduledIfDue();
             this.state = { ...this.state, beat };
             this.emit();
           }, delay);
-          this.visualTimers.add(timer);
+          this.visualTimers.set(timer, at);
         }
         this.nextBeatTime += interval;
         ++this.nextSubIndex;
-        if (this.nextSubIndex >= this.config.subdivision) {
+        const scheduled = this.scheduledConfig ?? this.config;
+        if (this.nextSubIndex >= scheduled.subdivision) {
           this.nextSubIndex = 0;
-          this.nextBeatIndex = (this.nextBeatIndex + 1) % this.config.numerator;
+          this.nextBeatIndex = (this.nextBeatIndex + 1) % scheduled.numerator;
         }
       }
     } catch { if (generation === this.generation) this.failAudio(); }
   }
-  private scheduleClick(context: AudioContext, at: number, beatIndex: number, subIndex: number, stepSeconds: number): void {
-    const gainValue = cellGain(this.config, beatIndex, subIndex !== 0);
-    if (gainValue <= 0 || this.config.masterVolumePercent === 0) return;
-    const accent = this.config.positions[beatIndex].accent;
+  private scheduleClick(context: AudioContext, at: number, beatIndex: number, subIndex: number, stepSeconds: number, config: MetronomeConfig): void {
+    const gainValue = cellGain(config, beatIndex, subIndex !== 0);
+    // Master is a separate GainNode; a later master adjustment must unmute future clicks.
+    if (gainValue <= 0) return;
+    const accent = config.positions[beatIndex].accent;
     const frequency = subIndex !== 0 ? 560 : accent === 'strong' ? 1150 : accent === 'medium' ? 940 : 760;
     const length = Math.min(MAX_CLICK_SECONDS, stepSeconds * 0.48);
     const oscillator = context.createOscillator();
     const gain = context.createGain();
-    const click: ClickNodes = { oscillator, gain };
+    const click: ClickNodes = { oscillator, gain, at };
     this.clicks.add(click);
     oscillator.onended = () => {
       oscillator.disconnect(); gain.disconnect(); this.clicks.delete(click);
@@ -276,7 +353,7 @@ export class MetronomeEngine {
     oscillator.stop(at + length);
   }
   private cancelScheduledBeats(): void {
-    for (const timer of this.visualTimers) clearTimeout(timer);
+    for (const timer of this.visualTimers.keys()) clearTimeout(timer);
     this.visualTimers.clear();
     for (const { oscillator, gain } of this.clicks) {
       oscillator.onended = null;
