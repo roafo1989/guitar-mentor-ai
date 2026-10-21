@@ -27,6 +27,14 @@ Previously assigned tasks remain active, never retroactively passed.
    are created only by the integration fixture or internal trusted service.
    `VALIDATED_MEASUREMENT` is refused unless the approved `methodId:methodVersion`
    is explicitly allowlisted in `GUITAR_MENTOR_VALIDATED_METHODS` (empty by default).
+   A method must additionally be granted each exact measurement domain by
+   `GUITAR_MENTOR_VALIDATED_METHOD_SCOPES`, a semicolon-separated list of
+   `methodId:methodVersion|SKILL_CODE|CRITERION_CODE` grants. For example,
+   `BEAT:v1|RHYTHM|PULSE_STEADY` only allows that criterion, *not* any
+   other criterion in RHYTHM or another skill. No wildcards or implicit domain
+   access; empty/malformed scopes deny measurement grading. HUMAN_REVIEW may
+   assess only `MANUAL_OR_NOT_ASSESSED` criteria; to leave an automated-only
+   criterion untouched use `NOT_ASSESSED` with a reasonCode.
    Both HUMAN_REVIEW and validated measurements additionally require the matching
    server-provisioned principal and secret proof; empty credentials deny all writers.
    Use `GUITAR_MENTOR_REVIEW_PRINCIPAL`/`GUITAR_MENTOR_REVIEW_TOKEN` for a local
@@ -77,13 +85,17 @@ Possible codes: `INVALID_DECISION`, `REASON_TOO_LONG`, `INVALID_PAGINATION` (400
 attempt is technically `PROCESSED` with finalized processing; it returns
 `ASSESSMENT_NOT_READY` (409) otherwise. The student may still COMPLETE independently
 while a recording is unfinished or FAILED, but receives `COMPLETED_BY_LEARNER`,
-never an artificial PASS. A first successful POST returns 201, byte-equivalent
+never an artificial PASS. V15 legacy scores upgraded by V16 have source
+`LEGACY_UNVERIFIED`; these remain in assessment history (with limitations)
+but cannot grant `COMPLETED_PASSED`, even if they claimed PASS and the
+technical media passed. The source proof is redacted from `Input.toString()`.
+A first successful POST returns 201, byte-equivalent
 normalized `requestId` replay returns 200 with the original saved result.
 Assessment/decision history are paginated using opaque resource-bound cursors,
 limit 1–100, default 20.
 
-A complete decision based on current fully assessed PASS **and a successfully
-finalized technical check** becomes
+A complete decision based on current fully assessed PASS, trusted current
+assessment provenance **and a successfully finalized technical check** becomes
 `COMPLETED_PASSED`. A complete decision after REVISE, UNCERTAIN or no assessment
 becomes `COMPLETED_BY_LEARNER`. A CONTINUE always stays ACTIVE.
 Nothing writes a MEASURED/OBSERVED level to skill history. New uploads of a
@@ -102,13 +114,17 @@ Java unit tests are always run. Real-PostgreSQL integration tests require the
 same CI env setup as the existing backend tests: `GUITAR_MENTOR_TEST_POSTGRES=true`
 and an accessible test PostgreSQL database. Avoid production data.
 
-Review matrix: AC18-01 real V14→V16 migration upgrade/backfill and snapshots; 02 truthful unassessed state;
+Review matrix: AC18-01 real V14→V15(with legacy PASS)→V16 migration and snapshots; 02 truthful unassessed state;
 03 revisions; 04–06 choices; 07 continue/new attempt; 08 replay;
 09 optimistic version and assessment CAS; 10 ownership; 11 real TTL retained history;
 12 terminal replay/guard; 13 source identity+secret, approved methods/no false skill level; 14 flag/rollback.
 Additional regression checks verify rejection of premature PASS and a defensive
 downgrade to learner-chosen completion for a historically saved PASS if its
 technical state later changes to FAILED. Evidence pagination is tested with >100 rows.
+Additional unit/integration checks verify no grading of measurement-only
+criteria by HUMAN_REVIEW, exact method/skill/criterion scopes, and no verified
+completion from V15 `LEGACY_UNVERIFIED` scores. Untrusted historical verdicts
+are not silently rewritten.
 The integration suite exercises service/repository transitions with real SQL;
 audio grading itself is not tested or claimed.
 
