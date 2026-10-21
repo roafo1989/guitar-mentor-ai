@@ -473,3 +473,86 @@ test('TOOL-02 opening during pending change shows requested BPM; +/- steps from 
     delete globalThis.__testMetronome87;
   }
 });
+
+test('TOOL-02 BPM +/- availability uses requested BPM rather than active playback bounds', async () => {
+  const savedDocument=globalThis.document;
+  const Dialog=await compileDialog();
+  // Different active and requested BPM values can coexist until the next bar.
+  for (const {activeBpm,pendingBpm,direction,result,disabled} of [
+    {activeBpm:240,pendingBpm:95,direction:'faster',result:96,disabled:false},
+    {activeBpm:20,pendingBpm:95,direction:'slower',result:94,disabled:false},
+    {activeBpm:80,pendingBpm:240,direction:'faster',result:null,disabled:true},
+    {activeBpm:80,pendingBpm:20,direction:'slower',result:null,disabled:true},
+  ]) {
+    const engine=fakeEngine({queueWhileRunning:true});
+    const view=createTestRenderer();
+    globalThis.__testMetronome87=engine;
+    globalThis.document={body:view.body,activeElement:null};
+    let app;
+    try {
+      engine.applyConfig(meterConfig(4,4,activeBpm));
+      engine.setStatus('running');
+      engine.applyConfig(meterConfig(7,8,pendingBpm));
+      app=view.renderer.createApp({render:()=>h(Dialog)});
+      app.mount(view.node('root'));
+      await nextTick();
+      const input=view.find('input',n=>n.props.id==='metronome-bpm');
+      assert.equal(input.props.value,String(pendingBpm));
+      const control=view.find('button',n=>n.props['aria-label']==='metronome.'+direction);
+      assert.ok(control, direction+' control exists');
+      assert.equal(Boolean(control.props.disabled),disabled,
+        direction+' availability must follow requested '+pendingBpm+' BPM, not active '+activeBpm);
+      if (!disabled) {
+        control.props.onClick();
+        await nextTick();
+        assert.equal(engine.getState().bpm,result);
+        assert.equal(engine.getPendingConfig().bpm,result);
+        assert.equal(input.props.value,String(result));
+      }
+    } finally {
+      app?.unmount();
+      globalThis.document=savedDocument;
+      delete globalThis.__testMetronome87;
+    }
+  }
+});
+
+test('TOOL-02 Discard clears invalid BPM and restores accepted settings and playback', async () => {
+  const savedDocument=globalThis.document;
+  const engine=fakeEngine();
+  const view=createTestRenderer();
+  globalThis.__testMetronome87=engine;
+  globalThis.document={body:view.body,activeElement:null};
+  let app;
+  try {
+    engine.applyConfig(meterConfig(4,4,80));
+    const Dialog=await compileDialog();
+    app=view.renderer.createApp({render:()=>h(Dialog)});
+    app.mount(view.node('root'));
+    await nextTick();
+    const input=view.find('input',n=>n.props.id==='metronome-bpm');
+    assert.ok(input);
+    input.props.onInput({target:{value:'999'}});
+    await nextTick();
+    assert.equal(input.props.value,'999');
+    assert.ok(view.find('p',n=>n.props.id==='metronome-error'),
+      'invalid BPM should be visibly rejected');
+    view.find('button',n=>n.text==='6/8').props.onClick();
+    await nextTick();
+    assert.ok(view.find('button',n=>n.text==='metronome.discard'));
+    view.find('button',n=>n.text==='metronome.discard').props.onClick();
+    await nextTick();
+    assert.equal(input.props.value,'80','discard must restore last accepted BPM input');
+    assert.equal(view.find('p',n=>n.props.id==='metronome-error'),undefined,
+      'discard must clear stale BPM validation state');
+    assert.equal(engine.getConfig().numerator,4,'discard must restore original meter');
+    assert.equal(engine.getConfig().bpm,80);
+    view.find('button',n=>n.text==='metronome.start').props.onClick();
+    await nextTick();
+    assert.equal(engine.starts,1,'Start must be usable after discarding invalid BPM');
+  } finally {
+    app?.unmount();
+    globalThis.document=savedDocument;
+    delete globalThis.__testMetronome87;
+  }
+});
