@@ -25,6 +25,9 @@ Previously assigned tasks remain active, never retroactively passed.
 4. Current learner/client can list and decide upon its own attempts after upload.
    No student-facing assessment submission endpoint exists. Test assessments
    are created only by the integration fixture or internal trusted service.
+   `VALIDATED_MEASUREMENT` is refused unless the approved `methodId:methodVersion`
+   is explicitly allowlisted in `GUITAR_MENTOR_VALIDATED_METHODS` (empty by default).
+   Do not add a method without #22 validation and a dedicated review.
 
 The server is still local-only and has no login. Do not expose it to the internet
 until the separate authentication/deployment work (#38).
