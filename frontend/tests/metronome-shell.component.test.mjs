@@ -53,6 +53,7 @@ async function compileRealTuner(instance) {
     'vue-i18n': i18nUrl,
     '../audio/audio-session': new URL('../src/shared/audio/audio-session.ts', import.meta.url).href,
     './pitch': new URL('../src/shared/tuner/pitch.ts', import.meta.url).href,
+    './tuning-profiles': new URL('../src/shared/tuner/tuning-profiles.ts', import.meta.url).href,
     './tuner-session': new URL('../src/shared/tuner/tuner-session.ts', import.meta.url).href,
     './modal-focus': new URL('../src/shared/tuner/modal-focus.ts', import.meta.url).href,
     './tuner-reading': new URL('../src/shared/tuner/tuner-reading.ts', import.meta.url).href,
@@ -331,6 +332,39 @@ test('P1 REVIEW-04: real tuner opens, closes, restores shell/focus, and reopens'
     }
 
     let modal = await open();
+    // TOOL-03: the real component exposes 3 presets, six physical peg
+    // buttons, preserves a manually chosen string when changing tuning,
+    // and returns to Auto without taking microphone permission.
+    const profileSelect = dom.find(dom.body, n => n.tag === 'select');
+    assert.ok(profileSelect, 'guitar tuning can be selected with keyboard');
+    assert.equal(profileSelect.children.filter(n => n.tag === 'option').length, 3);
+    const findPegs = () => {
+      const headstock = dom.find(dom.body, n => n.tag === 'div' && n.props.class === 'tuner-headstock');
+      assert.ok(headstock, 'headstock vector display');
+      return headstock.children.filter(n => n.tag === 'button');
+    };
+    let pegs = findPegs();
+    assert.equal(pegs.length, 6, 'six accessible physical strings');
+    assert.deepEqual(pegs.map(p => p.children.find(c => c.tag === 'small')?.text),
+      ['6','5','4','3','2','1']);
+    pegs[0].props.onClick();
+    await nextTick();
+    pegs = findPegs();
+    assert.equal(pegs[0].props['aria-pressed'], true);
+    profileSelect.props.onChange({ target: { value: 'OPEN_G' } });
+    await nextTick();
+    pegs = findPegs();
+    assert.equal(pegs[0].props['aria-pressed'], true, 'manual physical 6th string survives change');
+    assert.equal(pegs[0].children.find(c => c.tag === 'strong')?.text, 'D2');
+    assert.equal(pegs[1].children.find(c => c.tag === 'strong')?.text, 'G2');
+    assert.equal(pegs[5].children.find(c => c.tag === 'strong')?.text, 'D4');
+    const auto = dom.find(dom.body, n => n.tag === 'button' &&
+      typeof n.props.class === 'string' && n.props.class.includes('tuner-auto-button'));
+    assert.ok(auto);
+    auto.props.onClick();
+    await nextTick();
+    assert.equal(findPegs().some(p => p.props['aria-pressed'] === true), false,
+      'Auto clears manual target and stale visual success');
     const closeButton = dom.find(dom.body, n => n.tag === 'button' &&
       n.props['aria-label'] === 'tuner.close');
     assert.ok(closeButton);
