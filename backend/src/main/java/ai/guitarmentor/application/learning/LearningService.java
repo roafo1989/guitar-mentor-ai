@@ -187,6 +187,9 @@ public class LearningService {
             }
             return new CreatedDecision(result(existing.get()),true);
         }
+        if (repo.latestAttempt(taskId).isEmpty()) {
+            throw new LearningProblem(HttpStatus.CONFLICT,"NO_ATTEMPT");
+        }
         if (!repo.attemptBelongs(request.attemptId(),taskId)) {
             throw new LearningProblem(HttpStatus.NOT_FOUND,"RESOURCE_NOT_FOUND");
         }
