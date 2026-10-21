@@ -105,3 +105,15 @@ Addressed both P2 findings in [review #5599589428](https://github.com/roafo1989/
 Three mounted Vue-dialog regression cases cover: invalid BPM → meter choice → rejected Apply and Discard; invalid BPM → focus elsewhere → repeated audio ticks → invalid editor and message retained → Discard/valid correction; and invalid BPM → explicit valid preset → error cleared and preset applied.
 
 **Verification:** code and tests are committed to PR #105. GitHub Actions CI for the final head must pass before transferring to independent review / tester. Real audible timing and mobile device checks remain separate. Until then, issue #104 / PR #105 remain open and unmerged.
+
+## Review #5605478484 — consistent validation for presets (21 Oct 2026)
+
+Addressed the remaining P2 finding in [review #5605478484](https://github.com/roafo1989/guitar-mentor-ai/pull/105#pullrequestreview-5605478484):
+
+- **Single input validator:** `validateDraftFields()` validates the actual visible BPM and grouping input for Apply, Save Preset and Replace Preset. It rejects out-of-range/empty BPM and malformed or non-matching grouping text before accepting any new composite configuration or persisting a preset. No existing preset is overwritten and no invalid configuration is queued on failure.
+- **Unblurred valid grouping:** when a user enters a valid grouping but presses Save/Replace before its `change` handler executes, the validator reconciles the new grouping and suggested accent positions into the draft before taking a copy. When the parsed grouping is identical to the draft, custom beat accents are not silently overwritten by a mere formatting change.
+- **Preserved deletion behavior:** deleting a previously selected preset is unrelated to editing a new configuration and does not require a valid BPM or grouping draft.
+
+Two additional mounted Vue tests cover all four negative Save/Replace × BPM/Groups paths and both positive Save/Replace paths with new grouping text entered without blur. These complement the existing real-component Apply, Discard, queued-BPM and scheduler regressions.
+
+**Verification gate:** CI on the final PR SHA (frontend intake tests, all frontend tests, Vue TypeScript check and Vite build) must be observed before declaring PASS. Independent review and manual Web Audio/browser/mobile validation remain pending; no merge or owner acceptance is implied.
