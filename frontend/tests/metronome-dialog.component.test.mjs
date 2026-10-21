@@ -884,3 +884,14 @@ test('TOOL-04 panels keep deep metronome controls and Escape closes panel before
     delete globalThis.__testMetronome87;
   }
 });
+
+
+test('TOOL-04 CSS preserves the beat strip height and hides inactive Apply/Discard row', async () => {
+  const css = await readFile(new URL('../src/assets/main.css', import.meta.url), 'utf8');
+  // Regression from real Chrome screenshot (22.10.2026): without these rules
+  // the flex child became a horizontal sliver and its click targets were lost.
+  assert.match(css, /\.m111\s+\.metronome-count\s*\{\s*flex-shrink:\s*0\s*;\s*min-height:\s*62px\s*;/,
+    'each beat row must retain enough vertical space to display accent controls');
+  assert.match(css, /\.m111\s+\.metronome-apply\.m111-apply\.m111-apply-quiet\s*\{\s*display:\s*none\s*;/,
+    'no-change Apply row must really be hidden despite the base flex rule');
+});
