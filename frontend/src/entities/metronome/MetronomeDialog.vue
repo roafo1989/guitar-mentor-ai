@@ -472,7 +472,7 @@ onBeforeUnmount(() => {
                   <button v-for="n in widths" :key="n" type="button"
                     :aria-pressed="draftConfig.subdivision === n"
                     :aria-label="t('metronome.subdivisionCount', { count: n })"
-                    @click="changeSubdivision(String(n))">{{ n }}</button>
+                    @click="changeSubdivision(String(n))"><strong>{{ n }}</strong><span class="m111-sub-notes" aria-hidden="true">{{ '•'.repeat(n) }}</span></button>
                 </div>
               </div>
               <p v-if="silent" class="m111-silent" role="status">{{ t('metronome.silent') }}</p>
