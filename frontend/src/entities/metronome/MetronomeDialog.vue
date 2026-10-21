@@ -38,6 +38,16 @@ let unsubscribe: (() => void) | null = null;
 let previousOverflow = '';
 let lastRequestedJson = JSON.stringify(draftConfig.value);
 const silent = computed(() => !audible(draftConfig.value));
+const differentPlayingPattern = computed(() => state.value.status === 'running' &&
+  JSON.stringify({
+    n:active.value.numerator, d:active.value.denominator, groups:active.value.groups,
+    tempoUnit:active.value.tempoUnit, subdivision:active.value.subdivision,
+    positions:active.value.positions,
+  }) !== JSON.stringify({
+    n:draftConfig.value.numerator, d:draftConfig.value.denominator, groups:draftConfig.value.groups,
+    tempoUnit:draftConfig.value.tempoUnit, subdivision:draftConfig.value.subdivision,
+    positions:draftConfig.value.positions,
+  }));
 const chosenPreset = computed(() => metronomeUi.presets.find(p => p.id === selectedPreset.value));
 
 function sync(next: MetronomeState): void {
@@ -242,8 +252,14 @@ function confirmPreset(): void {
   store();
 }
 function resetPreferences(): void {
-  if (resetMetronomePreferences()) { discard(); confirmReset.value = false; }
-  else configError.value = t('metronome.storeFailure');
+  if (resetMetronomePreferences()) {
+    selectedPreset.value = '';
+    presetName.value = '';
+    beatSelection.value = 0;
+    discard();
+    confirmReset.value = false;
+    configError.value = '';
+  } else configError.value = t('metronome.storeFailure');
 }
 function start(): void {
   if (!commitTempo()) return;
@@ -314,6 +330,12 @@ onBeforeUnmount(() => {
           <p v-if="error" id="metronome-error" role="alert" class="metronome-error">{{ error }}</p>
         </div>
 
+        <div class="metronome-master">
+          <label for="metronome-master">{{ t('metronome.master') }} · {{ draftConfig.masterVolumePercent }}%</label>
+          <input id="metronome-master" type="range" min="0" max="100" step="1"
+            :value="draftConfig.masterVolumePercent" @input="changeMaster(($event.target as HTMLInputElement).value)" />
+        </div>
+        <p v-if="metronomeUi.sourceExercise" class="metronome-note">{{ t('metronome.userMeterWarning') }}</p>
         <div class="metronome-meter-picker">
           <label for="metronome-numerator">{{ t('metronome.meter') }}</label>
           <select id="metronome-numerator" :value="meterN" @change="meterN = Number(($event.target as HTMLSelectElement).value); changeMeter()">
@@ -330,10 +352,22 @@ onBeforeUnmount(() => {
             @click="pickQuick(key)">{{ key }}</button>
         </div>
 
+        <div v-if="differentPlayingPattern" class="metronome-playing-pattern">
+          <p class="metronome-note">{{ t('metronome.playingPattern') }}: {{ active.numerator }}/{{ active.denominator }}</p>
+          <div class="metronome-count metronome-count-active" :aria-label="t('metronome.playingPattern')">
+            <div v-for="(position, index) in active.positions" :key="index"
+              class="metronome-beat"
+              :class="['accent-' + position.accent, { 'is-active': state.beat === index + 1 }]"
+              :aria-label="t('metronome.beatAccent', { number:index + 1, accent:t('metronome.accents.' + position.accent) })">
+              <span>{{ index + 1 }}</span><small>{{ t('metronome.accents.' + position.accent) }}</small>
+            </div>
+          </div>
+          <p class="metronome-note">{{ t('metronome.editingPattern') }}</p>
+        </div>
         <div class="metronome-count" :aria-label="draftConfig.numerator + '/' + draftConfig.denominator">
           <button v-for="(position, index) in draftConfig.positions" :key="index" type="button"
             class="metronome-beat"
-            :class="['accent-' + position.accent, { 'is-active': state.status === 'running' && state.beat === index + 1, 'is-selected': beatSelection === index }]"
+            :class="['accent-' + position.accent, { 'is-active': !differentPlayingPattern && state.status === 'running' && state.beat === index + 1, 'is-selected': beatSelection === index }]"
             :aria-label="t('metronome.beatAccent', { number: index + 1, accent: t('metronome.accents.' + position.accent) })"
             @click="cycleAccent(index)">
             <span>{{ index + 1 }}</span><small>{{ t('metronome.accents.' + position.accent) }}</small>
@@ -357,9 +391,11 @@ onBeforeUnmount(() => {
               @change="changeSubdivision(($event.target as HTMLSelectElement).value)">
               <option v-for="n in widths" :key="n" :value="n">{{ n }}</option>
             </select>
-            <label for="metronome-master">{{ t('metronome.master') }} · {{ draftConfig.masterVolumePercent }}%</label>
-            <input id="metronome-master" type="range" min="0" max="100" step="1"
-              :value="draftConfig.masterVolumePercent" @input="changeMaster(($event.target as HTMLInputElement).value)" />
+            <label for="metronome-beat-selection">{{ t('metronome.selectBeatForVolume') }}</label>
+            <select id="metronome-beat-selection" :value="beatSelection"
+              @change="beatSelection = Number(($event.target as HTMLSelectElement).value)">
+              <option v-for="(_position, index) in draftConfig.positions" :key="index" :value="index">{{ index + 1 }}</option>
+            </select>
             <label for="metronome-position-volume">{{ t('metronome.positionVolume', { number:beatSelection+1 }) }} · {{ draftConfig.positions[beatSelection]?.volumePercent }}%</label>
             <input id="metronome-position-volume" type="range" min="0" max="100" step="1"
               :value="draftConfig.positions[beatSelection]?.volumePercent"
@@ -395,14 +431,12 @@ onBeforeUnmount(() => {
                 <button type="button" @click="confirmAction = null">{{ t('metronome.cancel') }}</button>
               </div>
             </div>
-            <template v-if="metronomeUi.storageBlocked">
-              <button v-if="!confirmReset" type="button" @click="confirmReset = true">{{ t('metronome.resetStorage') }}</button>
-              <div v-else class="metronome-confirm">
-                <span>{{ t('metronome.confirmReset') }}</span>
-                <button type="button" @click="resetPreferences">{{ t('metronome.confirm') }}</button>
-                <button type="button" @click="confirmReset = false">{{ t('metronome.cancel') }}</button>
-              </div>
-            </template>
+            <button v-if="!confirmReset" type="button" @click="confirmReset = true">{{ t('metronome.resetStorage') }}</button>
+            <div v-else class="metronome-confirm">
+              <span>{{ t(metronomeUi.storageBlocked ? 'metronome.confirmResetCorrupt' : 'metronome.confirmReset') }}</span>
+              <button type="button" @click="resetPreferences">{{ t('metronome.confirm') }}</button>
+              <button type="button" @click="confirmReset = false">{{ t('metronome.cancel') }}</button>
+            </div>
           </div>
         </details>
         <div class="metronome-apply">
