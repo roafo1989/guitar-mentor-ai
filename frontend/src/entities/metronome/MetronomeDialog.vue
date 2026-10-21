@@ -120,6 +120,14 @@ function changeGroups(): void {
   const groups = parseGroups(groupInput.value, draftConfig.value.numerator);
   if (!groups) { configError.value = t('metronome.invalidGroups'); return; }
   draftConfig.value.groups = groups;
+  // Group change is an explicit request for a new suggested accent pattern.
+  // The student can still customize every beat again before applying.
+  const starts = new Set<number>();
+  let offset = 0;
+  for (const size of groups) { starts.add(offset); offset += size; }
+  draftConfig.value.positions.forEach((position, index) => {
+    position.accent = index === 0 ? 'strong' : starts.has(index) ? 'medium' : 'weak';
+  });
   dirty.value = true;
   configError.value = '';
 }
