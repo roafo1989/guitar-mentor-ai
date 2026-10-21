@@ -161,6 +161,20 @@
   .tuner-peg-note{font-size:8px}
   .tuner-readout-panel{padding:6px 10px}
 }
+/* Very short phone viewports (e.g. 360×640) need a smaller but still
+   entirely accessible 3+3 stage; all peg centres remain inside the SVG. */
+@media(max-width:420px) and (max-height:670px){
+  .tuner-modal{padding:10px 8px}
+  .tuner-toolbar{margin:7px 0}
+  .tuner-readout-panel{padding:5px 8px}
+  .tuner-readout{min-height:66px}
+  .tuner-note{font-size:34px}
+  .tuner-meter{height:20px}
+  .tuner-headstock{max-width:300px}
+  .tuner-microphone{min-height:32px;padding:5px 9px}
+  .tuner-controls{margin-top:5px}
+  .tuner-privacy{margin-top:4px}
+}
 @media(prefers-reduced-motion:reduce){
   .tuner-needle,.tuner-note,.tuner-wire,.tuner-auto-button:before,.tuner-auto-button:after{transition:none}
 }
