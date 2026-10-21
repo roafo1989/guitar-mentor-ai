@@ -16,6 +16,7 @@ import ai.guitarmentor.infrastructure.persistence.DiagnosticSessionRepository;
 import ai.guitarmentor.infrastructure.persistence.DiagnosticTaskRepository;
 import ai.guitarmentor.infrastructure.persistence.ExerciseRepository;
 import ai.guitarmentor.infrastructure.persistence.LearnerRepository;
+import ai.guitarmentor.infrastructure.persistence.LearningRepository;
 import jakarta.persistence.EntityNotFoundException;
 import java.util.Optional;
 import java.util.UUID;
@@ -32,6 +33,7 @@ class DiagnosticTaskServiceTest {
     @Mock DiagnosticTaskRepository tasks;
     @Mock ExerciseRepository exercises;
     @Mock LearnerRepository learners;
+    @Mock LearningRepository learning;
     @Mock Exercise exercise;
 
     DiagnosticTaskService service;
@@ -41,7 +43,7 @@ class DiagnosticTaskServiceTest {
 
     @BeforeEach
     void setUp() {
-        service = new DiagnosticTaskService(sessions, tasks, exercises, learners);
+        service = new DiagnosticTaskService(sessions, tasks, exercises, learners, learning);
         learner = new Learner("Student");
         profile = new InstrumentProfile("ACOUSTIC_GUITAR", "FINGERSTYLE");
         learner.addInstrumentProfile(profile);
