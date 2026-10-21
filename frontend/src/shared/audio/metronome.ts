@@ -219,7 +219,7 @@ export class MetronomeEngine {
   /** Advance the reported playing pattern only when its boundary actually arrives. */
   private commitScheduledIfDue(): void {
     if (!this.context || this.scheduledBoundaryAt === null ||
-        this.context.currentTime < this.scheduledBoundaryAt || !this.scheduledConfig) return;
+        this.context.currentTime + 1e-6 < this.scheduledBoundaryAt || !this.scheduledConfig) return;
     this.config = this.scheduledConfig;
     this.scheduledConfig = null;
     this.scheduledBoundaryAt = null;
