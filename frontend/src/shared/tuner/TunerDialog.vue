@@ -183,12 +183,14 @@ function choose(index: number): void {
   mode.value = 'manual';
   selected.value = index;
   resetPitch();
+  if (phase.value === 'listening') message.value = 'tuner.stabilizing';
 }
 function chooseAuto(): void {
   mode.value = 'auto';
   // Never inherit a possibly polyphonic pitch from manual mode. Acquire a
   // fresh set of three monophonic frames before selecting the target.
   resetPitch();
+  if (phase.value === 'listening') message.value = 'tuner.stabilizing';
 }
 function handleKey(event: KeyboardEvent): void {
   if (event.key === 'Escape') {
