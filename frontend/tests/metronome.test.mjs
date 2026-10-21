@@ -52,6 +52,7 @@ function audioFactory(clock, contexts, options = {}) {
       destination: {},
       closed: 0,
       oscillators: [],
+      gains: [],
       listeners: new Map(),
       addEventListener(name, fn) { this.listeners.set(name, fn); },
       removeEventListener(name, fn) { if (this.listeners.get(name) === fn) this.listeners.delete(name); },
@@ -79,8 +80,16 @@ function audioFactory(clock, contexts, options = {}) {
         return osc;
       },
       createGain() {
-        return { gain: { setValueAtTime: () => {}, exponentialRampToValueAtTime: () => {} },
-          connect: () => {}, disconnect: () => {} };
+        const gain = {
+          value:1, events:[],
+          setValueAtTime(value, at) { this.events.push({ type:'set', value, at }); this.value=value; },
+          exponentialRampToValueAtTime(value, at) { this.events.push({ type:'exponential', value, at }); this.value=value; },
+          linearRampToValueAtTime(value, at) { this.events.push({ type:'linear', value, at }); this.value=value; },
+          cancelScheduledValues(at) { this.events=this.events.filter(event => event.at < at); },
+        };
+        const node = { gain, connect: () => {}, disconnect: () => {} };
+        this.gains.push(node);
+        return node;
       },
     };
     contexts.push(context);
@@ -443,6 +452,54 @@ test('TOOL-02 all-muted beat cells still count; per-position gain and master zer
     assert.ok(!at.some(t=>t>=1.03 && t<1.53), 'volume zero removes third beat');
     assert.equal(env.engine.setMasterVolume(0),true);
     assert.equal(env.engine.getConfig().masterVolumePercent,0);
+    env.engine.stop();
+  } finally { env.restore(); }
+});
+
+test('TOOL-02 lookahead: last request wins at the imminent bar, not the next one', async () => {
+  const { meterConfig } = await import('../src/shared/audio/metronome-config.ts');
+  const env=setup();
+  try {
+    assert.equal(await env.engine.start(),true);
+    env.clock.advance(2940); // next bar begins at 3.03s (4/4, 80 quarter BPM)
+    const p1=meterConfig(3,4,70);
+    assert.equal(env.engine.applyConfig(p1),true);
+    env.clock.advance(35); // the scheduler has planned the next bar inside its 100ms lookahead
+    assert.equal(env.engine.getConfig().numerator,4,'audio has not reached the boundary');
+    const p2=meterConfig(7,8,120);
+    p2.tempoUnit='eighth';
+    assert.equal(env.engine.applyConfig(p2),true);
+    assert.equal(env.engine.getPendingConfig().numerator,7);
+    assert.equal(env.engine.getConfig().numerator,4,'future clicks are not treated as already audible');
+    env.clock.advance(70);
+    assert.equal(env.engine.getConfig().numerator,7,'latest config reaches the imminent bar');
+    assert.equal(env.engine.getConfig().bpm,120);
+    const activeBoundaryClicks=env.contexts[0].oscillators.filter(o =>
+      !o.disconnected && o.at >=3.03-1e-6 && o.at<3.04);
+    assert.equal(activeBoundaryClicks.length,1,'no stale or double first click');
+    env.engine.stop();
+    assert.equal(env.clock.tasks.size,0);
+  } finally { env.restore(); }
+});
+
+test('TOOL-02 master override cancels upcoming stale gain automation, then ramps smoothly', async () => {
+  const { meterConfig } = await import('../src/shared/audio/metronome-config.ts');
+  const env=setup();
+  try {
+    assert.equal(await env.engine.start(),true);
+    env.clock.advance(2940);
+    const preset=meterConfig(6,8,90);
+    preset.masterVolumePercent=10;
+    assert.equal(env.engine.applyConfig(preset),true);
+    env.clock.advance(35);
+    const gain=env.contexts[0].gains[0].gain;
+    assert.ok(gain.events.some(e=>e.at>=3.03 && e.value===0.1),'old preset gain was queued');
+    assert.equal(env.engine.setMasterVolume(85),true);
+    assert.equal(env.engine.getPendingConfig().masterVolumePercent,85);
+    assert.ok(!gain.events.some(e=>e.at>=3.03 && e.value===0.1),'stale future automation removed');
+    assert.ok(gain.events.some(e=>e.type==='linear' && e.value===0.85 && e.at>=2.975));
+    env.clock.advance(80);
+    assert.equal(env.engine.getConfig().masterVolumePercent,85);
     env.engine.stop();
   } finally { env.restore(); }
 });
