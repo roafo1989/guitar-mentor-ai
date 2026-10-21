@@ -30,12 +30,18 @@ public class LearningAssessmentWriter {
     private final LearningRepository repo;
     private final LearningService learning;
     private final JdbcTemplate jdbc;
+    private final java.util.Set<String> permittedMeasurementMethods;
 
     public LearningAssessmentWriter(LearningRepository repo, LearningService learning,
-            JdbcTemplate jdbc) {
+            JdbcTemplate jdbc,
+            @org.springframework.beans.factory.annotation.Value(
+                "${guitarmentor.learning.validated-methods:}") String validatedMethods) {
         this.repo=repo;
         this.learning=learning;
         this.jdbc=jdbc;
+        this.permittedMeasurementMethods=java.util.Arrays.stream(validatedMethods.split(","))
+                .map(String::trim).filter(s->!s.isEmpty())
+                .collect(java.util.stream.Collectors.toUnmodifiableSet());
     }
 
     @Transactional
@@ -43,6 +49,11 @@ public class LearningAssessmentWriter {
             UUID attemptId, Input input) {
         learning.available();
         validateInput(input);
+        // No validated measurement methods are enabled before #22 approves them.
+        if ("VALIDATED_MEASUREMENT".equals(input.sourceKind())
+                && !permittedMeasurementMethods.contains(input.methodId()+":"+input.methodVersion())) {
+            invalid();
+        }
         learning.lockOwned(learnerId,sessionId,taskId);
         learning.state(taskId,true); // Same lock order as learner decisions.
         if (!repo.attemptBelongs(attemptId,taskId)) {
