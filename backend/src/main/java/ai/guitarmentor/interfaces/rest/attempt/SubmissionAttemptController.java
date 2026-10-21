@@ -55,10 +55,17 @@ public class SubmissionAttemptController {
             case "Audio file must be between 1 byte and 20 MiB" -> "INVALID_AUDIO_SIZE";
             case "Audio filename is missing" -> "MISSING_AUDIO_FILENAME";
             case "Comment too long" -> "COMMENT_TOO_LONG";
+            case "TASK_COMPLETED" -> "TASK_COMPLETED";
             case "Uploads are disabled. Enable them only for local test files." -> "UPLOAD_DISABLED";
             default -> "UPLOAD_REJECTED";
         };
         return ResponseEntity.status(problem.getStatusCode()).body(Map.of("code", code));
+    }
+
+    @ExceptionHandler(jakarta.persistence.EntityNotFoundException.class)
+    public ResponseEntity<Map<String,String>> missingTask() {
+        return ResponseEntity.status(org.springframework.http.HttpStatus.NOT_FOUND)
+                .body(Map.of("code","RESOURCE_NOT_FOUND"));
     }
 
     @PostMapping(consumes = "multipart/form-data")
