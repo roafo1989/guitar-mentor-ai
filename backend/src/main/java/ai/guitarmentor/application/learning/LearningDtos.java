@@ -18,7 +18,7 @@ public final class LearningDtos {
             String evidenceText, Integer confirmedSkillLevel) {}
 
     public record AssessmentView(UUID id, UUID attemptId, int revision,
-            String sourceKind, String methodId, String methodVersion, String recommendation,
+            String sourceKind, String sourcePrincipal, String methodId, String methodVersion, String recommendation,
             Instant createdAt, List<CriterionResultView> criteria, List<String> limitations) {}
 
     public record DecisionView(UUID decisionId, UUID taskId, UUID attemptId,
@@ -37,7 +37,7 @@ public final class LearningDtos {
     public record Page<T>(List<T> items, String nextCursor) {}
 
     public record SkillEvidenceView(UUID assessmentId, UUID attemptId, String criterionCode,
-            String skillCode, String sourceKind, String methodId, String methodVersion,
+            String skillCode, String sourceKind, String sourcePrincipal, String methodId, String methodVersion,
             Instant createdAt, String status, String outcome, String reasonCode,
             String evidenceText, Integer confirmedSkillLevel) {}
 }
