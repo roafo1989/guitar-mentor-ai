@@ -1,5 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
+import { readFile } from 'node:fs/promises';
 import {
   meterConfig, validConfig, copyConfig, regroup, parseGroups, positionSeconds, cellGain,
   audible, TapTempo, STORE_KEY, MAX_STORE_BYTES, validStore,
@@ -119,5 +120,23 @@ test('local storage validates envelope, bounded UTF-8 and quota errors without d
     assert.equal(map.get(STORE_KEY),prev);
   } finally {
     if(old)Object.defineProperty(globalThis,'localStorage',old); else delete globalThis.localStorage;
+  }
+});
+
+test('TOOL-02 every metronome dialog message exists in both RU and EN, including dynamic enums', async () => {
+  const source=await readFile(new URL('../src/entities/metronome/MetronomeDialog.vue',import.meta.url),'utf8');
+  const literalKeys=[...source.matchAll(/t\(['"]metronome\.([a-zA-Z0-9.-]+)['"]/g)]
+    .map(match=>match[1]).filter(key=>!key.endsWith('.'));
+  const keys=[...new Set([...literalKeys,
+    ...['quarter','eighth','dotted-quarter'].map(x=>'units.'+x),
+    ...['strong','medium','weak','mute'].map(x=>'accents.'+x),
+    ...['ready','starting','running','stopped','unavailable'].map(x=>'status.'+x)])];
+  for (const lang of ['ru','en']) {
+    const messages=JSON.parse(await readFile(new URL('../src/i18n/'+lang+'.json',import.meta.url),'utf8'));
+    for (const key of keys) {
+      const value=key.split('.').reduce((x,part)=>x?.[part],messages.metronome);
+      assert.ok(typeof value==='string' && value.trim().length>0,
+        lang+' missing metronome.'+key);
+    }
   }
 });
