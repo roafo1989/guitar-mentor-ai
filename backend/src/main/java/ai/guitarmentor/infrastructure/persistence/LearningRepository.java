@@ -23,8 +23,8 @@ public class LearningRepository {
     public record State(String state, long version) {}
     public record Attempt(UUID id, int number) {}
     public record Assessment(UUID id, UUID attemptId, int revision, UUID operationId,
-            String fingerprint, String sourceKind, String methodId, String methodVersion,
-            String recommendation, Instant createdAt) {}
+            String fingerprint, String sourceKind, String sourcePrincipal, String methodId,
+            String methodVersion, String recommendation, Instant createdAt) {}
     public record Criterion(String code, String skillCode, String label,
             String observable, String policy, int displayOrder) {}
     public record Result(String code, String status, String outcome, String reasonCode,
@@ -78,6 +78,14 @@ public class LearningRepository {
             """,Boolean.class,attemptId,taskId));
     }
 
+    /** A PASS is valid only when the upload's technical validation is finalized. */
+    public boolean technicallyProcessed(UUID attemptId) {
+        return Boolean.TRUE.equals(jdbc.queryForObject("""
+            SELECT EXISTS(SELECT 1 FROM submission_attempts
+              WHERE id=? AND status='PROCESSED' AND processing_finalized_at IS NOT NULL)
+            """,Boolean.class,attemptId));
+    }
+
     public boolean hasAssessment(UUID attemptId) {
         return Boolean.TRUE.equals(jdbc.queryForObject(
             "SELECT EXISTS(SELECT 1 FROM attempt_assessments WHERE attempt_id=?)",
@@ -110,7 +118,7 @@ public class LearningRepository {
         return new Assessment((UUID)rs.getObject("id"),(UUID)rs.getObject("attempt_id"),
             rs.getInt("revision"),(UUID)rs.getObject("source_operation_id"),
             rs.getString("input_fingerprint"),rs.getString("source_kind"),
-            rs.getString("method_id"),rs.getString("method_version"),
+            rs.getString("source_principal"),rs.getString("method_id"),rs.getString("method_version"),
             rs.getString("recommendation"),rs.getTimestamp("created_at").toInstant());
     }
 
@@ -138,14 +146,14 @@ public class LearningRepository {
     }
 
     public void insertAssessment(UUID id, UUID taskId, UUID attemptId, int revision,
-            UUID operationId, String fingerprint, String source, String methodId,
+            UUID operationId, String fingerprint, String source, String principal, String methodId,
             String methodVersion, String recommendation, Instant time) {
         jdbc.update("""
             INSERT INTO attempt_assessments
               (id,task_id,attempt_id,revision,source_operation_id,input_fingerprint,
-               source_kind,method_id,method_version,recommendation,created_at)
-            VALUES(?,?,?,?,?,?,?,?,?,?,?)
-            """,id,taskId,attemptId,revision,operationId,fingerprint,source,
+               source_kind,source_principal,method_id,method_version,recommendation,created_at)
+            VALUES(?,?,?,?,?,?,?,?,?,?,?,?)
+            """,id,taskId,attemptId,revision,operationId,fingerprint,source,principal,
                 methodId,methodVersion,recommendation,Timestamp.from(time));
     }
 
@@ -215,15 +223,23 @@ public class LearningRepository {
                 "ACTIVE".equals(newState) ? null : Timestamp.from(time),taskId);
     }
 
-    public List<SkillEvidenceView> evidence(UUID taskId) {
-        return jdbc.query("""
+    /** Descending keyset cursor: timestamp, assessment UUID and criterion code are stable. */
+    public List<SkillEvidenceView> evidence(UUID taskId, Instant beforeTime,
+            UUID beforeAssessmentId, String beforeCriterion, int limit) {
+        String sql="""
             SELECT assessment_id,attempt_id,criterion_code,skill_code,source_kind,
-                   method_id,method_version,created_at,status,outcome,reason_code,evidence_text
+                   source_principal,method_id,method_version,created_at,status,outcome,
+                   reason_code,evidence_text
             FROM skill_evidence WHERE task_id=?
-            ORDER BY created_at DESC,assessment_id DESC,criterion_code LIMIT 100
-            """,(rs,n)-> new SkillEvidenceView((UUID)rs.getObject(1),(UUID)rs.getObject(2),
-                rs.getString(3),rs.getString(4),rs.getString(5),rs.getString(6),
-                rs.getString(7),rs.getTimestamp(8).toInstant(),rs.getString(9),
-                rs.getString(10),rs.getString(11),rs.getString(12),null),taskId);
+            """ + (beforeTime == null ? "" : " AND (created_at,assessment_id,criterion_code) < (?,?,?)")
+             + " ORDER BY created_at DESC,assessment_id DESC,criterion_code DESC LIMIT ?";
+        Object[] params=beforeTime==null
+            ? new Object[]{taskId,limit}
+            : new Object[]{taskId,Timestamp.from(beforeTime),beforeAssessmentId,beforeCriterion,limit};
+        return jdbc.query(sql,(rs,n)->new SkillEvidenceView(
+            (UUID)rs.getObject(1),(UUID)rs.getObject(2),rs.getString(3),
+            rs.getString(4),rs.getString(5),rs.getString(6),rs.getString(7),
+            rs.getString(8),rs.getTimestamp(9).toInstant(),rs.getString(10),
+            rs.getString(11),rs.getString(12),rs.getString(13),null),params);
     }
 }
