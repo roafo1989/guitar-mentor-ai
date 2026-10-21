@@ -289,3 +289,72 @@ test('TOOL-02 mounted dialog edits six-beat meter and accent only after explicit
     delete globalThis.__testMetronome87;
   }
 });
+
+test('TOOL-02 shows audible 4/4 separately from uncommitted 2/4 and exposes primary master', async () => {
+  const savedDocument=globalThis.document;
+  const engine=fakeEngine();
+  const view=createTestRenderer();
+  globalThis.__testMetronome87=engine;
+  globalThis.document={body:view.body, activeElement:null};
+  let app;
+  try {
+    const Dialog=await compileDialog();
+    engine.setStatus('running');
+    app=view.renderer.createApp({render:()=>h(Dialog)});
+    app.mount(view.node('root'));
+    await nextTick();
+    assert.ok(view.find('div', n=>n.props.class==='metronome-master'),
+      'master volume shown outside collapsed Details');
+    const quick=view.find('button', n=>n.text==='2/4');
+    assert.ok(quick);
+    quick.props.onClick();
+    await nextTick();
+    assert.equal(engine.getConfig().numerator,4,'editing does not change the playing meter');
+    const live=view.find('div', n=>n.props.class==='metronome-count metronome-count-active');
+    const preview=view.find('div', n=>n.props.class==='metronome-count');
+    assert.ok(live,'separate playing grid rendered');
+    assert.equal(live.children.filter(n=>n.tag==='div').length,4,'playing grid is still 4/4');
+    assert.equal(preview.children.filter(n=>n.tag==='button').length,2,'editable grid previews 2/4');
+    const reset=view.find('button', n=>n.text==='metronome.resetStorage');
+    assert.ok(reset,'normal reset is present even when storage is valid');
+    reset.props.onClick();
+    await nextTick();
+    assert.ok(view.find('button', n=>n.text==='metronome.confirm'),'reset requires confirmation');
+  } finally {
+    app?.unmount();
+    globalThis.document=savedDocument;
+    delete globalThis.__testMetronome87;
+  }
+});
+
+test('TOOL-02 separate beat volume selection does not cycle the selected accent', async () => {
+  const savedDocument=globalThis.document;
+  const engine=fakeEngine();
+  const view=createTestRenderer();
+  globalThis.__testMetronome87=engine;
+  globalThis.document={body:view.body, activeElement:null};
+  let app;
+  try {
+    const Dialog=await compileDialog();
+    app=view.renderer.createApp({render:()=>h(Dialog)});
+    app.mount(view.node('root'));
+    await nextTick();
+    const selector=view.find('select', n=>n.props.id==='metronome-beat-selection');
+    assert.ok(selector);
+    selector.props.onChange({target:{value:'1'}});
+    await nextTick();
+    const range=view.find('input', n=>n.props.id==='metronome-position-volume');
+    range.props.onInput({target:{value:'30'}});
+    await nextTick();
+    const apply=view.find('button', n=>n.text==='metronome.apply');
+    apply.props.onClick();
+    await nextTick();
+    assert.equal(engine.getConfig().positions[1].volumePercent,30);
+    assert.equal(engine.getConfig().positions[1].accent,'weak',
+      'choosing a beat to adjust its volume must not alter the accent');
+  } finally {
+    app?.unmount();
+    globalThis.document=savedDocument;
+    delete globalThis.__testMetronome87;
+  }
+});
