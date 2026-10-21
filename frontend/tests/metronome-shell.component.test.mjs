@@ -16,6 +16,7 @@ const uiUrl = asModule([
   'export function openMetronome(trigger){metronomeUi.returnFocus=trigger;metronomeUi.open=true;}',
   'export function closeMetronome(){globalThis.__shellStops++;metronomeUi.open=false;}',
   'export function minimizeMetronome(){metronomeUi.open=false;}',
+  'export function stopMetronomeForAudioCapture(){globalThis.__shellStops++;metronomeUi.open=false;}',
 ].join('\n'));
 const dialogUrl = asModule([
   "import {h,Teleport} from '"+vueUrl+"';",
@@ -27,7 +28,48 @@ const dialogUrl = asModule([
   "} };",
 ].join('\n'));
 
-async function compileRealApp() {
+const tunerUrl = asModule([
+  "import {h,Teleport} from '"+vueUrl+"';",
+  "export default { props:['open'], emits:['close'], setup(props,{emit}) {",
+  " return ()=>props.open?h(Teleport,{to:'body'},h('section',{role:'dialog',id:'shell-tuner'},[",
+  " h('button',{id:'shell-tuner-close',onClick:()=>emit('close')},'Close tuner')",
+  " ])):null;",
+  "} };",
+].join('\n'));
+
+
+async function compileRealTuner(instance) {
+  // Compile the real SFC, not the previous simplified tuner stub. The
+  // helper and pitch/audio modules are imported as real Node .ts modules.
+  const source = await readFile(new URL('../src/shared/tuner/TunerDialog.vue', import.meta.url), 'utf8');
+  const { descriptor, errors } = parse(source, { filename: 'TunerDialog.vue' });
+  assert.equal(errors.length, 0);
+  const compiled = compileScript(descriptor, { id: 'actual-tuner-dialog', inlineTemplate: true });
+  const js = ts.transpileModule(compiled.content, {
+    compilerOptions: { module: ts.ModuleKind.ESNext, target: ts.ScriptTarget.ES2022 },
+  }).outputText;
+  const imports = {
+    vue: vueUrl,
+    'vue-i18n': i18nUrl,
+    '../audio/audio-session': new URL('../src/shared/audio/audio-session.ts', import.meta.url).href,
+    './pitch': new URL('../src/shared/tuner/pitch.ts', import.meta.url).href,
+    './tuner-session': new URL('../src/shared/tuner/tuner-session.ts', import.meta.url).href,
+    './modal-focus': new URL('../src/shared/tuner/modal-focus.ts', import.meta.url).href,
+    './tuner-reading': new URL('../src/shared/tuner/tuner-reading.ts', import.meta.url).href,
+    './tuner.css': asModule(''),
+  };
+  const mapped = js.replace(/from (['"])(.*?)\1/g, (_full, _q, name) => {
+    if (!imports[name]) throw Error('Unexpected real tuner dependency: ' + name);
+    return 'from ' + JSON.stringify(imports[name]);
+  }).replace("import './tuner.css';",
+    'import ' + JSON.stringify(imports['./tuner.css']) + ';');
+  return asModule(mapped + '\n// actual tuner ' + instance);
+}
+
+let appInstance = 0;
+async function compileRealApp(useRealTuner = false) {
+  // Each mounted app must use the current test's independent reactive stubs.
+  const instance = ++appInstance;
   const source = await readFile(new URL('../src/App.vue', import.meta.url), 'utf8');
   const { descriptor, errors } = parse(source, { filename: 'App.vue' });
   assert.equal(errors.length, 0);
@@ -38,15 +80,16 @@ async function compileRealApp() {
   const sources = {
     vue: vueUrl, 'vue-router': routerUrl, 'vue-i18n': i18nUrl,
     './entities/metronome/MetronomeDialog.vue': dialogUrl,
-    './entities/metronome/metronome-ui': uiUrl,
-    './shared/audio/metronome': audioUrl,
+    './shared/tuner/TunerDialog.vue': useRealTuner ? await compileRealTuner(instance) : tunerUrl,
+    './entities/metronome/metronome-ui': uiUrl + '#app-' + instance,
+    './shared/audio/metronome': audioUrl + '#app-' + instance,
     './stores/learner.store': learnerUrl,
   };
   const mapped = js.replace(/from (['"])(.*?)\1/g, (_full, _q, name) => {
     if (!sources[name]) throw Error('Unexpected App.vue runtime import: ' + name);
     return 'from ' + JSON.stringify(sources[name]);
   });
-  return (await import(asModule(mapped))).default;
+  return (await import(asModule(mapped + '\n// component instance ' + instance))).default;
 }
 
 function createHeadlessDocument() {
@@ -58,7 +101,13 @@ function createHeadlessDocument() {
       while (current?.parent) current = current.parent;
       return connectedRoots.has(current);
     },
-    focus() { document.activeElement = this; },
+    focus() {
+      // Native browsers refuse to focus descendants of inert shells.
+      for (let parent = this; parent; parent = parent.parent) {
+        if (parent.props?.inert) return;
+      }
+      document.activeElement = this;
+    },
     addEventListener() {},
     removeEventListener() {},
     get options() { return this.children.filter(c => c.tag === 'option'); },
@@ -132,7 +181,8 @@ test('real App.vue isolates all background and restores focus after close/minimi
     app.mount(dom.root);
     await nextTick();
     const shell = dom.find(dom.root, n => n.tag === 'div' && n.props.class === 'app-shell');
-    const opener = dom.find(dom.root, n => n.tag === 'button' && n.props['aria-haspopup'] === 'dialog');
+    const opener = dom.find(dom.root, n => n.tag === 'button' &&
+      n.props['aria-label'] === 'metronome.open');
     assert.ok(shell && opener);
     assert.equal(shell.props.inert, false, 'all page elements are usable before opening');
     opener.focus();
@@ -165,5 +215,159 @@ test('real App.vue isolates all background and restores focus after close/minimi
     app?.unmount();
     globalThis.document = prior;
     for(const name of ['__shellUi','__shellRoute','__shellStops','__shellAudio']) delete globalThis[name];
+  }
+});
+
+
+test('tuner launch stops minimized metronome without losing header access', async () => {
+  const previousDocument = globalThis.document;
+  const dom = createHeadlessDocument();
+  globalThis.document = { activeElement: null, body: dom.body };
+  const ui = reactive({ open: false, sourceExercise: null, returnFocus: null });
+  globalThis.__shellUi = ui;
+  globalThis.__shellRoute = reactive({ fullPath: '/diagnostics' });
+  globalThis.__shellStops = 0;
+  globalThis.__shellAudio = {
+    getState: () => ({ status: 'running' }),
+    subscribe(fn) { fn({ status: 'running' }); return () => {}; },
+  };
+  let app;
+  try {
+    const App = await compileRealApp();
+    app = dom.renderer.createApp(App);
+    app.component('RouterLink', {
+      props: ['to'], render() { return h('a', {href:this.to}, this.$slots.default?.()); },
+    });
+    app.component('RouterView', { render() { return h('div', {id:'route'}, 'Route'); } });
+    app.mount(dom.root);
+    await nextTick();
+    const tunerButton = dom.find(dom.root, n => n.tag === 'button' &&
+      n.props['aria-label'] === 'tuner.open');
+    const metroButton = dom.find(dom.root, n => n.tag === 'button' &&
+      n.props['aria-label'] === 'metronome.playingInBackground');
+    assert.ok(tunerButton && metroButton, 'both tools present in header');
+    tunerButton.props.onClick();
+    await nextTick();
+    assert.equal(globalThis.__shellStops, 1, 'tuner entry stops metronome clicks');
+    const activeTuner = dom.find(dom.body, n => n.props.id === 'shell-tuner');
+    assert.ok(activeTuner, 'tuner modal remains available after metronome stop');
+    const shell = dom.find(dom.root, n => n.props.class === 'app-shell');
+    assert.equal(shell.props.inert, true);
+    dom.find(dom.body, n => n.props.id === 'shell-tuner-close').props.onClick();
+    await nextTick(); await nextTick();
+    assert.equal(shell.props.inert, false);
+    assert.equal(globalThis.document.activeElement, tunerButton);
+  } finally {
+    app?.unmount();
+    globalThis.document = previousDocument;
+    for (const name of ['__shellUi','__shellRoute','__shellStops','__shellAudio']) delete globalThis[name];
+  }
+});
+
+
+test('P1 REVIEW-04: real tuner opens, closes, restores shell/focus, and reopens', async () => {
+  const previousDocument = globalThis.document;
+  const dom = createHeadlessDocument();
+  const listeners = new Set();
+  globalThis.document = {
+    activeElement: null, body: dom.body,
+    querySelector: selector => selector === '.app-shell'
+      ? dom.find(dom.root, n => n.props.class === 'app-shell') : null,
+    addEventListener(type, listener) {
+      if (type === 'focusin') listeners.add(listener);
+    },
+    removeEventListener(type, listener) {
+      if (type === 'focusin') listeners.delete(listener);
+    },
+  };
+  const ui = reactive({ open: false, sourceExercise: null, returnFocus: null });
+  globalThis.__shellUi = ui;
+  globalThis.__shellRoute = reactive({ fullPath: '/diagnostics' });
+  globalThis.__shellStops = 0;
+  globalThis.__shellAudio = {
+    getState: () => ({ status: 'stopped' }),
+    subscribe(fn) { fn({ status: 'stopped' }); return () => {}; },
+  };
+  let app;
+  try {
+    const App = await compileRealApp(true);
+    app = dom.renderer.createApp(App);
+    app.component('RouterLink', {
+      props: ['to'], render() { return h('a', { href: this.to }, this.$slots.default?.()); },
+    });
+    app.component('RouterView', { render() { return h('div', { id: 'route' }, 'Route'); } });
+    app.mount(dom.root);
+    await nextTick();
+
+    const shell = dom.find(dom.root, n => n.props.class === 'app-shell');
+    const tunerButton = dom.find(dom.root, n => n.tag === 'button' &&
+      n.props['aria-label'] === 'tuner.open');
+    const metroButton = dom.find(dom.root, n => n.tag === 'button' &&
+      n.props['aria-label'] === 'metronome.open');
+    assert.ok(shell && tunerButton && metroButton, 'both audio tools remain in header');
+
+    async function open() {
+      tunerButton.focus();
+      tunerButton.props.onClick();
+      await nextTick(); await nextTick(); await nextTick();
+      const modal = dom.find(dom.body, n => n.tag === 'section' &&
+        n.props['aria-label'] === 'tuner.title');
+      assert.ok(modal, 'actual teleported tuner dialog mounted');
+      assert.equal(shell.props.inert, true, 'page is inert while tuner is open');
+      assert.equal(globalThis.document.activeElement, modal, 'focus moved inside tuner');
+      assert.equal(listeners.size, 1, 'single focus isolation guard');
+      return modal;
+    }
+
+    async function assertClosed() {
+      await nextTick(); await nextTick(); await nextTick();
+      assert.equal(shell.props.inert, false, 'page unlocked after real tuner close');
+      assert.equal(listeners.size, 0, 'focus isolation listener cleaned');
+      assert.equal(globalThis.document.activeElement, tunerButton,
+        'focus restored to the usable header opener');
+      const modal = dom.find(dom.body, n => n.tag === 'section' &&
+        n.props['aria-label'] === 'tuner.title');
+      assert.equal(modal, undefined, 'modal completely removed');
+    }
+
+    let modal = await open();
+    const closeButton = dom.find(dom.body, n => n.tag === 'button' &&
+      n.props['aria-label'] === 'tuner.close');
+    assert.ok(closeButton);
+    closeButton.props.onClick();
+    await assertClosed();
+
+    modal = await open();
+    let prevented = false;
+    modal.props.onKeydown({ key: 'Escape', preventDefault() { prevented = true; } });
+    assert.equal(prevented, true);
+    await assertClosed();
+
+    // Route changes also close the dialog, and a subsequent open is allowed.
+    await open();
+    globalThis.__shellRoute.fullPath = '/profile';
+    await assertClosed();
+
+    // UX feedback MT-98-04: accidental clicks outside the tuner must NOT
+    // stop tuning or release microphone; closing is explicit (X / Escape).
+    const backdropModal = await open();
+    const overlay = dom.find(dom.body, n => n.props.class === 'tuner-overlay');
+    assert.ok(overlay, 'real tuner backdrop remains rendered');
+    assert.equal(overlay.props.onMousedown, undefined, 'backdrop has no dismiss on mousedown');
+    assert.equal(overlay.props.onClick, undefined, 'backdrop has no dismiss on click');
+    assert.equal(overlay.props.onPointerdown, undefined, 'backdrop has no pointer dismiss');
+    assert.equal(shell.props.inert, true, 'page remains inert while tuner is visible');
+    assert.equal(dom.find(dom.body, n => n.tag === 'section' &&
+      n.props['aria-label'] === 'tuner.title'), backdropModal, 'tuner remains open');
+    backdropModal.props.onKeydown({ key: 'Escape', preventDefault() {} });
+    await assertClosed();
+
+    assert.ok(metroButton.props.onClick, 'metronome button remains interactive');
+  } finally {
+    app?.unmount();
+    globalThis.document = previousDocument;
+    for (const name of ['__shellUi', '__shellRoute', '__shellStops', '__shellAudio']) {
+      delete globalThis[name];
+    }
   }
 });

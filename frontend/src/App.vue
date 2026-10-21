@@ -3,7 +3,8 @@ import { nextTick, onBeforeUnmount, onMounted, ref, watch } from 'vue';
 import { useRoute } from 'vue-router';
 import { useI18n } from 'vue-i18n';
 import MetronomeDialog from './entities/metronome/MetronomeDialog.vue';
-import { closeMetronome, metronomeUi, minimizeMetronome, openMetronome } from './entities/metronome/metronome-ui';
+import TunerDialog from './shared/tuner/TunerDialog.vue';
+import { closeMetronome, metronomeUi, minimizeMetronome, openMetronome, stopMetronomeForAudioCapture } from './entities/metronome/metronome-ui';
 import { metronome, type MetronomeStatus } from './shared/audio/metronome';
 import { useLearnerStore } from './stores/learner.store';
 
@@ -12,6 +13,18 @@ const { locale, t } = useI18n();
 const learnerStore = useLearnerStore();
 const route = useRoute();
 const headerMetronomeButton = ref<HTMLButtonElement | null>(null);
+const tunerButton = ref<HTMLButtonElement | null>(null);
+const tunerOpen = ref(false);
+function openTuner(): void {
+  // Stop even a minimized metronome to keep clicks out of pitch detection.
+  stopMetronomeForAudioCapture();
+  tunerOpen.value = true;
+}
+async function closeTuner(): Promise<void> {
+  tunerOpen.value = false;
+  await nextTick();
+  tunerButton.value?.focus();
+}
 const metronomeStatus = ref<MetronomeStatus>(metronome.getState().status);
 let unsubscribeMetronome: (() => void) | null = null;
 onMounted(() => {
@@ -23,9 +36,10 @@ function openHeaderMetronome(event: MouseEvent): void {
 }
 
 watch(() => route.fullPath, () => {
-  // Route changes never carry playback into a different form or exercise.
+  // Route changes never carry audio tools into a different form or exercise.
   metronomeUi.sourceExercise = null;
   closeMetronome();
+  if (tunerOpen.value) void closeTuner();
 });
 
 watch(() => metronomeUi.open, (open, old) => {
@@ -41,7 +55,7 @@ onBeforeUnmount(() => { unsubscribeMetronome?.(); closeMetronome(); });
 </script>
 
 <template>
-  <div class="app-shell" :inert="metronomeUi.open">
+  <div class="app-shell" :inert="metronomeUi.open || tunerOpen">
     <header class="site-header">
       <RouterLink to="/" class="brand" :aria-label="t('app.home') + ' · Guitar Mentor AI'">
         <img class="brand-icon" src="/favicon.png" alt="" aria-hidden="true" width="40" height="40" />
@@ -65,6 +79,14 @@ onBeforeUnmount(() => { unsubscribeMetronome?.(); closeMetronome(); });
           <span>{{ t('app.currentLearner') }}:</span>
           <strong class="header-learner-name">{{ learnerStore.learner.displayName }}</strong>
         </RouterLink>
+        <button ref="tunerButton" class="header-tool-button" type="button"
+          :title="t('tuner.title')" :aria-label="t('tuner.open')"
+          aria-haspopup="dialog" :aria-expanded="tunerOpen" @click="openTuner">
+          <svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor"
+            stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+            <path d="M8 3v5a4 4 0 0 0 8 0V3M8 3 5 6m11-3 3 3M12 12v9m-3 0h6"/>
+          </svg>
+        </button>
         <button ref="headerMetronomeButton" type="button" class="header-tool-button" :class="{ 'is-playing': metronomeStatus === 'running' }"
           :title="metronomeStatus === 'running' ? t('metronome.playingInBackground') : t('metronome.open')"
           :aria-label="metronomeStatus === 'running' ? t('metronome.playingInBackground') : t('metronome.open')"
@@ -86,6 +108,7 @@ onBeforeUnmount(() => { unsubscribeMetronome?.(); closeMetronome(); });
       </div>
     </header>
     <MetronomeDialog v-if="metronomeUi.open" @close="closeMetronome" @minimize="minimizeMetronome" />
+    <TunerDialog :open="tunerOpen" @close="closeTuner" />
     <main class="main-content"><RouterView /></main>
     <footer>Guitar Mentor AI · MVP</footer>
   </div>

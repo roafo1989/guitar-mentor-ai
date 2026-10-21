@@ -31,5 +31,7 @@ jobs:
         run: npm run test:intake
       - name: Metronome unit tests
         run: npm test
+      - name: Tuner pitch and spectrum regression tests
+        run: npm run test:tuner
       - name: Typecheck and build
         run: npm run build
