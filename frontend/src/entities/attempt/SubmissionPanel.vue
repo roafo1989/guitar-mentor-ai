@@ -1,6 +1,7 @@
 <script setup lang="ts">
-import { onBeforeUnmount, onMounted, ref } from 'vue';
+import { computed, onBeforeUnmount, onMounted, ref, watch } from 'vue';
 import MicrophoneRecorder from './MicrophoneRecorder.vue';
+import LearningResultsPanel from './LearningResultsPanel.vue';
 import { useI18n } from 'vue-i18n';
 import { AttemptHttpError, attemptService } from './attempt.service';
 import type { SubmissionAttempt, UploadCapabilities } from './attempt.service';
@@ -10,6 +11,7 @@ const props = defineProps<{
   sessionId: string;
   taskId: string;
 }>();
+const emit = defineEmits<{ 'draft-state': [state: { busy: boolean; dirty: boolean }] }>();
 const { t } = useI18n();
 const attempts = ref<SubmissionAttempt[]>([]);
 const capabilities = ref<UploadCapabilities | null>(null);
@@ -48,10 +50,41 @@ const requestId = ref(crypto.randomUUID());
 const loading = ref(true);
 const uploading = ref(false);
 const recordingActive = ref(false);
+const decisionBusy = ref(false);
+const learningTerminal = ref(false);
 const error = ref('');
 const notice = ref('');
+const draftBusy = computed(() => uploading.value || recordingActive.value || !!file.value || !!comment.value.trim());
+watch([uploading, recordingActive, decisionBusy, file, comment], () => {
+  emit('draft-state', {
+    busy: uploading.value || recordingActive.value || decisionBusy.value,
+    dirty: !!file.value || !!comment.value.trim(),
+  });
+}, { immediate: true });
 let polling: ReturnType<typeof setInterval> | undefined;
 let historyRequestInFlight = false;
+let contextGeneration = 0;
+let mounted = true;
+function currentContext(generation: number): boolean {
+  return mounted && generation === contextGeneration;
+}
+function resetForContext(): void {
+  ++contextGeneration;
+  attempts.value = [];
+  capabilities.value = null;
+  loading.value = true;
+  error.value = '';
+  notice.value = '';
+  learningTerminal.value = false;
+  // Context switching is blocked during active capture/upload by the route guard.
+  file.value = null;
+  if (fileInput.value) fileInput.value.value = '';
+  clearRecordedPreview();
+  comment.value = '';
+  requestId.value = crypto.randomUUID();
+  void refresh();
+}
+watch(() => [props.learnerId, props.sessionId, props.taskId], resetForContext);
 
 function statusLabel(attempt: SubmissionAttempt): string {
   const labels: Record<SubmissionAttempt['status'], string> = {
@@ -85,8 +118,11 @@ async function pollHistory() {
   if (historyRequestInFlight || uploading.value || loading.value ||
       !attempts.value.some(item => item.status === 'UPLOADED' || item.status === 'PROCESSING')) return;
   historyRequestInFlight = true;
+  const generation = contextGeneration;
+  const { learnerId, sessionId, taskId } = props;
   try {
-    attempts.value = await attemptService.list(props.learnerId, props.sessionId, props.taskId);
+    const history = await attemptService.list(learnerId, sessionId, taskId);
+    if (currentContext(generation)) attempts.value = history;
   } catch {
     // Keep the last known history. Manual refresh can surface network errors.
   } finally {
@@ -118,23 +154,27 @@ function selectFile(event: Event) {
   notice.value = '';
 }
 async function refresh() {
-  error.value = '';
+  const generation = contextGeneration;
+  const { learnerId, sessionId, taskId } = props;
+  if (currentContext(generation)) error.value = '';
   try {
     const [rules, history] = await Promise.all([
-      attemptService.capabilities(props.learnerId, props.sessionId, props.taskId),
-      attemptService.list(props.learnerId, props.sessionId, props.taskId),
+      attemptService.capabilities(learnerId, sessionId, taskId),
+      attemptService.list(learnerId, sessionId, taskId),
     ]);
-    capabilities.value = rules;
-    attempts.value = history;
+    if (currentContext(generation)) {
+      capabilities.value = rules;
+      attempts.value = history;
+    }
   } catch {
-    error.value = t('attempt.historyLoadError');
+    if (currentContext(generation)) error.value = t('attempt.historyLoadError');
   } finally {
-    loading.value = false;
+    if (currentContext(generation)) loading.value = false;
   }
 }
 async function submit() {
   const chosen = file.value;
-  if (!chosen || !capabilities.value?.enabled || uploading.value || recordingActive.value) return;
+  if (!chosen || learningTerminal.value || !capabilities.value?.enabled || uploading.value || recordingActive.value) return;
   if (chosen.size === 0 || chosen.size > capabilities.value.maxBytes) {
     error.value = t('attempt.sizeError');
     return;
@@ -143,12 +183,15 @@ async function submit() {
     error.value = t('attempt.formatError');
     return;
   }
+  const generation = contextGeneration;
+  const { learnerId, sessionId, taskId } = props;
   uploading.value = true;
   error.value = '';
   notice.value = '';
   try {
-    await attemptService.upload(props.learnerId, props.sessionId, props.taskId,
+    await attemptService.upload(learnerId, sessionId, taskId,
       chosen, comment.value, requestId.value);
+    if (!currentContext(generation)) return;
     file.value = null;
     clearRecordedPreview();
     // File inputs are native browser controls: clearing Vue state alone does not reset their label.
@@ -158,7 +201,7 @@ async function submit() {
     notice.value = t('attempt.uploaded');
     await refresh();
   } catch (cause) {
-    error.value = uploadErrorMessage(cause);
+    if (currentContext(generation)) error.value = uploadErrorMessage(cause);
     // Retain the selected file and idempotency key; user can retry or pick another file.
   } finally {
     uploading.value = false;
@@ -168,10 +211,13 @@ function fileSize(bytes: number): string {
   return (bytes / 1024 / 1024).toFixed(2) + ' MB';
 }
 onMounted(() => {
+  mounted = true;
   void refresh();
   polling = setInterval(() => { void pollHistory(); }, 3000);
 });
 onBeforeUnmount(() => {
+  mounted = false;
+  ++contextGeneration;
   if (polling !== undefined) clearInterval(polling);
   clearRecordedPreview();
 });
@@ -185,18 +231,16 @@ onBeforeUnmount(() => {
     </div>
     <div v-if="loading" class="hint">{{ t('attempt.loading') }}</div>
     <template v-else>
-      <div class="homework-status" role="note">
-        {{ t('attempt.noAiFeedback') }}
-      </div>
       <p v-if="!capabilities?.enabled" class="hint">
         {{ t('attempt.disabledHelp') }}
       </p>
+      <p v-if="learningTerminal" class="hint" role="status">{{ t('learning.uploadClosed') }}</p>
       <form class="homework-form" @submit.prevent="submit">
         <label for="attempt-file">{{ t('attempt.fileLabel') }}</label>
         <input id="attempt-file" ref="fileInput" type="file" accept=".mp3,.wav,.ogg,.webm,.m4a,audio/*"
-          :disabled="!capabilities?.enabled || uploading || recordingActive" @change="selectFile" />
+          :disabled="learningTerminal || !capabilities?.enabled || uploading || recordingActive" @change="selectFile" />
         <p class="hint">{{ t('attempt.fileLimits') }}</p>
-        <MicrophoneRecorder :disabled="!capabilities?.enabled || uploading"
+        <MicrophoneRecorder :disabled="learningTerminal || !capabilities?.enabled || uploading"
           :max-bytes="capabilities?.maxBytes ?? 20971520"
           @recorded="onRecorded" @active="onRecordingActive" />
         <div v-if="recordedPreview && file" class="recorded-preview">
@@ -214,13 +258,15 @@ onBeforeUnmount(() => {
           :placeholder="t('attempt.commentPlaceholder')" />
         <div class="form-actions">
           <button type="submit" class="action-button"
-            :disabled="!file || !capabilities?.enabled || uploading || recordingActive">
+            :disabled="learningTerminal || !file || !capabilities?.enabled || uploading || recordingActive">
             {{ uploading ? t('attempt.uploading') : t('attempt.submit') }}
           </button>
         </div>
       </form>
       <p v-if="notice" role="status" class="saved-status">{{ notice }}</p>
       <p v-if="error" role="alert" class="error">{{ error }}</p>
+      <LearningResultsPanel :learner-id="learnerId" :session-id="sessionId" :task-id="taskId"
+        :attempts="attempts" :draft-busy="draftBusy" @decision-busy="decisionBusy = $event" @terminal-state="learningTerminal = $event" />
       <div class="homework-history">
         <h4>{{ t('attempt.history') }}</h4>
         <p v-if="!attempts.length" class="hint">{{ t('attempt.noAttempts') }}</p>

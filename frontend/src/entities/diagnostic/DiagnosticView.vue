@@ -18,6 +18,12 @@ const loading = ref(true);
 const busy = ref(false);
 const intakeBusy = ref(false);
 const intakeDraft = ref(false);
+const submissionBusy = ref(false);
+const submissionDraft = ref(false);
+function onSubmissionDraft(value: { busy: boolean; dirty: boolean }): void {
+  submissionBusy.value = value.busy;
+  submissionDraft.value = value.dirty;
+}
 const error = ref('');
 
 function onIntakeState(value: { busy: boolean; dirty: boolean }): void {
@@ -39,6 +45,13 @@ const task = ref<DiagnosticTask | null>(null);
 
 /** Applies to Back, header links, router.back() and all other SPA route changes. */
 function allowRouteLeave(): boolean {
+  if (session.value?.status === 'TASK_ASSIGNED') {
+    if (submissionBusy.value) {
+      error.value = t('evidence.waitBeforeLeave');
+      return false;
+    }
+    return !submissionDraft.value || window.confirm(t('evidence.confirmDiscard'));
+  }
   if (session.value?.status !== 'COLLECTING_EVIDENCE') return true;
   const action = intakeNavigationAction(busy.value, intakeBusy.value, intakeDraft.value);
   if (action === 'BLOCK') {
@@ -53,8 +66,11 @@ onBeforeRouteLeave(() => allowRouteLeave());
 
 /** SPA leave guards do not run for F5, tab close, or browser navigation away. */
 function onBrowserUnload(event: BeforeUnloadEvent): void {
-  if (!shouldWarnBeforeUnload(session.value?.status === 'COLLECTING_EVIDENCE',
-    busy.value || intakeBusy.value, intakeDraft.value)) return;
+  const intakeWarning = shouldWarnBeforeUnload(session.value?.status === 'COLLECTING_EVIDENCE',
+    busy.value || intakeBusy.value, intakeDraft.value);
+  const assignmentWarning = session.value?.status === 'TASK_ASSIGNED' &&
+    (submissionBusy.value || submissionDraft.value);
+  if (!intakeWarning && !assignmentWarning) return;
   event.preventDefault();
   event.returnValue = '';
 }
@@ -280,8 +296,7 @@ async function assign(exerciseCode: string): Promise<void> {
         <ExercisePreview :exercise="task.exercise" assigned />
         <SubmissionPanel v-if="learnerStore.learner"
           :learner-id="learnerStore.learner.id"
-          :session-id="session.id" :task-id="task.id" />
-        <p class="hint">{{ t('diagnostic.noAssessment') }}</p>
+          :session-id="session.id" :task-id="task.id" @draft-state="onSubmissionDraft" />
       </template>
       <p v-if="error" role="alert" class="error">{{ error }}</p>
       <p><RouterLink to="/onboarding">{{ t('diagnostic.back') }}</RouterLink></p>

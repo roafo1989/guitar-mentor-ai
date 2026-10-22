@@ -406,5 +406,60 @@
     "autoMode": "Automatic selection",
     "manualMode": "Manual selection",
     "microphoneOn": "Microphone is on"
+  },
+  "learning": {
+    "title": "Feedback and decision",
+    "loading": "Loading learning state…",
+    "refresh": "Refresh",
+    "chooseAttempt": "Attempt",
+    "noAttempts": "Submit a recording first",
+    "technicalFailure": "Technical processing failed; this is not a musical assessment",
+    "processing": "Recording is processing. No musical assessment yet",
+    "noAssessment": "File processed technically. Musical assessment is not available yet",
+    "feedback": "Feedback",
+    "meets": "Meets",
+    "needsWork": "Needs work",
+    "notAssessed": "Not assessed",
+    "confirmedLevel": "Confirmed skill level",
+    "unknown": "Unknown",
+    "olderAssessments": "Previous assessment revisions",
+    "more": "Load more",
+    "reason": "Reason for your decision (optional)",
+    "continue": "Keep practicing",
+    "complete": "Finish assignment",
+    "confirmComplete": "Finish this assignment? Outstanding feedback will remain and unverified skills will not be considered mastered.",
+    "retry": "Retry decision",
+    "saved": "Decision saved",
+    "conflict": "Assignment has changed. Review updated data before choosing again.",
+    "nextUnavailable": "Assignment completed. Automatic next lesson is not available yet.",
+    "decisionHistory": "Decision history",
+    "noDecisions": "No decisions yet",
+    "state": {
+      "ACTIVE": "In progress",
+      "COMPLETED_PASSED": "Completed; criteria met",
+      "COMPLETED_BY_LEARNER": "Completed by learner choice"
+    },
+    "recommendation": {
+      "PASS": "Criteria met",
+      "REVISE": "Revision recommended",
+      "UNCERTAIN": "Assessment uncertain"
+    },
+    "errors": {
+      "NETWORK_UNAVAILABLE": "Cannot reach server. Check your connection.",
+      "LEARNING_DISABLED": "Learning decisions are temporarily unavailable",
+      "RESOURCE_NOT_FOUND": "Assignment not found",
+      "UNEXPECTED_RESPONSE": "Unable to load learning data",
+      "INVALID_DECISION": "Invalid action",
+      "REASON_TOO_LONG": "Comment is too long",
+      "NO_ATTEMPT": "At least one attempt is required",
+      "TASK_COMPLETED": "Already completed",
+      "VERSION_CONFLICT": "Assignment changed",
+      "ASSESSMENT_CHANGED": "Assessment changed",
+      "IDEMPOTENCY_CONFLICT": "Duplicate request conflict"
+    },
+    "skillEvidence": "Skill assessment evidence",
+    "skillEvidenceHelp": "Individual criterion results are not the same as a confirmed skill level. Learner self-assessment is stored separately.",
+    "noSkillEvidence": "No assessed criteria yet",
+    "uploadClosed": "Assignment completed. New attempts cannot be uploaded; history and feedback remain available."
   }
 }
