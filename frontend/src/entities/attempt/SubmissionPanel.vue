@@ -51,6 +51,7 @@ const loading = ref(true);
 const uploading = ref(false);
 const recordingActive = ref(false);
 const decisionBusy = ref(false);
+const learningTerminal = ref(false);
 const error = ref('');
 const notice = ref('');
 const draftBusy = computed(() => uploading.value || recordingActive.value || !!file.value || !!comment.value.trim());
@@ -144,7 +145,7 @@ async function refresh() {
 }
 async function submit() {
   const chosen = file.value;
-  if (!chosen || !capabilities.value?.enabled || uploading.value || recordingActive.value) return;
+  if (!chosen || learningTerminal.value || !capabilities.value?.enabled || uploading.value || recordingActive.value) return;
   if (chosen.size === 0 || chosen.size > capabilities.value.maxBytes) {
     error.value = t('attempt.sizeError');
     return;
@@ -198,12 +199,13 @@ onBeforeUnmount(() => {
       <p v-if="!capabilities?.enabled" class="hint">
         {{ t('attempt.disabledHelp') }}
       </p>
+      <p v-if="learningTerminal" class="hint" role="status">{{ t('learning.uploadClosed') }}</p>
       <form class="homework-form" @submit.prevent="submit">
         <label for="attempt-file">{{ t('attempt.fileLabel') }}</label>
         <input id="attempt-file" ref="fileInput" type="file" accept=".mp3,.wav,.ogg,.webm,.m4a,audio/*"
-          :disabled="!capabilities?.enabled || uploading || recordingActive" @change="selectFile" />
+          :disabled="learningTerminal || !capabilities?.enabled || uploading || recordingActive" @change="selectFile" />
         <p class="hint">{{ t('attempt.fileLimits') }}</p>
-        <MicrophoneRecorder :disabled="!capabilities?.enabled || uploading"
+        <MicrophoneRecorder :disabled="learningTerminal || !capabilities?.enabled || uploading"
           :max-bytes="capabilities?.maxBytes ?? 20971520"
           @recorded="onRecorded" @active="onRecordingActive" />
         <div v-if="recordedPreview && file" class="recorded-preview">
@@ -221,7 +223,7 @@ onBeforeUnmount(() => {
           :placeholder="t('attempt.commentPlaceholder')" />
         <div class="form-actions">
           <button type="submit" class="action-button"
-            :disabled="!file || !capabilities?.enabled || uploading || recordingActive">
+            :disabled="learningTerminal || !file || !capabilities?.enabled || uploading || recordingActive">
             {{ uploading ? t('attempt.uploading') : t('attempt.submit') }}
           </button>
         </div>
@@ -229,7 +231,7 @@ onBeforeUnmount(() => {
       <p v-if="notice" role="status" class="saved-status">{{ notice }}</p>
       <p v-if="error" role="alert" class="error">{{ error }}</p>
       <LearningResultsPanel :learner-id="learnerId" :session-id="sessionId" :task-id="taskId"
-        :attempts="attempts" :draft-busy="draftBusy" @decision-busy="decisionBusy = $event" />
+        :attempts="attempts" :draft-busy="draftBusy" @decision-busy="decisionBusy = $event" @terminal-state="learningTerminal = $event" />
       <div class="homework-history">
         <h4>{{ t('attempt.history') }}</h4>
         <p v-if="!attempts.length" class="hint">{{ t('attempt.noAttempts') }}</p>
