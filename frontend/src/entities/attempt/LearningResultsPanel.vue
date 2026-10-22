@@ -9,6 +9,7 @@ const props = defineProps<{
   learnerId: string; sessionId: string; taskId: string; attempts: SubmissionAttempt[];
   draftBusy: boolean;
 }>();
+const emit = defineEmits<{ 'decision-busy': [value: boolean] }>();
 const { t } = useI18n();
 const state = ref<TaskLearningView | null>(null);
 const assessments = ref<AssessmentView[]>([]);
@@ -19,6 +20,7 @@ const selected = ref('');
 const reason = ref('');
 const loading = ref(true);
 const sending = ref(false);
+watch(sending, value => emit('decision-busy', value), { immediate: true });
 const error = ref('');
 const notice = ref('');
 const assessmentCursor = ref<string | null>(null);
