@@ -1,0 +1,15 @@
+sequenceDiagram
+  participant UI as UI и engine host
+  participant Port as MessagePort
+  participant Render as AudioWorklet
+  participant Output as Audio output
+  UI->>Port: START session seq config
+  Port->>Render: Начать по audio frame
+  Render->>Output: Рендер кликов
+  Note over UI: Вкладка скрыта; UI timers не нужны звуку
+  loop Пока context running
+    Render->>Output: Следующий sample block
+  end
+  UI->>Port: SNAPSHOT после visible
+  Render-->>UI: Актуальный beat active pending
+  UI->>Port: STOP и закрытие graph/context

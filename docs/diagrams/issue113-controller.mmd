@@ -1,0 +1,8 @@
+flowchart TB
+  Shell["Постоянная оболочка: focus и lifecycle"] --> Controller["Один UI controller"]
+  Shell --> Host["Skin host и static registry b"]
+  Host --> View["B1 presentation и общие controls"]
+  View -->|Намерение пользователя| Controller
+  Controller --> Engine["Singleton audio engine: active и pending"]
+  Engine -->|Snapshot| Controller
+  Controller --> Store["Существующие presets и storage"]

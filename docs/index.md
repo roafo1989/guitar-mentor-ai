@@ -1,6 +1,6 @@
 # Guitar Mentor AI — документация
 
-**[Состояние проекта и датированные результаты сверки](project/current-state.md)**. Последние дополнения: [тюнер: интерфейс и строи #108 — 21.10.2026](specifications/TOOL-03-tuner-interface-and-tunings.md), [гибкий метроном #104 — 21.10.2026](specifications/TOOL-02-flexible-metronome.md), [анализ четырёх задач — 20.10.2026](project/analysis-refresh-2026-10-20.md). Приложение работает локально, без авторизации.
+**[Состояние проекта и датированные результаты сверки](project/current-state.md)**. Последние дополнения: [кандидаты #109/#113/#15 —22.10.2026](project/next-development-candidates-2026-10-22.md), [тюнер: интерфейс и строи #108 — 21.10.2026](specifications/TOOL-03-tuner-interface-and-tunings.md), [гибкий метроном #104 — 21.10.2026](specifications/TOOL-02-flexible-metronome.md), [анализ четырёх задач — 20.10.2026](project/analysis-refresh-2026-10-20.md). Приложение работает локально, без авторизации.
 
 ## Навигация и регламенты
 
@@ -18,19 +18,22 @@
 
 ## Требования и спецификации
 
+- [#109 — метроном в фоновой вкладке](specifications/TOOL-02-background-metronome.md) — Full,28ч; AudioWorklet/lifecycle, реальные Chrome-проверки впереди
+- [#113 — общий UI-controller метронома](specifications/TOOL-05-metronome-ui-controller.md) — Full,12ч; сохранение принятого B1, registry только B
+
 - [#108 / TOOL-03 — интерфейс тюнера и выбор строя](specifications/TOOL-03-tuner-interface-and-tunings.md) — голова грифа/подсветка колка, Standard/Drop D/Open G; новая постановка после #98, макет/оценка впереди
 
 - [#104 / TOOL-02 — гибкий метроном](specifications/TOOL-02-flexible-metronome.md) — размеры, акценты, индивидуальная громкость, подразделения/Tap/пресеты; v1.1,36 ч; база — принятая #87, запись/minimize/reopen сохраняются
 
-- [Бизнес-требования 0.9](requirements/business-requirements.md) — два блока интервью, выбор репертуара и уверенная игра наизусть; ТЗ ещё не синхронизировано с BT-017/018
+- [Бизнес-требования 0.10](requirements/business-requirements.md) — два блока интервью, выбор репертуара и уверенная игра наизусть; ТЗ ещё не синхронизировано с BT-017/018
 - [Бизнес-анализ и варианты](https://github.com/roafo1989/guitar-mentor-ai/blob/main/docs/requirements/discovery/business-analysis-2026-10-20.md) — v0.3, уточнение по двум блокам ответов 21.10.2026
 - [Интервью заказчика](https://github.com/roafo1989/guitar-mentor-ai/blob/main/docs/requirements/discovery/customer-interview-2026-10-20.md) — v0.3, ответы BA-Q01–05/BA-Q21–24; следующий блок — занятие, запись и отзыв
-- [Техническое задание 0.12](requirements/technical-specification.md) — 9 US / 33 FT, НФТ/SEC и открытые вопросы
+- [Техническое задание 0.13](requirements/technical-specification.md) — 10 US / 38 FT, НФТ/SEC и открытые вопросы
 - [Системная спецификация 0.6](specifications/system-specification.md) — текущие API/данные и целевой остаток
 - [MVP Scope & Acceptance 1.1](project/mvp-scope-v1.md)
 - [Roadmap 1.1](project/roadmap-mvp-v1.md) — исходные оценки исторические, не текущий остаток
 - [#14 — корпус, эталоны и методика аудиопроверки](specifications/MVP-R2-01-audio-feasibility.md) — техническая часть принята; независимая REAL-валидация остаётся в #97
-- [#15 — диагностический PoC и validation-gate](specifications/MVP-R2-02-audio-poc.md) — Full; диагностический инкремент не подменяет #97
+- [#15 — диагностический PoC и validation-gate](specifications/MVP-R2-02-audio-poc.md) — Full v1.1,32ч только diagnostic; полная validation/приёмка заблокированы #97
 - [#95 — сохранение языка после F5](specifications/BUG-095-persist-interface-locale.md) — Standard
 - [#18 — оценки, история и решения ученика](specifications/MVP-R4-01-learning-state-and-decisions.md) — Full; состояния, REST, миграции и конкуренция
 - [#19 — UI результатов занятия](specifications/MVP-R4-02-lesson-results-ui.md) — Full; общий контракт с #18, полный следующий шаг зависит от #24
