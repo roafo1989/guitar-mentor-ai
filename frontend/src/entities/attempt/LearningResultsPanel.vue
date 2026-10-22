@@ -16,6 +16,8 @@ const assessments = ref<AssessmentView[]>([]);
 const decisions = ref<DecisionView[]>([]);
 const evidence = ref<SkillEvidenceView[]>([]);
 const evidenceCursor = ref<string | null>(null);
+const evidenceError = ref('');
+const evidenceLoading = ref(false);
 const selected = ref('');
 const reason = ref('');
 const loading = ref(true);
@@ -46,15 +48,14 @@ async function refresh() {
   const seq = ++generation;
   loading.value = true; stateFresh.value = false; error.value = '';
   try {
-    const [next, history, skillHistory] = await Promise.all([
+    const [next, history] = await Promise.all([
       learningService.state(props.learnerId, props.sessionId, props.taskId),
       learningService.decisions(props.learnerId, props.sessionId, props.taskId),
-      learningService.evidence(props.learnerId, props.sessionId, props.taskId),
     ]);
     if (seq !== generation) return;
     state.value = next; stateFresh.value = true;
     decisions.value = history.items; decisionCursor.value = history.nextCursor;
-    evidence.value = skillHistory.items; evidenceCursor.value = skillHistory.nextCursor;
+    void loadEvidence(seq);
     if (!selected.value || !props.attempts.some(a => a.id === selected.value)) {
       selected.value = next.latestAttemptId ?? props.attempts[0]?.id ?? '';
     }
@@ -64,6 +65,21 @@ async function refresh() {
     error.value = message(cause);
   } finally {
     if (seq === generation) loading.value = false;
+  }
+}
+async function loadEvidence(seq = generation) {
+  evidenceLoading.value = true;
+  evidenceError.value = '';
+  try {
+    const result = await learningService.evidence(props.learnerId, props.sessionId, props.taskId);
+    if (seq !== generation) return;
+    evidence.value = result.items;
+    evidenceCursor.value = result.nextCursor;
+  } catch (cause) {
+    if (seq !== generation) return;
+    evidenceError.value = message(cause);
+  } finally {
+    if (seq === generation) evidenceLoading.value = false;
   }
 }
 async function loadAssessments(seq = generation) {
@@ -102,9 +118,9 @@ async function moreAssessments() {
 }
 async function moreEvidence() {
   const cursor = evidenceCursor.value;
-  if (!cursor || loading.value) return;
+  if (!cursor || evidenceLoading.value) return;
   const seq = generation;
-  loading.value = true;
+  evidenceLoading.value = true;
   try {
     const result = await learningService.evidence(props.learnerId, props.sessionId, props.taskId, cursor);
     if (seq === generation) {
@@ -165,7 +181,7 @@ async function sendCommand(command: DecisionCommand) {
 watch(() => [props.learnerId, props.sessionId, props.taskId], () => {
   ++generation; selected.value = ''; pending.value = null; state.value = null;
   assessments.value = []; decisions.value = []; evidence.value = [];
-  evidenceCursor.value = null; stateFresh.value = false;
+  evidenceCursor.value = null; evidenceError.value = ''; stateFresh.value = false;
   assessmentFresh.value = false; reason.value = ''; void refresh();
 });
 watch(() => props.attempts.map(a => `${a.id}:${a.status}:${a.assessmentAvailable}`).join(','), () => {
@@ -231,15 +247,20 @@ onBeforeUnmount(() => { ++generation; pending.value = null; });
       <button v-if="pending && !sending" class="action-button secondary-button" type="button" :disabled="draftBusy" @click="retry">{{ t('learning.retry') }}</button>
       <p v-if="notice" role="status">{{ notice }}</p>
       <h4>{{ t('learning.skillEvidence') }}</h4>
+      <p v-if="evidenceLoading" role="status">{{ t('learning.loading') }}</p>
+      <div v-if="evidenceError" role="alert">
+        <p>{{ evidenceError }}</p>
+        <button type="button" class="action-button secondary-button" :disabled="evidenceLoading" @click="loadEvidence()">{{ t('learning.refresh') }}</button>
+      </div>
       <p class="hint">{{ t('learning.skillEvidenceHelp') }}</p>
-      <p v-if="!evidence.length" class="hint">{{ t('learning.noSkillEvidence') }}</p>
+      <p v-if="!evidence.length && !evidenceLoading && !evidenceError" class="hint">{{ t('learning.noSkillEvidence') }}</p>
       <details v-for="entry in evidence" :key="entry.assessmentId + entry.criterionCode">
         <summary>{{ entry.skillCode }} · {{ entry.outcome === 'MEETS' ? t('learning.meets') : entry.outcome === 'NEEDS_WORK' ? t('learning.needsWork') : t('learning.notAssessed') }}</summary>
         <p v-if="entry.evidenceText">{{ entry.evidenceText }}</p>
         <p>{{ t('learning.confirmedLevel') }}: {{ entry.confirmedSkillLevel ?? t('learning.unknown') }}</p>
         <p class="hint">{{ entry.methodId }} v{{ entry.methodVersion }} · {{ new Date(entry.createdAt).toLocaleString() }}</p>
       </details>
-      <button v-if="evidenceCursor" class="action-button secondary-button" type="button" :disabled="loading" @click="moreEvidence">{{ t('learning.more') }}</button>
+      <button v-if="evidenceCursor" class="action-button secondary-button" type="button" :disabled="evidenceLoading" @click="moreEvidence">{{ t('learning.more') }}</button>
       <h4>{{ t('learning.decisionHistory') }}</h4>
       <p v-if="!decisions.length" class="hint">{{ t('learning.noDecisions') }}</p>
       <details v-for="decision in decisions" :key="decision.decisionId">
