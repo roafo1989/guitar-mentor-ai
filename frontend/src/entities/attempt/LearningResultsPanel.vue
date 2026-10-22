@@ -23,13 +23,14 @@ const assessmentCursor = ref<string | null>(null);
 const decisionCursor = ref<string | null>(null);
 let generation = 0;
 const stateFresh = ref(false);
+const assessmentFresh = ref(false);
 let pending: DecisionCommand | null = null;
 
 const currentAttempt = computed(() => props.attempts.find(a => a.id === selected.value));
 const latestAssessment = computed(() => assessments.value[0] ?? null);
 const terminal = computed(() => state.value?.taskState !== 'ACTIVE');
 const canDecide = computed(() => !!state.value && !!currentAttempt.value &&
-  !terminal.value && stateFresh.value && !props.draftBusy && !sending.value && !loading.value);
+  !terminal.value && stateFresh.value && assessmentFresh.value && !props.draftBusy && !sending.value && !loading.value);
 const missingAssessment = computed(() => !latestAssessment.value);
 function message(e: unknown): string {
   if (!(e instanceof LearningHttpError)) return t('learning.errors.UNEXPECTED_RESPONSE');
@@ -60,12 +61,13 @@ async function refresh() {
 }
 async function loadAssessments(seq = generation) {
   const attempt = selected.value;
-  assessments.value = []; assessmentCursor.value = null;
+  assessments.value = []; assessmentCursor.value = null; assessmentFresh.value = false;
   if (!attempt) return;
   try {
     const result = await learningService.assessments(props.learnerId, props.sessionId, props.taskId, attempt);
     if (seq !== generation || attempt !== selected.value) return;
     assessments.value = result.items; assessmentCursor.value = result.nextCursor;
+    assessmentFresh.value = true;
   } catch (cause) {
     if (seq === generation) error.value = message(cause);
   }
@@ -141,7 +143,8 @@ async function sendCommand(command: DecisionCommand) {
 }
 watch(() => [props.learnerId, props.sessionId, props.taskId], () => {
   ++generation; selected.value = ''; pending = null; state.value = null;
-  assessments.value = []; decisions.value = []; stateFresh.value = false; reason.value = ''; void refresh();
+  assessments.value = []; decisions.value = []; stateFresh.value = false;
+  assessmentFresh.value = false; reason.value = ''; void refresh();
 });
 watch(() => props.attempts.map(a => a.id).join(','), () => {
   if (!loading.value && !sending.value) void refresh();
