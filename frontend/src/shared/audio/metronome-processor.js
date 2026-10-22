@@ -24,7 +24,7 @@ class MetronomeProcessor extends AudioWorkletProcessor {
     this.running = false; this.index = 0; this.sub = 0; this.nextFrame = 0;
     this.revision = 0; this.pendingRevision = 0; this.clickRemaining = 0;
     this.phase = 0; this.frequency = 0; this.amp = 0; this.clickLength = 0;
-    this.lastMaster = 0; this.master = 0; this.deferPending = false;
+    this.lastMaster = 0; this.master = 0; this.deferPending = false; this.lastBeat = null;
     this.port.onmessage = e => this.command(e.data);
   }
   send(type, seq = this.lastSeq, extra = {}) {
@@ -37,7 +37,7 @@ class MetronomeProcessor extends AudioWorkletProcessor {
     if (m.type === 'INIT') {
       if (!valid(m.config) || (this.session !== -1 && m.sessionId <= this.session)) return;
       this.session = m.sessionId; this.lastSeq = m.seq; this.config = clone(m.config);
-      this.pending = null; this.running = false; this.revision = 0;
+      this.pending = null; this.running = false; this.revision = 0; this.lastBeat = null;
       this.master = this.config.masterVolumePercent / 100; this.lastMaster = this.master;
       this.send('READY'); return;
     }
@@ -46,18 +46,18 @@ class MetronomeProcessor extends AudioWorkletProcessor {
     if (m.type === 'START') {
       this.running = true; this.index = 0; this.sub = 0;
       this.nextFrame = currentFrame + Math.round(sampleRate * .03);
-      this.clickRemaining = 0; this.deferPending = false;
+      this.clickRemaining = 0; this.deferPending = false; this.lastBeat = null;
       this.send('STARTED'); return;
     }
     if (m.type === 'STOP') {
-      this.running = false; this.clickRemaining = 0;
+      this.running = false; this.clickRemaining = 0; this.lastBeat = null;
       if (this.pending) { this.config = this.pending; this.pending = null; }
       this.send('STOPPED'); return;
     }
     if (m.type === 'BPM' && Number.isInteger(m.value) && m.value >= 20 && m.value <= 240) {
       this.config.bpm = m.value; if (this.pending) this.pending.bpm = m.value;
       this.nextFrame = currentFrame + Math.round(sampleRate * .03);
-      this.index = 0; this.sub = 0; this.clickRemaining = 0;
+      this.index = 0; this.sub = 0; this.clickRemaining = 0; this.lastBeat = null;
       this.deferPending = !!this.pending;
       this.send('BPM',m.seq,{bpm:m.value}); return;
     }
@@ -71,7 +71,7 @@ class MetronomeProcessor extends AudioWorkletProcessor {
       this.send('QUEUED',m.seq,{pendingRevision:this.pendingRevision}); return;
     }
     if (m.type === 'SNAPSHOT') this.send('SNAPSHOT',m.seq,{
-      beat:this.running ? this.index + 1 : null, activeConfig:clone(this.config),
+      beat:this.running ? this.lastBeat : null, activeConfig:clone(this.config),
       pendingConfig:this.pending ? clone(this.pending) : null, pendingRevision:this.pendingRevision,
       running:this.running,
     });
@@ -94,7 +94,7 @@ class MetronomeProcessor extends AudioWorkletProcessor {
     const step = seconds(c) / c.subdivision;
     this.clickLength = Math.max(1,Math.round(sampleRate * Math.min(.018,step * .48)));
     this.clickRemaining = value > 0 ? this.clickLength : 0;
-    if (this.sub === 0) this.send('BEAT',this.lastSeq,{beat:this.index + 1});
+    if (this.sub === 0) {this.lastBeat=this.index + 1;this.send('BEAT',this.lastSeq,{beat:this.lastBeat});}
     this.sub++;
     if (this.sub >= c.subdivision) { this.sub = 0; this.index = (this.index + 1) % c.numerator; }
     this.nextFrame = frame + Math.max(1, Math.round(sampleRate * step));
