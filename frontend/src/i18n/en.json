@@ -449,6 +449,9 @@
       "VERSION_CONFLICT": "Assignment changed",
       "ASSESSMENT_CHANGED": "Assessment changed",
       "IDEMPOTENCY_CONFLICT": "Duplicate request conflict"
-    }
+    },
+    "skillEvidence": "Skill assessment evidence",
+    "skillEvidenceHelp": "Individual criterion results are not the same as a confirmed skill level. Learner self-assessment is stored separately.",
+    "noSkillEvidence": "No assessed criteria yet"
   }
 }
