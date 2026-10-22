@@ -1,0 +1,50 @@
+@startuml
+title #17 — каталог, предварительный просмотр, назначение, счёт
+actor "Ученик" as Student
+participant "Vue DiagnosticView" as UI
+participant "Exercise REST" as REST
+database "PostgreSQL" as DB
+participant "ExerciseMediaService" as Media
+participant "Web Audio / Metronome" as Metro
+participant "DiagnosticTask REST" as Task
+
+Student -> UI : Перейти к заданиям
+UI -> REST : GET /api/v1/exercises?instrumentCode=...&techniqueCode=...
+REST -> DB : Список текущих Exercise/skills
+DB --> REST : Версии, цели, критерии, URL
+REST --> UI : 200 JSON (>=5 после поставки)
+UI --> Student : Карточки с целью/лицензией/ограничениями
+
+Student -> UI : Открыть PDF / включить MP3
+UI -> Media : GET /api/v1/exercises/{code}/preview/pdf|audio
+alt Media pack установлен
+  Media --> UI : 200 PDF / audio-mpeg
+  UI --> Student : Ноты+TAB / синтезированный звук
+else Media отсутствует
+  Media --> UI : 404
+  UI --> Student : Заглушка + MusicXML fallback
+end
+
+Student -> UI : Начать метроном (BPM по Exercise)
+UI -> Metro : resume AudioContext; schedule clicks
+Metro --> Student : 1-2-3-4; акцент на 1
+Student -> UI : Изменить темп / остановить
+UI -> Metro : reschedule / stop / cleanup
+
+Student -> UI : Назначить упражнение
+UI -> Task : POST /.../diagnostic-sessions/{id}/tasks {exerciseCode}
+Task -> DB : Проверка READY_FOR_TASK и фиксирование exercise_id
+alt Успешное первое назначение
+  DB --> Task : taskId + версия Exercise
+  Task --> UI : 201 TaskView
+  UI --> Student : То же упражнение, медиа, критерии
+else Повтор с тем же кодом
+  DB --> Task : Уже сохранённое задание
+  Task --> UI : 200 без дубликата
+else Другое задание / неподходящая сессия
+  Task --> UI : 409 (действующий контракт)
+  UI --> Student : Понятное сообщение
+end
+Student -> UI : Покинуть страницу
+UI -> Metro : stop + dispose
+@enduml
