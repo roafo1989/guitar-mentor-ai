@@ -28,8 +28,13 @@ export interface DecisionCommand {
   expectedVersion: number; baseAssessmentId: string | null; reason: string | null;
 }
 export class LearningHttpError extends Error {
-  constructor(readonly status: number, readonly code: string) {
-    super(code); this.name = 'LearningHttpError';
+  readonly status: number;
+  readonly code: string;
+  constructor(status: number, code: string) {
+    super(code);
+    this.name = 'LearningHttpError';
+    this.status = status;
+    this.code = code;
   }
 }
 function base(learnerId: string, sessionId: string, taskId: string): string {
