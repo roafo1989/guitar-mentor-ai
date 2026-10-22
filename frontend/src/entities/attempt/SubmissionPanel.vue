@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { computed, onBeforeUnmount, onMounted, ref } from 'vue';
+import { computed, onBeforeUnmount, onMounted, ref, watch } from 'vue';
 import MicrophoneRecorder from './MicrophoneRecorder.vue';
 import LearningResultsPanel from './LearningResultsPanel.vue';
 import { useI18n } from 'vue-i18n';
@@ -11,6 +11,7 @@ const props = defineProps<{
   sessionId: string;
   taskId: string;
 }>();
+const emit = defineEmits<{ 'draft-state': [state: { busy: boolean; dirty: boolean }] }>();
 const { t } = useI18n();
 const attempts = ref<SubmissionAttempt[]>([]);
 const capabilities = ref<UploadCapabilities | null>(null);
@@ -52,6 +53,12 @@ const recordingActive = ref(false);
 const error = ref('');
 const notice = ref('');
 const draftBusy = computed(() => uploading.value || recordingActive.value || !!file.value || !!comment.value.trim());
+watch([uploading, recordingActive, file, comment], () => {
+  emit('draft-state', {
+    busy: uploading.value || recordingActive.value,
+    dirty: !!file.value || !!comment.value.trim(),
+  });
+}, { immediate: true });
 let polling: ReturnType<typeof setInterval> | undefined;
 let historyRequestInFlight = false;
 
