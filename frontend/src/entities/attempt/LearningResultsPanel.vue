@@ -24,13 +24,13 @@ const decisionCursor = ref<string | null>(null);
 let generation = 0;
 const stateFresh = ref(false);
 const assessmentFresh = ref(false);
-let pending: DecisionCommand | null = null;
+const pending = ref<DecisionCommand | null>(null);
 
 const currentAttempt = computed(() => props.attempts.find(a => a.id === selected.value));
 const latestAssessment = computed(() => assessments.value[0] ?? null);
 const terminal = computed(() => state.value?.taskState !== 'ACTIVE');
 const canDecide = computed(() => !!state.value && !!currentAttempt.value &&
-  !terminal.value && stateFresh.value && assessmentFresh.value && !props.draftBusy && !sending.value && !loading.value);
+  !terminal.value && stateFresh.value && assessmentFresh.value && !pending.value && !props.draftBusy && !sending.value && !loading.value);
 const missingAssessment = computed(() => !latestAssessment.value);
 function message(e: unknown): string {
   if (!(e instanceof LearningHttpError)) return t('learning.errors.UNEXPECTED_RESPONSE');
@@ -74,7 +74,7 @@ async function loadAssessments(seq = generation) {
 }
 async function chooseAttempt(id: string) {
   if (sending.value) return;
-  selected.value = id; pending = null;
+  selected.value = id; pending.value = null;
   const seq = ++generation;
   loading.value = true; error.value = '';
   try { await loadAssessments(seq); }
@@ -114,12 +114,12 @@ async function decide(action: 'CONTINUE_PRACTICING' | 'COMPLETE') {
     expectedVersion: state.value.version, baseAssessmentId: latestAssessment.value?.id ?? null,
     reason: reason.value.trim() || null,
   };
-  pending = command;
+  pending.value = command;
   await sendCommand(command);
 }
 async function retry() {
-  if (!pending || sending.value || props.draftBusy) return;
-  await sendCommand(pending);
+  if (!pending.value || sending.value || props.draftBusy) return;
+  await sendCommand(pending.value);
 }
 async function sendCommand(command: DecisionCommand) {
   const seq = generation;
@@ -127,13 +127,13 @@ async function sendCommand(command: DecisionCommand) {
   try {
     await learningService.decide(props.learnerId, props.sessionId, props.taskId, command);
     if (seq !== generation) return;
-    pending = null;
+    pending.value = null;
     await refresh();
     if (stateFresh.value) notice.value = t('learning.saved');
   } catch (cause) {
     if (seq !== generation) return;
     if (cause instanceof LearningHttpError && cause.status === 409) {
-      pending = null;
+      pending.value = null;
       await refresh();
       error.value = t('learning.conflict');
     } else {
@@ -142,7 +142,7 @@ async function sendCommand(command: DecisionCommand) {
   } finally { sending.value = false; }
 }
 watch(() => [props.learnerId, props.sessionId, props.taskId], () => {
-  ++generation; selected.value = ''; pending = null; state.value = null;
+  ++generation; selected.value = ''; pending.value = null; state.value = null;
   assessments.value = []; decisions.value = []; stateFresh.value = false;
   assessmentFresh.value = false; reason.value = ''; void refresh();
 });
@@ -150,7 +150,7 @@ watch(() => props.attempts.map(a => a.id).join(','), () => {
   if (!loading.value && !sending.value) void refresh();
 });
 onMounted(() => { void refresh(); });
-onBeforeUnmount(() => { ++generation; pending = null; });
+onBeforeUnmount(() => { ++generation; pending.value = null; });
 </script>
 
 <template>
