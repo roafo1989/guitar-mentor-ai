@@ -214,6 +214,8 @@ test('uncertain POST result retains identical idempotency key and payload on ret
     await flush();
     assert.equal(state.canDecide, false, 'must not allow second command after timeout');
     assert.equal(state.pending.requestId, commands[0].requestId);
+    assert.equal(state.sending, false, 'sending must clear after rejected POST before retry');
+    assert.equal(state.loading, false, 'no core read should block retry');
     await state.retry();
     await flush();
     assert.equal(commands.length, 2);
