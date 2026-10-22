@@ -41,7 +41,7 @@ export function spectralFundamental(samples: Float32Array, sampleRate: number): 
   const peaks: Peak[] = [];
   let maximum = 0;
   const highestBin = Math.min(Math.floor(2500 * size / sampleRate), size / 2 - 2);
-  for (let i = Math.ceil(68 * size / sampleRate); i <= highestBin; i++) {
+  for (let i = Math.ceil(55 * size / sampleRate); i <= highestBin; i++) {
     if (magnitudes[i] < magnitudes[i - 1] || magnitudes[i] < magnitudes[i + 1]) continue;
     const left = Math.log(Math.max(magnitudes[i - 1], 1e-12));
     const center = Math.log(Math.max(magnitudes[i], 1e-12));
@@ -66,7 +66,7 @@ export function spectralFundamental(samples: Float32Array, sampleRate: number): 
   let best: SpectralCandidate | null = null;
   for (const peak of strongest) for (let divider = 1; divider <= 8; divider++) {
     const baseHz = peak.hz / divider;
-    if (baseHz < 70 || baseHz > 375) continue;
+    if (baseHz < 60 || baseHz > 375) continue;
     const fundamental = nearby(baseHz);
     // A loud overtone with no energy at its proposed fundamental proves nothing.
     if (!fundamental || fundamental.strength < 0.01 * maximum) continue;

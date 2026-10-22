@@ -398,7 +398,14 @@
     "auto": "Auto",
     "manualHint": "Or tap a string to select it manually",
     "holding": "Last reliable reading — listening for the string…",
-    "autoUncertain": "No clear open string — try again or choose one manually"
+    "autoUncertain": "No clear open string — try again or choose one manually",
+    "tuning": "Guitar tuning",
+    "standard": "Standard · E A D G B E",
+    "dropD": "Drop D · D A D G B E",
+    "openG": "Open G · D G D G B D",
+    "autoMode": "Automatic selection",
+    "manualMode": "Manual selection",
+    "microphoneOn": "Microphone is on"
   },
   "learning": {
     "title": "Feedback and decision",
