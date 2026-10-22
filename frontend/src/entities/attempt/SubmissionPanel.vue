@@ -63,6 +63,28 @@ watch([uploading, recordingActive, decisionBusy, file, comment], () => {
 }, { immediate: true });
 let polling: ReturnType<typeof setInterval> | undefined;
 let historyRequestInFlight = false;
+let contextGeneration = 0;
+let mounted = true;
+function currentContext(generation: number): boolean {
+  return mounted && generation === contextGeneration;
+}
+function resetForContext(): void {
+  ++contextGeneration;
+  attempts.value = [];
+  capabilities.value = null;
+  loading.value = true;
+  error.value = '';
+  notice.value = '';
+  learningTerminal.value = false;
+  // Context switching is blocked during active capture/upload by the route guard.
+  file.value = null;
+  if (fileInput.value) fileInput.value.value = '';
+  clearRecordedPreview();
+  comment.value = '';
+  requestId.value = crypto.randomUUID();
+  void refresh();
+}
+watch(() => [props.learnerId, props.sessionId, props.taskId], resetForContext);
 
 function statusLabel(attempt: SubmissionAttempt): string {
   const labels: Record<SubmissionAttempt['status'], string> = {
@@ -96,8 +118,11 @@ async function pollHistory() {
   if (historyRequestInFlight || uploading.value || loading.value ||
       !attempts.value.some(item => item.status === 'UPLOADED' || item.status === 'PROCESSING')) return;
   historyRequestInFlight = true;
+  const generation = contextGeneration;
+  const { learnerId, sessionId, taskId } = props;
   try {
-    attempts.value = await attemptService.list(props.learnerId, props.sessionId, props.taskId);
+    const history = await attemptService.list(learnerId, sessionId, taskId);
+    if (currentContext(generation)) attempts.value = history;
   } catch {
     // Keep the last known history. Manual refresh can surface network errors.
   } finally {
@@ -129,18 +154,22 @@ function selectFile(event: Event) {
   notice.value = '';
 }
 async function refresh() {
-  error.value = '';
+  const generation = contextGeneration;
+  const { learnerId, sessionId, taskId } = props;
+  if (currentContext(generation)) error.value = '';
   try {
     const [rules, history] = await Promise.all([
-      attemptService.capabilities(props.learnerId, props.sessionId, props.taskId),
-      attemptService.list(props.learnerId, props.sessionId, props.taskId),
+      attemptService.capabilities(learnerId, sessionId, taskId),
+      attemptService.list(learnerId, sessionId, taskId),
     ]);
-    capabilities.value = rules;
-    attempts.value = history;
+    if (currentContext(generation)) {
+      capabilities.value = rules;
+      attempts.value = history;
+    }
   } catch {
-    error.value = t('attempt.historyLoadError');
+    if (currentContext(generation)) error.value = t('attempt.historyLoadError');
   } finally {
-    loading.value = false;
+    if (currentContext(generation)) loading.value = false;
   }
 }
 async function submit() {
@@ -154,12 +183,15 @@ async function submit() {
     error.value = t('attempt.formatError');
     return;
   }
+  const generation = contextGeneration;
+  const { learnerId, sessionId, taskId } = props;
   uploading.value = true;
   error.value = '';
   notice.value = '';
   try {
-    await attemptService.upload(props.learnerId, props.sessionId, props.taskId,
+    await attemptService.upload(learnerId, sessionId, taskId,
       chosen, comment.value, requestId.value);
+    if (!currentContext(generation)) return;
     file.value = null;
     clearRecordedPreview();
     // File inputs are native browser controls: clearing Vue state alone does not reset their label.
@@ -169,7 +201,7 @@ async function submit() {
     notice.value = t('attempt.uploaded');
     await refresh();
   } catch (cause) {
-    error.value = uploadErrorMessage(cause);
+    if (currentContext(generation)) error.value = uploadErrorMessage(cause);
     // Retain the selected file and idempotency key; user can retry or pick another file.
   } finally {
     uploading.value = false;
@@ -179,10 +211,13 @@ function fileSize(bytes: number): string {
   return (bytes / 1024 / 1024).toFixed(2) + ' MB';
 }
 onMounted(() => {
+  mounted = true;
   void refresh();
   polling = setInterval(() => { void pollHistory(); }, 3000);
 });
 onBeforeUnmount(() => {
+  mounted = false;
+  ++contextGeneration;
   if (polling !== undefined) clearInterval(polling);
   clearRecordedPreview();
 });
