@@ -452,6 +452,7 @@
     },
     "skillEvidence": "Skill assessment evidence",
     "skillEvidenceHelp": "Individual criterion results are not the same as a confirmed skill level. Learner self-assessment is stored separately.",
-    "noSkillEvidence": "No assessed criteria yet"
+    "noSkillEvidence": "No assessed criteria yet",
+    "uploadClosed": "Assignment completed. New attempts cannot be uploaded; history and feedback remain available."
   }
 }
