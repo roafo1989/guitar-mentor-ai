@@ -281,7 +281,6 @@ async function assign(exerciseCode: string): Promise<void> {
         <SubmissionPanel v-if="learnerStore.learner"
           :learner-id="learnerStore.learner.id"
           :session-id="session.id" :task-id="task.id" />
-        <p class="hint">{{ t('diagnostic.noAssessment') }}</p>
       </template>
       <p v-if="error" role="alert" class="error">{{ error }}</p>
       <p><RouterLink to="/onboarding">{{ t('diagnostic.back') }}</RouterLink></p>
