@@ -16,10 +16,12 @@ test('learning reads use the correct scoped endpoints and cursor', async t => {
   await learningService.state(learner, session, task);
   await learningService.assessments(learner, session, task, 'attempt-4', 'next/page');
   await learningService.decisions(learner, session, task, 'next/page');
+  await learningService.evidence(learner, session, task, 'next/page');
   assert.deepEqual(calls, [
     root + '/learning',
     root + '/attempts/attempt-4/assessments?cursor=next%2Fpage',
     root + '/decisions?cursor=next%2Fpage',
+    root + '/learning/evidence?cursor=next%2Fpage',
   ]);
 });
 
