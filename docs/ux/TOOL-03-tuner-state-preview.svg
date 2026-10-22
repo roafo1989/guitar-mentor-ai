@@ -1,0 +1,296 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1320" height="1550" viewBox="0 0 1320 1550">
+<defs>
+ <linearGradient id="panel" x1="0" y1="0" x2=".7" y2="1"><stop stop-color="#263242"/><stop offset="1" stop-color="#111820"/></linearGradient>
+ <linearGradient id="wood" x1="0" y1="0" x2="1" y2="0"><stop stop-color="#2d2928"/><stop offset=".5" stop-color="#514338"/><stop offset="1" stop-color="#292526"/></linearGradient>
+</defs><rect width="1320" height="1550" fill="#09121c"/>
+<text x="30" y="45" font-family="Arial,sans-serif" font-size="30" fill="#f8f1e7" font-weight="bold">TOOL-03 · Состояния тюнера</text>
+<text x="30" y="74" font-family="Arial,sans-serif" font-size="16" fill="#aebbc9">Визуальный предпросмотр · прототип для согласования (не живые данные микрофона)</text>
+<g font-family="Arial,sans-serif"><text x="26" y="109" fill="#e2c294" font-size="16" font-weight="bold">До запуска</text><g>
+ <rect x="20" y="120" width="410" height="680" rx="20" fill="url(#panel)" stroke="#586371"/>
+ <text x="40" y="149" font-size="12" fill="#d2ae80" letter-spacing="2.2">GUITAR MENTOR / TOOLS</text>
+ <text x="40" y="182" font-size="26" font-weight="750" fill="#fff9ef">Гитарный тюнер</text>
+ <text x="400" y="167" text-anchor="middle" fill="#d2d9df" font-size="28">×</text>
+ <text x="42" y="216" fill="#aebbc8" font-size="12">СТРОЙ ГИТАРЫ</text>
+ <rect x="36" y="228" width="265" height="39" rx="8" fill="#303b4a" stroke="#8090a1"/>
+ <text x="48" y="253" font-size="13" fill="#ffe5be">Standard · E A D G B E</text>
+ <rect x="315" y="228" width="96" height="39" rx="8" fill="#4a3b30" stroke="#d6aa6c"/>
+ <text x="363" y="253" text-anchor="middle" font-size="14" font-weight="700" fill="#ffe2ac">Авто</text>
+ <rect x="33" y="284" width="384" height="403" rx="14" fill="#1e2834" stroke="#4a5968"/>
+ <text x="225" y="310" text-anchor="middle" font-size="12" fill="#b5c0ca" letter-spacing="1.5">РАСПОЗНАНО</text>
+ <text x="225" y="370" text-anchor="middle" font-weight="750" font-size="55" fill="#fcf4e9">—</text>
+ <text x="225" y="394" text-anchor="middle" font-size="14" fill="#e8c69a">Целевая нота: —</text>
+ <rect x="69" y="416" width="312" height="12" rx="6" fill="#8a8981"/>
+ <line x1="225" y1="410" x2="225" y2="434" stroke="#fce2b9" stroke-width="2"/>
+ 
+ <text x="63" y="454" fill="#b3c2ce" font-size="11">−50</text>
+ <text x="225" y="454" text-anchor="middle" fill="#b3c2ce" font-size="11">0</text>
+ <text x="387" y="454" text-anchor="end" fill="#b3c2ce" font-size="11">+50</text>
+ <text x="225" y="475" text-anchor="middle" font-size="13" fill="#d6dde3">Нет уверенного измерения</text>
+ <text x="225" y="506" text-anchor="middle" font-size="14" font-weight="750" fill="#ffd18e">Микрофон выключен</text>
+ <g transform="translate(150,525) scale(0.5)">
+  <path d="M121 315V275Q92 262 92 229V55Q92 35 119 25L150 5L181 25Q208 35 208 55V229Q208 262 179 275V315Z" fill="url(#wood)" stroke="#847567" stroke-width="2"/>
+  <path d="M121 285 V55 M179 285V55" stroke="#a7957d" opacity=".2"/>
+ <path d="M125 304 L106 195" stroke="#d3b994" stroke-width="2.80" stroke-linecap="round" opacity="0.7"/><path d="M135 304 L106 133" stroke="#d3b994" stroke-width="2.52" stroke-linecap="round" opacity="0.7"/><path d="M145 304 L106 71" stroke="#d3b994" stroke-width="2.24" stroke-linecap="round" opacity="0.7"/><path d="M155 304 L194 71" stroke="#d3b994" stroke-width="1.96" stroke-linecap="round" opacity="0.7"/><path d="M165 304 L194 133" stroke="#d3b994" stroke-width="1.68" stroke-linecap="round" opacity="0.7"/><path d="M175 304 L194 195" stroke="#d3b994" stroke-width="1.40" stroke-linecap="round" opacity="0.7"/><path d="M121 302H179" stroke="#eee0c4" stroke-width="5"/><line x1="104" y1="195" x2="70" y2="195" stroke="#b6afa6" stroke-width="7" stroke-linecap="round"/>
+  <circle cx="42" cy="195" r="27" fill="#303b48" stroke="#818b98" stroke-width="1.3"/>
+  <text x="42" y="193" text-anchor="middle" font-size="11" fill="#b8c3cb">6</text>
+  <text x="42" y="209" text-anchor="middle" font-size="17" font-weight="750" fill="#f4efeb">E2</text><line x1="104" y1="133" x2="70" y2="133" stroke="#b6afa6" stroke-width="7" stroke-linecap="round"/>
+  <circle cx="42" cy="133" r="27" fill="#303b48" stroke="#818b98" stroke-width="1.3"/>
+  <text x="42" y="131" text-anchor="middle" font-size="11" fill="#b8c3cb">5</text>
+  <text x="42" y="147" text-anchor="middle" font-size="17" font-weight="750" fill="#f4efeb">A2</text><line x1="104" y1="71" x2="70" y2="71" stroke="#b6afa6" stroke-width="7" stroke-linecap="round"/>
+  <circle cx="42" cy="71" r="27" fill="#303b48" stroke="#818b98" stroke-width="1.3"/>
+  <text x="42" y="69" text-anchor="middle" font-size="11" fill="#b8c3cb">4</text>
+  <text x="42" y="85" text-anchor="middle" font-size="17" font-weight="750" fill="#f4efeb">D3</text><line x1="196" y1="71" x2="230" y2="71" stroke="#b6afa6" stroke-width="7" stroke-linecap="round"/>
+  <circle cx="258" cy="71" r="27" fill="#303b48" stroke="#818b98" stroke-width="1.3"/>
+  <text x="258" y="69" text-anchor="middle" font-size="11" fill="#b8c3cb">3</text>
+  <text x="258" y="85" text-anchor="middle" font-size="17" font-weight="750" fill="#f4efeb">G3</text><line x1="196" y1="133" x2="230" y2="133" stroke="#b6afa6" stroke-width="7" stroke-linecap="round"/>
+  <circle cx="258" cy="133" r="27" fill="#303b48" stroke="#818b98" stroke-width="1.3"/>
+  <text x="258" y="131" text-anchor="middle" font-size="11" fill="#b8c3cb">2</text>
+  <text x="258" y="147" text-anchor="middle" font-size="17" font-weight="750" fill="#f4efeb">B3</text><line x1="196" y1="195" x2="230" y2="195" stroke="#b6afa6" stroke-width="7" stroke-linecap="round"/>
+  <circle cx="258" cy="195" r="27" fill="#303b48" stroke="#818b98" stroke-width="1.3"/>
+  <text x="258" y="193" text-anchor="middle" font-size="11" fill="#b8c3cb">1</text>
+  <text x="258" y="209" text-anchor="middle" font-size="17" font-weight="750" fill="#f4efeb">E4</text></g>
+ 
+ <rect x="125" y="736" width="200" height="41" rx="10" fill="#edbd7b" stroke="#f0cb92"/>
+ <text x="225" y="762" text-anchor="middle" font-size="15" font-weight="700" fill="#17242e">Начать настройку</text>
+ <text x="38" y="134" fill="none">До запуска</text>
+ </g><text x="460" y="109" fill="#e2c294" font-size="16" font-weight="bold">Ниже</text><g>
+ <rect x="454" y="120" width="410" height="680" rx="20" fill="url(#panel)" stroke="#586371"/>
+ <text x="474" y="149" font-size="12" fill="#d2ae80" letter-spacing="2.2">GUITAR MENTOR / TOOLS</text>
+ <text x="474" y="182" font-size="26" font-weight="750" fill="#fff9ef">Гитарный тюнер</text>
+ <text x="834" y="167" text-anchor="middle" fill="#d2d9df" font-size="28">×</text>
+ <text x="476" y="216" fill="#aebbc8" font-size="12">СТРОЙ ГИТАРЫ</text>
+ <rect x="470" y="228" width="265" height="39" rx="8" fill="#303b4a" stroke="#8090a1"/>
+ <text x="482" y="253" font-size="13" fill="#ffe5be">Drop D · D A D G B E</text>
+ <rect x="749" y="228" width="96" height="39" rx="8" fill="#4a3b30" stroke="#d6aa6c"/>
+ <text x="797" y="253" text-anchor="middle" font-size="14" font-weight="700" fill="#ffe2ac">Авто</text>
+ <rect x="467" y="284" width="384" height="403" rx="14" fill="#1e2834" stroke="#4a5968"/>
+ <text x="659" y="310" text-anchor="middle" font-size="12" fill="#b5c0ca" letter-spacing="1.5">РАСПОЗНАНО</text>
+ <text x="659" y="370" text-anchor="middle" font-weight="750" font-size="55" fill="#fcf4e9">D2</text>
+ <text x="659" y="394" text-anchor="middle" font-size="14" fill="#e8c69a">Целевая нота: D2</text>
+ <rect x="503" y="416" width="312" height="12" rx="6" fill="#8a8981"/>
+ <line x1="659" y1="410" x2="659" y2="434" stroke="#fce2b9" stroke-width="2"/>
+ <rect x="620" y="405" rx="3" width="6" height="33" fill="#ffd18e"/>
+ <text x="497" y="454" fill="#b3c2ce" font-size="11">−50</text>
+ <text x="659" y="454" text-anchor="middle" fill="#b3c2ce" font-size="11">0</text>
+ <text x="821" y="454" text-anchor="end" fill="#b3c2ce" font-size="11">+50</text>
+ <text x="659" y="475" text-anchor="middle" font-size="13" fill="#d6dde3">-24 центов</text>
+ <text x="659" y="506" text-anchor="middle" font-size="14" font-weight="750" fill="#ffd18e">Ниже — подтяни струну</text>
+ <g transform="translate(584,525) scale(0.5)">
+  <path d="M121 315V275Q92 262 92 229V55Q92 35 119 25L150 5L181 25Q208 35 208 55V229Q208 262 179 275V315Z" fill="url(#wood)" stroke="#847567" stroke-width="2"/>
+  <path d="M121 285 V55 M179 285V55" stroke="#a7957d" opacity=".2"/>
+ <path d="M125 304 L106 195" stroke="#ffd18e" stroke-width="2.80" stroke-linecap="round" opacity="1"/><path d="M135 304 L106 133" stroke="#d3b994" stroke-width="2.52" stroke-linecap="round" opacity="0.7"/><path d="M145 304 L106 71" stroke="#d3b994" stroke-width="2.24" stroke-linecap="round" opacity="0.7"/><path d="M155 304 L194 71" stroke="#d3b994" stroke-width="1.96" stroke-linecap="round" opacity="0.7"/><path d="M165 304 L194 133" stroke="#d3b994" stroke-width="1.68" stroke-linecap="round" opacity="0.7"/><path d="M175 304 L194 195" stroke="#d3b994" stroke-width="1.40" stroke-linecap="round" opacity="0.7"/><path d="M121 302H179" stroke="#eee0c4" stroke-width="5"/><line x1="104" y1="195" x2="70" y2="195" stroke="#b6afa6" stroke-width="7" stroke-linecap="round"/>
+  <circle cx="42" cy="195" r="27" fill="#665036" stroke="#ffd18e" stroke-width="2.5"/>
+  <text x="42" y="193" text-anchor="middle" font-size="11" fill="#b8c3cb">6</text>
+  <text x="42" y="209" text-anchor="middle" font-size="17" font-weight="750" fill="#ffd18e">D2</text><line x1="104" y1="133" x2="70" y2="133" stroke="#b6afa6" stroke-width="7" stroke-linecap="round"/>
+  <circle cx="42" cy="133" r="27" fill="#303b48" stroke="#818b98" stroke-width="1.3"/>
+  <text x="42" y="131" text-anchor="middle" font-size="11" fill="#b8c3cb">5</text>
+  <text x="42" y="147" text-anchor="middle" font-size="17" font-weight="750" fill="#f4efeb">A2</text><line x1="104" y1="71" x2="70" y2="71" stroke="#b6afa6" stroke-width="7" stroke-linecap="round"/>
+  <circle cx="42" cy="71" r="27" fill="#303b48" stroke="#818b98" stroke-width="1.3"/>
+  <text x="42" y="69" text-anchor="middle" font-size="11" fill="#b8c3cb">4</text>
+  <text x="42" y="85" text-anchor="middle" font-size="17" font-weight="750" fill="#f4efeb">D3</text><line x1="196" y1="71" x2="230" y2="71" stroke="#b6afa6" stroke-width="7" stroke-linecap="round"/>
+  <circle cx="258" cy="71" r="27" fill="#303b48" stroke="#818b98" stroke-width="1.3"/>
+  <text x="258" y="69" text-anchor="middle" font-size="11" fill="#b8c3cb">3</text>
+  <text x="258" y="85" text-anchor="middle" font-size="17" font-weight="750" fill="#f4efeb">G3</text><line x1="196" y1="133" x2="230" y2="133" stroke="#b6afa6" stroke-width="7" stroke-linecap="round"/>
+  <circle cx="258" cy="133" r="27" fill="#303b48" stroke="#818b98" stroke-width="1.3"/>
+  <text x="258" y="131" text-anchor="middle" font-size="11" fill="#b8c3cb">2</text>
+  <text x="258" y="147" text-anchor="middle" font-size="17" font-weight="750" fill="#f4efeb">B3</text><line x1="196" y1="195" x2="230" y2="195" stroke="#b6afa6" stroke-width="7" stroke-linecap="round"/>
+  <circle cx="258" cy="195" r="27" fill="#303b48" stroke="#818b98" stroke-width="1.3"/>
+  <text x="258" y="193" text-anchor="middle" font-size="11" fill="#b8c3cb">1</text>
+  <text x="258" y="209" text-anchor="middle" font-size="17" font-weight="750" fill="#f4efeb">E4</text></g>
+ 
+ <rect x="559" y="736" width="200" height="41" rx="10" fill="#313e4d" stroke="#f0cb92"/>
+ <text x="659" y="762" text-anchor="middle" font-size="15" font-weight="700" fill="#f6ece0">Остановить</text>
+ <text x="472" y="134" fill="none">Ниже</text>
+ </g><text x="894" y="109" fill="#e2c294" font-size="16" font-weight="bold">Выше</text><g>
+ <rect x="888" y="120" width="410" height="680" rx="20" fill="url(#panel)" stroke="#586371"/>
+ <text x="908" y="149" font-size="12" fill="#d2ae80" letter-spacing="2.2">GUITAR MENTOR / TOOLS</text>
+ <text x="908" y="182" font-size="26" font-weight="750" fill="#fff9ef">Гитарный тюнер</text>
+ <text x="1268" y="167" text-anchor="middle" fill="#d2d9df" font-size="28">×</text>
+ <text x="910" y="216" fill="#aebbc8" font-size="12">СТРОЙ ГИТАРЫ</text>
+ <rect x="904" y="228" width="265" height="39" rx="8" fill="#303b4a" stroke="#8090a1"/>
+ <text x="916" y="253" font-size="13" fill="#ffe5be">Open G · D G D G B D</text>
+ <rect x="1183" y="228" width="96" height="39" rx="8" fill="#4a3b30" stroke="#d6aa6c"/>
+ <text x="1231" y="253" text-anchor="middle" font-size="14" font-weight="700" fill="#ffe2ac">Авто</text>
+ <rect x="901" y="284" width="384" height="403" rx="14" fill="#1e2834" stroke="#4a5968"/>
+ <text x="1093" y="310" text-anchor="middle" font-size="12" fill="#b5c0ca" letter-spacing="1.5">РАСПОЗНАНО</text>
+ <text x="1093" y="370" text-anchor="middle" font-weight="750" font-size="55" fill="#fcf4e9">G2</text>
+ <text x="1093" y="394" text-anchor="middle" font-size="14" fill="#e8c69a">Целевая нота: G2</text>
+ <rect x="937" y="416" width="312" height="12" rx="6" fill="#8a8981"/>
+ <line x1="1093" y1="410" x2="1093" y2="434" stroke="#fce2b9" stroke-width="2"/>
+ <rect x="1115.5" y="405" rx="3" width="6" height="33" fill="#ffd18e"/>
+ <text x="931" y="454" fill="#b3c2ce" font-size="11">−50</text>
+ <text x="1093" y="454" text-anchor="middle" fill="#b3c2ce" font-size="11">0</text>
+ <text x="1255" y="454" text-anchor="end" fill="#b3c2ce" font-size="11">+50</text>
+ <text x="1093" y="475" text-anchor="middle" font-size="13" fill="#d6dde3">17 центов</text>
+ <text x="1093" y="506" text-anchor="middle" font-size="14" font-weight="750" fill="#ffd18e">Выше — ослабь струну</text>
+ <g transform="translate(1018,525) scale(0.5)">
+  <path d="M121 315V275Q92 262 92 229V55Q92 35 119 25L150 5L181 25Q208 35 208 55V229Q208 262 179 275V315Z" fill="url(#wood)" stroke="#847567" stroke-width="2"/>
+  <path d="M121 285 V55 M179 285V55" stroke="#a7957d" opacity=".2"/>
+ <path d="M125 304 L106 195" stroke="#d3b994" stroke-width="2.80" stroke-linecap="round" opacity="0.7"/><path d="M135 304 L106 133" stroke="#ffd18e" stroke-width="2.52" stroke-linecap="round" opacity="1"/><path d="M145 304 L106 71" stroke="#d3b994" stroke-width="2.24" stroke-linecap="round" opacity="0.7"/><path d="M155 304 L194 71" stroke="#d3b994" stroke-width="1.96" stroke-linecap="round" opacity="0.7"/><path d="M165 304 L194 133" stroke="#d3b994" stroke-width="1.68" stroke-linecap="round" opacity="0.7"/><path d="M175 304 L194 195" stroke="#d3b994" stroke-width="1.40" stroke-linecap="round" opacity="0.7"/><path d="M121 302H179" stroke="#eee0c4" stroke-width="5"/><line x1="104" y1="195" x2="70" y2="195" stroke="#b6afa6" stroke-width="7" stroke-linecap="round"/>
+  <circle cx="42" cy="195" r="27" fill="#303b48" stroke="#818b98" stroke-width="1.3"/>
+  <text x="42" y="193" text-anchor="middle" font-size="11" fill="#b8c3cb">6</text>
+  <text x="42" y="209" text-anchor="middle" font-size="17" font-weight="750" fill="#f4efeb">D2</text><line x1="104" y1="133" x2="70" y2="133" stroke="#b6afa6" stroke-width="7" stroke-linecap="round"/>
+  <circle cx="42" cy="133" r="27" fill="#665036" stroke="#ffd18e" stroke-width="2.5"/>
+  <text x="42" y="131" text-anchor="middle" font-size="11" fill="#b8c3cb">5</text>
+  <text x="42" y="147" text-anchor="middle" font-size="17" font-weight="750" fill="#ffd18e">G2</text><line x1="104" y1="71" x2="70" y2="71" stroke="#b6afa6" stroke-width="7" stroke-linecap="round"/>
+  <circle cx="42" cy="71" r="27" fill="#303b48" stroke="#818b98" stroke-width="1.3"/>
+  <text x="42" y="69" text-anchor="middle" font-size="11" fill="#b8c3cb">4</text>
+  <text x="42" y="85" text-anchor="middle" font-size="17" font-weight="750" fill="#f4efeb">D3</text><line x1="196" y1="71" x2="230" y2="71" stroke="#b6afa6" stroke-width="7" stroke-linecap="round"/>
+  <circle cx="258" cy="71" r="27" fill="#303b48" stroke="#818b98" stroke-width="1.3"/>
+  <text x="258" y="69" text-anchor="middle" font-size="11" fill="#b8c3cb">3</text>
+  <text x="258" y="85" text-anchor="middle" font-size="17" font-weight="750" fill="#f4efeb">G3</text><line x1="196" y1="133" x2="230" y2="133" stroke="#b6afa6" stroke-width="7" stroke-linecap="round"/>
+  <circle cx="258" cy="133" r="27" fill="#303b48" stroke="#818b98" stroke-width="1.3"/>
+  <text x="258" y="131" text-anchor="middle" font-size="11" fill="#b8c3cb">2</text>
+  <text x="258" y="147" text-anchor="middle" font-size="17" font-weight="750" fill="#f4efeb">B3</text><line x1="196" y1="195" x2="230" y2="195" stroke="#b6afa6" stroke-width="7" stroke-linecap="round"/>
+  <circle cx="258" cy="195" r="27" fill="#303b48" stroke="#818b98" stroke-width="1.3"/>
+  <text x="258" y="193" text-anchor="middle" font-size="11" fill="#b8c3cb">1</text>
+  <text x="258" y="209" text-anchor="middle" font-size="17" font-weight="750" fill="#f4efeb">D4</text></g>
+ 
+ <rect x="993" y="736" width="200" height="41" rx="10" fill="#313e4d" stroke="#f0cb92"/>
+ <text x="1093" y="762" text-anchor="middle" font-size="15" font-weight="700" fill="#f6ece0">Остановить</text>
+ <text x="906" y="134" fill="none">Выше</text>
+ </g><text x="26" y="827" fill="#e2c294" font-size="16" font-weight="bold">Настроено</text><g>
+ <rect x="20" y="838" width="410" height="680" rx="20" fill="url(#panel)" stroke="#586371"/>
+ <text x="40" y="867" font-size="12" fill="#d2ae80" letter-spacing="2.2">GUITAR MENTOR / TOOLS</text>
+ <text x="40" y="900" font-size="26" font-weight="750" fill="#fff9ef">Гитарный тюнер</text>
+ <text x="400" y="885" text-anchor="middle" fill="#d2d9df" font-size="28">×</text>
+ <text x="42" y="934" fill="#aebbc8" font-size="12">СТРОЙ ГИТАРЫ</text>
+ <rect x="36" y="946" width="265" height="39" rx="8" fill="#303b4a" stroke="#8090a1"/>
+ <text x="48" y="971" font-size="13" fill="#ffe5be">Open G · D G D G B D</text>
+ <rect x="315" y="946" width="96" height="39" rx="8" fill="#4a3b30" stroke="#d6aa6c"/>
+ <text x="363" y="971" text-anchor="middle" font-size="14" font-weight="700" fill="#ffe2ac">Авто</text>
+ <rect x="33" y="1002" width="384" height="403" rx="14" fill="#1e2834" stroke="#4a5968"/>
+ <text x="225" y="1028" text-anchor="middle" font-size="12" fill="#b5c0ca" letter-spacing="1.5">РАСПОЗНАНО</text>
+ <text x="225" y="1088" text-anchor="middle" font-weight="750" font-size="55" fill="#b4f2c9">D2</text>
+ <text x="225" y="1112" text-anchor="middle" font-size="14" fill="#e8c69a">Целевая нота: D2</text>
+ <rect x="69" y="1134" width="312" height="12" rx="6" fill="#8a8981"/>
+ <line x1="225" y1="1128" x2="225" y2="1152" stroke="#fce2b9" stroke-width="2"/>
+ <rect x="222" y="1123" rx="3" width="6" height="33" fill="#a6edbe"/>
+ <text x="63" y="1172" fill="#b3c2ce" font-size="11">−50</text>
+ <text x="225" y="1172" text-anchor="middle" fill="#b3c2ce" font-size="11">0</text>
+ <text x="387" y="1172" text-anchor="end" fill="#b3c2ce" font-size="11">+50</text>
+ <text x="225" y="1193" text-anchor="middle" font-size="13" fill="#d6dde3">0 центов</text>
+ <text x="225" y="1224" text-anchor="middle" font-size="14" font-weight="750" fill="#a6edbe">Струна настроена!</text>
+ <g transform="translate(150,1243) scale(0.5)">
+  <path d="M121 315V275Q92 262 92 229V55Q92 35 119 25L150 5L181 25Q208 35 208 55V229Q208 262 179 275V315Z" fill="url(#wood)" stroke="#847567" stroke-width="2"/>
+  <path d="M121 285 V55 M179 285V55" stroke="#a7957d" opacity=".2"/>
+ <path d="M125 304 L106 195" stroke="#a6edbe" stroke-width="2.80" stroke-linecap="round" opacity="1"/><path d="M135 304 L106 133" stroke="#d3b994" stroke-width="2.52" stroke-linecap="round" opacity="0.7"/><path d="M145 304 L106 71" stroke="#d3b994" stroke-width="2.24" stroke-linecap="round" opacity="0.7"/><path d="M155 304 L194 71" stroke="#d3b994" stroke-width="1.96" stroke-linecap="round" opacity="0.7"/><path d="M165 304 L194 133" stroke="#d3b994" stroke-width="1.68" stroke-linecap="round" opacity="0.7"/><path d="M175 304 L194 195" stroke="#d3b994" stroke-width="1.40" stroke-linecap="round" opacity="0.7"/><path d="M121 302H179" stroke="#eee0c4" stroke-width="5"/><line x1="104" y1="195" x2="70" y2="195" stroke="#b6afa6" stroke-width="7" stroke-linecap="round"/>
+  <circle cx="42" cy="195" r="27" fill="#315a49" stroke="#a6edbe" stroke-width="2.5"/>
+  <text x="42" y="193" text-anchor="middle" font-size="11" fill="#b8c3cb">6</text>
+  <text x="42" y="209" text-anchor="middle" font-size="17" font-weight="750" fill="#a6edbe">D2</text><line x1="104" y1="133" x2="70" y2="133" stroke="#b6afa6" stroke-width="7" stroke-linecap="round"/>
+  <circle cx="42" cy="133" r="27" fill="#303b48" stroke="#818b98" stroke-width="1.3"/>
+  <text x="42" y="131" text-anchor="middle" font-size="11" fill="#b8c3cb">5</text>
+  <text x="42" y="147" text-anchor="middle" font-size="17" font-weight="750" fill="#f4efeb">G2</text><line x1="104" y1="71" x2="70" y2="71" stroke="#b6afa6" stroke-width="7" stroke-linecap="round"/>
+  <circle cx="42" cy="71" r="27" fill="#303b48" stroke="#818b98" stroke-width="1.3"/>
+  <text x="42" y="69" text-anchor="middle" font-size="11" fill="#b8c3cb">4</text>
+  <text x="42" y="85" text-anchor="middle" font-size="17" font-weight="750" fill="#f4efeb">D3</text><line x1="196" y1="71" x2="230" y2="71" stroke="#b6afa6" stroke-width="7" stroke-linecap="round"/>
+  <circle cx="258" cy="71" r="27" fill="#303b48" stroke="#818b98" stroke-width="1.3"/>
+  <text x="258" y="69" text-anchor="middle" font-size="11" fill="#b8c3cb">3</text>
+  <text x="258" y="85" text-anchor="middle" font-size="17" font-weight="750" fill="#f4efeb">G3</text><line x1="196" y1="133" x2="230" y2="133" stroke="#b6afa6" stroke-width="7" stroke-linecap="round"/>
+  <circle cx="258" cy="133" r="27" fill="#303b48" stroke="#818b98" stroke-width="1.3"/>
+  <text x="258" y="131" text-anchor="middle" font-size="11" fill="#b8c3cb">2</text>
+  <text x="258" y="147" text-anchor="middle" font-size="17" font-weight="750" fill="#f4efeb">B3</text><line x1="196" y1="195" x2="230" y2="195" stroke="#b6afa6" stroke-width="7" stroke-linecap="round"/>
+  <circle cx="258" cy="195" r="27" fill="#303b48" stroke="#818b98" stroke-width="1.3"/>
+  <text x="258" y="193" text-anchor="middle" font-size="11" fill="#b8c3cb">1</text>
+  <text x="258" y="209" text-anchor="middle" font-size="17" font-weight="750" fill="#f4efeb">D4</text></g>
+ 
+ <rect x="125" y="1454" width="200" height="41" rx="10" fill="#313e4d" stroke="#f0cb92"/>
+ <text x="225" y="1480" text-anchor="middle" font-size="15" font-weight="700" fill="#f6ece0">Остановить</text>
+ <text x="38" y="852" fill="none">Настроено</text>
+ </g><text x="460" y="827" fill="#e2c294" font-size="16" font-weight="bold">Затухание / hold</text><g>
+ <rect x="454" y="838" width="410" height="680" rx="20" fill="url(#panel)" stroke="#586371"/>
+ <text x="474" y="867" font-size="12" fill="#d2ae80" letter-spacing="2.2">GUITAR MENTOR / TOOLS</text>
+ <text x="474" y="900" font-size="26" font-weight="750" fill="#fff9ef">Гитарный тюнер</text>
+ <text x="834" y="885" text-anchor="middle" fill="#d2d9df" font-size="28">×</text>
+ <text x="476" y="934" fill="#aebbc8" font-size="12">СТРОЙ ГИТАРЫ</text>
+ <rect x="470" y="946" width="265" height="39" rx="8" fill="#303b4a" stroke="#8090a1"/>
+ <text x="482" y="971" font-size="13" fill="#ffe5be">Standard · E A D G B E</text>
+ <rect x="749" y="946" width="96" height="39" rx="8" fill="#4a3b30" stroke="#d6aa6c"/>
+ <text x="797" y="971" text-anchor="middle" font-size="14" font-weight="700" fill="#ffe2ac">Авто</text>
+ <rect x="467" y="1002" width="384" height="403" rx="14" fill="#1e2834" stroke="#4a5968"/>
+ <text x="659" y="1028" text-anchor="middle" font-size="12" fill="#b5c0ca" letter-spacing="1.5">РАСПОЗНАНО</text>
+ <text x="659" y="1088" text-anchor="middle" font-weight="750" font-size="55" fill="#fcf4e9">A2</text>
+ <text x="659" y="1112" text-anchor="middle" font-size="14" fill="#e8c69a">Целевая нота: A2</text>
+ <rect x="503" y="1134" width="312" height="12" rx="6" fill="#8a8981"/>
+ <line x1="659" y1="1128" x2="659" y2="1152" stroke="#fce2b9" stroke-width="2"/>
+ <rect x="657.5" y="1123" rx="3" width="6" height="33" fill="#98a6b4"/>
+ <text x="497" y="1172" fill="#b3c2ce" font-size="11">−50</text>
+ <text x="659" y="1172" text-anchor="middle" fill="#b3c2ce" font-size="11">0</text>
+ <text x="821" y="1172" text-anchor="end" fill="#b3c2ce" font-size="11">+50</text>
+ <text x="659" y="1193" text-anchor="middle" font-size="13" fill="#d6dde3">1 центов</text>
+ <text x="659" y="1224" text-anchor="middle" font-size="14" font-weight="750" fill="#98a6b4">Последнее уверенное измерение</text>
+ <g transform="translate(584,1243) scale(0.5)">
+  <path d="M121 315V275Q92 262 92 229V55Q92 35 119 25L150 5L181 25Q208 35 208 55V229Q208 262 179 275V315Z" fill="url(#wood)" stroke="#847567" stroke-width="2"/>
+  <path d="M121 285 V55 M179 285V55" stroke="#a7957d" opacity=".2"/>
+ <path d="M125 304 L106 195" stroke="#d3b994" stroke-width="2.80" stroke-linecap="round" opacity="0.7"/><path d="M135 304 L106 133" stroke="#98a6b4" stroke-width="2.52" stroke-linecap="round" opacity="1"/><path d="M145 304 L106 71" stroke="#d3b994" stroke-width="2.24" stroke-linecap="round" opacity="0.7"/><path d="M155 304 L194 71" stroke="#d3b994" stroke-width="1.96" stroke-linecap="round" opacity="0.7"/><path d="M165 304 L194 133" stroke="#d3b994" stroke-width="1.68" stroke-linecap="round" opacity="0.7"/><path d="M175 304 L194 195" stroke="#d3b994" stroke-width="1.40" stroke-linecap="round" opacity="0.7"/><path d="M121 302H179" stroke="#eee0c4" stroke-width="5"/><line x1="104" y1="195" x2="70" y2="195" stroke="#b6afa6" stroke-width="7" stroke-linecap="round"/>
+  <circle cx="42" cy="195" r="27" fill="#303b48" stroke="#818b98" stroke-width="1.3"/>
+  <text x="42" y="193" text-anchor="middle" font-size="11" fill="#b8c3cb">6</text>
+  <text x="42" y="209" text-anchor="middle" font-size="17" font-weight="750" fill="#f4efeb">E2</text><line x1="104" y1="133" x2="70" y2="133" stroke="#b6afa6" stroke-width="7" stroke-linecap="round"/>
+  <circle cx="42" cy="133" r="27" fill="#665036" stroke="#98a6b4" stroke-width="2.5"/>
+  <text x="42" y="131" text-anchor="middle" font-size="11" fill="#b8c3cb">5</text>
+  <text x="42" y="147" text-anchor="middle" font-size="17" font-weight="750" fill="#98a6b4">A2</text><line x1="104" y1="71" x2="70" y2="71" stroke="#b6afa6" stroke-width="7" stroke-linecap="round"/>
+  <circle cx="42" cy="71" r="27" fill="#303b48" stroke="#818b98" stroke-width="1.3"/>
+  <text x="42" y="69" text-anchor="middle" font-size="11" fill="#b8c3cb">4</text>
+  <text x="42" y="85" text-anchor="middle" font-size="17" font-weight="750" fill="#f4efeb">D3</text><line x1="196" y1="71" x2="230" y2="71" stroke="#b6afa6" stroke-width="7" stroke-linecap="round"/>
+  <circle cx="258" cy="71" r="27" fill="#303b48" stroke="#818b98" stroke-width="1.3"/>
+  <text x="258" y="69" text-anchor="middle" font-size="11" fill="#b8c3cb">3</text>
+  <text x="258" y="85" text-anchor="middle" font-size="17" font-weight="750" fill="#f4efeb">G3</text><line x1="196" y1="133" x2="230" y2="133" stroke="#b6afa6" stroke-width="7" stroke-linecap="round"/>
+  <circle cx="258" cy="133" r="27" fill="#303b48" stroke="#818b98" stroke-width="1.3"/>
+  <text x="258" y="131" text-anchor="middle" font-size="11" fill="#b8c3cb">2</text>
+  <text x="258" y="147" text-anchor="middle" font-size="17" font-weight="750" fill="#f4efeb">B3</text><line x1="196" y1="195" x2="230" y2="195" stroke="#b6afa6" stroke-width="7" stroke-linecap="round"/>
+  <circle cx="258" cy="195" r="27" fill="#303b48" stroke="#818b98" stroke-width="1.3"/>
+  <text x="258" y="193" text-anchor="middle" font-size="11" fill="#b8c3cb">1</text>
+  <text x="258" y="209" text-anchor="middle" font-size="17" font-weight="750" fill="#f4efeb">E4</text></g>
+ 
+ <rect x="559" y="1454" width="200" height="41" rx="10" fill="#313e4d" stroke="#f0cb92"/>
+ <text x="659" y="1480" text-anchor="middle" font-size="15" font-weight="700" fill="#f6ece0">Остановить</text>
+ <text x="472" y="852" fill="none">Затухание / hold</text>
+ </g><text x="894" y="827" fill="#e2c294" font-size="16" font-weight="bold">Ошибка доступа</text><g>
+ <rect x="888" y="838" width="410" height="680" rx="20" fill="url(#panel)" stroke="#586371"/>
+ <text x="908" y="867" font-size="12" fill="#d2ae80" letter-spacing="2.2">GUITAR MENTOR / TOOLS</text>
+ <text x="908" y="900" font-size="26" font-weight="750" fill="#fff9ef">Гитарный тюнер</text>
+ <text x="1268" y="885" text-anchor="middle" fill="#d2d9df" font-size="28">×</text>
+ <text x="910" y="934" fill="#aebbc8" font-size="12">СТРОЙ ГИТАРЫ</text>
+ <rect x="904" y="946" width="265" height="39" rx="8" fill="#303b4a" stroke="#8090a1"/>
+ <text x="916" y="971" font-size="13" fill="#ffe5be">Drop D · D A D G B E</text>
+ <rect x="1183" y="946" width="96" height="39" rx="8" fill="#4a3b30" stroke="#d6aa6c"/>
+ <text x="1231" y="971" text-anchor="middle" font-size="14" font-weight="700" fill="#ffe2ac">Авто</text>
+ <rect x="901" y="1002" width="384" height="403" rx="14" fill="#1e2834" stroke="#4a5968"/>
+ <text x="1093" y="1028" text-anchor="middle" font-size="12" fill="#b5c0ca" letter-spacing="1.5">РАСПОЗНАНО</text>
+ <text x="1093" y="1088" text-anchor="middle" font-weight="750" font-size="55" fill="#fcf4e9">—</text>
+ <text x="1093" y="1112" text-anchor="middle" font-size="14" fill="#e8c69a">Целевая нота: —</text>
+ <rect x="937" y="1134" width="312" height="12" rx="6" fill="#8a8981"/>
+ <line x1="1093" y1="1128" x2="1093" y2="1152" stroke="#fce2b9" stroke-width="2"/>
+ 
+ <text x="931" y="1172" fill="#b3c2ce" font-size="11">−50</text>
+ <text x="1093" y="1172" text-anchor="middle" fill="#b3c2ce" font-size="11">0</text>
+ <text x="1255" y="1172" text-anchor="end" fill="#b3c2ce" font-size="11">+50</text>
+ <text x="1093" y="1193" text-anchor="middle" font-size="13" fill="#d6dde3">Нет уверенного измерения</text>
+ <text x="1093" y="1224" text-anchor="middle" font-size="14" font-weight="750" fill="#ffd18e">Микрофон выключен</text>
+ <g transform="translate(1018,1243) scale(0.5)">
+  <path d="M121 315V275Q92 262 92 229V55Q92 35 119 25L150 5L181 25Q208 35 208 55V229Q208 262 179 275V315Z" fill="url(#wood)" stroke="#847567" stroke-width="2"/>
+  <path d="M121 285 V55 M179 285V55" stroke="#a7957d" opacity=".2"/>
+ <path d="M125 304 L106 195" stroke="#d3b994" stroke-width="2.80" stroke-linecap="round" opacity="0.7"/><path d="M135 304 L106 133" stroke="#d3b994" stroke-width="2.52" stroke-linecap="round" opacity="0.7"/><path d="M145 304 L106 71" stroke="#d3b994" stroke-width="2.24" stroke-linecap="round" opacity="0.7"/><path d="M155 304 L194 71" stroke="#d3b994" stroke-width="1.96" stroke-linecap="round" opacity="0.7"/><path d="M165 304 L194 133" stroke="#d3b994" stroke-width="1.68" stroke-linecap="round" opacity="0.7"/><path d="M175 304 L194 195" stroke="#d3b994" stroke-width="1.40" stroke-linecap="round" opacity="0.7"/><path d="M121 302H179" stroke="#eee0c4" stroke-width="5"/><line x1="104" y1="195" x2="70" y2="195" stroke="#b6afa6" stroke-width="7" stroke-linecap="round"/>
+  <circle cx="42" cy="195" r="27" fill="#303b48" stroke="#818b98" stroke-width="1.3"/>
+  <text x="42" y="193" text-anchor="middle" font-size="11" fill="#b8c3cb">6</text>
+  <text x="42" y="209" text-anchor="middle" font-size="17" font-weight="750" fill="#f4efeb">D2</text><line x1="104" y1="133" x2="70" y2="133" stroke="#b6afa6" stroke-width="7" stroke-linecap="round"/>
+  <circle cx="42" cy="133" r="27" fill="#303b48" stroke="#818b98" stroke-width="1.3"/>
+  <text x="42" y="131" text-anchor="middle" font-size="11" fill="#b8c3cb">5</text>
+  <text x="42" y="147" text-anchor="middle" font-size="17" font-weight="750" fill="#f4efeb">A2</text><line x1="104" y1="71" x2="70" y2="71" stroke="#b6afa6" stroke-width="7" stroke-linecap="round"/>
+  <circle cx="42" cy="71" r="27" fill="#303b48" stroke="#818b98" stroke-width="1.3"/>
+  <text x="42" y="69" text-anchor="middle" font-size="11" fill="#b8c3cb">4</text>
+  <text x="42" y="85" text-anchor="middle" font-size="17" font-weight="750" fill="#f4efeb">D3</text><line x1="196" y1="71" x2="230" y2="71" stroke="#b6afa6" stroke-width="7" stroke-linecap="round"/>
+  <circle cx="258" cy="71" r="27" fill="#303b48" stroke="#818b98" stroke-width="1.3"/>
+  <text x="258" y="69" text-anchor="middle" font-size="11" fill="#b8c3cb">3</text>
+  <text x="258" y="85" text-anchor="middle" font-size="17" font-weight="750" fill="#f4efeb">G3</text><line x1="196" y1="133" x2="230" y2="133" stroke="#b6afa6" stroke-width="7" stroke-linecap="round"/>
+  <circle cx="258" cy="133" r="27" fill="#303b48" stroke="#818b98" stroke-width="1.3"/>
+  <text x="258" y="131" text-anchor="middle" font-size="11" fill="#b8c3cb">2</text>
+  <text x="258" y="147" text-anchor="middle" font-size="17" font-weight="750" fill="#f4efeb">B3</text><line x1="196" y1="195" x2="230" y2="195" stroke="#b6afa6" stroke-width="7" stroke-linecap="round"/>
+  <circle cx="258" cy="195" r="27" fill="#303b48" stroke="#818b98" stroke-width="1.3"/>
+  <text x="258" y="193" text-anchor="middle" font-size="11" fill="#b8c3cb">1</text>
+  <text x="258" y="209" text-anchor="middle" font-size="17" font-weight="750" fill="#f4efeb">E4</text></g>
+ <rect x="908" y="1419" width="370" height="37" rx="8" fill="#53383d" stroke="#c88f87"/><text x="1093" y="1442" font-size="13" text-anchor="middle" fill="#ffe2dc">Доступ к микрофону запрещён</text>
+ <rect x="993" y="1454" width="200" height="41" rx="10" fill="#edbd7b" stroke="#f0cb92"/>
+ <text x="1093" y="1480" text-anchor="middle" font-size="15" font-weight="700" fill="#17242e">Начать настройку</text>
+ <text x="906" y="852" fill="none">Ошибка доступа</text>
+ </g></g><text x="25" y="1540" fill="#96aabb" font-size="14" font-family="Arial">Схема 3+3, шесть физических струн, только свежая достоверная частота может быть зелёной</text></svg>

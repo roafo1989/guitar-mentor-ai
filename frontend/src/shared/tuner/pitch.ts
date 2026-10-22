@@ -25,7 +25,7 @@ export function detectPitch(
 ): number | null {
   if (!Number.isFinite(sampleRate) || sampleRate <= 0) return null;
   const minLag = Math.max(2, Math.floor(sampleRate / 375));
-  const maxLag = Math.ceil(sampleRate / 70);
+  const maxLag = Math.ceil(sampleRate / 60);
   const width = Math.min(2048, samples.length - maxLag - 2);
   if (width < 1024) return null;
   let energy = 0, mean = 0;
@@ -78,7 +78,7 @@ export function detectPitch(
   const denominator = left - 2 * center + right;
   const shift = denominator ? Math.max(-1, Math.min(1, (left - right) / (2 * denominator))) : 0;
   const frequency = sampleRate / (candidate + shift);
-  if (frequency < 70 || frequency > 375 || !Number.isFinite(frequency)) return null;
+  if (frequency < 60 || frequency > 375 || !Number.isFinite(frequency)) return null;
   // The first credible YIN period can be a harmonic or subharmonic.
   // Spectral evidence must support a proposed lower fundamental.
   const spectrum = spectralFundamental(samples, sampleRate);
