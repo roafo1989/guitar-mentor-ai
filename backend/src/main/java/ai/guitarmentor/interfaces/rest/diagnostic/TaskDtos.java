@@ -12,9 +12,9 @@ public final class TaskDtos {
     public record AssignRequest(@NotBlank String exerciseCode) {}
 
     public record TaskView(UUID id, UUID sessionId, Instant assignedAt, ExerciseView exercise) {
-        public static TaskView from(DiagnosticTask task) {
+        public static TaskView from(DiagnosticTask task, ExerciseView exercise) {
             return new TaskView(task.getId(), task.getSession().getId(), task.getAssignedAt(),
-                    ExerciseView.from(task.getExercise()));
+                    exercise);
         }
     }
 }
