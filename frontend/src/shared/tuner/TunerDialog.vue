@@ -29,19 +29,22 @@ const target = computed(() => selected.value === null ? null : strings.value[sel
 // Frontal 3+3 headstock; the button circles sit well inside the
 // 440-unit SVG, even at 320px viewport and minimum 45px mobile touch size.
 // Reserve 5px additional CSS pixels for focus outline + outline-offset.
+// The vertical peg rows are 104 SVG units apart: at the minimum 282 CSS px
+// stage width this leaves >10 CSS px between adjacent focus outlines.
+// The strings and metal posts intentionally use these identical Y values.
 const pegs = [
-  { x: 70, y: 211 }, { x: 70, y: 140 }, { x: 70, y: 69 },
-  { x: 370, y: 69 }, { x: 370, y: 140 }, { x: 370, y: 211 },
+  { x: 70, y: 272 }, { x: 70, y: 168 }, { x: 70, y: 64 },
+  { x: 370, y: 64 }, { x: 370, y: 168 }, { x: 370, y: 272 },
 ] as const;
 // From the nut to the matching *physical* winding post: E2/A2/D3
 // (left bottom->top), G3/B3/E4 (right top->bottom). 
 const stringPaths = [
-  'M195 336 L195 301 L184 211',
-  'M205 336 L205 301 L184 140',
-  'M215 336 L215 301 L184 69',
-  'M225 336 L225 301 L256 69',
-  'M235 336 L235 301 L256 140',
-  'M245 336 L245 301 L256 211',
+  'M195 336 L195 301 L184 272',
+  'M205 336 L205 301 L184 168',
+  'M215 336 L215 301 L184 64',
+  'M225 336 L225 301 L256 64',
+  'M235 336 L235 301 L256 168',
+  'M245 336 L245 301 L256 272',
 ] as const;
 // Valid pitch/cents/meter are independent of green confirmation. In
 // particular, the needle remains visible while crossing the target.
@@ -374,7 +377,7 @@ onBeforeUnmount(() => {
 
               <!-- Compact, mirrored chrome 3+3 machines. Keys stay close
                    to the headstock silhouette, like the approved mockup. -->
-              <g v-for="(post, index) in [69, 140, 211]" :key="'machine-' + index">
+              <g v-for="(post, index) in [64, 168, 272]" :key="'machine-' + index">
                 <rect class="tuner-machine-shaft" x="151" :y="post-5" width="33" height="10" rx="4"
                   fill="url(#gm-head-metal-dark)" stroke="#71787b" stroke-width=".8" />
                 <rect class="tuner-machine-shaft" x="256" :y="post-5" width="33" height="10" rx="4"

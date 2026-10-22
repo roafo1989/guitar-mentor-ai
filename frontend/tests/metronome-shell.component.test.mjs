@@ -500,6 +500,21 @@ test('TOOL-03 review P2: real tuner swaps profiles during live microphone sessio
             `${scene.label}: physical peg button or focus ring clipped, edge insets ${edges.join(', ')}px`);
         }
       }
+      // In addition to clipping, focus outlines for adjacent buttons must
+      // never overlap: at 320px scene width the previous 71-unit row spacing
+      // left ~0.5px between 45px circles, below the safe 10px separation.
+      for(const scene of scenes) {
+        const height=scene.width*viewHeight/viewWidth;
+        const sameColumnPairs=[[0,1],[1,2],[3,4],[4,5]];
+        const focusDiameter=scene.button+2*focusAllowance;
+        for(const [i,j] of sameColumnPairs) {
+          const first=parseFloat(nodes[i].props.style.top)/100*height;
+          const second=parseFloat(nodes[j].props.style.top)/100*height;
+          const freeGap=Math.abs(first-second)-focusDiameter;
+          assert.ok(freeGap>=10,
+            `${scene.label}: neighbouring physical pegs ${i}/${j} overlap focus rings (gap ${freeGap.toFixed(2)}px)`);
+        }
+      }
       assert.ok(parseFloat(nodes[0].props.style.left)>=14 &&
         parseFloat(nodes[3].props.style.left)<=86,
         'the selector rings must be visibly inset from both scene edges');
@@ -521,6 +536,21 @@ test('TOOL-03 review P2: real tuner swaps profiles during live microphone sessio
         'headstock hardware protrudes disproportionately beyond the wood profile');
       assert.equal(left+right,440,'both machine-key columns must be mirrored');
       assert.deepEqual(keys.map(n=>Number(n.props.x)),[128,286,128,286,128,286]);
+      // The six UI selectors, six winding posts and six wire endpoints
+      // must move together; no floating buttons or strings after respacing.
+      const expectedYs=[272,168,64,64,168,272];
+      const buttonYs=nodes.map(node=>Math.round(parseFloat(node.props.style.top)/100*viewHeight));
+      assert.deepEqual(buttonYs,expectedYs,'physical selector centres follow the new 3+3 rows');
+      const windingPosts=findAll(svg,n=>n.tag==='circle'&&Number(n.props.r)===13);
+      assert.equal(windingPosts.length,6,'six winding posts in SVG');
+      assert.deepEqual(windingPosts.map(n=>Number(n.props.cy)),[64,64,168,168,272,272],
+        'both sides of the metal winding posts match the new Y rows');
+      const wires=findAll(svg,n=>n.tag==='path' &&
+        typeof n.props.class==='string' && n.props.class.includes('tuner-wire'));
+      assert.equal(wires.length,6,'six genuine physical strings');
+      assert.deepEqual(wires.map(n=>n.props.d.split(' ').slice(-2).join(' ')),
+        ['L184 272','L184 168','L184 64','L256 64','L256 168','L256 272'],
+        'each string ends at its matching physical winding post');
       assert.deepEqual(nodes.map(n=>n.children.find(c=>c.tag==='strong')?.text),
         ['E','A','D','G','B','E']);
       assert.deepEqual(nodes.map(n=>n.children.find(c=>c.tag==='span' &&

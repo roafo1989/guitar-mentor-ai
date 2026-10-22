@@ -86,3 +86,17 @@ changing DSP or Auto/Manual mapping:
 This automated geometry check is **not** equivalent to a screenshot or
 user approval of the running app; actual responsive and visual acceptance
 remain on the manual QA checklist.
+
+
+## Further strict-review remediation — vertical peg spacing, 22 Oct 2026
+
+The previous 71-unit vertical row pitch let adjacent 45px string buttons
+nearly touch on a 320px viewport. Both physical columns now use Y=64,
+168, 272 (104-unit pitch), and **SVG wood, chrome post centres,
+individual strings and buttons stay aligned**. At the narrowest 282px scene,
+adjacent **keyboard focus rings have >10px separation**, not just
+non-overlapping touch targets. Mounted Vue regression tests verify the
+vertical gaps, corner insets and alignment at four responsive sizes.
+
+A real-device 320/360px screenshot remains an explicit QA gate and is not
+replaced by these calculations.

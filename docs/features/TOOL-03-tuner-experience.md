@@ -193,3 +193,27 @@ Following [review #5607524502](https://github.com/roafo1989/guitar-mentor-ai/pul
 The six original oversized tuning keys/shafts have been redrawn as smaller, close-fitting, mirrored chrome machine assemblies. Outer key x bounds are **128..312** relative to the head's x bounds **154..286**, giving total hardware-to-wood width ratio **184/132 = 1.39** (previously 246/132 = 1.86). The winding posts, string paths, numbered physical selectors and play-state behavior are unchanged.
 
 A mounted *real Vue SFC* test now calculates full touch-target + focus-ring bounds at responsive scene widths **282, 300, 322, 440px** and verifies 12px minimum inset, 3+3 key/shaft counts, symmetric hardware positions and restrained wood-to-metal proportions. This is geometry regression coverage, **not a real browser screenshot**. Final owner visual verification in a live 320/360px browser is still required before merge.
+
+
+## Strict-review P2: adjacent tuner buttons too close on narrow screens — 22 Oct 2026
+
+The previous 71-SVG-unit vertical separation at a 282px-wide 320px
+viewport scene left only ~0.5 CSS px between neighbouring 45px string buttons.
+Keyboard focus outlines (3px line, 2px offset) consequently overlapped.
+
+All three peg rows on both sides were redistributed to **Y=64, 168, 272**
+in the same 440×340 SVG coordinate system, creating **104 SVG units** of
+vertical separation. At a 282 CSS px scene width, the neighbour-to-neighbour
+clear space is approximately **11.65 CSS px after accounting for both 5px
+focus outlines**, exceeding the required 10px. The top and bottom complete
+buttons with their focus rings also keep at least 12 CSS px from the stage
+edges. The 3+3 steel keys/shafts, six winding posts, and individual string
+path endpoints all share those new Y values; all note octaves and signal
+processing are unchanged.
+
+The mounted real-Vue regression checks each of the four adjacent button
+pairs at 282/300/322/440 CSS px scenes, measuring separation between
+**complete focus-outline boxes**, rather than button centres alone.
+It additionally asserts exact agreement among button positions, six
+winding posts and the six wire endpoints. No real-browser screenshot is
+claimed by this geometry test; owner visual QA remains required.
