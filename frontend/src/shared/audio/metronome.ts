@@ -121,7 +121,12 @@ export class MetronomeEngine {
       if (!context.audioWorklet || typeof AudioWorkletNode==='undefined') throw new Error('AudioWorklet unavailable');
       const resumed=context.resume();
       const module=context.audioWorklet.addModule(processorUrl);
-      await Promise.race([Promise.all([resumed,module]), new Promise((_,reject)=>{ setTimeout(()=>reject(new Error('Worklet module timeout')),5000); })]);
+      let moduleTimer: ReturnType<typeof setTimeout> | undefined;
+      try {
+        await Promise.race([Promise.all([resumed,module]), new Promise<never>((_, reject) => {
+          moduleTimer=setTimeout(()=>reject(new Error('Worklet module timeout')),MODULE_TIMEOUT_MS);
+        })]);
+      } finally { if(moduleTimer!==undefined)clearTimeout(moduleTimer); }
       if (generation!==this.generation) return false;
       if (context.state!=='running') throw new Error('AudioContext suspended');
       const node=new AudioWorkletNode(context,'guitar-mentor-metronome',{numberOfInputs:0,
