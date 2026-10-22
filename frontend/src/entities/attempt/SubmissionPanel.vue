@@ -187,9 +187,6 @@ onBeforeUnmount(() => {
     </div>
     <div v-if="loading" class="hint">{{ t('attempt.loading') }}</div>
     <template v-else>
-      <div class="homework-status" role="note">
-        {{ t('attempt.noAiFeedback') }}
-      </div>
       <p v-if="!capabilities?.enabled" class="hint">
         {{ t('attempt.disabledHelp') }}
       </p>
