@@ -357,7 +357,13 @@
     "pending": "Новые настройки вступят в силу со следующего такта.",
     "soundingTempo": "Звучит: {bpm} BPM · {unit}",
     "editingTempo": "Редактируется: {bpm} BPM · {unit}",
-    "queuedTempo": "Ожидает следующего такта: {bpm} BPM · {unit}"
+    "queuedTempo": "Ожидает следующего такта: {bpm} BPM · {unit}",
+    "editTempo": "Нажмите на число для ручного ввода",
+    "changeMeter": "Изменить",
+    "beatHelp": "Нажмите долю: ● сильная · ◐ средняя · ○ слабая · × пауза",
+    "subdivisionCount": "Ударов на долю: {count}",
+    "closeSettings": "Закрыть панель",
+    "savingPreview": "Сохраняемая конфигурация"
   },
   "tuner": {
     "title": "Гитарный тюнер",

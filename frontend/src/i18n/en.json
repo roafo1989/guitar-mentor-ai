@@ -357,7 +357,13 @@
     "pending": "New settings will start at the next bar.",
     "soundingTempo": "Playing: {bpm} BPM · {unit}",
     "editingTempo": "Editing: {bpm} BPM · {unit}",
-    "queuedTempo": "Next bar: {bpm} BPM · {unit}"
+    "queuedTempo": "Next bar: {bpm} BPM · {unit}",
+    "editTempo": "Tap the number to enter BPM",
+    "changeMeter": "Change",
+    "beatHelp": "Tap a beat: ● strong · ◐ medium · ○ weak · × mute",
+    "subdivisionCount": "Clicks per beat: {count}",
+    "closeSettings": "Close panel",
+    "savingPreview": "Configuration to save"
   },
   "tuner": {
     "title": "Guitar tuner",
