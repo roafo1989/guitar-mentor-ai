@@ -50,12 +50,13 @@ const requestId = ref(crypto.randomUUID());
 const loading = ref(true);
 const uploading = ref(false);
 const recordingActive = ref(false);
+const decisionBusy = ref(false);
 const error = ref('');
 const notice = ref('');
 const draftBusy = computed(() => uploading.value || recordingActive.value || !!file.value || !!comment.value.trim());
-watch([uploading, recordingActive, file, comment], () => {
+watch([uploading, recordingActive, decisionBusy, file, comment], () => {
   emit('draft-state', {
-    busy: uploading.value || recordingActive.value,
+    busy: uploading.value || recordingActive.value || decisionBusy.value,
     dirty: !!file.value || !!comment.value.trim(),
   });
 }, { immediate: true });
@@ -228,7 +229,7 @@ onBeforeUnmount(() => {
       <p v-if="notice" role="status" class="saved-status">{{ notice }}</p>
       <p v-if="error" role="alert" class="error">{{ error }}</p>
       <LearningResultsPanel :learner-id="learnerId" :session-id="sessionId" :task-id="taskId"
-        :attempts="attempts" :draft-busy="draftBusy" />
+        :attempts="attempts" :draft-busy="draftBusy" @decision-busy="decisionBusy = $event" />
       <div class="homework-history">
         <h4>{{ t('attempt.history') }}</h4>
         <p v-if="!attempts.length" class="hint">{{ t('attempt.noAttempts') }}</p>
