@@ -120,3 +120,26 @@ test('QA19-02 optional evidence failure does not block learning state and action
     assert.ok(state.evidenceError, 'evidence panel receives isolated error');
   } finally { app.unmount(); delete globalThis.__qaLearning; }
 });
+
+test('optional decision history failure also preserves core actions', async () => {
+  globalThis.__qaLearning = {
+    state: async () => ({ taskId: 'task', taskState: 'ACTIVE', version: 0,
+      availableActions: ['COMPLETE'], latestAttemptId: 'attempt', assessmentState: 'NO_ASSESSMENT',
+      latestAssessmentId: null, latestDecision: null, nextStepAvailability: 'NOT_IMPLEMENTED' }),
+    decisions: async () => { throw new Error('decision history unavailable'); },
+    evidence: async () => ({ items: [], nextCursor: null }),
+    assessments: async () => ({ items: [], nextCursor: null }),
+    decide: async () => ({})
+  };
+  const { app, state } = await mount('LearningResultsPanel.vue', {
+    learnerId: 'learner', sessionId: 'session', taskId: 'task',
+    attempts: [{ id: 'attempt', status: 'PROCESSED' }], draftBusy: false
+  });
+  try {
+    await flush();
+    assert.equal(state.state.taskState, 'ACTIVE');
+    assert.equal(state.canDecide, true);
+    assert.ok(state.decisionHistoryError);
+    assert.equal(state.decisionHistoryLoading, false);
+  } finally { app.unmount(); delete globalThis.__qaLearning; }
+});
