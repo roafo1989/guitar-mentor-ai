@@ -895,3 +895,14 @@ test('TOOL-04 CSS preserves the beat strip height and hides inactive Apply/Disca
   assert.match(css, /\.m111\s+\.metronome-apply\.m111-apply\.m111-apply-quiet\s*\{\s*display:\s*none\s*;/,
     'no-change Apply row must really be hidden despite the base flex rule');
 });
+
+
+test('TOOL-04 portrait mobile uses available viewport height for subdivision controls', async () => {
+  const css = await readFile(new URL('../src/assets/main.css', import.meta.url), 'utf8');
+  assert.match(css, /@media\s*\(max-width:650px\)\s*\{\s*\.metronome-dialog\.m111\s*\{\s*height:min\(760px,calc\(100dvh - 12px\)\)/,
+    '400x832 must not be capped at a 640px tall modal while the rhythm panel clips');
+  assert.match(css, /@media\s*\(max-width:650px\) and \(max-height:700px\) and \(min-height:561px\)/,
+    '360x640 requires distinct compact spacing instead of hidden beat/subdivision controls');
+  assert.match(css, /@media\s*\(max-width:650px\) and \(max-height:560px\)/,
+    'very short mobile viewports must keep a scrollable accessibility fallback');
+});
