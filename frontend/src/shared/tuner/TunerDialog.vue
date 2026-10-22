@@ -7,6 +7,7 @@ import { TUNING_IDS, TUNINGS, readTuningPreference, saveTuningPreference, type T
 import { autoStringIndex, newPitchTrack, resetPitchTrack, displayPitch, newTuneConfirmation, resetTuneConfirmation, confirmTunedPitch } from './tuner-session';
 import { isolateDialogFocus } from './modal-focus';
 import { tunerReading } from './tuner-reading';
+import headstockArtUrl from './approved-headstock.webp?url';
 import './tuner.css';
 
 const props = defineProps<{ open: boolean }>();
@@ -26,25 +27,21 @@ const tuningId = ref<TuningId>(readTuningPreference());
 const tuning = computed(() => TUNINGS[tuningId.value]);
 const strings = computed(() => tuning.value.strings);
 const target = computed(() => selected.value === null ? null : strings.value[selected.value]);
-// Frontal 3+3 headstock; the button circles sit well inside the
-// 440-unit SVG, even at 320px viewport and minimum 45px mobile touch size.
-// Reserve 5px additional CSS pixels for focus outline + outline-offset.
-// The vertical peg rows are 104 SVG units apart: at the minimum 282 CSS px
-// stage width this leaves >10 CSS px between adjacent focus outlines.
-// The strings and metal posts intentionally use these identical Y values.
+// The approved natural-wood asset and all real, accessible controls share
+// one scaled 440×520 coordinate system. Physical string order remains 6..1.
 const pegs = [
-  { x: 70, y: 272 }, { x: 70, y: 168 }, { x: 70, y: 64 },
-  { x: 370, y: 64 }, { x: 370, y: 168 }, { x: 370, y: 272 },
+  { x: 65, y: 320 }, { x: 65, y: 218 }, { x: 65, y: 111 },
+  { x: 375, y: 111 }, { x: 375, y: 218 }, { x: 375, y: 320 },
 ] as const;
-// From the nut to the matching *physical* winding post: E2/A2/D3
-// (left bottom->top), G3/B3/E4 (right top->bottom). 
+// The asset already contains all six physical strings. These overlay
+// paths only glow when a string is selected, never replace the real buttons.
 const stringPaths = [
-  'M195 336 L195 301 L184 272',
-  'M205 336 L205 301 L184 168',
-  'M215 336 L215 301 L184 64',
-  'M225 336 L225 301 L256 64',
-  'M235 336 L235 301 L256 168',
-  'M245 336 L245 301 L256 272',
+  'M181 495 L181 445 L173 320',
+  'M201 495 L201 445 L173 218',
+  'M214 495 L214 445 L173 111',
+  'M227 495 L227 445 L267 111',
+  'M240 495 L240 445 L267 218',
+  'M260 495 L260 445 L267 320',
 ] as const;
 // Valid pitch/cents/meter are independent of green confirmation. In
 // particular, the needle remains visible while crossing the target.
@@ -316,108 +313,21 @@ onBeforeUnmount(() => {
         </div>
         <div class="tuner-headstock-panel">
           <div class="tuner-headstock" role="group" :aria-label="t('tuner.strings')">
-            <svg viewBox="0 0 440 340" class="tuner-headstock-art" aria-hidden="true">
-              <defs>
-                <linearGradient id="gm-head-wood" x1="0" y1="0" x2="1" y2="0">
-                  <stop offset="0" stop-color="#48200d" />
-                  <stop offset=".12" stop-color="#813c19" />
-                  <stop offset=".33" stop-color="#ad6532" />
-                  <stop offset=".52" stop-color="#95491e" />
-                  <stop offset=".77" stop-color="#9c5429" />
-                  <stop offset="1" stop-color="#371807" />
-                </linearGradient>
-                <linearGradient id="gm-head-metal" x1="0" y1="0" x2="1" y2="1">
-                  <stop offset="0" stop-color="#f4f6f4" />
-                  <stop offset=".17" stop-color="#909da7" />
-                  <stop offset=".38" stop-color="#e9f0f0" />
-                  <stop offset=".57" stop-color="#697781" />
-                  <stop offset=".79" stop-color="#28343e" />
-                  <stop offset="1" stop-color="#b5bdc3" />
-                </linearGradient>
-                <linearGradient id="gm-head-metal-dark" x1="0" y1="0" x2="0" y2="1">
-                  <stop offset="0" stop-color="#e8edf0" />
-                  <stop offset=".22" stop-color="#3c454c" />
-                  <stop offset=".73" stop-color="#20272d" />
-                  <stop offset="1" stop-color="#bcc8cf" />
-                </linearGradient>
-                <linearGradient id="gm-head-string" x1="0" y1="0" x2="1" y2="0">
-                  <stop offset="0" stop-color="#736e6a" />
-                  <stop offset=".5" stop-color="#f3e5cc" />
-                  <stop offset="1" stop-color="#756f65" />
-                </linearGradient>
-                <clipPath id="gm-head-outline">
-                  <path d="M220 15 C234 15 240 27 253 31 Q264 34 271 47
-                    Q283 51 286 67 L285 239 Q285 259 273 272
-                    Q253 291 255 312 L255 340 H185 V312
-                    Q187 291 167 272 Q155 259 155 239
-                    L154 67 Q157 51 169 47 Q176 34 187 31
-                    C200 27 206 15 220 15 Z" />
-                </clipPath>
-              </defs>
-              <path d="M220 15 C234 15 240 27 253 31 Q264 34 271 47
-                Q283 51 286 67 L285 239 Q285 259 273 272
-                Q253 291 255 312 L255 340 H185 V312
-                Q187 291 167 272 Q155 259 155 239
-                L154 67 Q157 51 169 47 Q176 34 187 31
-                C200 27 206 15 220 15 Z"
-                fill="url(#gm-head-wood)" stroke="#f0e3d2" stroke-width="4"
-                stroke-linejoin="round" />
-              <g clip-path="url(#gm-head-outline)" class="tuner-woodgrain">
-                <path d="M164 0 Q179 98 168 168 T183 343 M173 -8 Q191 122 177 257
-                  M188 0 Q203 78 194 156 T201 335 M204 -8 Q215 89 209 178 T216 349
-                  M224 0 Q232 78 225 160 T230 334 M242 0 Q231 95 248 180 T252 341
-                  M259 0 Q254 80 267 173 T270 341 M276 0 Q261 110 282 230
-                  M179 0 Q193 132 184 292 M232 0 Q222 152 237 316" />
-              </g>
-              <path d="M220 22 C235 21 241 36 258 38 Q270 46 276 64
-                L275 237 Q275 256 263 267" fill="none"
-                stroke="#f2bb82" stroke-opacity=".45" stroke-width="1.3" />
-              <path d="M162 70 L163 240 Q165 257 175 268" fill="none"
-                stroke="#2b1006" stroke-opacity=".5" stroke-width="2.5" />
-
-              <!-- Compact, mirrored chrome 3+3 machines. Keys stay close
-                   to the headstock silhouette, like the approved mockup. -->
-              <g v-for="(post, index) in [64, 168, 272]" :key="'machine-' + index">
-                <rect class="tuner-machine-shaft" x="151" :y="post-5" width="33" height="10" rx="4"
-                  fill="url(#gm-head-metal-dark)" stroke="#71787b" stroke-width=".8" />
-                <rect class="tuner-machine-shaft" x="256" :y="post-5" width="33" height="10" rx="4"
-                  fill="url(#gm-head-metal-dark)" stroke="#71787b" stroke-width=".8" />
-                <rect class="tuner-machine-key" x="128" :y="post-16" width="26" height="32" rx="10"
-                  fill="url(#gm-head-metal)" stroke="#d8e2e5" stroke-width="1" />
-                <rect class="tuner-machine-key" x="286" :y="post-16" width="26" height="32" rx="10"
-                  fill="url(#gm-head-metal)" stroke="#d8e2e5" stroke-width="1" />
-                <path :d="`M131 ${post-11} Q142 ${post-17} 151 ${post-10}`"
-                  fill="none" stroke="#fff" stroke-opacity=".42" stroke-width="1.2" />
-                <path :d="`M289 ${post-10} Q299 ${post-17} 309 ${post-11}`"
-                  fill="none" stroke="#fff" stroke-opacity=".42" stroke-width="1.2" />
-                <circle cx="184" :cy="post" r="13" fill="#3b3531"
-                  stroke="url(#gm-head-metal)" stroke-width="5" />
-                <circle cx="256" :cy="post" r="13" fill="#3b3531"
-                  stroke="url(#gm-head-metal)" stroke-width="5" />
-                <circle cx="184" :cy="post" r="4.5" fill="#babdb8" />
-                <circle cx="256" :cy="post" r="4.5" fill="#babdb8" />
-                <circle cx="184" :cy="post" r="1.5" fill="#393b3a" />
-                <circle cx="256" :cy="post" r="1.5" fill="#393b3a" />
-              </g>
-              <!-- Truss-rod cover and two screws provide recognizable acoustic detail. -->
-              <path d="M220 238 Q199 242 199 265 L204 314 Q220 319 236 314
-                L241 265 Q241 242 220 238 Z" fill="#1a1818"
-                stroke="#614a3c" stroke-width="1.5" />
-              <circle cx="220" cy="252" r="3" fill="#c6c2b9" />
-              <path d="M218.5 252 H221.5" stroke="#333" stroke-width="1" />
-              <circle cx="220" cy="306" r="3" fill="#aaa39a" />
-              <path d="M218.5 306 H221.5" stroke="#333" stroke-width="1" />
+            <svg viewBox="0 0 440 520" class="tuner-headstock-art" aria-hidden="true">
+              <!-- Art extracted from the exact owner-approved frontal design:
+                   natural irregular wood grain, authentic 3+3 metal tuners,
+                   truss-rod cover, six strings, nut and fingerboard. -->
+              <image :href="headstockArtUrl" x="55" y="0"
+                width="290" height="495" preserveAspectRatio="none"
+                class="tuner-headstock-photo" />
               <path v-for="(string, index) in strings" :key="'wire-' + string.number"
                 :d="stringPaths[index]" class="tuner-wire"
                 :class="{ active: selected === index, tuned: selected === index && isTuned }"
-                :stroke-width="2.9 - index * .23" />
-              <rect x="188" y="298" width="64" height="8" rx="2.2"
-                fill="#e7dbca" stroke="#776953" stroke-width=".8" />
-              <path d="M188 307 V340 M252 307 V340" stroke="#443126" stroke-width="1.5" />
+                :stroke-width="2.7 - index * .18" />
             </svg>
             <button v-for="(string, index) in strings" :key="string.number" type="button"
               class="tuner-peg" :class="{ active: selected === index, tuned: selected === index && isTuned }"
-              :style="{ left: (pegs[index].x / 440 * 100) + '%', top: (pegs[index].y / 340 * 100) + '%' }"
+              :style="{ left: (pegs[index].x / 440 * 100) + '%', top: (pegs[index].y / 520 * 100) + '%' }"
               :aria-pressed="selected === index"
               :aria-label="t('tuner.string', { number: string.number, note: string.note })"
               :title="t('tuner.string', { number: string.number, note: string.note })"

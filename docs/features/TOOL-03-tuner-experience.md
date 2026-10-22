@@ -217,3 +217,26 @@ pairs at 282/300/322/440 CSS px scenes, measuring separation between
 It additionally asserts exact agreement among button positions, six
 winding posts and the six wire endpoints. No real-browser screenshot is
 claimed by this geometry test; owner visual QA remains required.
+
+## Photo-realistic approved artwork — 22 Oct 2026
+
+After code review PASS, owner tested the previous geometric SVG on a real
+computer and rejected it as unnatural. The owner then **explicitly approved**
+the revised image with realistic acoustic guitar wood grain and chrome
+machines. The implementation replaces the rejected hand-coded wood/chrome
+illustration with a small transparent WebP asset derived from the precise
+owner-approved concept (generated in this project conversation); there is
+no external image URL or copyrighted commercial logo. This is shipped with
+the project at `frontend/src/shared/tuner/approved-headstock.webp` and
+therefore works offline and without extra infrastructure.
+
+The overlay `viewBox=440×520` locates string selectors and six live
+highlight paths over the actual strings in that photo. 6→1 labels and
+octaves update for Standard / Drop D / Open G. The image is noninteractive
+and accessible buttons remain functional/keyboard-operated. No DSP or
+recorder state is changed.
+
+Tests guard the `RIFF/WEBP` bundled asset, photo alignment, six physical
+selectors, focus-outline clearance on narrow screens and all six
+reactive string targets. Do not merge before code review and visible
+browser/mobile screenshot acceptance by the owner.

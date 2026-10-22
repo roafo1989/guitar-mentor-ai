@@ -57,6 +57,7 @@ async function compileRealTuner(instance) {
     './tuner-session': new URL('../src/shared/tuner/tuner-session.ts', import.meta.url).href,
     './modal-focus': new URL('../src/shared/tuner/modal-focus.ts', import.meta.url).href,
     './tuner-reading': new URL('../src/shared/tuner/tuner-reading.ts', import.meta.url).href,
+    './approved-headstock.webp?url': asModule("export default '/assets/approved-headstock.webp';"),
     './tuner.css': asModule(''),
   };
   const mapped = js.replace(/from (['"])(.*?)\1/g, (_full, _q, name) => {
@@ -475,13 +476,23 @@ test('TOOL-03 review P2: real tuner swaps profiles during live microphone sessio
       // headstock coordinate system, physical labels still map 6..1.
       const headstock=dom.find(dom.body,n=>n.tag==='div'&&n.props.class==='tuner-headstock');
       const svg=dom.find(headstock,n=>n.tag==='svg');
-      assert.equal(svg?.props.viewBox,'0 0 440 340');
+      assert.equal(svg?.props.viewBox,'0 0 440 520');
+      const photo=dom.find(svg,n=>n.tag==='image'&&n.props.class==='tuner-headstock-photo');
+      assert.equal(photo?.props.href,'/assets/approved-headstock.webp');
+      assert.equal(Number(photo.props.x),55);
+      assert.equal(Number(photo.props.y),0);
+      assert.equal(Number(photo.props.width),290);
+      assert.equal(Number(photo.props.height),495);
+      const binary=await readFile(new URL('../src/shared/tuner/approved-headstock.webp',import.meta.url));
+      assert.ok(binary.length>5000&&binary.length<80000,'approved art bundled and size-conscious');
+      assert.equal(binary.subarray(0,4).toString('ascii'),'RIFF');
+      assert.equal(binary.subarray(8,12).toString('ascii'),'WEBP');
       assert.equal(findPegs().length,6);
       const nodes=findPegs();
       // A centre-only assertion misses clipped focus outlines. Model the
       // *entire* circular button plus a 3px outline and 2px outline-offset
       // in CSS pixels, at every intended responsive scene width.
-      const viewWidth=440,viewHeight=340,focusAllowance=5,minInset=12;
+      const viewWidth=440,viewHeight=520,focusAllowance=5,minInset=12;
       const scenes=[
         {width:282,button:45,label:'320px viewport'},
         {width:300,button:45,label:'compact 360x640 viewport'},
@@ -518,39 +529,22 @@ test('TOOL-03 review P2: real tuner swaps profiles during live microphone sessio
       assert.ok(parseFloat(nodes[0].props.style.left)>=14 &&
         parseFloat(nodes[3].props.style.left)<=86,
         'the selector rings must be visibly inset from both scene edges');
-      // The entire metallic 3+3 tuning mechanism must be restrained
-      // relative to the 132-unit wooden-head width (x154..286).
+      // The photo is the source of wood and chrome geometry. We test the
+      // separate live overlay paths against the six physical string targets.
       const findAll=(root,predicate)=>{
         const found=[];
         const walk=node=>{if(predicate(node))found.push(node);for(const child of node.children)walk(child);};
         walk(root);return found;
       };
-      const keys=findAll(svg,n=>n.tag==='rect'&&n.props.class==='tuner-machine-key');
-      const shafts=findAll(svg,n=>n.tag==='rect'&&n.props.class==='tuner-machine-shaft');
-      assert.equal(keys.length,6,'three machine keys per side');
-      assert.equal(shafts.length,6,'one shaft for each machine key');
-      const allHardware=[...keys,...shafts];
-      const left=Math.min(...allHardware.map(n=>Number(n.props.x)));
-      const right=Math.max(...allHardware.map(n=>Number(n.props.x)+Number(n.props.width)));
-      assert.ok((right-left)/132<=1.5,
-        'headstock hardware protrudes disproportionately beyond the wood profile');
-      assert.equal(left+right,440,'both machine-key columns must be mirrored');
-      assert.deepEqual(keys.map(n=>Number(n.props.x)),[128,286,128,286,128,286]);
-      // The six UI selectors, six winding posts and six wire endpoints
-      // must move together; no floating buttons or strings after respacing.
-      const expectedYs=[272,168,64,64,168,272];
+      const expectedYs=[320,218,111,111,218,320];
       const buttonYs=nodes.map(node=>Math.round(parseFloat(node.props.style.top)/100*viewHeight));
-      assert.deepEqual(buttonYs,expectedYs,'physical selector centres follow the new 3+3 rows');
-      const windingPosts=findAll(svg,n=>n.tag==='circle'&&Number(n.props.r)===13);
-      assert.equal(windingPosts.length,6,'six winding posts in SVG');
-      assert.deepEqual(windingPosts.map(n=>Number(n.props.cy)),[64,64,168,168,272,272],
-        'both sides of the metal winding posts match the new Y rows');
+      assert.deepEqual(buttonYs,expectedYs,'six responsive buttons follow the actual photo string rows');
       const wires=findAll(svg,n=>n.tag==='path' &&
         typeof n.props.class==='string' && n.props.class.includes('tuner-wire'));
-      assert.equal(wires.length,6,'six genuine physical strings');
+      assert.equal(wires.length,6,'live string highlights correspond to each physical string');
       assert.deepEqual(wires.map(n=>n.props.d.split(' ').slice(-2).join(' ')),
-        ['L184 272','L184 168','L184 64','L256 64','L256 168','L256 272'],
-        'each string ends at its matching physical winding post');
+        ['L173 320','L173 218','L173 111','L267 111','L267 218','L267 320'],
+        'highlight path ends at the actual photographed post');
       assert.deepEqual(nodes.map(n=>n.children.find(c=>c.tag==='strong')?.text),
         ['E','A','D','G','B','E']);
       assert.deepEqual(nodes.map(n=>n.children.find(c=>c.tag==='span' &&

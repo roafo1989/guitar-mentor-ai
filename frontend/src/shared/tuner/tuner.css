@@ -1,6 +1,6 @@
-/* TOOL-03 / #108 — approved frontal 3+3 tuner design, desktop and 320–360px.
-   The 440×340 scene scales as one unit: art, all six buttons and paths share
-   a coordinate system and every button is kept inside the art bounds. */
+/* TOOL-03 / #108 — photo-realistic, owner-approved frontal headstock.
+   The 440×520 scene scales as one unit: original art, live string glow and
+   all six accessible buttons stay in one coordinate system. */
 .tuner-overlay{
   position:fixed;inset:0;z-index:250;display:grid;place-items:center;
   padding:8px;overflow-x:hidden;overflow-y:auto;
@@ -96,16 +96,16 @@
 }
 .tuner-headstock{
   position:relative;margin:0 auto;width:100%;max-width:440px;
-  aspect-ratio:440 / 340
+  aspect-ratio:440 / 520
 }
 .tuner-headstock-art{
   position:absolute;inset:0;width:100%;height:100%;overflow:hidden;
   filter:drop-shadow(0 7px 9px #0009)
 }
-.tuner-woodgrain{fill:none;stroke:#ddaa69;stroke-width:.9;stroke-opacity:.23}
-.tuner-wire{fill:none;stroke:#d5cebe;stroke-linecap:round;opacity:.9;transition:stroke .12s,filter .12s}
-.tuner-wire.active{stroke:#f5c477;opacity:1;filter:drop-shadow(0 0 3px #ffdc9d)}
-.tuner-wire.tuned{stroke:#96e7ca;filter:drop-shadow(0 0 4px #72edc4)}
+.tuner-headstock-photo{pointer-events:none;image-rendering:auto;filter:drop-shadow(0 8px 9px #0007)}
+.tuner-wire{fill:none;stroke:#d5cebe;stroke-linecap:round;opacity:0;pointer-events:none;transition:stroke .12s,filter .12s,opacity .12s}
+.tuner-wire.active{stroke:#f5c477;opacity:.95;filter:drop-shadow(0 0 3px #ffdc9d)}
+.tuner-wire.tuned{stroke:#96e7ca;opacity:.95;filter:drop-shadow(0 0 4px #72edc4)}
 .tuner-peg{
   position:absolute;transform:translate(-50%,-50%);width:clamp(44px,12%,58px);
   height:clamp(44px,12%,58px);min-width:44px;min-height:44px;
@@ -162,7 +162,7 @@
   .tuner-readout-panel{padding:6px 10px}
 }
 /* Very short phone viewports (e.g. 360×640) need a smaller but still
-   entirely accessible 3+3 stage; all peg centres remain inside the SVG. */
+   entirely accessible 3+3 stage; all peg centres remain inside the art. */
 @media(max-width:420px) and (max-height:670px){
   .tuner-modal{padding:10px 8px}
   .tuner-toolbar{margin:7px 0}

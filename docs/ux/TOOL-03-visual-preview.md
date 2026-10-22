@@ -100,3 +100,25 @@ vertical gaps, corner insets and alignment at four responsive sizes.
 
 A real-device 320/360px screenshot remains an explicit QA gate and is not
 replaced by these calculations.
+
+## Owner-approved visual asset implemented — 22 Oct 2026
+
+The new approved headstock is now an actual bundled asset:
+`frontend/src/shared/tuner/approved-headstock.webp`. It was carefully cut
+out and optimised directly from the *last approved realistic illustration*
+in the project conversation (transparent background; ~11 KB). Unlike the
+previous hand-drawn SVG, it retains the irregular wood grain, metal
+reflections, natural silhouette, truss-rod plate, realistic nut and
+strings which the owner explicitly selected.
+
+The app embeds the picture in an SVG `viewBox=440×520`, with a precise
+separate six-path live glow overlay and six semantic button controls.
+String controls: left bottom-to-top 6/E2,5/A2,4/D3; right top-to-bottom
+3/G3,2/B3,1/E4. Changing tuning updates the button targets, not the
+physical positions. The image itself is decorative; keyboard/touch and
+screen-reader controls stay real. On small screens the entire unit scales
+together and the dialog retains vertical scrolling rather than clipping.
+
+**Important:** A proposed artwork image alone cannot count as acceptance:
+customer should compare the *running Vue tuner* on desktop/mobile to the
+last approved illustration. DSP and other tools were not modified.
