@@ -221,3 +221,34 @@ test('uncertain POST result retains identical idempotency key and payload on ret
     assert.equal(state.pending, null);
   } finally { app.unmount(); delete globalThis.__qaLearning; }
 });
+
+test('evidence pagination failure is local and releases its spinner', async () => {
+  globalThis.__qaLearning = {
+    state: async () => ({ taskId: 'task', taskState: 'ACTIVE', version: 0,
+      availableActions: ['COMPLETE'], latestAttemptId: 'attempt',
+      assessmentState: 'NO_ASSESSMENT', latestAssessmentId: null,
+      latestDecision: null, nextStepAvailability: 'NOT_IMPLEMENTED' }),
+    decisions: async () => ({ items: [], nextCursor: null }),
+    evidence: async (_learner, _session, _task, cursor) => {
+      if (cursor) throw new Error('next page unavailable');
+      return { items: [], nextCursor: 'page-2' };
+    },
+    assessments: async () => ({ items: [], nextCursor: null }),
+    decide: async () => ({})
+  };
+  const { app, state } = await mount('LearningResultsPanel.vue', {
+    learnerId: 'learner', sessionId: 'session', taskId: 'task',
+    attempts: [{ id: 'attempt', status: 'PROCESSED' }], draftBusy: false
+  });
+  try {
+    await flush();
+    assert.equal(state.evidenceCursor, 'page-2');
+    await state.moreEvidence();
+    await flush();
+    assert.equal(state.evidenceLoading, false);
+    assert.equal(state.loading, false);
+    assert.equal(state.canDecide, true);
+    assert.ok(state.evidenceError);
+    assert.equal(state.error, '');
+  } finally { app.unmount(); delete globalThis.__qaLearning; }
+});
