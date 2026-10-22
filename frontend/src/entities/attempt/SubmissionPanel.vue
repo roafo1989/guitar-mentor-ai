@@ -1,6 +1,7 @@
 <script setup lang="ts">
-import { onBeforeUnmount, onMounted, ref } from 'vue';
+import { computed, onBeforeUnmount, onMounted, ref } from 'vue';
 import MicrophoneRecorder from './MicrophoneRecorder.vue';
+import LearningResultsPanel from './LearningResultsPanel.vue';
 import { useI18n } from 'vue-i18n';
 import { AttemptHttpError, attemptService } from './attempt.service';
 import type { SubmissionAttempt, UploadCapabilities } from './attempt.service';
@@ -50,6 +51,7 @@ const uploading = ref(false);
 const recordingActive = ref(false);
 const error = ref('');
 const notice = ref('');
+const draftBusy = computed(() => uploading.value || recordingActive.value || !!file.value || !!comment.value.trim());
 let polling: ReturnType<typeof setInterval> | undefined;
 let historyRequestInFlight = false;
 
@@ -221,6 +223,8 @@ onBeforeUnmount(() => {
       </form>
       <p v-if="notice" role="status" class="saved-status">{{ notice }}</p>
       <p v-if="error" role="alert" class="error">{{ error }}</p>
+      <LearningResultsPanel :learner-id="learnerId" :session-id="sessionId" :task-id="taskId"
+        :attempts="attempts" :draft-busy="draftBusy" />
       <div class="homework-history">
         <h4>{{ t('attempt.history') }}</h4>
         <p v-if="!attempts.length" class="hint">{{ t('attempt.noAttempts') }}</p>
