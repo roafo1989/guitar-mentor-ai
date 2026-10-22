@@ -9,7 +9,7 @@ const props = defineProps<{
   learnerId: string; sessionId: string; taskId: string; attempts: SubmissionAttempt[];
   draftBusy: boolean;
 }>();
-const emit = defineEmits<{ 'decision-busy': [value: boolean] }>();
+const emit = defineEmits<{ 'decision-busy': [value: boolean]; 'terminal-state': [value: boolean] }>();
 const { t } = useI18n();
 const state = ref<TaskLearningView | null>(null);
 const assessments = ref<AssessmentView[]>([]);
@@ -32,7 +32,8 @@ const pending = ref<DecisionCommand | null>(null);
 
 const currentAttempt = computed(() => props.attempts.find(a => a.id === selected.value));
 const latestAssessment = computed(() => assessments.value[0] ?? null);
-const terminal = computed(() => state.value?.taskState !== 'ACTIVE');
+const terminal = computed(() => !!state.value && state.value.taskState !== 'ACTIVE');
+watch(terminal, value => emit('terminal-state', value), { immediate: true });
 const canDecide = computed(() => !!state.value && !!currentAttempt.value &&
   !terminal.value && stateFresh.value && assessmentFresh.value && !pending.value && !props.draftBusy && !sending.value && !loading.value);
 const missingAssessment = computed(() => !latestAssessment.value);
@@ -167,8 +168,8 @@ watch(() => [props.learnerId, props.sessionId, props.taskId], () => {
   evidenceCursor.value = null; stateFresh.value = false;
   assessmentFresh.value = false; reason.value = ''; void refresh();
 });
-watch(() => props.attempts.map(a => a.id).join(','), () => {
-  if (!loading.value && !sending.value) void refresh();
+watch(() => props.attempts.map(a => `${a.id}:${a.status}:${a.assessmentAvailable}`).join(','), () => {
+  if (!loading.value && !sending.value && !pending.value) void refresh();
 });
 onMounted(() => { void refresh(); });
 onBeforeUnmount(() => { ++generation; pending.value = null; });
