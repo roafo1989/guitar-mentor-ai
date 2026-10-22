@@ -51,12 +51,12 @@ test('render thread produces deterministic beats without JS timers at multiple m
 test('processor preserves pending and applies latest config at the next bar',()=>{
   const h=processorHarness();
   h.command('INIT',1,{config:meterConfig(4,4,120)});h.command('START',2);
-  h.render(400); // ~1.07 seconds: within first bar
+  h.render(250); // ~0.67 seconds: within first bar
   h.command('CONFIG',3,{config:meterConfig(3,4,95),revision:1});
   h.command('CONFIG',4,{config:meterConfig(7,8,95),revision:2});
-  h.render(500);
-  assert.equal(h.messages.filter(m=>m.type==='APPLIED').length,0);
   h.render(200);
+  assert.equal(h.messages.filter(m=>m.type==='APPLIED').length,0);
+  h.render(500);
   const applied=h.messages.filter(m=>m.type==='APPLIED');
   assert.equal(applied.length,1);
   assert.equal(applied[0].activeConfig.numerator,7);
