@@ -2,7 +2,7 @@
 import { computed, onBeforeUnmount, onMounted, ref, watch } from 'vue';
 import { useI18n } from 'vue-i18n';
 import { LearningHttpError, learningService } from './learning.service';
-import type { AssessmentView, DecisionCommand, DecisionView, TaskLearningView } from './learning.service';
+import type { AssessmentView, DecisionCommand, DecisionView, SkillEvidenceView, TaskLearningView } from './learning.service';
 import type { SubmissionAttempt } from './attempt.service';
 
 const props = defineProps<{
@@ -13,6 +13,8 @@ const { t } = useI18n();
 const state = ref<TaskLearningView | null>(null);
 const assessments = ref<AssessmentView[]>([]);
 const decisions = ref<DecisionView[]>([]);
+const evidence = ref<SkillEvidenceView[]>([]);
+const evidenceCursor = ref<string | null>(null);
 const selected = ref('');
 const reason = ref('');
 const loading = ref(true);
@@ -41,13 +43,15 @@ async function refresh() {
   const seq = ++generation;
   loading.value = true; stateFresh.value = false; error.value = '';
   try {
-    const [next, history] = await Promise.all([
+    const [next, history, skillHistory] = await Promise.all([
       learningService.state(props.learnerId, props.sessionId, props.taskId),
       learningService.decisions(props.learnerId, props.sessionId, props.taskId),
+      learningService.evidence(props.learnerId, props.sessionId, props.taskId),
     ]);
     if (seq !== generation) return;
     state.value = next; stateFresh.value = true;
     decisions.value = history.items; decisionCursor.value = history.nextCursor;
+    evidence.value = skillHistory.items; evidenceCursor.value = skillHistory.nextCursor;
     if (!selected.value || !props.attempts.some(a => a.id === selected.value)) {
       selected.value = next.latestAttemptId ?? props.attempts[0]?.id ?? '';
     }
@@ -89,6 +93,19 @@ async function moreAssessments() {
     const result = await learningService.assessments(props.learnerId, props.sessionId, props.taskId, attempt, cursor);
     if (seq === generation && attempt === selected.value) {
       assessments.value.push(...result.items); assessmentCursor.value = result.nextCursor;
+    }
+  } catch (cause) { if (seq === generation) error.value = message(cause); }
+  finally { if (seq === generation) loading.value = false; }
+}
+async function moreEvidence() {
+  const cursor = evidenceCursor.value;
+  if (!cursor || loading.value) return;
+  const seq = generation;
+  loading.value = true;
+  try {
+    const result = await learningService.evidence(props.learnerId, props.sessionId, props.taskId, cursor);
+    if (seq === generation) {
+      evidence.value.push(...result.items); evidenceCursor.value = result.nextCursor;
     }
   } catch (cause) { if (seq === generation) error.value = message(cause); }
   finally { if (seq === generation) loading.value = false; }
@@ -144,7 +161,8 @@ async function sendCommand(command: DecisionCommand) {
 }
 watch(() => [props.learnerId, props.sessionId, props.taskId], () => {
   ++generation; selected.value = ''; pending.value = null; state.value = null;
-  assessments.value = []; decisions.value = []; stateFresh.value = false;
+  assessments.value = []; decisions.value = []; evidence.value = [];
+  evidenceCursor.value = null; stateFresh.value = false;
   assessmentFresh.value = false; reason.value = ''; void refresh();
 });
 watch(() => props.attempts.map(a => a.id).join(','), () => {
@@ -209,6 +227,16 @@ onBeforeUnmount(() => { ++generation; pending.value = null; });
       </template>
       <button v-if="pending && !sending" class="action-button secondary-button" type="button" :disabled="draftBusy" @click="retry">{{ t('learning.retry') }}</button>
       <p v-if="notice" role="status">{{ notice }}</p>
+      <h4>{{ t('learning.skillEvidence') }}</h4>
+      <p class="hint">{{ t('learning.skillEvidenceHelp') }}</p>
+      <p v-if="!evidence.length" class="hint">{{ t('learning.noSkillEvidence') }}</p>
+      <details v-for="entry in evidence" :key="entry.assessmentId + entry.criterionCode">
+        <summary>{{ entry.skillCode }} · {{ entry.outcome === 'MEETS' ? t('learning.meets') : entry.outcome === 'NEEDS_WORK' ? t('learning.needsWork') : t('learning.notAssessed') }}</summary>
+        <p v-if="entry.evidenceText">{{ entry.evidenceText }}</p>
+        <p>{{ t('learning.confirmedLevel') }}: {{ entry.confirmedSkillLevel ?? t('learning.unknown') }}</p>
+        <p class="hint">{{ entry.methodId }} v{{ entry.methodVersion }} · {{ new Date(entry.createdAt).toLocaleString() }}</p>
+      </details>
+      <button v-if="evidenceCursor" class="action-button secondary-button" type="button" :disabled="loading" @click="moreEvidence">{{ t('learning.more') }}</button>
       <h4>{{ t('learning.decisionHistory') }}</h4>
       <p v-if="!decisions.length" class="hint">{{ t('learning.noDecisions') }}</p>
       <details v-for="decision in decisions" :key="decision.decisionId">
