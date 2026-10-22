@@ -555,3 +555,37 @@ footer { text-align: center; font-size: 12px; padding: 24px; color: #8793a4; }
   .m111 .metronome-count {min-height:56px}
   .m111 .m111-rhythm-card {gap:6px;padding:9px 10px}
 }
+
+
+/* TOOL-04 #111 mobile visual QA (400x832): use the available viewport height.
+ * Previous mobile cap of 640px left spare space outside the dialog while the
+ * rhythm card needlessly clipped subdivision controls and showed a scrollbar.
+ * Keep the short-screen fallback below: Start/Stop must not disappear. */
+@media (max-width:650px) {
+  .metronome-dialog.m111 {
+    height:min(760px,calc(100dvh - 12px));
+  }
+}
+/* At 360x640 the dialog cannot grow; save vertical room in frequently used
+ * controls, while retaining full-size BPM step touch targets and beat cells. */
+@media (max-width:650px) and (max-height:700px) and (min-height:561px) {
+  .metronome-dialog.m111 { gap:6px; padding:9px 10px; }
+  .m111 .metronome-tempo.m111-tempo-card { padding:7px 10px; gap:3px; }
+  .m111 .metronome-tempo-controls.m111-tempo-controls { min-height:74px; }
+  .m111 .metronome-tempo-controls input#metronome-bpm { font-size:55px; height:56px; }
+  .m111 .metronome-tap.m111-tap { min-height:38px; }
+  .m111 .m111-rhythm-card { padding:7px 9px; gap:5px; }
+  .m111 .metronome-count { min-height:53px; padding-bottom:3px; }
+  .m111 .metronome-beat { height:45px; min-height:45px; }
+  .m111 .metronome-quick.m111-quick button { height:32px; min-height:32px; }
+  .m111 .m111-subdivision-controls button { min-height:35px; height:35px; }
+  .m111 .m111-tools button { min-height:36px; }
+  .m111 .m111-primary, .m111 .m111-minimize { min-height:47px; }
+  .m111 .m111-warning { line-height:1.1; }
+}
+/* When the rhythm content fits, keep all of it legible instead of using a
+ * nested scrollbar; at exceptionally short viewports allow the existing
+ * internal scroll rather than hiding or overlaying any settings. */
+@media (max-width:650px) and (min-height:701px) {
+  .m111 .m111-rhythm-card { overflow-y:auto; }
+}
