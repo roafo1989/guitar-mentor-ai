@@ -18,6 +18,8 @@ const evidence = ref<SkillEvidenceView[]>([]);
 const evidenceCursor = ref<string | null>(null);
 const evidenceError = ref('');
 const evidenceLoading = ref(false);
+const decisionHistoryError = ref('');
+const decisionHistoryLoading = ref(false);
 const selected = ref('');
 const reason = ref('');
 const loading = ref(true);
@@ -48,13 +50,10 @@ async function refresh() {
   const seq = ++generation;
   loading.value = true; stateFresh.value = false; error.value = '';
   try {
-    const [next, history] = await Promise.all([
-      learningService.state(props.learnerId, props.sessionId, props.taskId),
-      learningService.decisions(props.learnerId, props.sessionId, props.taskId),
-    ]);
+    const next = await learningService.state(props.learnerId, props.sessionId, props.taskId);
     if (seq !== generation) return;
     state.value = next; stateFresh.value = true;
-    decisions.value = history.items; decisionCursor.value = history.nextCursor;
+    void loadDecisionHistory(seq);
     void loadEvidence(seq);
     if (!selected.value || !props.attempts.some(a => a.id === selected.value)) {
       selected.value = next.latestAttemptId ?? props.attempts[0]?.id ?? '';
@@ -65,6 +64,20 @@ async function refresh() {
     error.value = message(cause);
   } finally {
     if (seq === generation) loading.value = false;
+  }
+}
+async function loadDecisionHistory(seq = generation) {
+  decisionHistoryLoading.value = true;
+  decisionHistoryError.value = '';
+  try {
+    const result = await learningService.decisions(props.learnerId, props.sessionId, props.taskId);
+    if (seq !== generation) return;
+    decisions.value = result.items;
+    decisionCursor.value = result.nextCursor;
+  } catch (cause) {
+    if (seq === generation) decisionHistoryError.value = message(cause);
+  } finally {
+    if (seq === generation) decisionHistoryLoading.value = false;
   }
 }
 async function loadEvidence(seq = generation) {
@@ -131,16 +144,16 @@ async function moreEvidence() {
 }
 async function moreDecisions() {
   const cursor = decisionCursor.value;
-  if (!cursor || loading.value) return;
+  if (!cursor || decisionHistoryLoading.value) return;
   const seq = generation;
-  loading.value = true;
+  decisionHistoryLoading.value = true;
   try {
     const result = await learningService.decisions(props.learnerId, props.sessionId, props.taskId, cursor);
     if (seq === generation) {
       decisions.value.push(...result.items); decisionCursor.value = result.nextCursor;
     }
-  } catch (cause) { if (seq === generation) error.value = message(cause); }
-  finally { if (seq === generation) loading.value = false; }
+  } catch (cause) { if (seq === generation) decisionHistoryError.value = message(cause); }
+  finally { if (seq === generation) decisionHistoryLoading.value = false; }
 }
 async function decide(action: 'CONTINUE_PRACTICING' | 'COMPLETE') {
   if (!canDecide.value || !state.value || !selected.value ||
@@ -181,7 +194,8 @@ async function sendCommand(command: DecisionCommand) {
 watch(() => [props.learnerId, props.sessionId, props.taskId], () => {
   ++generation; selected.value = ''; pending.value = null; state.value = null;
   assessments.value = []; decisions.value = []; evidence.value = [];
-  evidenceCursor.value = null; evidenceError.value = ''; stateFresh.value = false;
+  evidenceCursor.value = null; evidenceError.value = '';
+  decisionCursor.value = null; decisionHistoryError.value = ''; stateFresh.value = false;
   assessmentFresh.value = false; reason.value = ''; void refresh();
 });
 watch(() => props.attempts.map(a => `${a.id}:${a.status}:${a.assessmentAvailable}`).join(','), () => {
@@ -262,12 +276,17 @@ onBeforeUnmount(() => { ++generation; pending.value = null; });
       </details>
       <button v-if="evidenceCursor" class="action-button secondary-button" type="button" :disabled="evidenceLoading" @click="moreEvidence">{{ t('learning.more') }}</button>
       <h4>{{ t('learning.decisionHistory') }}</h4>
-      <p v-if="!decisions.length" class="hint">{{ t('learning.noDecisions') }}</p>
+      <p v-if="decisionHistoryLoading" role="status">{{ t('learning.loading') }}</p>
+      <div v-if="decisionHistoryError" role="alert">
+        <p>{{ decisionHistoryError }}</p>
+        <button type="button" class="action-button secondary-button" :disabled="decisionHistoryLoading" @click="loadDecisionHistory()">{{ t('learning.refresh') }}</button>
+      </div>
+      <p v-if="!decisions.length && !decisionHistoryLoading && !decisionHistoryError" class="hint">{{ t('learning.noDecisions') }}</p>
       <details v-for="decision in decisions" :key="decision.decisionId">
         <summary>{{ t('learning.state.' + decision.resultingState) }} · {{ new Date(decision.recordedAt).toLocaleString() }}</summary>
         <p>{{ decision.reasonText || decision.reasonCode }}</p>
       </details>
-      <button v-if="decisionCursor" type="button" class="action-button secondary-button" :disabled="loading" @click="moreDecisions">{{ t('learning.more') }}</button>
+      <button v-if="decisionCursor" type="button" class="action-button secondary-button" :disabled="decisionHistoryLoading" @click="moreDecisions">{{ t('learning.more') }}</button>
     </template>
   </section>
 </template>
