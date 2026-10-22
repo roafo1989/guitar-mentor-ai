@@ -295,3 +295,297 @@ footer { text-align: center; font-size: 12px; padding: 24px; color: #8793a4; }
 .metronome-playing-pattern { border: 1px solid #d8e7e2; padding: 8px; border-radius: 8px; margin-top: 10px; }
 .metronome-count-active { margin: 8px 0; }
 .metronome-count-active .metronome-beat { background: #f7faf9; justify-content: center; }
+
+
+/* TOOL-04 #111 — Rhythm Studio B1: one audio engine, compact high-contrast UI. */
+.metronome-backdrop { overflow:auto; padding:12px; background:#081218d9; }
+.metronome-dialog.m111 {
+  --m-bg:#10191f;--m-panel:#18262e;--m-panel2:#20313a;--m-border:#354b55;
+  --m-accent:#99dfc9;--m-accent-dark:#29675e;--m-ink:#f0f7f3;
+  --m-muted:#a3bac1;--m-primary-ink:#103129;--m-danger:#ffb6b3;
+  position:relative;display:flex;flex-direction:column;gap:10px;
+  width:min(100%,790px); height:min(586px,calc(100dvh - 24px));
+  max-height:calc(100dvh - 24px);min-height:0;overflow:hidden;
+  border:1px solid #3d5861;border-radius:20px;padding:16px 20px 14px;
+  background:var(--m-bg);color:var(--m-ink);font-family:Inter,'Segoe UI',system-ui,sans-serif;
+  box-shadow:0 28px 88px #0009;
+}
+.m111 * {box-sizing:border-box}
+.m111 button,.m111 input,.m111 select {font:inherit}
+.m111 button {cursor:pointer}
+.m111 button:focus-visible,.m111 input:focus-visible,.m111 select:focus-visible {
+  outline:3px solid #f1cc90;outline-offset:2px;
+}
+.m111 .metronome-dialog-heading.m111-heading {
+  display:flex;align-items:center;gap:10px;flex-shrink:0;min-height:36px
+}
+.m111-brand {display:flex;align-items:center;gap:9px;min-width:0}
+.m111-brand-mark {display:grid;place-items:center;width:32px;height:32px;border-radius:9px;background:var(--m-accent);color:#123329;font-size:24px}
+.m111-heading h2 {font-size:18px;line-height:1.15;color:var(--m-ink);letter-spacing:-.4px;white-space:nowrap}
+.m111-status-pill {margin-left:auto;border-radius:20px;background:#243d40;color:var(--m-accent);font-size:11px;padding:5px 10px;white-space:nowrap}
+.m111 .metronome-close {flex:none;height:36px;width:36px;background:var(--m-panel2);color:var(--m-ink);font-size:24px;border:1px solid var(--m-border);border-radius:10px}
+.m111-sr-only {position:absolute!important;width:1px;height:1px;overflow:hidden;clip-path:inset(50%);white-space:nowrap}
+.m111-body {display:flex;flex:1;min-height:0;flex-direction:column;gap:10px}
+.m111-cards {display:grid;grid-template-columns:minmax(0,.92fr) minmax(0,1.08fr);gap:12px;flex:1;min-height:0}
+.m111 .metronome-tempo.m111-tempo-card,
+.m111-rhythm-card {min-width:0;min-height:0;background:var(--m-panel);border:1px solid #2a4048;border-radius:15px}
+.m111 .metronome-tempo.m111-tempo-card {display:flex;flex-direction:column;justify-content:center;gap:10px;padding:16px 18px}
+.m111-section-head {display:flex;justify-content:space-between;align-items:center;gap:9px}
+.m111-section-head label {font-size:11px;text-transform:uppercase;letter-spacing:1px;color:var(--m-muted);font-weight:800}
+.m111-tempo-unit {color:var(--m-accent);font-size:12px;font-weight:600;text-align:right}
+.m111 .metronome-tempo-controls.m111-tempo-controls {display:flex;justify-content:space-between;align-items:center;gap:5px;flex-wrap:nowrap;min-height:150px}
+.m111 .metronome-tempo-controls .m111-tempo-step {
+  width:49px;height:49px;min-width:49px;min-height:49px;flex:none;
+  border-radius:13px;background:var(--m-panel2);color:var(--m-ink);
+  border:1px solid #4a7477;font-size:26px;display:grid;place-items:center;padding:0
+}
+.m111 .metronome-tempo-controls .m111-tempo-step:disabled {opacity:.45}
+.m111-tempo-center {min-width:0;flex:1;display:flex;flex-direction:column;align-items:center;gap:3px}
+.m111 .metronome-tempo-controls input#metronome-bpm {
+  width:min(100%,154px);height:80px;padding:0 0 2px;border:0;
+  border-bottom:2px solid var(--m-accent);border-radius:0;background:transparent;
+  color:var(--m-ink);font-size:66px;letter-spacing:-2.8px;line-height:1.1;
+  font-weight:760;text-align:center;appearance:textfield;font-variant-numeric:tabular-nums;
+}
+.m111 #metronome-bpm::-webkit-outer-spin-button,.m111 #metronome-bpm::-webkit-inner-spin-button {appearance:none;margin:0}
+.m111 #metronome-bpm[aria-invalid="true"] {color:var(--m-danger);border-color:var(--m-danger)}
+.m111-bpm-label {color:var(--m-muted);font-size:10px;letter-spacing:1px;font-weight:750}
+.m111-edit-tip {color:var(--m-accent);font-size:11px;white-space:nowrap}
+.m111-tempo-bottom {display:flex;justify-content:space-between;align-items:center;gap:8px}
+.m111 .metronome-tempo small {color:var(--m-muted);font-size:11px}
+.m111 .metronome-tempo .metronome-tempo-comparison {font-size:11px;color:#f5d6a3;line-height:1.4;display:block}
+.m111 .metronome-tempo-controls .metronome-tap,.m111 .metronome-tap.m111-tap {
+  width:auto!important;min-width:120px;min-height:42px;font-size:13px!important;
+  background:var(--m-panel2);color:var(--m-ink);border:1px solid #527277;border-radius:10px;
+  font-weight:760;padding:6px 12px
+}
+.m111 .metronome-error {color:var(--m-danger);font-weight:550;font-size:12px;line-height:1.35}
+.m111 .m111-feedback {font-size:11px;color:var(--m-muted);line-height:1.4}
+.m111-rhythm-card {display:flex;flex-direction:column;padding:15px;gap:10px;overflow:auto;scrollbar-width:thin}
+.m111-rhythm-top {display:flex;justify-content:space-between;align-items:center;gap:12px}
+.m111-meter-display {display:flex;align-items:baseline;flex-wrap:wrap;gap:6px}
+.m111-meter-display>span {width:100%;font-size:11px;text-transform:uppercase;letter-spacing:.7px;color:var(--m-muted);font-weight:750}
+.m111-meter-display strong {font-size:29px;letter-spacing:-.6px;line-height:1.1}
+.m111-meter-display small {font-size:12px;color:var(--m-muted)}
+.m111 .m111-change {min-height:38px;padding:0 10px;font-size:12px;color:var(--m-accent);background:var(--m-panel2);border:1px solid var(--m-border);border-radius:9px}
+.m111 .metronome-quick.m111-quick {display:grid;grid-template-columns:repeat(5,minmax(0,1fr));gap:4px;margin:0}
+.m111 .metronome-quick.m111-quick button {
+  min-height:36px;height:36px;min-width:0;padding:0 2px;border-radius:9px;
+  font-size:12px;font-weight:700;border:1px solid var(--m-border);
+  background:var(--m-panel2);color:var(--m-muted)
+}
+.m111 .metronome-quick button[aria-pressed="true"],
+.m111 .m111-subdivision-controls button[aria-pressed="true"],
+.m111-unit-grid button[aria-pressed="true"] {
+  background:var(--m-accent-dark);border-color:var(--m-accent);color:var(--m-ink)
+}
+.m111 .metronome-count {
+  display:flex;gap:4px;margin:0;min-height:0;overflow-x:auto;
+  padding:2px 1px 6px;scrollbar-width:thin;flex-wrap:nowrap;
+}
+.m111 .metronome-beat {
+  display:flex;flex-direction:column;align-items:center;justify-content:center;gap:2px;
+  height:54px;min-height:54px;min-width:0;padding:3px 1px;flex:1 0 37px;
+  border-radius:10px;background:var(--m-panel2);border:1px solid var(--m-border);
+  color:var(--m-ink);font-weight:750;font-size:17px
+}
+.m111 .metronome-count:has(.metronome-beat:nth-child(8)) .metronome-beat {flex:0 0 43px}
+.m111 .metronome-beat span {line-height:19px}
+.m111 .metronome-beat small {font-size:13px;font-weight:750;line-height:13px}
+.m111 .metronome-beat.accent-strong {border:2px solid var(--m-accent)}
+.m111 .metronome-beat.accent-strong small {color:var(--m-accent)}
+.m111 .metronome-beat.accent-medium {border:2px dashed #b8ad93}
+.m111 .metronome-beat.accent-medium small {color:#f1cc90}
+.m111 .metronome-beat.accent-weak {border:1px solid var(--m-border)}
+.m111 .metronome-beat.accent-mute {border:1px dotted #79959f;color:#91a5af}
+.m111 .metronome-beat.is-selected {outline:1px solid var(--m-accent);outline-offset:-4px}
+.m111 .metronome-beat.is-active {background:var(--m-accent-dark);box-shadow:inset 0 0 0 1px var(--m-accent)}
+.m111 .metronome-playing-pattern {margin:0;padding:7px;border:1px solid #5d6c66;border-radius:10px;background:#1b3034}
+.m111 .metronome-playing-pattern .metronome-count {margin:3px 0 4px}
+.m111 .metronome-count-active .metronome-beat {background:var(--m-panel2);color:var(--m-ink);min-height:40px;height:40px;flex-basis:32px;font-size:13px}
+.m111 .metronome-count-active .metronome-beat.is-active {background:var(--m-accent-dark)}
+.m111-pattern-caption {font-size:11px;line-height:1.25;color:#f1cc90;margin:0}
+.m111-beat-help {font-size:10px;color:var(--m-muted);line-height:1.3}
+.m111-subdivision {display:flex;justify-content:space-between;align-items:center;gap:9px;padding-top:7px;border-top:1px solid #2a4048}
+.m111-subdivision>span {font-size:11px;font-weight:650;color:var(--m-muted)}
+.m111-subdivision-controls {display:flex;gap:5px}
+.m111 .m111-subdivision-controls button {min-width:34px;height:34px;min-height:34px;padding:0;border:1px solid var(--m-border);border-radius:8px;color:var(--m-muted);background:var(--m-panel2);font-weight:700}
+.m111-silent {font-size:12px;color:#f1cc90;margin:0}
+.m111-tools {display:flex;gap:10px;flex-shrink:0}
+.m111-tools button {flex:1;background:var(--m-panel2);border:1px solid var(--m-border);color:var(--m-ink);min-height:42px;border-radius:10px;font-size:13px;font-weight:700}
+.m111-tools button:first-child {color:var(--m-accent)}
+.m111 .metronome-apply.m111-apply {display:flex;align-items:center;gap:8px;margin:0;flex-wrap:wrap}
+.m111-apply button {min-height:36px;background:var(--m-panel2);border:1px solid var(--m-border);color:var(--m-ink);border-radius:8px;padding:5px 10px;font-size:12px}
+.m111-apply small {font-size:10px;color:#f1cc90}
+.m111 .m111-apply-quiet {display:none}
+.m111-footer {display:flex;flex-direction:column;gap:7px;flex-shrink:0;min-height:0}
+.m111 .metronome-state.m111-state {margin:0;color:var(--m-muted);min-height:13px;text-align:left;font-size:11px}
+.m111 .metronome-actions.m111-actions {display:flex;justify-content:stretch;gap:9px;margin:0;flex-wrap:nowrap}
+.m111 .metronome-actions.m111-actions button {min-width:0}
+.m111 .m111-primary {flex:1;background:var(--m-accent);color:var(--m-primary-ink);border:0;border-radius:12px;min-height:52px;font-size:18px;font-weight:770}
+.m111 .m111-primary[aria-disabled="true"] {opacity:.65;cursor:wait}
+.m111 .m111-minimize {flex:0 1 140px;min-height:52px;background:var(--m-panel2);border:1px solid var(--m-border);color:var(--m-ink);border-radius:12px;font-size:12px;padding:7px}
+.m111-warning {font-size:10px;line-height:1.3;color:var(--m-muted);margin:0}
+.m111-sheet {position:absolute;inset:64px 10px 12px;z-index:5;display:none;flex-direction:column;min-height:0;
+  background:var(--m-panel);border:1px solid #4b6670;border-radius:15px;box-shadow:0 10px 36px #0008;padding:12px}
+.m111-sheet.is-open {display:flex}
+.m111-sheet-head {display:flex;align-items:center;justify-content:space-between;gap:12px;padding:2px 4px 10px;border-bottom:1px solid var(--m-border)}
+.m111-sheet-head h3 {margin:0;font-size:18px}
+.m111-sheet-head button {min-height:40px;min-width:40px;background:var(--m-panel2);color:var(--m-ink);border:1px solid var(--m-border);border-radius:10px;font-size:23px}
+.m111-sheet-scroll {overflow:auto;min-height:0;padding:10px 4px 12px;scrollbar-width:thin}
+.m111 .metronome-settings {display:flex;flex-direction:column;gap:9px}
+.m111 .metronome-settings>label,.m111-setting-label,.m111 .metronome-presets>label {font-size:13px;color:var(--m-muted);font-weight:680}
+.m111 .metronome-dialog select,.m111 .metronome-settings input:not([type="range"]),.m111 .metronome-presets input {
+  background:var(--m-panel2);border:1px solid var(--m-border);border-radius:9px;color:var(--m-ink);min-height:42px;padding:8px;min-width:0
+}
+.m111 .metronome-meter-picker {display:flex;align-items:center;gap:8px;margin:0}
+.m111 .metronome-meter-picker select {width:78px;flex:none}
+.m111 .metronome-meter-picker label {margin-right:5px}
+.m111 .metronome-quick.m111-extra-meters {display:flex;align-items:center;gap:7px;margin:0}
+.m111 .m111-extra-meters button {min-height:42px;border:1px solid var(--m-border);border-radius:9px;background:var(--m-panel2);color:var(--m-ink);padding:6px 12px}
+.m111-unit-grid {display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:6px}
+.m111-unit-grid button {min-width:0;min-height:56px;background:var(--m-panel2);color:var(--m-ink);border:1px solid var(--m-border);border-radius:9px;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:2px;font-size:22px}
+.m111-unit-grid small {font-size:10px}
+.m111 .metronome-master {display:flex;flex-direction:column;gap:6px;margin:0}
+.m111 .metronome-master label {color:var(--m-muted);font-size:13px}
+.m111 .metronome-settings input[type="range"] {width:100%;min-height:40px;accent-color:var(--m-accent)}
+.m111 .metronome-settings #metronome-beat-selection {max-width:100px}
+.m111 .metronome-presets {display:flex;flex-direction:column;gap:10px;padding:10px 4px;border:0}
+.m111 .metronome-presets>button,.m111 .metronome-preset-actions button,.m111 .metronome-confirm button,.m111 .m111-sheet-actions button,.m111 .m111-reset {
+  min-height:42px;background:var(--m-panel2);color:var(--m-ink);border:1px solid var(--m-border);border-radius:9px;padding:7px 10px
+}
+.m111 .metronome-preset-actions {display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:8px;margin:0}
+.m111 .metronome-confirm {display:flex;align-items:center;gap:10px;flex-wrap:wrap;color:#f1cc90;font-size:12px}
+.m111 .m111-sheet-actions {display:flex;gap:9px}
+.m111 .m111-sheet-actions button {flex:1}
+.m111-preset-review {background:var(--m-panel2);border:1px solid var(--m-border);border-radius:10px;padding:10px;font-size:12px;line-height:1.5;color:var(--m-accent)}
+.m111 .m111-reset {width:100%}
+@media (max-width:650px) {
+  .metronome-backdrop {padding:6px}
+  .metronome-dialog.m111 {width:min(100%,410px);height:min(640px,calc(100dvh - 12px));max-height:calc(100dvh - 12px);padding:11px 12px;gap:8px;border-radius:17px}
+  .m111-heading h2 {font-size:16px}
+  .m111-status-pill {font-size:10px;padding:5px 7px}
+  .m111-brand-mark {width:30px;height:30px}
+  .m111-cards {display:flex;flex-direction:column;gap:8px}
+  .m111 .metronome-tempo.m111-tempo-card {padding:10px 12px 10px;gap:5px;flex-shrink:0}
+  .m111 .metronome-tempo-controls.m111-tempo-controls {min-height:90px}
+  .m111 .metronome-tempo-controls input#metronome-bpm {font-size:63px;height:65px;width:146px}
+  .m111 .metronome-tempo-controls .m111-tempo-step {width:47px;height:47px;min-width:47px;min-height:47px}
+  .m111-section-head label {font-size:10px}
+  .m111-tempo-unit {font-size:11px}
+  .m111-rhythm-card {padding:9px 10px;gap:7px;flex:1}
+  .m111-meter-display>span {font-size:10px}
+  .m111-meter-display strong {font-size:22px}
+  .m111 .metronome-count {gap:3px}
+  .m111 .metronome-beat {min-height:48px;height:48px;flex-basis:33px;font-size:15px}
+  .m111 .metronome-beat small {font-size:12px}
+  .m111-subdivision {padding-top:5px}
+  .m111 .metronome-quick.m111-quick button {min-height:33px;height:33px;font-size:11px}
+  .m111 .m111-change {min-height:34px}
+  .m111-beat-help {font-size:9px}
+  .m111-tools button {min-height:39px}
+  .m111 .m111-primary,.m111 .m111-minimize {min-height:51px}
+  .m111-warning {font-size:9px;line-height:1.25;max-height:25px;overflow:hidden}
+  .m111-sheet {inset:50px 5px 6px}
+}
+@media (max-width:370px) {
+  .metronome-dialog.m111 {padding:10px 11px}
+  .m111 .metronome-tempo-controls input#metronome-bpm {font-size:59px;width:128px}
+  .m111 .m111-subdivision-controls button {min-width:32px}
+  .m111 .metronome-beat {flex-basis:31px}
+}
+@media (max-width:650px) and (max-height:560px) {
+  .metronome-dialog.m111 {height:calc(100dvh - 12px);overflow-y:auto}
+  .m111-body {flex:none;min-height:400px}
+  .m111-rhythm-card {overflow:visible}
+}
+@media (prefers-reduced-motion:reduce) {
+  .m111 * {animation:none!important;transition:none!important}
+}
+
+/* #111 review: visible errors inside sheets and complete config review. */
+.m111 .m111-sheet-error { margin:0 2px 12px; padding:9px 10px; background:#51343b; border:1px solid #b76e71; border-radius:9px; }
+.m111 .m111-preset-review { display:flex; flex-direction:column; gap:5px; overflow-wrap:anywhere; }
+
+
+/* Number + one-to-four audible subdivision ticks; no misleading note value. */
+.m111 .m111-subdivision-controls button {
+  height:40px;min-height:40px;min-width:38px;
+  display:flex;flex-direction:column;align-items:center;justify-content:center;gap:1px;
+}
+.m111 .m111-subdivision-controls strong {font-size:12px;line-height:14px}
+.m111 .m111-sub-notes {font-size:11px;line-height:11px;letter-spacing:-1px;white-space:nowrap}
+@media (max-width:370px) {.m111 .m111-subdivision-controls button {min-width:35px}}
+
+
+/* #111 visual QA, 2026-10-22: fix beat strip collapsed in real Chrome layout.
+ * The rhythm card is a vertical flex container; overflow:auto + a zero min-height
+ * allowed the beat strip to shrink to a thin horizontal sliver.
+ * Preserve full beat touch targets before allowing the card to scroll. */
+@media (min-width:651px) {
+  .metronome-dialog.m111 {
+    height:min(626px,calc(100dvh - 24px));
+  }
+}
+.m111 .metronome-count {
+  flex-shrink:0;
+  min-height:62px;
+}
+.m111 .metronome-playing-pattern {
+  flex-shrink:0;
+}
+.m111 .metronome-playing-pattern .metronome-count {
+  min-height:48px;
+}
+.m111 .m111-rhythm-card {
+  gap:7px;
+  padding:12px;
+}
+.m111 .m111-rhythm-top,
+.m111 .metronome-quick.m111-quick,
+.m111 .m111-subdivision,
+.m111 .m111-beat-help {
+  flex-shrink:0;
+}
+/* Greater specificity than .m111 .metronome-apply.m111-apply {display:flex}. */
+.m111 .metronome-apply.m111-apply.m111-apply-quiet {
+  display:none;
+}
+@media (max-width:650px) {
+  .m111 .metronome-count {min-height:56px}
+  .m111 .m111-rhythm-card {gap:6px;padding:9px 10px}
+}
+
+
+/* TOOL-04 #111 mobile visual QA (400x832): use the available viewport height.
+ * Previous mobile cap of 640px left spare space outside the dialog while the
+ * rhythm card needlessly clipped subdivision controls and showed a scrollbar.
+ * Keep the short-screen fallback below: Start/Stop must not disappear. */
+@media (max-width:650px) {
+  .metronome-dialog.m111 {
+    height:min(760px,calc(100dvh - 12px));
+  }
+}
+/* At 360x640 the dialog cannot grow; save vertical room in frequently used
+ * controls, while retaining full-size BPM step touch targets and beat cells. */
+@media (max-width:650px) and (max-height:700px) and (min-height:561px) {
+  .metronome-dialog.m111 { gap:6px; padding:9px 10px; }
+  .m111 .metronome-tempo.m111-tempo-card { padding:7px 10px; gap:3px; }
+  .m111 .metronome-tempo-controls.m111-tempo-controls { min-height:74px; }
+  .m111 .metronome-tempo-controls input#metronome-bpm { font-size:55px; height:56px; }
+  .m111 .metronome-tap.m111-tap { min-height:38px; }
+  .m111 .m111-rhythm-card { padding:7px 9px; gap:5px; }
+  .m111 .metronome-count { min-height:53px; padding-bottom:3px; }
+  .m111 .metronome-beat { height:45px; min-height:45px; }
+  .m111 .metronome-quick.m111-quick button { height:32px; min-height:32px; }
+  .m111 .m111-subdivision-controls button { min-height:35px; height:35px; }
+  .m111 .m111-tools button { min-height:36px; }
+  .m111 .m111-primary, .m111 .m111-minimize { min-height:47px; }
+  .m111 .m111-warning { line-height:1.1; }
+}
+/* When the rhythm content fits, keep all of it legible instead of using a
+ * nested scrollbar; at exceptionally short viewports allow the existing
+ * internal scroll rather than hiding or overlaying any settings. */
+@media (max-width:650px) and (min-height:701px) {
+  .m111 .m111-rhythm-card { overflow-y:auto; }
+}

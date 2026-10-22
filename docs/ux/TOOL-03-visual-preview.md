@@ -106,7 +106,7 @@ replaced by these calculations.
 The new approved headstock is now an actual bundled asset:
 `frontend/src/shared/tuner/approved-headstock.webp`. It was carefully cut
 out and optimised directly from the *last approved realistic illustration*
-in the project conversation (transparent background; ~11 KB). Unlike the
+in the project conversation (transparent background; ~20 KB (retina-friendly)). Unlike the
 previous hand-drawn SVG, it retains the irregular wood grain, metal
 reflections, natural silhouette, truss-rod plate, realistic nut and
 strings which the owner explicitly selected.
