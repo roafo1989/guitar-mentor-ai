@@ -198,7 +198,7 @@ test('uncertain POST result retains identical idempotency key and payload on ret
     evidence: async () => ({ items: [], nextCursor: null }),
     assessments: async () => ({ items: [], nextCursor: null }),
     decide: async (_l, _s, _t, command) => {
-      commands.push(structuredClone(command));
+      commands.push(JSON.parse(JSON.stringify(command)));
       attempts++;
       if (attempts === 1) throw Error('timeout');
       return {};
