@@ -1,0 +1,20 @@
+sequenceDiagram
+  participant UI as Vue
+  participant API as Java REST
+  participant DB as PostgreSQL
+  participant Media as Classpath
+  UI->>API: Прочитать назначение
+  API->>DB: task.exercise_id, metadata и criteria
+  DB-->>API: Сохранённая row V1
+  API-->>UI: ExerciseView V1 и URL с versions/V1
+  UI->>API: HEAD/GET ресурса V1
+  API->>DB: exact(code, V1), без current
+  DB-->>API: Resource path V1
+  API->>Media: Безопасно прочитать path V1
+  alt Ресурс установлен
+    Media-->>API: Байты V1
+    API-->>UI: 200, MIME V1
+  else Ресурс отсутствует
+    Media-->>API: Нет файла
+    API-->>UI: 404, без fallback на V2
+  end

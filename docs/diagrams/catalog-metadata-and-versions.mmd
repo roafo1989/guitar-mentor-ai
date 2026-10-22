@@ -1,7 +1,23 @@
 flowchart TB
-  Vue["Vue preview: metadata и pinned URL"] --> API["Java catalog REST"]
-  API --> Row["Exercise row: id, code, version"]
-  Assigned["Назначение: сохранённый exercise_id"] --> Row
-  Row --> Media["Ресурс именно этой версии"]
-  Legacy["Старый code-only URL"] --> Current["Только current row"]
-  Current --> Row
+  subgraph Browser["Локальный браузер"]
+    Vue["Vue ExercisePreview"]
+    Results["Результаты и решения #19"]
+  end
+  subgraph Backend["Java Spring Boot"]
+    API["Exercise REST и DTO assembler"]
+    Resolver["Безопасный exact-version resolver"]
+  end
+  subgraph Storage["Локальная установка"]
+    Row["exercises: UUID, code, version, metadata"]
+    Criteria["exercise_criteria: FK exercise_id"]
+    Assigned["diagnostic_tasks: FK exercise_id"]
+    Media["Classpath: отдельные ресурсы версий"]
+  end
+  Vue --> API
+  API --> Row
+  API --> Criteria
+  Assigned --> Row
+  API --> Resolver
+  Resolver --> Row
+  Resolver --> Media
+  Results -. "сохраняется без смены протокола" .-> Assigned
