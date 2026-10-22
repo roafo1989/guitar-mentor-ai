@@ -1,0 +1,7 @@
+flowchart TB
+  Vue["Vue preview: metadata и pinned URL"] --> API["Java catalog REST"]
+  API --> Row["Exercise row: id, code, version"]
+  Assigned["Назначение: сохранённый exercise_id"] --> Row
+  Row --> Media["Ресурс именно этой версии"]
+  Legacy["Старый code-only URL"] --> Current["Только current row"]
+  Current --> Row
