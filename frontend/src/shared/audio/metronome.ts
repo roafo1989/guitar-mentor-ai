@@ -1,5 +1,6 @@
 /** #109 — singleton metronome; all audible timing happens on the AudioWorklet render thread. */
-import processorUrl from './metronome-processor.js?url';
+// Vite rewrites this static asset URL; Node unit tests can import this module unchanged.
+const processorUrl = new URL('./metronome-processor.js', import.meta.url).href;
 import { type MetronomeConfig, copyConfig, defaultMetronomeConfig, validConfig } from './metronome-config.ts';
 export type MetronomeStatus = 'ready' | 'starting' | 'running' | 'stopped' | 'unavailable';
 export interface MetronomeState {
