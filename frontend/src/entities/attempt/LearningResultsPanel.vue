@@ -203,7 +203,7 @@ onBeforeUnmount(() => { ++generation; pending.value = null; });
           <textarea id="learning-reason" v-model="reason" maxlength="2000" rows="2" />
           <div class="form-actions">
             <button class="action-button secondary-button" type="button" :disabled="!state.availableActions.includes('CONTINUE_PRACTICING')" @click="decide('CONTINUE_PRACTICING')">{{ t('learning.continue') }}</button>
-            <button class="action-button" type="button" :disabled="sending"  :disabled="!state.availableActions.includes('COMPLETE')" @click="decide('COMPLETE')">{{ t('learning.complete') }}</button>
+            <button class="action-button" type="button" :disabled="!state.availableActions.includes('COMPLETE')" @click="decide('COMPLETE')">{{ t('learning.complete') }}</button>
           </div>
         </template>
       </template>
