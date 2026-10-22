@@ -143,3 +143,81 @@ test('optional decision history failure also preserves core actions', async () =
     assert.equal(state.decisionHistoryLoading, false);
   } finally { app.unmount(); delete globalThis.__qaLearning; }
 });
+
+test('learner can complete without a graded assessment; terminal state is server-owned', async () => {
+  const previousWindow = globalThis.window;
+  globalThis.window = { confirm: () => true };
+  const commands = [];
+  let terminal = false;
+  globalThis.__qaLearning = {
+    state: async () => ({
+      taskId: 'task', taskState: terminal ? 'COMPLETED_BY_LEARNER' : 'ACTIVE',
+      version: terminal ? 1 : 0, availableActions: terminal ? [] : ['COMPLETE'],
+      latestAttemptId: 'attempt', assessmentState: 'NO_ASSESSMENT',
+      latestAssessmentId: null, latestDecision: null, nextStepAvailability: 'NOT_IMPLEMENTED'
+    }),
+    decisions: async () => ({ items: [], nextCursor: null }),
+    evidence: async () => ({ items: [], nextCursor: null }),
+    assessments: async () => ({ items: [], nextCursor: null }),
+    decide: async (...args) => { commands.push(args[3]); terminal = true; return {}; }
+  };
+  const { app, state } = await mount('LearningResultsPanel.vue', {
+    learnerId: 'learner', sessionId: 'session', taskId: 'task',
+    attempts: [{ id: 'attempt', status: 'PROCESSED' }], draftBusy: false
+  });
+  try {
+    await flush();
+    assert.equal(state.canDecide, true);
+    await state.decide('COMPLETE');
+    await flush();
+    assert.equal(commands.length, 1);
+    assert.equal(commands[0].attemptId, 'attempt');
+    assert.equal(commands[0].action, 'COMPLETE');
+    assert.equal(commands[0].expectedVersion, 0);
+    assert.equal(commands[0].baseAssessmentId, null);
+    assert.equal(state.state.taskState, 'COMPLETED_BY_LEARNER');
+    assert.equal(state.canDecide, false);
+  } finally {
+    app.unmount();
+    globalThis.window = previousWindow;
+    delete globalThis.__qaLearning;
+  }
+});
+
+test('uncertain POST result retains identical idempotency key and payload on retry', async () => {
+  const commands = [];
+  let attempts = 0;
+  globalThis.__qaLearning = {
+    state: async () => ({
+      taskId: 'task', taskState: 'ACTIVE', version: 3,
+      availableActions: ['CONTINUE_PRACTICING'], latestAttemptId: 'attempt',
+      assessmentState: 'NO_ASSESSMENT', latestAssessmentId: null,
+      latestDecision: null, nextStepAvailability: 'NOT_IMPLEMENTED'
+    }),
+    decisions: async () => ({ items: [], nextCursor: null }),
+    evidence: async () => ({ items: [], nextCursor: null }),
+    assessments: async () => ({ items: [], nextCursor: null }),
+    decide: async (_l, _s, _t, command) => {
+      commands.push(structuredClone(command));
+      attempts++;
+      if (attempts === 1) throw Error('timeout');
+      return {};
+    }
+  };
+  const { app, state } = await mount('LearningResultsPanel.vue', {
+    learnerId: 'learner', sessionId: 'session', taskId: 'task',
+    attempts: [{ id: 'attempt', status: 'PROCESSED' }], draftBusy: false
+  });
+  try {
+    await flush();
+    await state.decide('CONTINUE_PRACTICING');
+    await flush();
+    assert.equal(state.canDecide, false, 'must not allow second command after timeout');
+    assert.equal(state.pending.requestId, commands[0].requestId);
+    await state.retry();
+    await flush();
+    assert.equal(commands.length, 2);
+    assert.deepEqual(commands[1], commands[0], 'retry preserves full POST payload');
+    assert.equal(state.pending, null);
+  } finally { app.unmount(); delete globalThis.__qaLearning; }
+});
