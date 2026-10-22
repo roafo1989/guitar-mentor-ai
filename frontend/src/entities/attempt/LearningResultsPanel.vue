@@ -139,7 +139,7 @@ async function moreEvidence() {
     if (seq === generation) {
       evidence.value.push(...result.items); evidenceCursor.value = result.nextCursor;
     }
-  } catch (cause) { if (seq === generation) error.value = message(cause); }
+  } catch (cause) { if (seq === generation) evidenceError.value = message(cause); }
   finally { if (seq === generation) loading.value = false; }
 }
 async function moreDecisions() {
