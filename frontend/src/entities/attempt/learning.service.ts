@@ -22,6 +22,12 @@ export interface AssessmentView {
   methodId: string; methodVersion: string; recommendation: 'PASS' | 'REVISE' | 'UNCERTAIN';
   createdAt: string; criteria: CriterionResult[]; limitations: string[];
 }
+export interface SkillEvidenceView {
+  assessmentId: string; attemptId: string; criterionCode: string; skillCode: string;
+  sourceKind: string; sourcePrincipal: string; methodId: string; methodVersion: string;
+  createdAt: string; status: string; outcome: string | null;
+  reasonCode: string | null; evidenceText: string | null; confirmedSkillLevel: number | null;
+}
 export interface Page<T> { items: T[]; nextCursor: string | null; }
 export interface DecisionCommand {
   requestId: string; attemptId: string; action: DecisionAction;
@@ -63,6 +69,8 @@ export const learningService = {
   assessments: (learner: string, session: string, task: string, attempt: string, cursor?: string) =>
     request<Page<AssessmentView>>(pagePath(base(learner, session, task) +
       '/attempts/' + encodeURIComponent(attempt) + '/assessments', cursor)),
+  evidence: (learner: string, session: string, task: string, cursor?: string) =>
+    request<Page<SkillEvidenceView>>(pagePath(base(learner, session, task) + '/learning/evidence', cursor)),
   decisions: (learner: string, session: string, task: string, cursor?: string) =>
     request<Page<DecisionView>>(pagePath(base(learner, session, task) + '/decisions', cursor)),
   decide: (learner: string, session: string, task: string, command: DecisionCommand) =>
