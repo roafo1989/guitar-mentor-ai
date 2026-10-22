@@ -26,11 +26,12 @@ const tuningId = ref<TuningId>(readTuningPreference());
 const tuning = computed(() => TUNINGS[tuningId.value]);
 const strings = computed(() => tuning.value.strings);
 const target = computed(() => selected.value === null ? null : strings.value[selected.value]);
-// Strictly frontal, symmetric 3+3 guitar headstock. Label positions have
-// generous insets so all six controls remain within a 280px-wide stage.
+// Frontal 3+3 headstock; the button circles sit well inside the
+// 440-unit SVG, even at 320px viewport and minimum 45px mobile touch size.
+// Reserve 5px additional CSS pixels for focus outline + outline-offset.
 const pegs = [
-  { x: 38, y: 211 }, { x: 38, y: 140 }, { x: 38, y: 69 },
-  { x: 402, y: 69 }, { x: 402, y: 140 }, { x: 402, y: 211 },
+  { x: 70, y: 211 }, { x: 70, y: 140 }, { x: 70, y: 69 },
+  { x: 370, y: 69 }, { x: 370, y: 140 }, { x: 370, y: 211 },
 ] as const;
 // From the nut to the matching *physical* winding post: E2/A2/D3
 // (left bottom->top), G3/B3/E4 (right top->bottom). 
@@ -371,20 +372,21 @@ onBeforeUnmount(() => {
               <path d="M162 70 L163 240 Q165 257 175 268" fill="none"
                 stroke="#2b1006" stroke-opacity=".5" stroke-width="2.5" />
 
-              <!-- Chrome 3+3 machines, aligned horizontally and mirrored. -->
+              <!-- Compact, mirrored chrome 3+3 machines. Keys stay close
+                   to the headstock silhouette, like the approved mockup. -->
               <g v-for="(post, index) in [69, 140, 211]" :key="'machine-' + index">
-                <rect x="117" :y="post-7" width="48" height="14" rx="5"
-                  fill="url(#gm-head-metal-dark)" stroke="#71787b" stroke-width="1" />
-                <rect x="275" :y="post-7" width="48" height="14" rx="5"
-                  fill="url(#gm-head-metal-dark)" stroke="#71787b" stroke-width="1" />
-                <rect x="97" :y="post-18" width="39" height="36" rx="12"
+                <rect class="tuner-machine-shaft" x="151" :y="post-5" width="33" height="10" rx="4"
+                  fill="url(#gm-head-metal-dark)" stroke="#71787b" stroke-width=".8" />
+                <rect class="tuner-machine-shaft" x="256" :y="post-5" width="33" height="10" rx="4"
+                  fill="url(#gm-head-metal-dark)" stroke="#71787b" stroke-width=".8" />
+                <rect class="tuner-machine-key" x="128" :y="post-16" width="26" height="32" rx="10"
                   fill="url(#gm-head-metal)" stroke="#d8e2e5" stroke-width="1" />
-                <rect x="304" :y="post-18" width="39" height="36" rx="12"
+                <rect class="tuner-machine-key" x="286" :y="post-16" width="26" height="32" rx="10"
                   fill="url(#gm-head-metal)" stroke="#d8e2e5" stroke-width="1" />
-                <path :d="`M101 ${post-12} Q115 ${post-19} 127 ${post-11}`"
-                  fill="none" stroke="#fff" stroke-opacity=".45" stroke-width="1.4" />
-                <path :d="`M310 ${post-11} Q326 ${post-19} 339 ${post-10}`"
-                  fill="none" stroke="#fff" stroke-opacity=".45" stroke-width="1.4" />
+                <path :d="`M131 ${post-11} Q142 ${post-17} 151 ${post-10}`"
+                  fill="none" stroke="#fff" stroke-opacity=".42" stroke-width="1.2" />
+                <path :d="`M289 ${post-10} Q299 ${post-17} 309 ${post-11}`"
+                  fill="none" stroke="#fff" stroke-opacity=".42" stroke-width="1.2" />
                 <circle cx="184" :cy="post" r="13" fill="#3b3531"
                   stroke="url(#gm-head-metal)" stroke-width="5" />
                 <circle cx="256" :cy="post" r="13" fill="#3b3531"

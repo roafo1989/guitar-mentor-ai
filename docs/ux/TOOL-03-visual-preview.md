@@ -64,3 +64,25 @@ Tab/Shift+Tab, Escape, microphone-on/off, Standard/Drop D/Open G, live tuner
 green/amber/neutral/hold/error states. Approve only after reviewing the
 **running UI** against the customer-approved mock. No unperformed real-device
 checks are marked PASS.
+
+## Follow-up after UI review #5607524502 — 22 Oct 2026
+
+The visual direction remains owner-approved, but the first SVG implementation
+had oversized metal keys and outer selectors that nearly touched the scene
+edge on a 320px viewport. Reviewer P2 comments were addressed without
+changing DSP or Auto/Manual mapping:
+
+- Circular string-selector centres moved inwards from x=38/402 to x=70/370
+  (SVG scene width=440), with a 12px minimum interior margin **after**
+  accounting for the physical control radius and an extra 5px for keyboard
+  focus outline/offset.
+- Six metal keys and shafts proportionally reduced and moved closer to the
+  headstock, bringing the hardware-to-wood visual width ratio from 1.86
+  to 1.39 while preserving exact 3+3 symmetry, string endpoints and posts.
+- Mounted Vue integration test calculates actual button bounds for representative
+  scene widths 282/300/322/440 CSS px and asserts complete fit/focus margin,
+  3+3 chrome machine parts and 6/5/4 · 3/2/1 string mapping.
+
+This automated geometry check is **not** equivalent to a screenshot or
+user approval of the running app; actual responsive and visual acceptance
+remain on the manual QA checklist.

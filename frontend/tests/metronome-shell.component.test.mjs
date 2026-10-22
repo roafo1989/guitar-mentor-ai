@@ -478,11 +478,49 @@ test('TOOL-03 review P2: real tuner swaps profiles during live microphone sessio
       assert.equal(svg?.props.viewBox,'0 0 440 340');
       assert.equal(findPegs().length,6);
       const nodes=findPegs();
+      // A centre-only assertion misses clipped focus outlines. Model the
+      // *entire* circular button plus a 3px outline and 2px outline-offset
+      // in CSS pixels, at every intended responsive scene width.
+      const viewWidth=440,viewHeight=340,focusAllowance=5,minInset=12;
+      const scenes=[
+        {width:282,button:45,label:'320px viewport'},
+        {width:300,button:45,label:'compact 360x640 viewport'},
+        {width:322,button:45,label:'360px viewport'},
+        {width:440,button:52.8,label:'desktop'},
+      ];
       for(const node of nodes) {
-        const x=parseFloat(node.props.style.left),y=parseFloat(node.props.style.top);
-        assert.ok(x>8 && x<92 && y>10 && y<90,
-          'a peg cannot be clipped by the frame: '+x+'% / '+y+'%');
+        const xPercent=parseFloat(node.props.style.left),yPercent=parseFloat(node.props.style.top);
+        assert.ok(xPercent>0&&xPercent<100&&yPercent>0&&yPercent<100);
+        for(const scene of scenes) {
+          const height=scene.width*viewHeight/viewWidth;
+          const cx=xPercent/100*scene.width,cy=yPercent/100*height;
+          const radius=scene.button/2+focusAllowance;
+          const edges=[cx-radius,scene.width-cx-radius,cy-radius,height-cy-radius];
+          assert.ok(edges.every(d=>d>=minInset),
+            `${scene.label}: physical peg button or focus ring clipped, edge insets ${edges.join(', ')}px`);
+        }
       }
+      assert.ok(parseFloat(nodes[0].props.style.left)>=14 &&
+        parseFloat(nodes[3].props.style.left)<=86,
+        'the selector rings must be visibly inset from both scene edges');
+      // The entire metallic 3+3 tuning mechanism must be restrained
+      // relative to the 132-unit wooden-head width (x154..286).
+      const findAll=(root,predicate)=>{
+        const found=[];
+        const walk=node=>{if(predicate(node))found.push(node);for(const child of node.children)walk(child);};
+        walk(root);return found;
+      };
+      const keys=findAll(svg,n=>n.tag==='rect'&&n.props.class==='tuner-machine-key');
+      const shafts=findAll(svg,n=>n.tag==='rect'&&n.props.class==='tuner-machine-shaft');
+      assert.equal(keys.length,6,'three machine keys per side');
+      assert.equal(shafts.length,6,'one shaft for each machine key');
+      const allHardware=[...keys,...shafts];
+      const left=Math.min(...allHardware.map(n=>Number(n.props.x)));
+      const right=Math.max(...allHardware.map(n=>Number(n.props.x)+Number(n.props.width)));
+      assert.ok((right-left)/132<=1.5,
+        'headstock hardware protrudes disproportionately beyond the wood profile');
+      assert.equal(left+right,440,'both machine-key columns must be mirrored');
+      assert.deepEqual(keys.map(n=>Number(n.props.x)),[128,286,128,286,128,286]);
       assert.deepEqual(nodes.map(n=>n.children.find(c=>c.tag==='strong')?.text),
         ['E','A','D','G','B','E']);
       assert.deepEqual(nodes.map(n=>n.children.find(c=>c.tag==='span' &&

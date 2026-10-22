@@ -185,3 +185,11 @@ its bounds. An angled guitar headstock is explicitly **not** acceptable.
 - Automated component tests verify six rendered peg labels, insets and
   screen paths; live physical browser sizing and owner's visual sign-off
   of implementation remain part of final manual QA.
+
+## Follow-up reviewer remediation — machine proportions and mobile focus margins (22 Oct 2026)
+
+Following [review #5607524502](https://github.com/roafo1989/guitar-mentor-ai/pull/110#pullrequestreview-5607524502), the symmetric string-selector centres now sit at **x=70/370** instead of x=38/402 within a 440-unit scene. Their *full* 45px mobile touch targets plus 5px focus-outline/offset allowance remain **at least 12 CSS px inside** the stage even on 320px browser widths (scene about 282px), so `overflow:hidden` cannot clip the focus ring or touch target.
+
+The six original oversized tuning keys/shafts have been redrawn as smaller, close-fitting, mirrored chrome machine assemblies. Outer key x bounds are **128..312** relative to the head's x bounds **154..286**, giving total hardware-to-wood width ratio **184/132 = 1.39** (previously 246/132 = 1.86). The winding posts, string paths, numbered physical selectors and play-state behavior are unchanged.
+
+A mounted *real Vue SFC* test now calculates full touch-target + focus-ring bounds at responsive scene widths **282, 300, 322, 440px** and verifies 12px minimum inset, 3+3 key/shaft counts, symmetric hardware positions and restrained wood-to-metal proportions. This is geometry regression coverage, **not a real browser screenshot**. Final owner visual verification in a live 320/360px browser is still required before merge.
