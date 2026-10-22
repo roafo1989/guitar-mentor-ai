@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { computed, onMounted, ref, watch } from 'vue';
+import { computed, onBeforeUnmount, onMounted, ref, watch } from 'vue';
 import { useI18n } from 'vue-i18n';
 import { LearningHttpError, learningService } from './learning.service';
 import type { AssessmentView, DecisionCommand, DecisionView, TaskLearningView } from './learning.service';
@@ -22,13 +22,14 @@ const notice = ref('');
 const assessmentCursor = ref<string | null>(null);
 const decisionCursor = ref<string | null>(null);
 let generation = 0;
+const stateFresh = ref(false);
 let pending: DecisionCommand | null = null;
 
 const currentAttempt = computed(() => props.attempts.find(a => a.id === selected.value));
 const latestAssessment = computed(() => assessments.value[0] ?? null);
 const terminal = computed(() => state.value?.taskState !== 'ACTIVE');
 const canDecide = computed(() => !!state.value && !!currentAttempt.value &&
-  !terminal.value && !props.draftBusy && !sending.value && !loading.value);
+  !terminal.value && stateFresh.value && !props.draftBusy && !sending.value && !loading.value);
 const missingAssessment = computed(() => !latestAssessment.value);
 function message(e: unknown): string {
   if (!(e instanceof LearningHttpError)) return t('learning.errors.UNEXPECTED_RESPONSE');
@@ -37,14 +38,15 @@ function message(e: unknown): string {
 }
 async function refresh() {
   const seq = ++generation;
-  loading.value = true; error.value = '';
+  loading.value = true; stateFresh.value = false; error.value = '';
   try {
     const [next, history] = await Promise.all([
       learningService.state(props.learnerId, props.sessionId, props.taskId),
       learningService.decisions(props.learnerId, props.sessionId, props.taskId),
     ]);
     if (seq !== generation) return;
-    state.value = next; decisions.value = history.items; decisionCursor.value = history.nextCursor;
+    state.value = next; stateFresh.value = true;
+    decisions.value = history.items; decisionCursor.value = history.nextCursor;
     if (!selected.value || !props.attempts.some(a => a.id === selected.value)) {
       selected.value = next.latestAttemptId ?? props.attempts[0]?.id ?? '';
     }
@@ -124,8 +126,8 @@ async function sendCommand(command: DecisionCommand) {
     await learningService.decide(props.learnerId, props.sessionId, props.taskId, command);
     if (seq !== generation) return;
     pending = null;
-    notice.value = t('learning.saved');
     await refresh();
+    if (stateFresh.value) notice.value = t('learning.saved');
   } catch (cause) {
     if (seq !== generation) return;
     if (cause instanceof LearningHttpError && cause.status === 409) {
@@ -135,15 +137,17 @@ async function sendCommand(command: DecisionCommand) {
     } else {
       error.value = message(cause);
     }
-  } finally { if (seq === generation) sending.value = false; }
+  } finally { sending.value = false; }
 }
 watch(() => [props.learnerId, props.sessionId, props.taskId], () => {
-  ++generation; selected.value = ''; pending = null; state.value = null; void refresh();
+  ++generation; selected.value = ''; pending = null; state.value = null;
+  assessments.value = []; decisions.value = []; stateFresh.value = false; reason.value = ''; void refresh();
 });
 watch(() => props.attempts.map(a => a.id).join(','), () => {
   if (!loading.value && !sending.value) void refresh();
 });
 onMounted(() => { void refresh(); });
+onBeforeUnmount(() => { ++generation; pending = null; });
 </script>
 
 <template>
