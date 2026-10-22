@@ -52,6 +52,13 @@ public class Exercise {
     @Column(name = "events_resource", nullable = false)
     private String eventsResource;
 
+    @Column(name = "learning_goal", length = 4000)
+    private String learningGoal;
+    @Column(name = "practice_instructions", length = 8000)
+    private String practiceInstructions;
+    @Column(name = "tuning", length = 64)
+    private String tuning;
+
     @Column(name = "recommended_practice_minutes")
     private Integer recommendedPracticeMinutes;
 
@@ -85,6 +92,9 @@ public class Exercise {
     public String getDescription() { return description; }
     public String getScoreResource() { return scoreResource; }
     public String getEventsResource() { return eventsResource; }
+    public String getLearningGoal() { return learningGoal; }
+    public String getPracticeInstructions() { return practiceInstructions; }
+    public String getTuning() { return tuning; }
     public Integer getRecommendedPracticeMinutes() { return recommendedPracticeMinutes; }
     public String getPreviewAudioResource() { return previewAudioResource; }
     public String getPreviewPdfResource() { return previewPdfResource; }
