@@ -73,8 +73,8 @@ async function loadAssessments(seq = generation) {
   }
 }
 async function chooseAttempt(id: string) {
-  if (sending.value) return;
-  selected.value = id; pending.value = null;
+  if (sending.value || pending.value) return;
+  selected.value = id;
   const seq = ++generation;
   loading.value = true; error.value = '';
   try { await loadAssessments(seq); }
@@ -107,7 +107,8 @@ async function moreDecisions() {
   finally { if (seq === generation) loading.value = false; }
 }
 async function decide(action: 'CONTINUE_PRACTICING' | 'COMPLETE') {
-  if (!canDecide.value || !state.value || !selected.value) return;
+  if (!canDecide.value || !state.value || !selected.value ||
+      !state.value.availableActions.includes(action)) return;
   if (action === 'COMPLETE' && !window.confirm(t('learning.confirmComplete'))) return;
   const command: DecisionCommand = {
     requestId: crypto.randomUUID(), attemptId: selected.value, action,
@@ -174,7 +175,7 @@ onBeforeUnmount(() => { ++generation; pending.value = null; });
       <template v-else>
         <p v-if="currentAttempt.status === 'FAILED'" class="hint">{{ t('learning.technicalFailure') }}</p>
         <p v-else-if="currentAttempt.status !== 'PROCESSED'" class="hint">{{ t('learning.processing') }}</p>
-        <p v-else-if="missingAssessment" class="hint">{{ t('learning.noAssessment') }}</p>
+        <p v-else-if="currentAttempt.status === 'PROCESSED' && missingAssessment" class="hint">{{ t('learning.noAssessment') }}</p>
         <template v-if="latestAssessment">
           <h4>{{ t('learning.feedback') }}</h4>
           <p>{{ t('learning.recommendation.' + latestAssessment.recommendation) }}</p>
@@ -201,8 +202,8 @@ onBeforeUnmount(() => { ++generation; pending.value = null; });
           <label for="learning-reason">{{ t('learning.reason') }}</label>
           <textarea id="learning-reason" v-model="reason" maxlength="2000" rows="2" />
           <div class="form-actions">
-            <button class="action-button secondary-button" type="button" :disabled="sending" @click="decide('CONTINUE_PRACTICING')">{{ t('learning.continue') }}</button>
-            <button class="action-button" type="button" :disabled="sending" @click="decide('COMPLETE')">{{ t('learning.complete') }}</button>
+            <button class="action-button secondary-button" type="button" :disabled="sending"  :disabled="!state.availableActions.includes('CONTINUE_PRACTICING')" @click="decide('CONTINUE_PRACTICING')">{{ t('learning.continue') }}</button>
+            <button class="action-button" type="button" :disabled="sending"  :disabled="!state.availableActions.includes('COMPLETE')" @click="decide('COMPLETE')">{{ t('learning.complete') }}</button>
           </div>
         </template>
       </template>
