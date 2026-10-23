@@ -95,37 +95,39 @@ Retry повторяет только конкретный неудачный re
 
 | ID AC = TC | ФТ / категория | Дано / Когда / Тогда |
 | --- | --- | --- |
-| CORE-B1 | FT-003-08 / основной | Дано 45 попыток одного task; GETpage default/older →20/20/5 уникальных в DESC, cursor20-й строки только при hasMore; пусто→[]/null/false |
-| CORE-B2 | FT-003-08 / границы | Дано 51 строка; limit1/50, before между существующими номерами →точная exclusive фильтрация; invalid/repeated/overflow →400 безопасный code |
-| CORE-B3 | FT-003-08 / конкуренция | Между страницами создан номер 46; older cursor не даёт дубль/пропуск существовавших строк; refresh latest видит 46 |
-| CORE-B4 | FT-003-08 / безопасность | Чужая/несуществующая цепочка или attempt другого task →одинаковый 404; malformed UUID400; no-store; нет media_key/comment в error/log |
-| CORE-B5 | FT-003-08 / SQL | Дано 0/1/20/50 строк и assessments разных revisions; projection boolean верен, queries не растут по N, capabilities не читает attempts; реальный Postgres/индекс V7 |
-| CORE-B6 | FT-003-08 / регрессия | LegacyGET даёт прежний полный массив/порядок; POSTrequestId replay/terminal guard/TTL/disableduploads работают как до изменения; safe500 без stack |
-| CORE-U1 | FT-003-09 / основной | Дано 45 попыток; первая/Older/Newer/Latest →правильные страницы,≤20+2 DTO в памяти; network requests только page/detail |
-| CORE-U2 | FT-003-09 / выбор | Выбрана старая попытка; смена historypage/появление новой/latestID вне page →выбор, assessment и reason сохранены; detail404 закрывает decision без автосмены |
-| CORE-U3 | FT-003-09 / восстановление | Page/poll/detail fails →видимая локальная ошибка/старые данные, retry восстанавливает; uploadsuccess+refreshfail не даёт вторую отправку ине теряет фактуспеха |
-| CORE-U4 | FT-003-09 / конкуренция | Поздний ответстарой page/task/selection/после unmount не заменяет актуальное; polling in-flight≤1,hidden0,visible1; pendingcommand не переназначается |
-| CORE-U5 | FT-003-09 / регрессия | Draft/file/recording/метроном + pagination →не сброшены; state/assessment freshness,availableActions,409 и revisions/evidence/decision paging #19 сохранены;RUEN/360px/zoom/keyboard |
-| CORE-E1 | FT-003-10 / безопасность | Serverbody HTML/stack/path/script/unknowncode на 400/404/500 →только локализованный фиксированный текст; нет rawbody в DOM/console/store |
-| CORE-E2 | FT-003-10 / семантика | learner404/session404/catalog404/background204/task204 и network/500/invalidJSON →ровно описанное сохранение/очистка ID и штатные empty states |
-| CORE-E3 | FT-003-10 / повтор | Ошибка GET →Retry толькоэтого GET; failedPOST/PUT →0 автоповторов, draft сохранён, явнаякнопкадоступнапосле busy;без reset session |
-| CORE-E4 | FT-003-10 / формат | Успешный 200 сбитым DTO/JSON →INVALID_RESPONSE; дополнительные/nullable metadata допускаются;abort/contextlate не создаётошибку/чужиеданные |
-| CORE-E5 | FT-003-10 / UX-регрессия | Показаннаяошибка RU→EN переводится беззапроса; restorevoid/storefailure и Home#51 не сломаны; mobile/keyboard/aria/все прежние intake/tooltests |
+| CORE-B1 | FT-003-08 / основной | Дано 45 попыток; при чтении первой и older страниц возвращаются 20/20/5 уникальных строк в DESC. Последняя/пустая страница имеет null cursor и hasMore=false. |
+| CORE-B2 | FT-003-08 / границы | Дано limit 1/50 и cursor на пропуске; при запросе действует точная exclusive фильтрация. Невалидный, пустой, repeated или overflow query даёт safe 400. |
+| CORE-B3 | FT-003-08 / конкуренция | Дана прочитанная страница; после вставки нового большего номера older не смещается, а refresh latest показывает новую попытку. |
+| CORE-B4 | FT-003-08 / безопасность | Дана чужая/несуществующая цепочка либо attempt другого task; запрос даёт одинаковый 404. Malformed UUID даёт 400; новые GET имеют no-store; ошибки не раскрывают пути/stack/media_key. |
+| CORE-B5 | FT-003-08 / SQL | Дано 0/1/20/50 строк и разные revisions; при чтении assessmentAvailable верен, SQL не растёт по N. Capabilities проверяет ownership без истории; используется существующий индекс V7. |
+| CORE-B6 | FT-003-08 / регрессия | Даны legacy клиенты и текущие uploads/TTL; при новом API старые GET/POST, replay requestId и terminal guard сохраняются. Неожиданная ошибка чтения даёт safe 500. |
+| CORE-U1 | FT-003-09 / основной | Дано 45 попыток; при Older/Newer/Latest показаны правильные страницы. В памяти ≤20+2 DTO; HTTP использует только page/detail. |
+| CORE-U2 | FT-003-09 / выбор | Дана выбранная старая попытка; смена страницы или новая latest не сбрасывает выбор/assessment/reason. При detail404 решение закрыто, автоматического выбора latest нет. |
+| CORE-U3 | FT-003-09 / восстановление | Дан отказ page/poll/detail; UI сохраняет последнюю страницу с ошибкой, Retry восстанавливает чтение. После upload200+history500 факт успеха остаётся, второго POST нет. |
+| CORE-U4 | FT-003-09 / конкуренция | Дан задержанный ответ или pending decision; смена контекста не допускает поздней подмены данных/команды. Один poll in-flight, hidden приостанавливает, visible обновляет один раз. |
+| CORE-U5 | FT-003-09 / регрессия | Дан draft, recorder или метроном; навигация истории их не сбрасывает. Freshness/availableActions/409 и paging результатов #19 сохраняются; RU/EN, 360px, zoom и keyboard проверены. |
+| CORE-E1 | FT-003-10 / безопасность | Дан error body с HTML/stack/path/script/unknown code; UI показывает только фиксированный перевод, не сохраняет raw body в DOM/store/console. |
+| CORE-E2 | FT-003-10 / семантика | Даны scoped 404 и допустимые 204; restore/session очищают только свой ключ, catalog сохраняет session, 204 даёт штатное empty. Network/500/parse error не удаляют ID. |
+| CORE-E3 | FT-003-10 / повтор | Дан неудачный GET либо POST/PUT; Retry повторяет только нужный read, автоматических write-повторов нет. Ввод сохраняется, busy снимается, действующие guards соблюдены. |
+| CORE-E4 | FT-003-10 / формат | Дан плохой success JSON/DTO; результат INVALID_RESPONSE. Дополнительные/nullable metadata совместимы. Abort и старый context не создают ложной ошибки и не перезаписывают новый. |
+| CORE-E5 | FT-003-10 / UX-регрессия | Дана показанная ошибка RU; при EN текст меняется без HTTP. Store restore:void/Home #51, intake/learning/tools работают; строковые HTTP predicates заменены. |
 
 ## 7. Схемы, выпуск и откат
 
-Общая архитектура Java/Vue/PostgreSQL, хранение и sequenceUS-003 сохраняются. Применимая дополнительная [схема чтения и состояния selection](../diagrams/core-01-history.mmd) описывает Full #125/#126. Для Standard #127 отдельная топология не нужна: локальная нормализация существующего fetch/error, без новой интеграции/БД.
+Общая архитектура Java/Vue/PostgreSQL, storage и sequence US-003 сохраняются. Применимая дополнительная [схема чтения и selection](../diagrams/core-01-history.mmd) описывает Full #125/#126. Для Standard #127 отдельная топология не нужна: это нормализация существующего fetch/error без новой интеграции и БД.
 
-Поставка отдельными PR с Refs #125/#126/#127; не закрывать Issues самим фактом анализа. Порядок backend125 →frontend126;127 независима, интегрировать актуальный Home#51 и провести regression. Использовать текущие рабочие флаги обучения/загрузок; не включать их в пользовательской среде автоматически. Контрольный smoke:0/45 синтетических попыток,страницы 20/20/5;стараяоценкапри latest вне page;fail/retry;404 не того scope;learningdisabled;uploadsuccess/historyfail. Никаких фиктивных музыкальных оценок в пользовательских данных. Внутренние тестовые fixturesassessment — только тестовый writer и существующая авторизация тестов.
+Поставка отдельными PR с Refs #125/#126/#127. Порядок backend125 → frontend126; #127 независима, интегрирует актуальный Home #51. Существующие флаги обучения/загрузок не включать в пользовательской среде автоматически. Smoke на тестовом стенде: 0/45 попыток, страницы20/20/5; старая оценка при latest вне страницы; fail/retry; scoped404; learning disabled; uploadsuccess/historyfail. Использовать только синтетические данные и существующий тестовый writer без обхода авторизации runtime.
 
-Rollback: при нарушении выбора/потере draft/неограниченномзапросе/невернойошибке разработчик останавливает поставку и откатывает соответствующий frontendbuild, проверяет исходное восстановление/форму/загрузку. При откате backend125 сначала откатить frontend126; старый frontend работаетсновым backend благодаря legacyAPI. Миграций/компенсацийданныхнет, откаткода не удаляет историю. Не восстанавливает ужеудалённые TTL файлы. Для 127 откатить frontendbuild и проверить локальныеключи/restore; никаких downSQL/очистки localStorage.
+Rollback trigger: нарушен выбор, потерян draft, возник неограниченный запрос или небезопасная ошибка. Разработчик останавливает поставку, откатывает соответствующий frontend build и проверяет восстановление, форму и загрузку. Перед откатом backend125 откатить frontend126; старый frontend совместим с новым backend через legacy API. Миграций и компенсаций данных нет, откат кода не удаляет историю. Уже удалённые TTL-файлы не восстанавливаются. Для #127 откатить frontend build и проверить scoped restore, без очистки localStorage или down SQL.
 
 ## 8. Оценка и готовность
 
-| Задача | Разбор труда | Рабочая / диапазон / уверенность | Текущее состояние подготовки |
+| Задача | Разбор труда | Рабочая / диапазон / уверенность | Состояние подготовки |
 | --- | --- | --- | --- |
-| #125 | query/DTO/routes3; ownership/batch/errors2; PostgreSQL+HTTPregression/docs3 | 8 ч /6–12/средняя | Оценка / Выполнено; готова к старту |
-| #126 | servicemodel/page2; selection/detail/freshness3; polling/races2; component/a11y/regression/docs3 | 10 ч /8–14/средняя | Оценка / Ожидание; технически готова, интеграция после 125 и итоговой 51 |
-| #127 | typedtransport/predicates2; consumers/restore/i18n2; malformedresponse/retry/regression/docs2 | 6 ч /4–8/средняя | Оценка / Выполнено; готова к старту |
+| #125 | Query/DTO/routes3; ownership/batch/errors2; PostgreSQL+HTTP regression/docs3 | 8ч /6–12/средняя | Оценка / Выполнено; готова к старту |
+| #126 | Model/page2; selection/detail/freshness3; polling/races2; component/a11y/regression/docs3 | 10ч /8–14/средняя | Оценка / Ожидание; после API125 и интеграции итоговой51 |
+| #127 | Typed transport/predicates2; consumers/restore/i18n2; failure/retry/regression/docs2 | 6ч /4–8/средняя | Оценка / Выполнено; готова к старту |
 
-Сумма 24 ч(18–34), включает проверки/исправления собственного объёма и документацию; это труд, не календарный срок. Не добавлять 24 ч к прежним оценкам #18/#19/#51 как повтор уже готовой работы: это новые явно ограниченные результаты. Наблюдаемая потребность — отсутствие ограниченной страницы и безопасного общего error handling, а не доказанное пользователем замедление: latency/скорость по этой подготовке не измерялись. Объективные внедренческие риски: активный PR124 меняет те же Vue компоненты (freshmain/совместнаярегрессия), зависимости #126 на API, SQLtest needsPostgreSQL. Продуктовых TBD/внешних credentials/дизайнсогласования для старта нет.
+Итого24ч (18–34), включая проверки, исправления собственного объёма и документацию; это труд, не календарный срок. Ранее готовая работа #18/#19/#51 повторно не учитывается: это новые ограниченные принимаемые результаты. Потребность подтверждена отсутствием ограниченной страницы и безопасного общего error handling; пользовательское замедление и latency не измерялись.
+
+Риски: PR124 меняет те же Vue-компоненты (читать свежий main и выполнить regression); #126 зависит от API; SQL tests требуют PostgreSQL. Продуктовых TBD, внешних credentials и предварительного согласования макета нет.
