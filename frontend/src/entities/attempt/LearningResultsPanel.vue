@@ -260,11 +260,14 @@ onBeforeUnmount(() => { ++generation; pending.value = null; });
       </template>
       <button v-if="pending && !sending" class="action-button secondary-button" type="button" :disabled="draftBusy" @click="retry">{{ t('learning.retry') }}</button>
       <p v-if="notice" role="status">{{ notice }}</p>
+      <div v-if="evidenceError || decisionHistoryError" role="alert" class="error">
+        {{ evidenceError || decisionHistoryError }}
+      </div>
       <details class="learning-history-details">
         <summary>{{ t('learning.historyDetails') }}</summary>
         <h4>{{ t('learning.skillEvidence') }}</h4>
       <p v-if="evidenceLoading" role="status">{{ t('learning.loading') }}</p>
-      <div v-if="evidenceError" role="alert">
+      <div v-if="evidenceError">
         <p>{{ evidenceError }}</p>
         <button type="button" class="action-button secondary-button" :disabled="evidenceLoading" @click="loadEvidence()">{{ t('learning.refresh') }}</button>
       </div>
@@ -279,7 +282,7 @@ onBeforeUnmount(() => { ++generation; pending.value = null; });
       <button v-if="evidenceCursor" class="action-button secondary-button" type="button" :disabled="evidenceLoading" @click="moreEvidence">{{ t('learning.more') }}</button>
       <h4>{{ t('learning.decisionHistory') }}</h4>
       <p v-if="decisionHistoryLoading" role="status">{{ t('learning.loading') }}</p>
-      <div v-if="decisionHistoryError" role="alert">
+      <div v-if="decisionHistoryError">
         <p>{{ decisionHistoryError }}</p>
         <button type="button" class="action-button secondary-button" :disabled="decisionHistoryLoading" @click="loadDecisionHistory()">{{ t('learning.refresh') }}</button>
       </div>
