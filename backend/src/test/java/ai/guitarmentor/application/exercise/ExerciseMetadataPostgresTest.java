@@ -44,8 +44,10 @@ class ExerciseMetadataPostgresTest {
     @Test
     void metadataChecksRejectWhitespaceAndOverlongStringsWithoutChangingSeed() {
         for (String column : java.util.List.of("learning_goal", "practice_instructions", "tuning")) {
-            assertThrows(DataIntegrityViolationException.class,
-                    () -> jdbc.update("UPDATE exercises SET " + column + "='   ' WHERE id=?", ORIGINAL));
+            for (String invalid : java.util.List.of("   ", "\\t\\n  ")) {
+                assertThrows(DataIntegrityViolationException.class,
+                        () -> jdbc.update("UPDATE exercises SET " + column + "=? WHERE id=?", invalid, ORIGINAL));
+            }
         }
         assertThrows(DataIntegrityViolationException.class,
                 () -> jdbc.update("UPDATE exercises SET learning_goal=? WHERE id=?", "X".repeat(4001), ORIGINAL));
@@ -58,7 +60,7 @@ class ExerciseMetadataPostgresTest {
     @Test
     void exactOldVersionReturnsItsOwnCriteriaAndNotCurrentVersionCriteria() {
         UUID old = UUID.randomUUID();
-        String code = "TEST119-" + old.toString().substring(0, 8);
+        String code = "GM-EB01";
         try {
             jdbc.update("INSERT INTO exercises (id,code,version,is_current,title,"
                     + "instrument_code,technique_code,style_code,difficulty,bpm,measures,"
@@ -72,10 +74,13 @@ class ExerciseMetadataPostgresTest {
                     + "label,observable_result,display_order)"
                     + " VALUES (?,'ONE','PULSE','Pulse','Old version criterion',1)", old);
             var exact = assembler.one(repository.findById(old).orElseThrow());
+            assertEquals("GM-EB01", exact.code());
+            assertEquals("v1", exact.version());
             assertEquals("Original goal", exact.learningGoal());
             assertEquals(20, exact.recommendedPracticeMinutes());
             assertEquals(java.util.List.of("Old version criterion"), exact.successCriteria());
             var current = catalog.find("GM-EB01");
+            assertEquals("0.8B", current.version());
             assertEquals(3, current.successCriteria().size());
         } finally {
             jdbc.update("DELETE FROM exercise_criteria WHERE exercise_id=?", old);
