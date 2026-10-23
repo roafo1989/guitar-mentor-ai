@@ -1,0 +1,26 @@
+sequenceDiagram
+  participant H as Home summary
+  participant S as Existing client store
+  participant API as Existing Java REST
+  H->>S: Прочитать выбранные learner/session keys
+  H->>API: GET learner
+  alt Network или 5xx
+    API-->>H: Ошибка
+    H-->>S: Сохранить selection, показать Retry
+  else Learner подтверждён
+    alt Session key отсутствует
+      H->>API: GET background, CTA setup или diagnosis
+    else Session key есть
+      H->>API: GET выбранной session
+      alt Только session GET404
+        H->>S: Удалить только этот session key
+        H->>API: GET background
+      else TASK_ASSIGNED
+        H->>API: GET tasks затем GET task learning
+        API-->>H: Назначенная версия и ACTIVE/terminal
+      else COLLECTING или READY
+        H-->>S: CTA в существующий diagnostics route
+      end
+    end
+    H-->>S: Только view state, без POST
+  end
