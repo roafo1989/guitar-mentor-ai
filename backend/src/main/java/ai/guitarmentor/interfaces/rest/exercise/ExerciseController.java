@@ -134,7 +134,11 @@ public class ExerciseController {
     @org.springframework.web.bind.annotation.ExceptionHandler(
             ai.guitarmentor.application.exercise.ExerciseReferenceException.class)
     public ResponseEntity<java.util.Map<String, String>> exactError(
-            ai.guitarmentor.application.exercise.ExerciseReferenceException ex) {
+            ai.guitarmentor.application.exercise.ExerciseReferenceException ex,
+            jakarta.servlet.http.HttpServletRequest request) {
+        if ("HEAD".equalsIgnoreCase(request.getMethod())) {
+            return ResponseEntity.status(ex.status()).cacheControl(CacheControl.noCache()).build();
+        }
         return ResponseEntity.status(ex.status()).cacheControl(CacheControl.noCache())
                 .body(java.util.Map.of("code", ex.code(), "error", ex.getMessage()));
     }
