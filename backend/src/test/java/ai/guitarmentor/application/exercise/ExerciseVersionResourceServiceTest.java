@@ -75,6 +75,22 @@ class ExerciseVersionResourceServiceTest {
     }
 
     @Test
+    void unexpectedReadFailureReturnsSafe500RatherThanMissingOrCurrentFallback() throws Exception {
+        var exercise = mock(Exercise.class);
+        when(exercise.getScoreResource()).thenReturn("exercises/GM-EB01/evening_blues_v08B.musicxml");
+        when(repository.findByCodeAndVersion("GM-EB01", "v1")).thenReturn(Optional.of(exercise));
+        var failing = spy(service);
+        doThrow(new java.io.IOException("internal sensitive file path"))
+                .when(failing).readBytes(any(org.springframework.core.io.ClassPathResource.class));
+        var error = assertThrows(ExerciseReferenceException.class,
+                () -> failing.read("GM-EB01", "v1", ExerciseVersionResourceService.Kind.SCORE));
+        assertEquals(HttpStatus.INTERNAL_SERVER_ERROR, error.status());
+        assertEquals("EXERCISE_RESOURCE_READ_FAILED", error.code());
+        assertEquals("Unable to read exercise resource", error.getMessage());
+        verify(repository, never()).findByCodeAndCurrentTrue(anyString());
+    }
+
+    @Test
     void dtoPinsAllFourUrlsButPreservesNullablePreviewUrls() {
         var old = mock(Exercise.class);
         when(old.getCode()).thenReturn("GM-EB01");

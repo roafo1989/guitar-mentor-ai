@@ -6,6 +6,7 @@ import ai.guitarmentor.interfaces.rest.exercise.ExerciseController;
 import java.nio.charset.StandardCharsets;
 import java.util.Map;
 import java.util.UUID;
+import org.springframework.dao.DataIntegrityViolationException;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.condition.EnabledIfEnvironmentVariable;
@@ -100,6 +101,28 @@ class ExerciseVersionPostgresTest {
                     UUID.class, code));
         } finally {
             jdbc.update("DELETE FROM exercises WHERE id IN (?,?,?)", v1, v2, missing);
+        }
+    }
+
+    @Test
+    void databaseRejectsDuplicateCodeVersionAndSecondCurrentWithoutMutatingCatalog() {
+        String code = "QA120-" + UUID.randomUUID().toString().substring(0, 8);
+        UUID old = UUID.randomUUID(), current = UUID.randomUUID();
+        try {
+            insert(code, "v1", false, old, "v1", true);
+            insert(code, "v2", true, current, "v2", true);
+            assertThrows(DataIntegrityViolationException.class,
+                    () -> insert(code, "v1", false, UUID.randomUUID(), "v2", true));
+            assertThrows(DataIntegrityViolationException.class,
+                    () -> insert(code, "v3", true, UUID.randomUUID(), "v2", true));
+            assertEquals(2L, jdbc.queryForObject(
+                    "SELECT count(*) FROM exercises WHERE code=?", Long.class, code));
+            assertEquals(1L, jdbc.queryForObject(
+                    "SELECT count(*) FROM exercises WHERE code=? AND is_current=true", Long.class, code));
+            assertEquals(old, jdbc.queryForObject(
+                    "SELECT id FROM exercises WHERE code=? AND version='v1'", UUID.class, code));
+        } finally {
+            jdbc.update("DELETE FROM exercises WHERE id IN (?,?)", old, current);
         }
     }
 

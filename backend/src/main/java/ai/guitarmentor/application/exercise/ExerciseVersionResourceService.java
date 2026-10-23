@@ -71,11 +71,16 @@ public class ExerciseVersionResourceService {
     public byte[] read(String code, String version, Kind kind) {
         var resource = locate(code, version, kind);
         try {
-            return resource.getContentAsByteArray();
+            return readBytes(resource);
         } catch (IOException e) {
             throw failure(HttpStatus.INTERNAL_SERVER_ERROR, "EXERCISE_RESOURCE_READ_FAILED",
                     "Unable to read exercise resource");
         }
+    }
+
+    // Narrow IO seam: allows a deterministic IOException regression without a real broken filesystem.
+    byte[] readBytes(ClassPathResource resource) throws IOException {
+        return resource.getContentAsByteArray();
     }
 
     public enum Kind { SCORE, EVENTS, AUDIO, PDF }
