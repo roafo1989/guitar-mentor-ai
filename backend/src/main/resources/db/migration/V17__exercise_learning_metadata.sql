@@ -5,9 +5,9 @@ ALTER TABLE exercises
   ADD COLUMN tuning VARCHAR(64) NULL,
   ADD CONSTRAINT chk_exercise_learning_goal
     CHECK (learning_goal IS NULL OR
-      (char_length(learning_goal) <= 4000 AND length(btrim(learning_goal)) > 0)),
+      (char_length(learning_goal) <= 4000 AND learning_goal ~ '[^[:space:]]')),
   ADD CONSTRAINT chk_exercise_practice_instructions
     CHECK (practice_instructions IS NULL OR
-      (char_length(practice_instructions) <= 8000 AND length(btrim(practice_instructions)) > 0)),
+      (char_length(practice_instructions) <= 8000 AND practice_instructions ~ '[^[:space:]]')),
   ADD CONSTRAINT chk_exercise_tuning
-    CHECK (tuning IS NULL OR length(btrim(tuning)) > 0);
+    CHECK (tuning IS NULL OR tuning ~ '[^[:space:]]');
