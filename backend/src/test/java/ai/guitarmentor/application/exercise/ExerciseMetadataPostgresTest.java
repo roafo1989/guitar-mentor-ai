@@ -58,6 +58,37 @@ class ExerciseMetadataPostgresTest {
     }
 
     @Test
+    void acceptsExactLengthBoundariesAndNullsWithoutBackfillingExistingContent() {
+        UUID id = UUID.randomUUID();
+        String code = "TEST119-" + id.toString().substring(0, 8);
+        try {
+            jdbc.update("INSERT INTO exercises (id,code,version,is_current,title,"
+                    + "instrument_code,technique_code,style_code,difficulty,bpm,measures,"
+                    + "meter,author,license,review_status,description,score_resource,events_resource,"
+                    + "learning_goal,practice_instructions,tuning)"
+                    + " SELECT ?,?,'v1',false,title,instrument_code,technique_code,"
+                    + "style_code,difficulty,bpm,measures,meter,author,license,review_status,"
+                    + "description,score_resource,events_resource,?,?,?"
+                    + " FROM exercises WHERE id=?", id, code,
+                    "G".repeat(4000), "I".repeat(8000), "T".repeat(64), ORIGINAL);
+            var exact = assembler.one(repository.findById(id).orElseThrow());
+            assertEquals(4000, exact.learningGoal().length());
+            assertEquals(8000, exact.practiceInstructions().length());
+            assertEquals(64, exact.tuning().length());
+            assertEquals(java.util.List.of(), exact.successCriteria());
+            assertNull(exact.recommendedPracticeMinutes());
+            jdbc.update("UPDATE exercises SET learning_goal=NULL,practice_instructions=NULL,"
+                    + "tuning=NULL WHERE id=?", id);
+            var nullable = assembler.one(repository.findById(id).orElseThrow());
+            assertNull(nullable.learningGoal());
+            assertNull(nullable.practiceInstructions());
+            assertNull(nullable.tuning());
+        } finally {
+            jdbc.update("DELETE FROM exercises WHERE id=?", id);
+        }
+    }
+
+    @Test
     void exactOldVersionReturnsItsOwnCriteriaAndNotCurrentVersionCriteria() {
         UUID old = UUID.randomUUID();
         String code = "GM-EB01";
