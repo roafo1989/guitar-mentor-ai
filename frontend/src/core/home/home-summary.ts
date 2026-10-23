@@ -37,6 +37,8 @@ export async function resolveHomeSummary(
   } catch (cause) {
     // Only a 404 from GET session invalidates this browser's selection.
     if (cause instanceof Error && cause.message.startsWith('HTTP_404')) {
+      // A concurrent tab or selection change must not be overwritten by an old 404.
+      if (storage.getItem(key) !== selected) throw cause;
       storage.removeItem(key);
       const background = await onboardingService.get(learnerId, 'ACOUSTIC_GUITAR');
       return simple(background ? 'diagnostics' : 'onboarding');
