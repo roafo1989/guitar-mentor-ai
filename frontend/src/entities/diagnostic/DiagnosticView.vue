@@ -201,7 +201,7 @@ async function assign(exerciseCode: string): Promise<void> {
 <template>
   <section class="profile-page">
     <div class="intro">
-      <span class="eyebrow">DEV-05A · DIAGNOSTIC SESSION</span>
+      <span class="eyebrow">{{ t("diagnostic.workspace.lesson") }}</span>
       <h1>{{ t('diagnostic.title') }}</h1>
       <p>{{ t('diagnostic.subtitle') }}</p>
     </div>
@@ -212,9 +212,10 @@ async function assign(exerciseCode: string): Promise<void> {
       <RouterLink to="/profile">{{ t('app.profile') }}</RouterLink>
     </div>
     <div v-else class="panel">
-      <div v-if="session" class="saved-status" role="status">
-        {{ t('diagnostic.session') }}: {{ session.id }}
-      </div>
+      <details v-if="session" class="session-details">
+        <summary>{{ t('diagnostic.workspace.sessionDetails') }}</summary>
+        <p class="hint">{{ t('diagnostic.session') }}: {{ session.id }}</p>
+      </details>
       <DiagnosticEvidencePanel v-if="session && learnerStore.learner"
         :learner-id="learnerStore.learner.id" :session-id="session.id"
         :allow-upload="session.status === 'COLLECTING_EVIDENCE'"
@@ -290,16 +291,35 @@ async function assign(exerciseCode: string): Promise<void> {
           <span>{{ task.exercise.measures }} {{ t('diagnostic.bars') }}</span>
           <span>{{ task.exercise.license }}</span>
         </div>
-        <h3>{{ t('diagnostic.taskInstructions') }}</h3>
-        <p>{{ t('diagnostic.practiceTips') }}</p>
-        <p class="hint">{{ t('diagnostic.draftWarning') }}</p>
-        <ExercisePreview :exercise="task.exercise" assigned />
-        <SubmissionPanel v-if="learnerStore.learner"
-          :learner-id="learnerStore.learner.id"
-          :session-id="session.id" :task-id="task.id" @draft-state="onSubmissionDraft" />
+        <div class="lesson-workspace">
+          <section class="lesson-materials" :aria-label="t('diagnostic.workspace.materials')">
+            <h3>{{ t('diagnostic.workspace.materials') }}</h3>
+            <h4>{{ t('diagnostic.taskInstructions') }}</h4>
+            <p>{{ t('diagnostic.practiceTips') }}</p>
+            <p class="hint">{{ t('diagnostic.draftWarning') }}</p>
+            <ExercisePreview :exercise="task.exercise" assigned />
+          </section>
+          <section class="lesson-submission" :aria-label="t('diagnostic.workspace.recording')">
+            <SubmissionPanel v-if="learnerStore.learner"
+              :learner-id="learnerStore.learner.id"
+              :session-id="session.id" :task-id="task.id" @draft-state="onSubmissionDraft" />
+          </section>
+        </div>
       </template>
       <p v-if="error" role="alert" class="error">{{ error }}</p>
       <p><RouterLink to="/onboarding">{{ t('diagnostic.back') }}</RouterLink></p>
     </div>
   </section>
 </template>
+
+<style scoped>
+.lesson-workspace { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1.15fr); gap: 24px; align-items: start; margin-top: 24px; }
+.lesson-materials, .lesson-submission { min-width: 0; }
+.lesson-materials { border: 1px solid #dce5e2; border-radius: 14px; padding: 20px; background: #f8fbfa; }
+.lesson-materials h3 { margin-top: 0; }
+.lesson-submission :deep(.homework-panel) { margin-top: 0; }
+.session-details { margin-bottom: 18px; font-size: 14px; color: #566777; }
+.session-details p { overflow-wrap: anywhere; }
+@media(max-width: 800px) { .lesson-workspace { grid-template-columns: 1fr; gap: 16px; } }
+@media(max-width: 400px) { .lesson-materials { padding: 14px; } }
+</style>
