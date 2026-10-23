@@ -33,6 +33,14 @@ public class ExerciseCatalogService {
     }
 
     @Transactional(readOnly = true)
+    public ExerciseView findVersion(String code, String version) {
+        return assembler.one(exercises.findByCodeAndVersion(code, version)
+                .orElseThrow(() -> new ai.guitarmentor.application.exercise.ExerciseReferenceException(
+                        org.springframework.http.HttpStatus.NOT_FOUND,
+                        "EXERCISE_NOT_FOUND", "Exercise not found")));
+    }
+
+    @Transactional(readOnly = true)
     public byte[] resource(String code, boolean score) throws IOException {
         Exercise exercise = exercises.findByCodeAndCurrentTrue(code)
                 .orElseThrow(() -> new EntityNotFoundException("Exercise not found"));

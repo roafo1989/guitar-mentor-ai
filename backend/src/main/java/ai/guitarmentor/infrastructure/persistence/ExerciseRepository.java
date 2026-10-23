@@ -11,4 +11,6 @@ public interface ExerciseRepository extends JpaRepository<Exercise, UUID> {
             String instrumentCode, String techniqueCode);
 
     Optional<Exercise> findByCodeAndCurrentTrue(String code);
+
+    Optional<Exercise> findByCodeAndVersion(String code, String version);
 }
