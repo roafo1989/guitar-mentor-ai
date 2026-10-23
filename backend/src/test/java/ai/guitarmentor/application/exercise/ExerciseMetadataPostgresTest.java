@@ -19,6 +19,7 @@ class ExerciseMetadataPostgresTest {
     @Autowired ExerciseCatalogService catalog;
     @Autowired ExerciseRepository repository;
     @Autowired ExerciseViewAssembler assembler;
+    @Autowired ai.guitarmentor.application.diagnostic.DiagnosticTaskService diagnosticTasks;
 
     private static final UUID ORIGINAL = UUID.fromString("58430000-0000-4000-8000-000000000801");
 
@@ -91,6 +92,8 @@ class ExerciseMetadataPostgresTest {
     @Test
     void exactOldVersionReturnsItsOwnCriteriaAndNotCurrentVersionCriteria() {
         UUID old = UUID.randomUUID();
+        UUID learner = UUID.randomUUID(), profile = UUID.randomUUID();
+        UUID session = UUID.randomUUID(), task = UUID.randomUUID();
         String code = "GM-EB01";
         try {
             jdbc.update("INSERT INTO exercises (id,code,version,is_current,title,"
@@ -113,7 +116,31 @@ class ExerciseMetadataPostgresTest {
             var current = catalog.find("GM-EB01");
             assertEquals("0.8B", current.version());
             assertEquals(3, current.successCriteria().size());
+            // A persisted assignment must not reselect the current row by exercise code.
+            var now = java.sql.Timestamp.from(java.time.Instant.now());
+            jdbc.update("INSERT INTO learners(id,display_name,created_at) VALUES(?,?,?)",
+                    learner, "Version QA", now);
+            jdbc.update("INSERT INTO instrument_profiles(id,learner_id,instrument_code,technique_code)"
+                    + " VALUES (?,?,'ACOUSTIC_GUITAR','FINGERSTYLE')", profile, learner);
+            jdbc.update("INSERT INTO diagnostic_sessions(id,instrument_profile_id,status,"
+                    + "created_at,updated_at,version) VALUES (?,?,'TASK_ASSIGNED',?,?,0)",
+                    session, profile, now, now);
+            jdbc.update("INSERT INTO diagnostic_tasks(id,diagnostic_session_id,exercise_id,assigned_at)"
+                    + " VALUES (?,?,?,?)", task, session, old, now);
+            var assigned = diagnosticTasks.current(learner, session).orElseThrow();
+            assertEquals(old, jdbc.queryForObject(
+                    "SELECT exercise_id FROM diagnostic_tasks WHERE id=?", UUID.class, task));
+            assertEquals("GM-EB01", assigned.exercise().code());
+            assertEquals("v1", assigned.exercise().version());
+            assertEquals("Original goal", assigned.exercise().learningGoal());
+            assertEquals(java.util.List.of("Old version criterion"),
+                    assigned.exercise().successCriteria());
+            assertEquals(20, assigned.exercise().recommendedPracticeMinutes());
         } finally {
+            jdbc.update("DELETE FROM diagnostic_tasks WHERE id=?", task);
+            jdbc.update("DELETE FROM diagnostic_sessions WHERE id=?", session);
+            jdbc.update("DELETE FROM instrument_profiles WHERE id=?", profile);
+            jdbc.update("DELETE FROM learners WHERE id=?", learner);
             jdbc.update("DELETE FROM exercise_criteria WHERE exercise_id=?", old);
             jdbc.update("DELETE FROM exercises WHERE id=?", old);
         }
