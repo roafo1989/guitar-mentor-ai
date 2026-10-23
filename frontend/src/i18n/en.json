@@ -161,6 +161,12 @@
       "ALL_STYLES_EXCLUDED": "All suitable styles are excluded by preferences.",
       "NO_BEGINNER_EXERCISE": "No beginner-friendly exercise is available yet.",
       "NO_TIME_FIT": "No exercise fits the available session duration."
+    },
+    "workspace": {
+      "materials": "Materials",
+      "recording": "My recording and results",
+      "sessionDetails": "Assessment details",
+      "lesson": "Lesson"
     }
   },
   "home": {
@@ -175,12 +181,20 @@
     "pace": "Music you love. Clear steps. At your own pace.",
     "sectionsTitle": "Where shall we start?",
     "open": "Open",
-    "restoreError": "Could not load your profile. Try again or open the profile page.",
+    "restoreError": "Could not check the saved lesson. Retry; your data and selection are preserved.",
     "retry": "Try again",
     "sections": {
       "profile": "Your instrument, playing technique and the music you enjoy.",
       "onboarding": "What you can play, what you want to learn and when you can practice.",
       "diagnostics": "A starting point for getting to know your playing. The first assessment step is available for now."
+    },
+    "next": {
+      "profile": "Create profile",
+      "onboarding": "Continue setup",
+      "diagnostics": "Continue assessment",
+      "choose": "Choose an exercise",
+      "lesson": "Continue lesson",
+      "result": "View results"
     }
   },
   "attempt": {
@@ -243,7 +257,8 @@
     "uploadNetworkError": "Could not connect to the server. Check your connection and try again.",
     "uploadServerError": "The server could not accept this recording. Please retry.",
     "historyLoadError": "Could not load attempt history. Refresh the page and check the connection.",
-    "metronomePracticeTip": "You can record while playing to the metronome. Use headphones to avoid speaker clicks being captured by the microphone."
+    "metronomePracticeTip": "You can record while playing to the metronome. Use headphones to avoid speaker clicks being captured by the microphone.",
+    "historyDetails": "Attempt history"
   },
   "evidence": {
     "heading": "My performances",
@@ -460,6 +475,8 @@
     "skillEvidence": "Skill assessment evidence",
     "skillEvidenceHelp": "Individual criterion results are not the same as a confirmed skill level. Learner self-assessment is stored separately.",
     "noSkillEvidence": "No assessed criteria yet",
-    "uploadClosed": "Assignment completed. New attempts cannot be uploaded; history and feedback remain available."
+    "uploadClosed": "Assignment completed. New attempts cannot be uploaded; history and feedback remain available.",
+    "historyDetails": "Decision and assessment history",
+    "assessmentDetails": "Assessment details"
   }
 }
