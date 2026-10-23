@@ -230,7 +230,7 @@ onBeforeUnmount(() => { ++generation; pending.value = null; });
         <template v-if="latestAssessment">
           <h4>{{ t('learning.feedback') }}</h4>
           <p>{{ t('learning.recommendation.' + latestAssessment.recommendation) }}</p>
-          <p class="hint">{{ latestAssessment.sourceKind }} · {{ latestAssessment.methodId }} v{{ latestAssessment.methodVersion }}</p>
+          <details><summary>{{ t('learning.assessmentDetails') }}</summary><p class="hint">{{ latestAssessment.sourceKind }} · {{ latestAssessment.methodId }} v{{ latestAssessment.methodVersion }}</p></details>
           <ul>
             <li v-for="criterion in latestAssessment.criteria" :key="criterion.criterionCode">
               <strong>{{ criterion.label }}</strong> — {{ criterion.outcome === 'MEETS' ? t('learning.meets') : criterion.outcome === 'NEEDS_WORK' ? t('learning.needsWork') : t('learning.notAssessed') }}
@@ -260,7 +260,9 @@ onBeforeUnmount(() => { ++generation; pending.value = null; });
       </template>
       <button v-if="pending && !sending" class="action-button secondary-button" type="button" :disabled="draftBusy" @click="retry">{{ t('learning.retry') }}</button>
       <p v-if="notice" role="status">{{ notice }}</p>
-      <h4>{{ t('learning.skillEvidence') }}</h4>
+      <details class="learning-history-details">
+        <summary>{{ t('learning.historyDetails') }}</summary>
+        <h4>{{ t('learning.skillEvidence') }}</h4>
       <p v-if="evidenceLoading" role="status">{{ t('learning.loading') }}</p>
       <div v-if="evidenceError" role="alert">
         <p>{{ evidenceError }}</p>
@@ -287,6 +289,7 @@ onBeforeUnmount(() => { ++generation; pending.value = null; });
         <p>{{ decision.reasonText || decision.reasonCode }}</p>
       </details>
       <button v-if="decisionCursor" type="button" class="action-button secondary-button" :disabled="decisionHistoryLoading" @click="moreDecisions">{{ t('learning.more') }}</button>
+      </details>
     </template>
   </section>
 </template>
