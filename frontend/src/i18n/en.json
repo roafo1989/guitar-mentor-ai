@@ -166,7 +166,8 @@
       "materials": "Materials",
       "recording": "My recording and results",
       "sessionDetails": "Assessment details",
-      "lesson": "Lesson"
+      "lesson": "Lesson",
+      "lessonSubtitle": "Materials, recording and results in one place."
     }
   },
   "home": {
