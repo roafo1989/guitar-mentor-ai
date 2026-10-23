@@ -202,8 +202,8 @@ async function assign(exerciseCode: string): Promise<void> {
   <section class="profile-page">
     <div class="intro">
       <span class="eyebrow">{{ t("diagnostic.workspace.lesson") }}</span>
-      <h1>{{ t('diagnostic.title') }}</h1>
-      <p>{{ t('diagnostic.subtitle') }}</p>
+      <h1>{{ session?.status === 'TASK_ASSIGNED' ? t('diagnostic.workspace.lesson') : t('diagnostic.title') }}</h1>
+      <p>{{ session?.status === 'TASK_ASSIGNED' ? t('diagnostic.workspace.lessonSubtitle') : t('diagnostic.subtitle') }}</p>
     </div>
     <div class="notice" role="note">{{ t('form.notice') }}</div>
     <div v-if="loading" class="panel">{{ t('diagnostic.loading') }}</div>
