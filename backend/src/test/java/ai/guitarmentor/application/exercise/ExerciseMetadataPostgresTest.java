@@ -44,7 +44,7 @@ class ExerciseMetadataPostgresTest {
     @Test
     void metadataChecksRejectWhitespaceAndOverlongStringsWithoutChangingSeed() {
         for (String column : java.util.List.of("learning_goal", "practice_instructions", "tuning")) {
-            for (String invalid : java.util.List.of("   ", "\\t\\n  ")) {
+            for (String invalid : java.util.List.of("   ", "\t\n  ")) {
                 assertThrows(DataIntegrityViolationException.class,
                         () -> jdbc.update("UPDATE exercises SET " + column + "=? WHERE id=?", invalid, ORIGINAL));
             }
