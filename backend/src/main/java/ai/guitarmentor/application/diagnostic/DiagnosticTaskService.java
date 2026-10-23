@@ -1,5 +1,6 @@
 package ai.guitarmentor.application.diagnostic;
 
+import ai.guitarmentor.application.exercise.ExerciseViewAssembler;
 import ai.guitarmentor.domain.diagnostic.DiagnosticSession;
 import ai.guitarmentor.domain.diagnostic.DiagnosticStatus;
 import ai.guitarmentor.domain.diagnostic.DiagnosticTask;
@@ -23,20 +24,23 @@ public class DiagnosticTaskService {
     private final ExerciseRepository exercises;
     private final LearnerRepository learners;
     private final LearningRepository learning;
+    private final ExerciseViewAssembler assembler;
 
     public DiagnosticTaskService(DiagnosticSessionRepository sessions, DiagnosticTaskRepository tasks,
-            ExerciseRepository exercises, LearnerRepository learners, LearningRepository learning) {
+            ExerciseRepository exercises, LearnerRepository learners, LearningRepository learning,
+            ExerciseViewAssembler assembler) {
         this.sessions = sessions;
         this.tasks = tasks;
         this.exercises = exercises;
         this.learners = learners;
         this.learning = learning;
+        this.assembler = assembler;
     }
 
     @Transactional(readOnly = true)
     public Optional<TaskView> current(UUID learnerId, UUID sessionId) {
         ownedSession(learnerId, sessionId, false);
-        return tasks.findBySession_Id(sessionId).map(TaskView::from);
+        return tasks.findBySession_Id(sessionId).map(this::view);
     }
 
     @Transactional
@@ -48,7 +52,7 @@ public class DiagnosticTaskService {
             if (!existing.get().getExercise().getCode().equals(exerciseCode)) {
                 throw new IllegalStateException("A different exercise was already assigned");
             }
-            return TaskView.from(existing.get()); // Idempotent retries.
+            return view(existing.get()); // Idempotent retries.
         }
         if (session.getStatus() != DiagnosticStatus.READY_FOR_TASK) {
             throw new IllegalStateException("Finish intake before assigning an exercise");
@@ -62,7 +66,11 @@ public class DiagnosticTaskService {
         var task = tasks.saveAndFlush(new DiagnosticTask(session, exercise));
         learning.initialize(task.getId()); // Same transaction as assignment.
         session.markTaskAssigned();
-        return TaskView.from(task);
+        return view(task);
+    }
+
+    private TaskView view(DiagnosticTask task) {
+        return TaskView.from(task, assembler.one(task.getExercise()));
     }
 
     private DiagnosticSession ownedSession(UUID learnerId, UUID sessionId, boolean lock) {

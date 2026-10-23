@@ -6,6 +6,8 @@ import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.when;
 
+import ai.guitarmentor.application.exercise.ExerciseViewAssembler;
+import ai.guitarmentor.interfaces.rest.exercise.ExerciseView;
 import ai.guitarmentor.domain.diagnostic.DiagnosticSession;
 import ai.guitarmentor.domain.diagnostic.DiagnosticStatus;
 import ai.guitarmentor.domain.diagnostic.DiagnosticTask;
@@ -35,6 +37,8 @@ class DiagnosticTaskServiceTest {
     @Mock LearnerRepository learners;
     @Mock LearningRepository learning;
     @Mock Exercise exercise;
+    @Mock ExerciseViewAssembler assembler;
+    @Mock ExerciseView exerciseView;
 
     DiagnosticTaskService service;
     Learner learner;
@@ -43,7 +47,7 @@ class DiagnosticTaskServiceTest {
 
     @BeforeEach
     void setUp() {
-        service = new DiagnosticTaskService(sessions, tasks, exercises, learners, learning);
+        service = new DiagnosticTaskService(sessions, tasks, exercises, learners, learning, assembler);
         learner = new Learner("Student");
         profile = new InstrumentProfile("ACOUSTIC_GUITAR", "FINGERSTYLE");
         learner.addInstrumentProfile(profile);
@@ -67,6 +71,7 @@ class DiagnosticTaskServiceTest {
         when(exercise.getInstrumentCode()).thenReturn("ACOUSTIC_GUITAR");
         when(exercise.getTechniqueCode()).thenReturn("FINGERSTYLE");
         when(exercise.getCode()).thenReturn("GM-EB01");
+        when(assembler.one(exercise)).thenReturn(exerciseView);
         var saved = new AtomicReference<DiagnosticTask>();
         when(tasks.findBySession_Id(session.getId()))
                 .thenAnswer(invocation -> Optional.ofNullable(saved.get()));

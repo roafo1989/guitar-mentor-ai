@@ -147,6 +147,36 @@ jobs:
                 "http://localhost:8080/api/v1/learners/$learner_id/diagnostic-sessions/$session_id/tasks" \
                 -H 'Content-Type: application/json' --data '{"exerciseCode":"GM-EB01"}')
               echo "$assigned" | grep -q '"code":"GM-EB01"'
+              # #119 QA: actual HTTP shape of catalog, detail, POST assignment and GET assignment.
+              detail=$(curl --fail --silent --show-error "http://localhost:8080/api/v1/exercises/GM-EB01")
+              current_task=$(curl --fail --silent --show-error                 "http://localhost:8080/api/v1/learners/$learner_id/diagnostic-sessions/$session_id/tasks")
+              printf '%s' "$catalog" > qa119-catalog.json
+              printf '%s' "$detail" > qa119-detail.json
+              printf '%s' "$assigned" > qa119-assigned.json
+              printf '%s' "$current_task" > qa119-current.json
+              python3 - <<'PY'
+          import json
+          criteria = [
+              "Равномерное ощущение долей без произвольных остановок",
+              "Басовая линия не прерывается на смене мелодических фраз",
+              "Мелодическая линия слышна поверх баса",
+          ]
+          catalog = json.load(open("qa119-catalog.json"))
+          detail = json.load(open("qa119-detail.json"))
+          assigned = json.load(open("qa119-assigned.json"))["exercise"]
+          current = json.load(open("qa119-current.json"))["exercise"]
+          assert len(catalog) == 1, catalog
+          for exercise in (catalog[0], detail, assigned, current):
+              assert exercise["code"] == "GM-EB01" and exercise["version"] == "0.8B"
+              assert exercise["learningGoal"] is None
+              assert exercise["practiceInstructions"] is None
+              assert exercise["tuning"] is None
+              assert exercise["successCriteria"] == criteria
+              assert exercise["recommendedPracticeMinutes"] == 30
+              assert exercise["scoreUrl"] == "/api/v1/exercises/GM-EB01/score"
+          assert catalog[0] == detail == assigned == current
+          print("QA #119 HTTP catalog/detail/assigned/retrieved DTO contract: OK")
+          PY
               task_id=$(printf '%s' "$assigned" | python3 -c 'import json,sys;print(json.load(sys.stdin)["id"])')
               repeat=$(curl --fail --silent --show-error -X POST \
                 "http://localhost:8080/api/v1/learners/$learner_id/diagnostic-sessions/$session_id/tasks" \

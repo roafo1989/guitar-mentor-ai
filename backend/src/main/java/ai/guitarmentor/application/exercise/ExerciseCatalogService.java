@@ -13,20 +13,22 @@ import org.springframework.transaction.annotation.Transactional;
 @Service
 public class ExerciseCatalogService {
     private final ExerciseRepository exercises;
+    private final ExerciseViewAssembler assembler;
 
-    public ExerciseCatalogService(ExerciseRepository exercises) {
+    public ExerciseCatalogService(ExerciseRepository exercises, ExerciseViewAssembler assembler) {
         this.exercises = exercises;
+        this.assembler = assembler;
     }
 
     @Transactional(readOnly = true)
     public List<ExerciseView> available(String instrumentCode, String techniqueCode) {
-        return exercises.findByInstrumentCodeAndTechniqueCodeAndCurrentTrueOrderByCode(
-                instrumentCode, techniqueCode).stream().map(ExerciseView::from).toList();
+        return assembler.many(exercises.findByInstrumentCodeAndTechniqueCodeAndCurrentTrueOrderByCode(
+                instrumentCode, techniqueCode));
     }
 
     @Transactional(readOnly = true)
     public ExerciseView find(String code) {
-        return ExerciseView.from(exercises.findByCodeAndCurrentTrue(code)
+        return assembler.one(exercises.findByCodeAndCurrentTrue(code)
                 .orElseThrow(() -> new EntityNotFoundException("Exercise not found")));
     }
 
