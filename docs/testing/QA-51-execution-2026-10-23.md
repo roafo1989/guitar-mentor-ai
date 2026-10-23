@@ -4,7 +4,7 @@ Date: 2026-10-23. Branch: `feature/51-student-workspace`. Scope: H1 contextual h
 
 ## Execution and evidence
 
-CI #515 on commit `bb865f202953897a44a2657e8c7b50e8120ccd29`: SUCCESS. The decoded GitHub Actions log confirms `npm run test:intake` (15/15), `npm test` (67/67 including 8 HomeSummary cases), `npm run test:tuner` (40/40), and `npm run build` (vue-tsc and Vite). Total: 122/122 automated tests, 0 failures. CI #524 checks the subsequent QA heading/localization fix; its final status must be reverified before merging.
+CI #515 on commit `bb865f202953897a44a2657e8c7b50e8120ccd29`: SUCCESS. The decoded GitHub Actions log confirms `npm run test:intake` (15/15), `npm test` (67/67 including 8 HomeSummary cases), `npm run test:tuner` (40/40), and `npm run build` (vue-tsc and Vite). Total: 122/122 automated tests, 0 failures. CI #524 on commit `36831c8835b02870b81321eb728a329b14d34bbc`: **SUCCESS**, validating the QA heading/localization correction with the same frontend CI pipeline.
 
 GitHub connector/source inspection additionally confirms the original API methods remain GET-only in `home-summary.ts`, that the lesson contains the existing `ExercisePreview` and `SubmissionPanel`, and that the existing `LearningResultsPanel` and its paging/actions are still rendered. These are static inspections, **not** browser passes.
 
@@ -25,10 +25,10 @@ GitHub connector/source inspection additionally confirms the original API method
 
 ## QA defect
 
-- UX51-QA-01 (P2), fixed in PR branch: assigned-task page still displayed the heading and subtitle of the *initial assessment*, contrary to the promised “Lesson” workspace. Updated `DiagnosticView.vue` with state-sensitive heading and added RU/EN copy. Verify in CI #524 and visually during UAT.
+- UX51-QA-01 (P2), fixed in PR branch: assigned-task page still displayed the heading and subtitle of the *initial assessment*, contrary to the promised “Lesson” workspace. Updated `DiagnosticView.vue` with state-sensitive heading and added RU/EN copy. CI #524 passed. Visual UAT still required.
 
 ## Residual risk and release gate
 
 No verified failing automated case after QA source changes, but this is **not full UAT**. End-to-end tests with real backend, microphone, upload, completion, keyboard and mobile viewport were not run: the accessible execution environment cannot check out the public repo through DNS and has no live application or browser connector. Avoid stating PASS for these.
 
-Before release: run updated CI; launch the app with the backend; test a saved assignment, a failed session GET, actual upload and retry, Complete cancel/confirm, F5, RU/EN, PDF, metronome/tuner and mobile 360px/200% zoom. Owner approves UX and manual tests. Keep PR open and Issue #51 open until acceptance.
+Before release: launch the app with the backend; test a saved assignment, a failed session GET, actual upload and retry, Complete cancel/confirm, F5, RU/EN, PDF, metronome/tuner and mobile 360px/200% zoom. Owner approves UX and manual tests. Keep PR open and Issue #51 open until acceptance.
