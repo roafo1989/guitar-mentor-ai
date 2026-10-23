@@ -40,6 +40,20 @@ jobs:
           java-version: "21"
           cache: maven
           cache-dependency-path: backend/pom.xml
+      # Published assets may be added only: changing/removing existing bytes breaks assigned versions.
+      - name: Enforce immutable published exercise assets
+        if: github.event_name == 'pull_request'
+        shell: bash
+        run: |
+          set -euo pipefail
+          git fetch --no-tags --depth=1 origin "$GITHUB_BASE_REF"
+          git diff --name-status --diff-filter=MDRCT "origin/$GITHUB_BASE_REF" HEAD -- backend/src/main/resources/exercises > /tmp/changed-exercise-assets.txt
+          if [ -s /tmp/changed-exercise-assets.txt ]; then
+            echo "::error::Published exercise assets must never be overwritten, renamed or removed; publish a new version instead."
+            cat /tmp/changed-exercise-assets.txt
+            exit 1
+          fi
+          echo "Published exercise asset immutability: OK"
       - name: Run unit tests, real PostgreSQL transaction integration and package
         env:
           SPRING_DATASOURCE_URL: jdbc:postgresql://localhost:5432/guitar_mentor
