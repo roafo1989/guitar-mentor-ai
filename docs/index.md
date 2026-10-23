@@ -1,6 +1,6 @@
 # Guitar Mentor AI — документация
 
-**[Состояние проекта и датированные результаты сверки](project/current-state.md)**. Последние дополнения: [UX51: аудит, прототип и передача фронтенду —23.10.2026](specifications/UX-01-student-journey.md), [текущие кандидаты #119/#120/#85 —22.10.2026](project/next-development-candidates-2026-10-22.md), [тюнер: интерфейс и строи #108 — 21.10.2026](specifications/TOOL-03-tuner-interface-and-tunings.md), [гибкий метроном #104 — 21.10.2026](specifications/TOOL-02-flexible-metronome.md), [анализ четырёх задач — 20.10.2026](project/analysis-refresh-2026-10-20.md). Приложение работает локально, без авторизации.
+**[Состояние проекта и датированные результаты сверки](project/current-state.md)**. Последние дополнения: [следующие три кандидата125/126/127 —23.10.2026](project/next-development-candidates-2026-10-23.md), [UX51: аудит, прототип и передача фронтенду —23.10.2026](specifications/UX-01-student-journey.md), [текущие кандидаты #119/#120/#85 —22.10.2026](project/next-development-candidates-2026-10-22.md), [тюнер: интерфейс и строи #108 — 21.10.2026](specifications/TOOL-03-tuner-interface-and-tunings.md), [гибкий метроном #104 — 21.10.2026](specifications/TOOL-02-flexible-metronome.md), [анализ четырёх задач — 20.10.2026](project/analysis-refresh-2026-10-20.md). Приложение работает локально, без авторизации.
 
 ## Навигация и регламенты
 
@@ -18,6 +18,9 @@
 
 ## Требования и спецификации
 
+- [CORE-01: автономная разработка #125/#126/#127](specifications/CORE-01-autonomous-development.md) — Java/Vue,24ч, точные API/UI и решения без продуктовых TBD
+- [16TC: история и ошибки](testing/TC-125-126-127-autonomous-handoff.md) — подготовлены, NOT_RUN
+
 - [Текущие кандидаты119/120/85: каталог Java/Vue](project/catalog-development-candidates-2026-10-22.md) — контракт v1.1,22ч; criteria из V12, #85 ждёт API
 - [Приёмка119/120/85:16TC и команды](testing/TC-119-120-85-catalog-handoff.md) — NOT_RUN
 
@@ -33,7 +36,7 @@
 - [Бизнес-требования 0.10](requirements/business-requirements.md) — два блока интервью, выбор репертуара и уверенная игра наизусть; ТЗ ещё не синхронизировано с BT-017/018
 - [Бизнес-анализ и варианты](https://github.com/roafo1989/guitar-mentor-ai/blob/main/docs/requirements/discovery/business-analysis-2026-10-20.md) — v0.3, уточнение по двум блокам ответов 21.10.2026
 - [Интервью заказчика](https://github.com/roafo1989/guitar-mentor-ai/blob/main/docs/requirements/discovery/customer-interview-2026-10-20.md) — v0.3, ответы BA-Q01–05/BA-Q21–24; следующий блок — занятие, запись и отзыв
-- [Техническое задание 0.17](requirements/technical-specification.md) — 10 US / 38 FT, НФТ/SEC и открытые вопросы
+- [Техническое задание 0.18](requirements/technical-specification.md) — 10 US / 41 FT, НФТ/SEC и открытые вопросы
 - [Системная спецификация 0.6](specifications/system-specification.md) — текущие API/данные и целевой остаток
 - [MVP Scope & Acceptance 1.1](project/mvp-scope-v1.md)
 - [Roadmap 1.1](project/roadmap-mvp-v1.md) — исходные оценки исторические, не текущий остаток
