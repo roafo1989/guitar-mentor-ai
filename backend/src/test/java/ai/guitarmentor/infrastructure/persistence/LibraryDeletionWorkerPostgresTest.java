@@ -46,7 +46,7 @@ class LibraryDeletionWorkerPostgresTest {
             .param("id",material).query(Long.class).single();
     }
 
-    @Test void deletionHidesImmediatelyReleasesQuotaOnlyAfterFilesGone() {
+    @Test void deletionHidesImmediatelyReleasesQuotaOnlyAfterFilesGone() throws IOException {
         UUID id=UUID.randomUUID(), key=UUID.randomUUID();
         UUID owner=create(id,key.toString());
         assertEquals(1,materials.markDeleting(owner,id,1));
