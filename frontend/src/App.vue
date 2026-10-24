@@ -79,7 +79,7 @@ onBeforeUnmount(() => { unsubscribeMetronome?.(); closeMetronome(); });
 </script>
 
 <template>
-  <div class="app-shell" :inert="metronomeUi.open || tunerOpen">
+  <div class="app-shell light-minimal" :inert="metronomeUi.open || tunerOpen">
     <header class="site-header">
       <RouterLink to="/" class="brand" :aria-label="t('app.home') + ' · Guitar Mentor AI'">
         <img class="brand-icon" src="/favicon.png" alt="" aria-hidden="true" width="40" height="40" />
