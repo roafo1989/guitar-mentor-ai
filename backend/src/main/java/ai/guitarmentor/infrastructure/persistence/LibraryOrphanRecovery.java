@@ -33,7 +33,7 @@ public class LibraryOrphanRecovery {
             // Release abandoned quota reservations before scavenging physical objects.
             for(var stale:jdbc.sql("""
                 SELECT id,owner_account_id FROM library_upload_operations
-                WHERE state='RECEIVING' AND updated_at < now()-interval '60 minutes'
+                WHERE state='RECEIVING' AND COALESCE(last_lease_at,updated_at) < now()-interval '60 minutes'
                 ORDER BY updated_at LIMIT 100
                 """).query().listOfRows()) {
                 java.util.UUID operation=(java.util.UUID)stale.get("id");
@@ -67,7 +67,15 @@ public class LibraryOrphanRecovery {
                     continue;
                 }
                 Boolean referenced=jdbc.sql("""
-                    SELECT EXISTS (SELECT 1 FROM library_assets WHERE object_key=:key)
+                    SELECT
+                      EXISTS (SELECT 1 FROM library_assets WHERE object_key=:key)
+                      OR EXISTS (
+                        SELECT 1 FROM library_upload_operations
+                        WHERE state='RECEIVING'
+                          AND COALESCE(last_lease_at,updated_at)>now()-interval '60 minutes'
+                          AND COALESCE(manifest->'keys','[]'::jsonb)
+                              @> jsonb_build_array(CAST(:key AS text))
+                      )
                     """).param("key",name).query(Boolean.class).single();
                 if(Boolean.FALSE.equals(referenced)) store.deleteCandidate(candidate);
             }
