@@ -39,7 +39,7 @@ class LocalOAuthBridgeControllerTest {
     }
 
     @Test
-    void completedGoogleLoginRotatesSessionAndSavesOnlyServerVerifiedIdentity() {
+    void completedGoogleLoginRotatesSessionAndSavesOnlyServerVerifiedIdentity() throws Exception {
         var bridge = new LocalOAuthBridge();
         var actors = mock(ActorRepository.class);
         var controller = new LocalOAuthBridgeController(bridge, actors, mock(GoogleLinkService.class), true);
