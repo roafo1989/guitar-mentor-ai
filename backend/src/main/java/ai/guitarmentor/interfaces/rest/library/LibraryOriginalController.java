@@ -203,9 +203,9 @@ public final class LibraryOriginalController {
     private static String fingerprint(String title,String type,String author,List<Incoming> files) {
         try {
             MessageDigest digest=MessageDigest.getInstance("SHA-256");
-            StringBuilder data=new StringBuilder(title).append('\\n').append(type)
-                .append('\\n').append(author==null?"":author);
-            for(Incoming f:files) data.append('\\n').append(f.name().length()).append(':')
+            StringBuilder data=new StringBuilder(title).append('\n').append(type)
+                .append('\n').append(author==null?"":author);
+            for(Incoming f:files) data.append('\n').append(f.name().length()).append(':')
                 .append(f.name()).append(':').append(f.object().length())
                 .append(':').append(f.object().sha256());
             return HexFormat.of().formatHex(digest.digest(data.toString().getBytes(StandardCharsets.UTF_8)));
