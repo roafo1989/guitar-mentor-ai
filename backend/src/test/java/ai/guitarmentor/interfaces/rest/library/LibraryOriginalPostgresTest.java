@@ -147,4 +147,25 @@ class LibraryOriginalPostgresTest {
         assertTrue(Files.exists(store.file(protectedObject.key())));
     }
 
+    @Test void recoveryNeverDeletesAnObjectInActiveDurableUploadManifest() throws Exception {
+        UUID owner=account();
+        var store=new LibraryObjectStore(root.resolve("library").toString(),
+            root.resolve("attempts").toString(),root.resolve("scores").toString());
+        var uploading=store.put(new java.io.ByteArrayInputStream(new byte[]{7,8,9}),100);
+        Files.setLastModifiedTime(store.file(uploading.key()),
+            java.nio.file.attribute.FileTime.from(java.time.Instant.now().minusSeconds(7200)));
+        jdbc.sql("""
+            INSERT INTO library_upload_operations
+                (id,owner_account_id,idempotency_key,state,manifest,expires_at,last_lease_at)
+            VALUES(:id,:owner,:key,'RECEIVING',
+                jsonb_build_object('keys',jsonb_build_array(CAST(:object AS text))),
+                now()+interval '24 hours',now())
+            """).param("id",UUID.randomUUID()).param("owner",owner)
+                .param("key",UUID.randomUUID()).param("object",uploading.key()).update();
+        new ai.guitarmentor.infrastructure.persistence.LibraryOrphanRecovery(
+            store,jdbc,transactions,true).reconcile();
+        assertTrue(Files.exists(store.file(uploading.key())),
+            "Live operation's manifested original must survive recovery");
+    }
+
 }
