@@ -123,6 +123,9 @@ test('CORE-E failed background GET prevents PUT; recovery GET enables form witho
     retry.props.onClick();
     await settle();
     assert.deepEqual(calls.map(([m]) => m), ['GET', 'GET']);
+    nodes = flatten(root);
+    const recoveredSave = nodes.find(n => n.tag === 'button' && String(n.text).includes('Сохранить'));
+    assert.equal(recoveredSave?.props.disabled, false, 'successful read unlocks explicit saving');
     // Changing the learner should invalidate old state and fetch for the new context.
     learner.learner = { id: 'learner-two' };
     await settle();
