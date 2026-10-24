@@ -1,0 +1,97 @@
+#Requires -Version 7.0
+<#
+.SYNOPSIS
+  One-time setup: .\scripts\local-auth-unified.ps1 -Setup
+  Subsequent launches: .\scripts\local-auth-unified.ps1
+.DESCRIPTION
+  Runs ONLY on this Windows user workstation. Credentials are encrypted with
+  Windows DPAPI via ConvertFrom-SecureString, outside the git checkout.
+  Two dedicated PowerShell windows are launched for backend and frontend.
+#>
+param([switch]$Setup)
+$ErrorActionPreference = 'Stop'
+if (-not $IsWindows) { throw 'Windows/DPAPI is required for this local launcher.' }
+
+$root = (Resolve-Path (Join-Path $PSScriptRoot '..')).Path
+$settingsDirectory = Join-Path $env:LOCALAPPDATA 'GuitarMentorAI'
+$settingsPath = Join-Path $settingsDirectory 'local-auth-unified.json'
+function UnwrapSecret([string]$ciphertext) {
+    if ([string]::IsNullOrWhiteSpace($ciphertext)) { throw 'Missing encrypted credential.' }
+    $value = ConvertTo-SecureString $ciphertext
+    return [System.Net.NetworkCredential]::new('', $value).Password
+}
+function AskSecret([string]$prompt) {
+    $value = Read-Host $prompt -AsSecureString
+    if ($value.Length -eq 0) { throw "Missing required secret: $prompt" }
+    return ConvertFrom-SecureString $value
+}
+if ($Setup) {
+    New-Item -ItemType Directory -Force -Path $settingsDirectory | Out-Null
+    $clientId = Read-Host 'Google OAuth Web Client ID'
+    $smtpHost = Read-Host 'SMTP hostname (provider-specific)'
+    $smtpPort = Read-Host 'SMTP STARTTLS port [587]'
+    if ([string]::IsNullOrWhiteSpace($smtpPort)) { $smtpPort = '587' }
+    $smtpUser = Read-Host 'SMTP username'
+    $mailFrom = Read-Host 'Verified sender email address'
+    if ([string]::IsNullOrWhiteSpace($clientId) -or
+        [string]::IsNullOrWhiteSpace($smtpHost) -or
+        [string]::IsNullOrWhiteSpace($smtpUser) -or
+        [string]::IsNullOrWhiteSpace($mailFrom) -or
+        $smtpPort -notmatch '^\d{2,5}$') {
+        throw 'Client ID, SMTP host/user/from and valid port are required.'
+    }
+    $config = @{
+        clientId = $clientId.Trim()
+        clientSecret = AskSecret 'Google OAuth Client Secret'
+        smtpHost = $smtpHost.Trim()
+        smtpPort = [int]$smtpPort
+        smtpUser = $smtpUser.Trim()
+        smtpSecret = AskSecret 'SMTP credential / app password'
+        mailFrom = $mailFrom.Trim()
+        databaseSecret = AskSecret 'PostgreSQL guitar_mentor_app password'
+    }
+    $config | ConvertTo-Json | Set-Content -Path $settingsPath -Encoding utf8
+    Write-Host 'Encrypted credentials stored for this Windows account in LOCALAPPDATA.'
+    Write-Host 'The same Windows user can decrypt them. Do not share your Windows account.'
+    exit 0
+}
+if (-not (Test-Path -LiteralPath $settingsPath)) {
+    throw "Run .\scripts\local-auth-unified.ps1 -Setup first."
+}
+$conf = Get-Content -LiteralPath $settingsPath -Raw | ConvertFrom-Json
+$env:GUITAR_MENTOR_OIDC_CLIENT_ID = [string]$conf.clientId
+$env:GUITAR_MENTOR_OIDC_CLIENT_SECRET = UnwrapSecret $conf.clientSecret
+$env:GUITAR_MENTOR_SMTP_HOST = [string]$conf.smtpHost
+$env:GUITAR_MENTOR_SMTP_PORT = [string]$conf.smtpPort
+$env:GUITAR_MENTOR_SMTP_USER = [string]$conf.smtpUser
+$env:GUITAR_MENTOR_SMTP_PASSWORD = UnwrapSecret $conf.smtpSecret
+$env:GUITAR_MENTOR_MAIL_FROM = [string]$conf.mailFrom
+$env:SPRING_DATASOURCE_PASSWORD = UnwrapSecret $conf.databaseSecret
+$env:GUITAR_MENTOR_SMTP_AUTH = 'true'
+$env:GUITAR_MENTOR_SMTP_STARTTLS = 'true'
+$env:GUITAR_MENTOR_SECURITY_ENABLED = 'true'
+$env:GUITAR_MENTOR_BIND_ADDRESS = '127.0.0.1'
+$env:GUITAR_MENTOR_PUBLIC_ORIGIN = 'http://localhost:5173'
+$env:VITE_GUITAR_MENTOR_AUTH_REQUIRED = 'true'
+$env:SPRING_PROFILES_ACTIVE = 'secure,local-auth,local-unified'
+
+$backend = Join-Path $root 'backend'
+$frontend = Join-Path $root 'frontend'
+if (-not (Test-Path (Join-Path $backend 'mvnw.cmd')) -or
+    -not (Test-Path (Join-Path $frontend 'package.json'))) {
+    throw 'Launcher must run from Guitar Mentor AI checkout.'
+}
+# Fail early rather than silently using a stale process from a different profile.
+foreach ($port in 8080,5173) {
+    if (Get-NetTCPConnection -LocalAddress '127.0.0.1' -LocalPort $port -State Listen -ErrorAction SilentlyContinue) {
+        throw "Port $port is already in use. Stop old backend/frontend before restarting."
+    }
+}
+$ps = (Get-Command pwsh -ErrorAction Stop).Source
+$backendCommand = "Set-Location -LiteralPath '$backend'; & '.\mvnw.cmd' spring-boot:run"
+$frontendCommand = "Set-Location -LiteralPath '$frontend'; npm run dev"
+Start-Process -FilePath $ps -ArgumentList @('-NoExit', '-Command', $backendCommand)
+Start-Process -FilePath $ps -ArgumentList @('-NoExit', '-Command', $frontendCommand)
+Write-Host 'Started private backend and Vite terminals. Open http://localhost:5173.'
+Write-Host 'OAuth callback must match http://localhost:5173/login/oauth2/code/guitar-mentor.'
+Write-Host 'No SMTP test-capture process is needed. Email delivery depends on your provider.'
