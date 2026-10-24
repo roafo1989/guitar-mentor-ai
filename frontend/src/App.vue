@@ -121,7 +121,6 @@ onBeforeUnmount(() => { unsubscribeMetronome?.(); closeMetronome(); });
           <span aria-hidden="true">☰</span>
         </button>
         <nav v-if="auth.actor || localPrototype" :id="menuId" class="header-navigation" :class="{ 'menu-open': menuOpen }" :aria-label="locale === 'ru' ? 'Основная навигация' : 'Main navigation'">
-          <RouterLink to="/" @click="closeMenu()">{{ t('app.home') }}</RouterLink>
           <RouterLink to="/profile" @click="closeMenu()">{{ t('app.profile') }}</RouterLink>
           <RouterLink to="/onboarding" @click="closeMenu()">{{ t('app.onboarding') }}</RouterLink>
           <RouterLink to="/diagnostics" @click="closeMenu()">{{ locale === 'ru' ? 'Занятие' : 'Practice' }}</RouterLink>
