@@ -339,7 +339,8 @@
     "microphoneTitle": "Record with microphone",
     "uploadAlternative": "Or upload an existing audio file",
     "microphoneInstructions": "About recording and microphone access",
-    "localRecordingAvailable": "You can record and preview audio locally. Sending is available only after uploads are enabled on the server."
+    "localRecordingAvailable": "You can record and preview audio locally. Sending is available only after uploads are enabled on the server.",
+    "recordingPanelTitle": "Performance recording"
   },
   "evidence": {
     "heading": "My performances",
