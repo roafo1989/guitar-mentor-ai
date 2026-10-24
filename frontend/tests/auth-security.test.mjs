@@ -91,8 +91,10 @@ test('account disable clears session but unrelated business 403 preserves actor'
 test('password reset links do not render secrets as form inputs or retain them in login', async () => {
   const gate = await readFile(new URL('../src/core/auth/AuthGate.vue', import.meta.url), 'utf8');
   assert.match(gate, /tokenFromLink = ref\(false\)/);
-  assert.match(gate, /v-if="!tokenFromLink" id="reset-token"/);
-  assert.match(gate, /v-if="!tokenFromLink" id="verify-token"/);
+  assert.match(gate, /v-if="!tokenFromLink && manualCode"/);
+  assert.match(gate, /id="reset-token"/);
+  assert.match(gate, /id="verify-token"/);
+  assert.match(gate, /v-if="tokenFromLink \|\| manualCode"/);
   assert.match(gate, /takeEmailActionLink\(\)/);
   assert.match(gate, /identifier\.value = ''; email\.value = '';/);
   assert.match(gate, /clearTokenLikeIdentifier/);
@@ -195,4 +197,63 @@ test('OAuth handoff ticket stripped before Vue Router and never exposed to login
   const auth = await readFile(new URL('../src/core/auth/auth.ts', import.meta.url), 'utf8');
   assert.match(auth, /\/api\/v1\/oauth-bridge\/start/);
   assert.match(auth, /localhost:5173/);
+});
+
+test('AUTH-03 exposes one-step Google sign-in without a Google tab or local validation', async () => {
+  const gate = await readFile(new URL('../src/core/auth/AuthGate.vue', import.meta.url), 'utf8');
+  assert.doesNotMatch(gate, /mode === 'google'|setMode\('google'\)/);
+  assert.match(gate, /type="button" :disabled="busy \|\| oauthPending" :aria-busy="oauthPending" @click="handleGoogle"/);
+  assert.match(gate, /function handleGoogle\(\): void/);
+  assert.match(gate, /if \(busy.value \|\| oauthPending.value\) return;/);
+  assert.match(gate, /login\(\);/);
+  assert.match(gate, /g-logo\.png/);
+  assert.match(gate, /Continue with Google/);
+  assert.match(gate, /New here\? Create an account/);
+  assert.match(gate, /Already have an account\? Sign in/);
+});
+
+test('AUTH-03 protects post-submit state and preserves honest generic email responses', async () => {
+  const gate = await readFile(new URL('../src/core/auth/AuthGate.vue', import.meta.url), 'utf8');
+  assert.match(gate, /const epoch = \+\+requestEpoch.value;/);
+  assert.match(gate, /if \(!mounted \|\| epoch !== requestEpoch.value\) return false;/);
+  assert.match(gate, /If registration can proceed with these details/);
+  assert.match(gate, /If an account exists, you will receive reset instructions/);
+  assert.doesNotMatch(gate, /resend-verification|local-auth\/resend/);
+  assert.match(gate, /window\.history\.replaceState/);
+  assert.match(gate, /'bridge_start_failed'/);
+  assert.ok(gate.includes("emailActionInProgress.value = next === 'verify' || next === 'reset' || next === 'expired-link'"));
+});
+
+test('AUTH-03 deploys exact approved versioned assets instead of legacy favicon', async () => {
+  const html = await readFile(new URL('../index.html', import.meta.url), 'utf8');
+  const app = await readFile(new URL('../src/App.vue', import.meta.url), 'utf8');
+  const gate = await readFile(new URL('../src/core/auth/AuthGate.vue', import.meta.url), 'utf8');
+  const { stat } = await import('node:fs/promises');
+  for (const name of ['32', '64', '128']) {
+    const info = await stat(new URL('../public/brand/guitar-mentor-logo-' + name + '.png', import.meta.url));
+    assert.ok(info.size > 1000, name);
+  }
+  await stat(new URL('../public/vendor/google-signin/g-logo.png', import.meta.url));
+  await stat(new URL('../public/vendor/google-signin/GoogleSans-Medium-auth.ttf', import.meta.url));
+  assert.match(html, /guitar-mentor-logo-32\.png\?v=198/);
+  assert.match(html, /guitar-mentor-logo-64\.png\?v=198/);
+  assert.match(app, /src="\/brand\/guitar-mentor-logo-128\.png"/);
+  assert.match(gate, /src="\/brand\/guitar-mentor-logo-128\.png"/);
+});
+
+test('AUTH-03 regression: malformed email links never unmask authenticated content', async () => {
+  const gate = await readFile(new URL('../src/core/auth/AuthGate.vue', import.meta.url), 'utf8');
+  assert.match(gate, /emailActionInProgress\.value = true;\s*if \(!link\.token/);
+  assert.match(gate, /mode\.value = 'expired-link';/);
+  assert.match(gate, /emailActionInProgress\.value = next === 'verify' \|\| next === 'reset' \|\| next === 'expired-link';/);
+  assert.match(gate, /<slot v-if="localPrototype \|\| \(auth\.ready && auth\.actor && !emailActionInProgress\)"/);
+  assert.match(gate, /requestEpoch\.value\+\+; busy\.value = false;/);
+});
+test('AUTH-03 regression: POST guarded before validation and email tokens checked before submission', async () => {
+  const gate = await readFile(new URL('../src/core/auth/AuthGate.vue', import.meta.url), 'utf8');
+  assert.match(gate, /async function register\(\) \{\s*if \(busy\.value \|\| oauthPending\.value\) return;/);
+  assert.match(gate, /async function reset\(\) \{\s*if \(busy\.value\) return;\s*if \(!tokenPattern\.test\(verificationToken\.value\)\)/);
+  assert.match(gate, /async function verify\(\) \{\s*if \(busy\.value \|\| !tokenPattern\.test\(verificationToken\.value\)\)/);
+  assert.match(gate, /const epoch = requestEpoch\.value \+ 1;/);
+  assert.match(gate, /if \(!mounted \|\| epoch !== requestEpoch\.value\) return;/);
 });

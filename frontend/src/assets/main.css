@@ -704,3 +704,34 @@ footer { text-align: center; font-size: 12px; padding: 24px; color: #8793a4; }
     flex: 1 1 100%; width: 100%; justify-content: flex-end;
   }
 }
+
+/* AUTH-03 / #198. Scoped to secure auth card; legacy pages keep their styles. */
+@font-face {font-family:"Google Sans AUTH03";src:url("/vendor/google-signin/GoogleSans-Medium-auth.ttf") format("truetype");font-weight:500;font-style:normal;font-display:swap}
+.auth03-panel { box-sizing:border-box; width:min(448px,100%); min-width:0; padding:32px; border-radius:16px; background:#fff; color:#162331; overflow-wrap:normal }
+.auth03-panel h1 {font-size:clamp(24px,3vw,28px);line-height:1.2;margin:20px 0 8px;overflow-wrap:normal}
+.auth03-intro { margin:0 0 24px; color:#53636d }
+.auth03-brand {display:flex;align-items:center;gap:12px;min-width:0;font-size:19px}
+.auth03-brand img {object-fit:contain;flex:none}
+.auth03-form {border:0;padding:0;margin:0;gap:8px;min-width:0}
+.auth03-form label {font-size:14px;line-height:20px;margin-top:8px}
+.auth03-form input {box-sizing:border-box;min-width:0;min-height:48px;font-size:16px;line-height:24px;border-color:#7c8987}
+.auth03-form small {color:#53636d;line-height:1.4}
+.auth03-panel .auth-primary {min-height:48px;margin-top:16px}
+.auth03-password {position:relative;min-width:0}
+.auth03-password input {padding-right:56px;width:100%}
+.auth03-password button {position:absolute;right:2px;top:2px;min-width:44px;height:44px;border:0;border-radius:7px;background:transparent;color:#205f57;font-size:21px;cursor:pointer}
+.auth03-password button:focus-visible,.auth03-panel button:focus-visible,.auth03-panel input:focus-visible {outline:3px solid #205f57;outline-offset:2px}
+.auth03-panel .auth-link:disabled {opacity:.55;cursor:not-allowed}
+.auth03-google-block {display:grid;gap:14px;margin-top:16px}
+.auth03-divider {display:flex;align-items:center;gap:12px;color:#53636d;font-size:14px}
+.auth03-divider:before,.auth03-divider:after {content:"";height:1px;flex:1;background:#cbd5d2}
+.auth03-google {position:relative;box-sizing:border-box;display:flex;align-items:center;justify-content:center;width:100%;min-height:48px;background:#fff;border:1px solid #747775;border-radius:8px;color:#1f1f1f;font-family:"Google Sans AUTH03",Arial,sans-serif;font-weight:500;font-size:14px;line-height:20px;cursor:pointer;padding:0 16px 0 44px}
+.auth03-google img {position:absolute;left:12px;top:13px;object-fit:contain;width:20px;height:20px}
+.auth03-google:hover:not(:disabled){background:#f8fafd}
+.auth03-google:disabled {opacity:.55;cursor:wait}
+.auth03-switch {justify-self:center;text-align:center}
+.auth03-actions {display:grid;justify-items:start;gap:8px;margin-top:16px}
+.auth03-note {padding:10px;border:1px solid #b9c9c5;border-radius:8px}
+@media(max-width:599px){.auth03-panel{padding:24px}}
+@media(max-width:360px){.auth03-brand{font-size:16px}.auth03-panel{padding:20px}.auth03-google{font-size:13px}}
+@media(prefers-reduced-motion:reduce){.auth03-panel * {animation:none!important;transition:none!important}}
