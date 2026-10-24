@@ -73,6 +73,35 @@ public class DiagnosticRecommendationService {
             skillStates.put(snapshot.skillCode(), new RecommendationEngine.SkillState(
                     snapshot.assessedLevel(), snapshot.selfReported(), snapshot.prerequisites()));
         }
+        // Short probes are suggestions, never automatic assignments. An uploaded
+        // recording without verified assessment does not silently pass a skill.
+        var probeOptions = exercises
+                .findByInstrumentCodeAndTechniqueCodeAndCurrentTrueOrderByCode(
+                        profile.getInstrumentCode(), profile.getTechniqueCode()).stream()
+                .filter(ExercisePublicationPolicy::eligible)
+                .filter(e -> "DIAGNOSTIC_PROBE".equals(e.getContentKind()))
+                .filter(e -> safeAndAvailable(e.getScoreResource())
+                        && safeAndAvailable(e.getEventsResource())
+                        && safeAndAvailable(e.getPreviewAudioResource())
+                        && safeAndAvailable(e.getPreviewPdfResource()))
+                .map(e -> new ProbeSelectionPolicy.Candidate(e.getCode(), e.getVersion(),
+                        e.getTitle(), e.getDurationTargetSeconds(),
+                        skills.exerciseRoles(e.getId()).entrySet().stream()
+                          .filter(role -> "PRIMARY".equals(role.getValue()))
+                          .map(Map.Entry::getKey).sorted().toList()))
+                .toList();
+        var proposedProbe = ProbeSelectionPolicy.next(probeOptions, skillStates);
+        if (proposedProbe.isPresent()) {
+            var p = proposedProbe.orElseThrow();
+            var suggestion = new RecommendationEngine.Item(p.code(), p.version(), p.title(),
+                    Math.max(1, (p.durationSeconds() + 59) / 60), p.primarySkills(),
+                    java.util.List.of("UNKNOWN_SKILL_DIAGNOSTIC"),
+                    "Короткая необязательная диагностическая проба: "
+                            + String.join(", ", p.primarySkills()));
+            return new RecommendationView(sessionId, "adaptive-probe-v1",
+                    "RECOMMENDED", null, java.util.List.of(suggestion));
+        }
+
         var background = backgrounds.findByInstrumentProfile_Id(profile.getId());
         var minutes = background.map(b -> b.getPracticeMinutes()).orElse(10);
         var experience = background.map(b -> b.getExperienceLevel()).orElse(null);
