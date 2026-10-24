@@ -40,7 +40,12 @@ async function restoreProfile(): Promise<void> {
     // No new session or assignment is created by the home screen.
     const id = learnerStore.learner?.id ?? null;
     if (previous && id !== previous) summary.value = null;
-    const next = await resolveHomeSummary(id, window.localStorage);
+    // Public signup creates an Account and a bare Learner before instrument setup.
+    // Never request instrument background for a learner without that instrument.
+    const hasGuitar = learnerStore.learner?.instruments.some(
+      instrument => instrument.instrumentCode === 'ACOUSTIC_GUITAR',
+    ) ?? false;
+    const next = await resolveHomeSummary(hasGuitar ? id : null, window.localStorage);
     if (!active || seq !== generation || learnerStore.learner?.id !== id) return;
     summary.value = next;
   } catch (cause) {
