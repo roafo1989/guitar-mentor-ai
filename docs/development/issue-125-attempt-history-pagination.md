@@ -48,3 +48,15 @@ Production code unchanged. Added `backend/src/test/java/ai/guitarmentor/applicat
 - **P3 measurement scope:** clarified above. Actual planner/index selection would require a separate `EXPLAIN` test; not proven by the statement-count probe.
 
 Code review follow-up should be performed on the updated commit and CI evidence; no merge/close before acceptance.
+
+## QA regression fixes — 24 October 2026
+
+The QA-125-01 findings from testing #125 have been addressed:
+
+- **Capabilities 404 no-store:** `SubmissionAttemptController.missingTask()` now calls the same `safeError` helper as paged/detail GET and sends `Cache-Control: no-store` on `RESOURCE_NOT_FOUND`. Added `MockMvc` exception-handler regression and real HTTP 404/no-store checks for foreign learner and task under `GET /capabilities`.
+- **Existing foreign task and attempt:** real PostgreSQL integration creates a second learner/session/task/attempt, verifies cross-learner and wrong-task reads fail with not-found, and verifies the legitimate second owner can read it.
+- **Uploads disabled:** separate real PostgreSQL Spring context with `guitar-mentor.submissions.enabled=false` checks page/detail/legacy GET and capabilities `enabled=false`, plus 403 for attempted POST with no new history row.
+- **[Java CI #40067542941](https://github.com/roafo1989/guitar-mentor-ai/actions/runs/40067542941)** on commit `4a01ac0`: SUCCESS, **218 tests**, zero failures/errors and four pre-existing skips; 16 original PostgreSQL attempt tests, 1 uploads-disabled PostgreSQL test and 5 attempt controller tests passed. Actual Spring Boot/PostgreSQL HTTP smoke passed.
+- **[Vue CI #40067542874](https://github.com/roafo1989/guitar-mentor-ai/actions/runs/40067542874)** on the same code commit: SUCCESS.
+
+This closes the identified backend QA code and coverage gaps; owner acceptance and merger remain separate. Tests use disposable synthetic data, not user recordings.
