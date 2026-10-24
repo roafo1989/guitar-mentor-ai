@@ -138,6 +138,43 @@ class LocalCredentialPostgresTest {
         assertThrows(SecurityException.class,()->googleLinks.attachVerifiedGoogle(another,0L,oidc));
     }
 
+    @Test
+    void publicRegistrationRejectsDuplicatePendingAndActiveCredentials() {
+        String email=UUID.randomUUID()+"@example.test";
+        String login="free"+UUID.randomUUID().toString().substring(0,9);
+        local.registerPublic(email,login,"public-password-999");
+        assertThrows(SecurityException.class,
+            () -> local.registerPublic(email,"another"+UUID.randomUUID().toString().substring(0,8),"public-password-999"));
+        assertThrows(SecurityException.class,
+            () -> local.registerPublic(UUID.randomUUID()+"@example.test",login,"public-password-999"));
+        String token=latestMailToken();
+        local.verify(token);
+        assertThrows(SecurityException.class,
+            () -> local.registerPublic(email,login,"public-password-999"));
+    }
+
+    @Test
+    void publicGoogleEnrollmentCreatesDistinctAccountWithoutImplicitEmailMerge() throws Exception {
+        String shared=UUID.randomUUID()+"@example.test";
+        String login="linked"+UUID.randomUUID().toString().substring(0,8);
+        local.registerPublic(shared,login,"public-password-999");
+        local.verify(latestMailToken());
+        UUID localAccount=local.authenticate(login,"public-password-999");
+        var google=mock(org.springframework.security.oauth2.core.oidc.user.OidcUser.class);
+        when(google.getIssuer()).thenReturn(java.net.URI.create(InvitationService.GOOGLE_ISSUER).toURL());
+        when(google.getEmailVerified()).thenReturn(true);
+        when(google.getSubject()).thenReturn("new-google-"+UUID.randomUUID());
+        when(google.getEmail()).thenReturn(shared);
+        when(google.getFullName()).thenReturn("QA Google");
+        UUID googleAccount=invitations.admitPublicGoogle(google);
+        assertNotEquals(localAccount,googleAccount);
+        assertEquals(googleAccount,invitations.admitPublicGoogle(google));
+        assertEquals(googleAccount,actors.findActive(InvitationService.GOOGLE_ISSUER,google.getSubject())
+            .orElseThrow().accountId());
+        assertEquals("LEARNER",actors.findActive(InvitationService.GOOGLE_ISSUER,google.getSubject())
+            .orElseThrow().role());
+    }
+
     private String latestMailToken() {
         var captor=ArgumentCaptor.forClass(SimpleMailMessage.class);
         verify(sender,atLeastOnce()).send(captor.capture());
