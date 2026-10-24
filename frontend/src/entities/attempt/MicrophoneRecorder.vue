@@ -223,6 +223,14 @@ onBeforeUnmount(() => {
       <p class="hint">{{ t('attempt.metronomePracticeTip') }}</p>
     </details>
     <p v-if="!supported" class="hint">{{ t('attempt.micUnsupported') }}</p>
+    <div v-if="compact && supported" class="studio-live-wave" role="meter"
+      :aria-label="t('attempt.micLevelLabel')" aria-valuemin="0" aria-valuemax="100"
+      :aria-valuenow="state === 'recording' && meterAvailable ? meterLevel : 0">
+      <span v-for="tick in 42" :key="tick" class="studio-wave-bar"
+        :class="{ 'is-listening': state === 'recording' && meterAvailable && meterLevel >= (tick % 9 + 1) * 10 }"
+        :style="{ height: (18 + ((tick * 17 + 13) % 68)) + '%' }" />
+      <span class="studio-wave-timer">{{ state === 'recording' ? timeLabel : '00:00' }} / 02:00</span>
+    </div>
     <div v-else class="microphone-controls">
       <button v-if="state === 'idle'" type="button" class="recorder-button"
         :disabled="disabled" @click="start">{{ t('attempt.startRecording') }}</button>
@@ -239,7 +247,7 @@ onBeforeUnmount(() => {
           :disabled="state !== 'recording'" @click="cancel">{{ t('attempt.cancelRecording') }}</button>
       </template>
     </div>
-    <div v-if="state === 'recording'" class="mic-level-panel">
+    <div v-if="state === 'recording' && !compact" class="mic-level-panel">
       <div class="mic-level-heading">
         <span>{{ t('attempt.micLevelLabel') }}</span>
         <span v-if="meterAvailable" class="mic-level-status">
@@ -265,4 +273,12 @@ onBeforeUnmount(() => {
 .compact-recording-info {margin:0 0 12px;font-size:12px;color:#64746f}
 .compact-recording-info summary {cursor:pointer;min-height:38px;display:flex;align-items:center;color:#45685e}
 .compact-recording-info summary:focus-visible {outline:3px solid #28776d;outline-offset:2px}
+ 
+.studio-live-wave {height:62px;border-radius:12px;background:#f4f8f6;padding:10px 82px 10px 12px;display:flex;align-items:center;gap:3px;position:relative;overflow:hidden}
+.studio-wave-bar {flex:1;min-width:2px;max-width:6px;background:#d2ded8;border-radius:4px;transition:background-color .1s}
+.studio-wave-bar.is-listening {background:#438e68}
+.studio-wave-timer {position:absolute;right:10px;top:50%;transform:translateY(-50%);font-variant-numeric:tabular-nums;font-size:11px;color:#51605b;white-space:nowrap}
+.microphone-recorder:has(.studio-live-wave) .microphone-controls {display:flex;gap:10px;align-items:center;flex-wrap:wrap;margin:10px 0}
+.microphone-recorder:has(.studio-live-wave) .recording-timer {display:none}
+.microphone-recorder:has(.studio-live-wave) .recorder-button {border-radius:999px;min-height:44px}
 </style>
