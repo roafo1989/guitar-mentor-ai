@@ -1,0 +1,55 @@
+name: GM-DIAG-145 media build (feature branch only)
+on:
+  push:
+    branches:
+      - feature/145-short-diagnostic-probes
+    paths:
+      - scripts/diag145/generate_media.py
+      - .github/workflows/diag145-media-build.yml
+  workflow_dispatch:
+permissions:
+  contents: write
+jobs:
+  build-review-assets:
+    if: github.ref == 'refs/heads/feature/145-short-diagnostic-probes'
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: feature/145-short-diagnostic-probes
+          persist-credentials: true
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Install authoring dependencies
+        run: |
+          python -m pip install --disable-pip-version-check reportlab==4.4.4
+          command -v ffmpeg || (sudo apt-get update && sudo apt-get install -y ffmpeg)
+      - name: Generate identical versioned review resources
+        run: python scripts/diag145/generate_media.py
+      - name: Validate binary headers and timings
+        run: |
+          python - <<'PY'
+          from pathlib import Path
+          import subprocess, json
+          root=Path('backend/src/main/resources/exercises/GM-DIAG-PULSE-3-8-01')
+          pdf=(root/'preview_v010.pdf').read_bytes()
+          mp3=root/'preview_v010.mp3'
+          assert pdf.startswith(b'%PDF') and len(pdf)>3000
+          result=subprocess.run(['ffprobe','-v','error','-show_entries','format=duration','-of','json',str(mp3)],
+                                capture_output=True,text=True,check=True)
+          seconds=float(json.loads(result.stdout)['format']['duration'])
+          assert 23.8 <= seconds <= 25.5, seconds
+          print('Review package playable:',seconds,'seconds')
+          PY
+      - name: Commit generated review-only media to feature branch
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add backend/src/main/resources/exercises/GM-DIAG-PULSE-3-8-01/preview_v010.pdf
+          git add backend/src/main/resources/exercises/GM-DIAG-PULSE-3-8-01/preview_v010.mp3
+          if ! git diff --cached --quiet; then
+            git commit -m "build(#145): version-pinned MP3 and staff/TAB review assets"
+            git push origin HEAD:feature/145-short-diagnostic-probes
+          fi
