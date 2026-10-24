@@ -233,7 +233,7 @@ onBeforeUnmount(() => {
     </div>
     <div v-if="supported" class="microphone-controls">
       <button v-if="state === 'idle'" type="button" class="recorder-button"
-        :disabled="disabled" @click="start">{{ t('attempt.startRecording') }}</button>
+        :disabled="disabled" :aria-label="compact ? t('attempt.startRecording') : undefined" @click="start"><span v-if="compact" class="studio-record-dot" aria-hidden="true"></span><span v-else>{{ t('attempt.startRecording') }}</span></button>
       <span v-else-if="state === 'requesting'" class="hint" role="status">
         {{ t('attempt.requestingMic') }}
       </span>
@@ -242,8 +242,8 @@ onBeforeUnmount(() => {
           {{ timeLabel }} / 02:00
         </span>
         <button type="button" class="recorder-button"
-          :disabled="state !== 'recording'" @click="stop">{{ t('attempt.stopRecording') }}</button>
-        <button type="button" class="recorder-button secondary-button"
+          :disabled="state !== 'recording'" :aria-label="compact ? t('attempt.stopRecording') : undefined" @click="stop"><span v-if="compact" class="studio-stop-square" aria-hidden="true"></span><span v-else>{{ t('attempt.stopRecording') }}</span></button>
+        <button type="button" class="recorder-button secondary-button" :class="{ 'studio-cancel-button': compact }"
           :disabled="state !== 'recording'" @click="cancel">{{ t('attempt.cancelRecording') }}</button>
       </template>
       <slot name="actions" />
@@ -279,7 +279,13 @@ onBeforeUnmount(() => {
 .studio-wave-bar {flex:1;min-width:2px;max-width:6px;background:#d2ded8;border-radius:4px;transition:background-color .1s}
 .studio-wave-bar.is-listening {background:#438e68}
 .studio-wave-timer {position:absolute;right:10px;top:50%;transform:translateY(-50%);font-variant-numeric:tabular-nums;font-size:11px;color:#51605b;white-space:nowrap}
-.microphone-recorder:has(.studio-live-wave) .microphone-controls {display:flex;gap:10px;align-items:center;flex-wrap:wrap;margin:10px 0}
+.microphone-recorder:has(.studio-live-wave) .microphone-controls {display:flex;gap:8px;align-items:center;flex-wrap:nowrap;margin:10px 0;min-width:0}
+.microphone-recorder:has(.studio-live-wave) .microphone-controls > button:first-child {flex:0 0 50px;width:50px;height:50px;min-width:50px;min-height:50px;padding:0;border:5px solid #e5e9e7;background:white;border-radius:999px;display:grid;place-items:center;box-shadow:0 0 0 1px #cfd8d3}
+.studio-record-dot {width:26px;height:26px;border-radius:999px;background:#dd3d37;display:block}
+.studio-stop-square {width:20px;height:20px;border-radius:5px;background:#dd3d37;display:block}
+.microphone-recorder:has(.studio-live-wave) .microphone-controls .studio-cancel-button {flex:0 1 74px;font-size:11px;padding:6px}
+@media(max-width:420px) {.microphone-recorder:has(.studio-live-wave) .microphone-controls {flex-wrap:wrap}}
+
 .microphone-recorder:has(.studio-live-wave) .recording-timer {display:none}
 .microphone-recorder:has(.studio-live-wave) .recorder-button {border-radius:999px;min-height:44px}
 </style>
