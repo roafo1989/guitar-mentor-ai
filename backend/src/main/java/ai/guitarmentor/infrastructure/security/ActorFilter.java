@@ -6,6 +6,7 @@ import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
 import java.io.IOException;
 import java.util.UUID;
+import java.time.Duration;
 import org.springframework.security.core.Authentication;
 import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.security.oauth2.core.oidc.user.OidcUser;
@@ -14,8 +15,12 @@ import org.springframework.web.filter.OncePerRequestFilter;
 /** BOLA guard: all learner-scoped routes are checked before reaching controllers or media. */
 public class ActorFilter extends OncePerRequestFilter {
     private final ActorRepository repository;
+    private final Duration absoluteLifetime;
 
-    public ActorFilter(ActorRepository repository) { this.repository = repository; }
+    public ActorFilter(ActorRepository repository, Duration absoluteLifetime) {
+        this.repository = repository;
+        this.absoluteLifetime = absoluteLifetime;
+    }
 
     @Override
     protected void doFilterInternal(HttpServletRequest request, HttpServletResponse response,
@@ -26,6 +31,14 @@ public class ActorFilter extends OncePerRequestFilter {
             return;
         }
         response.setHeader("Cache-Control", "no-store");
+        var session = request.getSession(false);
+        if (session != null && System.currentTimeMillis() - session.getCreationTime()
+                >= absoluteLifetime.toMillis()) {
+            session.invalidate();
+            SecurityContextHolder.clearContext();
+            deny(response, 401, "SESSION_EXPIRED");
+            return;
+        }
         Authentication auth = SecurityContextHolder.getContext().getAuthentication();
         if (auth == null || !(auth.getPrincipal() instanceof OidcUser oidc)) {
             deny(response, 401, "UNAUTHENTICATED");
