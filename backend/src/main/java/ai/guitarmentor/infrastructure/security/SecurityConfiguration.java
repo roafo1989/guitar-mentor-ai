@@ -21,7 +21,7 @@ import jakarta.servlet.http.HttpServletRequest;
 @Configuration
 public class SecurityConfiguration {
     @Bean
-    SecurityFilterChain securityFilterChain(HttpSecurity http, ActorFilter actorFilter,
+    SecurityFilterChain securityFilterChain(HttpSecurity http, ActorRepository actors,
             @Value("${guitar-mentor.security.enabled:true}") boolean enabled) throws Exception {
         if (!enabled) {
             // Insecure fallback is reserved for existing localhost-only development.
@@ -68,7 +68,7 @@ public class SecurityConfiguration {
                     res.setContentType("application/json");
                     res.getWriter().write("{\"code\":\"ACCESS_DENIED\"}");
                 }))
-            .addFilterAfter(actorFilter, UsernamePasswordAuthenticationFilter.class);
+            .addFilterAfter(new ActorFilter(actors), UsernamePasswordAuthenticationFilter.class);
         return http.build();
     }
 
