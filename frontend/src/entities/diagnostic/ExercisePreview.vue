@@ -164,14 +164,6 @@ onBeforeUnmount(() => pdfOpenController?.abort());
         <div><dt>{{ t('diagnostic.metadata.license') }}</dt><dd>{{ exercise.license?.trim() || t('diagnostic.metadata.unknown') }}</dd></div>
       </dl>
     </section>
-    <div class="metronome-exercise-tool" :class="{ 'studio-tab-hidden': assigned && lightMinimal && studioTab !== 'description' }">
-      <button type="button" class="recorder-button metronome-exercise-launch"
-        :title="t('metronome.openExercise')" @click="launchMetronome">
-        {{ t('metronome.openExercise') }} · {{ exercise.bpm }} BPM
-      </button>
-      <span class="hint">{{ t('metronome.recommended') }}</span>
-      <p v-if="metronomeError" role="alert" class="hint">{{ t('metronome.exerciseMeterUnavailable') }}</p>
-    </div>
     <div v-if="!assigned || !lightMinimal" class="exercise-preview-audio">
       <strong>{{ t('diagnostic.listenExample') }}</strong>
       <p class="hint">{{ t('diagnostic.synthesizedExample') }}</p>
@@ -205,6 +197,14 @@ onBeforeUnmount(() => pdfOpenController?.abort());
         <a :href="exercise.scoreUrl" download>{{ t('diagnostic.downloadScore') }}</a>
       </p>
     </details>
+    <div class="metronome-exercise-tool">
+      <button type="button" class="recorder-button metronome-exercise-launch"
+        :title="t('metronome.openExercise')" @click="launchMetronome">
+        {{ t('metronome.openExercise') }} · {{ exercise.bpm }} BPM · {{ exercise.meter }}
+      </button>
+      <span class="hint">{{ t('metronome.recommended') }}</span>
+      <p v-if="metronomeError" role="alert" class="hint">{{ t('metronome.exerciseMeterUnavailable') }}</p>
+    </div>
   </section>
 </template>
 
@@ -232,6 +232,7 @@ details.exercise-learning > summary:focus-visible {outline:3px solid #28776d;out
 .studio-preview :deep(.score-toolbar) {grid-column:2;grid-row:1;gap:6px;justify-content:flex-end;padding:0;min-height:52px;align-content:center;flex-wrap:nowrap;min-width:0}
 .studio-preview :deep(.score-reader > div:not(.score-toolbar)) {grid-column:1 / -1;min-width:0}
 .studio-preview > :not(.studio-tabs):not(.score-reader) {grid-column:1 / -1}
+.studio-preview .metronome-exercise-tool {grid-column:1 / -1;margin-top:3px;display:flex;align-items:center;gap:10px;flex-wrap:wrap}
 .studio-preview :deep(.score-toolbar button) {border-color:#dce5e4;background:#fff}
 .studio-preview :deep(.score-canvas-frame) {height:min(78vh,1000px)}
 .studio-preview .exercise-preview-audio {border:1px solid #e1e9e4;border-radius:12px;background:#f8fbfa;padding:18px}
