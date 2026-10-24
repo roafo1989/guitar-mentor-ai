@@ -11,6 +11,7 @@ import { metronome, type MetronomeStatus } from './shared/audio/metronome';
 import { useLearnerStore } from './stores/learner.store';
 
 const { locale, t } = useI18n();
+const localPrototype = import.meta.env.DEV && import.meta.env.VITE_GUITAR_MENTOR_AUTH_REQUIRED !== 'true';
 // All routed pages restore the selected learner on mount; this header reacts to Pinia changes.
 const learnerStore = useLearnerStore();
 const route = useRoute();
@@ -73,7 +74,7 @@ onBeforeUnmount(() => { unsubscribeMetronome?.(); closeMetronome(); });
           <RouterLink to="/diagnostics">{{ t('app.diagnostics') }}</RouterLink>
         </nav>
         <RouterLink
-          v-if="learnerStore.learner"
+          v-if="learnerStore.learner && (auth.actor || localPrototype)"
           to="/profile"
           class="header-learner"
           :title="t('app.currentLearner') + ': ' + learnerStore.learner.displayName"
