@@ -343,7 +343,12 @@
     "recordingPanelTitle": "Запись исполнения",
     "listenShort": "Прослушать",
     "pausePlayback": "Пауза",
-    "submitShort": "Отправить"
+    "submitShort": "Отправить",
+    "inputModeLabel": "Источник аудио",
+    "recordTab": "Запись с микрофона",
+    "fileTab": "Загрузить файл",
+    "chooseFile": "Выбрать аудиофайл",
+    "removeAttachment": "Убрать файл"
   },
   "evidence": {
     "heading": "Мои исполнения",
