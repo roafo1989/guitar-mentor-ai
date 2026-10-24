@@ -8,6 +8,7 @@ let csrf: { headerName: string; token: string } | null = null;
 let installed = false;
 
 export function installAuthenticatedFetch(onSessionLost: () => void): void {
+  if (import.meta.env.DEV && import.meta.env.VITE_GUITAR_MENTOR_AUTH_REQUIRED !== 'true') return;
   if (installed) return;
   installed = true;
   const nativeFetch = window.fetch.bind(window);
