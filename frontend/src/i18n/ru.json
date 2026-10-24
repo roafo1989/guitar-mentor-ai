@@ -469,7 +469,9 @@
     "subdivisionCount": "Ударов на долю: {count}",
     "closeSettings": "Закрыть панель",
     "savingPreview": "Сохраняемая конфигурация",
-    "exerciseMeterUnavailable": "Размер или темп этого упражнения пока не поддерживается метрономом."
+    "exerciseMeterUnavailable": "Размер или темп этого упражнения пока не поддерживается метрономом.",
+    "decreaseBpm": "Уменьшить темп",
+    "increaseBpm": "Увеличить темп"
   },
   "tuner": {
     "title": "Гитарный тюнер",
