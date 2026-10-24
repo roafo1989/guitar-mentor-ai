@@ -15,11 +15,11 @@ const props = defineProps<{
   taskId: string;
   exercise?: Exercise;
 }>();
-const emit = defineEmits<{ 'draft-state': [state: { busy: boolean; dirty: boolean }] }>();
+const emit = defineEmits<{ 'draft-state': [state: { busy: boolean; dirty: boolean }]; 'capture-state': [state: { contextKey: string; active: boolean }]; 'preview-play': [] }>();
 const { t } = useI18n();
 const lightMinimal = import.meta.env?.VITE_GUITAR_MENTOR_LIGHT_MINIMAL === 'true';
 const metronomeError = ref(false);
-const metronomeBpm = ref(props.exercise?.bpm ?? 100);
+const metronomeBpm = ref(metronome.getConfig().bpm);
 const metronomeStatus = ref(metronome.getState().status);
 const metronomeRunning = computed(() => metronomeStatus.value === 'running');
 const metronomeBusy = computed(() => metronomeStatus.value === 'starting');
@@ -27,7 +27,7 @@ const metronomeSource = computed(() => props.exercise ? props.exercise.code + '@
 const exerciseMeter = computed(() => props.exercise?.meter ?? '4/4');
 let unsubscribeMetronome: (() => void) | undefined;
 onMounted(() => {
-  unsubscribeMetronome = metronome.subscribe(state => { metronomeStatus.value = state.status; });
+  unsubscribeMetronome = metronome.subscribe(state => { metronomeStatus.value = state.status; if (metronomeUi.sourceExercise === metronomeSource.value) metronomeBpm.value = (metronome.getPendingConfig() ?? metronome.getConfig()).bpm; });
 });
 onBeforeUnmount(() => {
   unsubscribeMetronome?.();
@@ -42,11 +42,11 @@ watch(() => [props.exercise?.code, props.exercise?.version, props.exercise?.bpm]
 });
 function setMetronomeBpm(value: number): void {
   if (!Number.isFinite(value)) return;
-  metronomeBpm.value = Math.max(20, Math.min(240, Math.round(value)));
-  if (metronomeUi.sourceExercise === metronomeSource.value &&
-    (metronomeStatus.value === 'running' || metronomeStatus.value === 'starting')) {
-    metronome.setBpm(metronomeBpm.value);
+  const bpm = Math.max(20, Math.min(240, Math.round(value)));
+  if (metronomeUi.sourceExercise === metronomeSource.value) {
+    if (!metronome.setBpm(bpm)) { metronomeError.value = true; return; }
   }
+  metronomeBpm.value = bpm;
 }
 async function toggleExerciseMetronome(event: MouseEvent): Promise<void> {
   const exercise = props.exercise;
@@ -61,6 +61,7 @@ async function toggleExerciseMetronome(event: MouseEvent): Promise<void> {
     metronomeError.value = true;
     return;
   }
+  metronomeBpm.value = (metronome.getPendingConfig() ?? metronome.getConfig()).bpm;
   metronomeError.value = !(await metronome.start());
 }
 const inputMode = ref<'record' | 'file'>('record');
@@ -115,8 +116,9 @@ const playbackElement = ref<HTMLAudioElement | null>(null);
 const playbackActive = ref(false);
 async function togglePlayback(): Promise<void> {
   const audio = playbackElement.value;
-  if (!audio || !recordedPreview.value) return;
+  if (!audio || !recordedPreview.value || recordingActive.value || uploading.value) return;
   if (!audio.paused) { audio.pause(); playbackActive.value = false; return; }
+  emit('preview-play');
   try { await audio.play(); playbackActive.value = true; }
   catch { playbackActive.value = false; }
 }
@@ -130,15 +132,8 @@ function clearRecordedPreview() {
 
 function onRecordingActive(active: boolean) {
   recordingActive.value = active;
-  if (!active) return;
-  // Avoid accidentally submitting a previously selected file while capturing.
-  file.value = null;
-  sourceKind.value = null;
-  clearRecordedPreview();
-  if (fileInput.value) fileInput.value.value = '';
-  requestId.value = crypto.randomUUID();
-  error.value = '';
-  notice.value = '';
+  if (active) { playbackElement.value?.pause(); playbackActive.value = false; }
+  emit('capture-state', { contextKey: JSON.stringify([props.learnerId, props.sessionId, props.taskId]), active });
 }
 
 function onRecorded(recording: File) {
@@ -232,6 +227,8 @@ function resetForContext(): void {
   clearRecordedPreview();
   comment.value = '';
   requestId.value = crypto.randomUUID();
+  recordingActive.value = false;
+  uploading.value = false;
   void refresh();
 }
 watch(() => [props.learnerId, props.sessionId, props.taskId], resetForContext);
@@ -371,7 +368,7 @@ function uploadErrorMessage(cause: unknown): string {
 function selectFile(event: Event) {
   const input = event.target as HTMLInputElement;
   const chosen = input.files?.[0] ?? null;
-  if (!chosen) return;
+  if (!chosen || recordingActive.value || uploading.value) return;
   const max = capabilities.value?.maxBytes ?? 20971520;
   if (chosen.size === 0 || chosen.size > max || !/\.(mp3|wav|ogg|webm|m4a)$/i.test(chosen.name)) {
     error.value = chosen.size === 0 || chosen.size > max ? t('attempt.sizeError') : t('attempt.formatError');
@@ -416,12 +413,13 @@ async function submit() {
   }
   const generation = contextGeneration;
   const { learnerId, sessionId, taskId } = props;
+  const snapshot = { chosen, comment: comment.value, requestId: requestId.value };
   uploading.value = true;
   error.value = '';
   notice.value = '';
   try {
     await attemptService.upload(learnerId, sessionId, taskId,
-      chosen, comment.value, requestId.value);
+      snapshot.chosen, snapshot.comment, snapshot.requestId);
     if (!currentContext(generation)) return;
     file.value = null;
     sourceKind.value = null;
@@ -436,7 +434,7 @@ async function submit() {
     if (currentContext(generation)) error.value = uploadErrorMessage(cause);
     // Retain the selected file and idempotency key; user can retry or pick another file.
   } finally {
-    uploading.value = false;
+    if (currentContext(generation)) uploading.value = false;
   }
 }
 function fileSize(bytes: number): string {
@@ -455,6 +453,7 @@ onBeforeUnmount(() => {
   if (typeof document !== 'undefined') document.removeEventListener('visibilitychange', onVisibility);
   if (polling !== undefined) clearInterval(polling);
   clearRecordedPreview();
+  emit('capture-state', { contextKey: JSON.stringify([props.learnerId, props.sessionId, props.taskId]), active: false });
 });
 </script>
 
@@ -547,13 +546,13 @@ onBeforeUnmount(() => {
           <audio :src="recordedPreview" controls preload="metadata"
             :aria-label="t('attempt.listenRecording')" />
           <button type="button" class="recorder-button secondary-button"
-            :disabled="uploading" @click="file = null; clearRecordedPreview()">
+            :disabled="uploading || recordingActive" @click="removeDraft">
             {{ t('attempt.discardRecording') }}
           </button>
         </div>
         <label for="attempt-comment" :class="{ 'studio-secondary-label': lightMinimal }">{{ t('attempt.commentLabel') }}</label>
         <textarea id="attempt-comment" v-model="comment" rows="3" maxlength="2000"
-          :disabled="uploading"
+          :disabled="uploading || recordingActive"
           :placeholder="t('attempt.commentPlaceholder')" />
         <div v-if="!lightMinimal" class="form-actions">
           <button type="submit" class="action-button"
