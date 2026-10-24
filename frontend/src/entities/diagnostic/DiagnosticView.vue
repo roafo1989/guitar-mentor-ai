@@ -23,10 +23,6 @@ const artworkSrc = computed(() => {
   return !customArtworkFailed.value && candidate && (candidate.startsWith('/') && !candidate.startsWith('//') || /^https:\/\//i.test(candidate))
     ? candidate : fallbackArtwork;
 });
-watch(() => task.value?.exercise.coverUrl, () => {
-  customArtworkFailed.value = false;
-  fallbackArtworkFailed.value = false;
-});
 function onArtworkError(): void {
   if (artworkSrc.value !== fallbackArtwork) customArtworkFailed.value = true;
   else fallbackArtworkFailed.value = true;
@@ -78,6 +74,11 @@ const recommendation = ref<DiagnosticRecommendation | null>(null);
 const recommendationBusy = ref(false);
 const recommendationError = ref('');
 const task = ref<DiagnosticTask | null>(null);
+watch(() => task.value?.exercise.coverUrl, () => {
+  customArtworkFailed.value = false;
+  fallbackArtworkFailed.value = false;
+});
+
 const taskLoading = ref(false);
 const taskFailure = ref<'missing' | 'network' | null>(null);
 let taskGeneration = 0;
