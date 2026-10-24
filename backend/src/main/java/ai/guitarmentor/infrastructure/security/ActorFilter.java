@@ -66,6 +66,18 @@ public class ActorFilter extends OncePerRequestFilter {
             deny(response, 403, "ACCOUNT_NOT_ADMITTED");
             return;
         }
+        // Existing OIDC sessions are version-pinned at successful login/activation.
+        // Password change/reset or operator revocation bumps access_version and rejects old sessions.
+        if (auth.getPrincipal() instanceof OidcUser) {
+            Object pinned = session == null ? null : session.getAttribute("guitarMentorAccessVersion");
+            var current = repository.localVersion(actor.get().accountId());
+            if (!(pinned instanceof Long) || current.isEmpty() || !pinned.equals(current.get())) {
+                if (session != null) session.invalidate();
+                SecurityContextHolder.clearContext();
+                deny(response, 401, "SESSION_EXPIRED");
+                return;
+            }
+        }
         request.setAttribute("guitarMentorActor", actor.get());
         if (path.equals("/api/v1/learners") || path.equals("/api/v1/learners/")) {
             // Enrollment must be atomic and invitation-gated in #42, never via public create.
