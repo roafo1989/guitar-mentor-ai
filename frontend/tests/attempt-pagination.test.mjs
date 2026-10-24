@@ -7,7 +7,7 @@ import { createRenderer, h, nextTick } from 'vue';
 import { createI18n } from 'vue-i18n';
 
 const moduleUrl = code => 'data:text/javascript,' + encodeURIComponent(code);
-const blank = moduleUrl("export default { render() { return null; } };");
+const blank = moduleUrl('import { h } from ' + JSON.stringify(import.meta.resolve('vue')) + '; export default { render() { return h("span"); } };');
 const service = moduleUrl(`export const attemptService = {
   capabilities: (...args) => globalThis.__qaAttempt.capabilities(...args),
   page: (...args) => globalThis.__qaAttempt.page(...args),
