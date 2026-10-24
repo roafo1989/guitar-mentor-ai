@@ -9,6 +9,22 @@ The Guitar Mentor AI catalog prioritizes **existing artistically credible repert
 
 Do not equate public web availability or downloadable tabs with permission to copy, rearrange, redistribute, or publish PDF/audio. A public-domain **composition** may still have copyrighted editions, engravings, arrangements, recordings, and performances; verify rights to each asset separately and for the intended jurisdiction/use. A URL-only external reference may be permissible when hosting is not, subject to source terms.
 
+## 1a. Flexible time signatures (owner decision 2026-10-24)
+
+Learning repertoire is **not restricted to 4/4**. Preserve each composition's authentic notated meter (for example 2/4, 3/4, 3/8, 4/4, 6/8). Meter is an explicit, versioned learning attribute, not a disqualifying repertoire filter. Do **not** convert an existing composition to 4/4 merely to satisfy an outdated exercise template. Difficulty is evaluated independently of meter, BPM, rhythm subdivisions and fingering; 3/8 is not intrinsically more advanced than 4/4.
+
+Use meter diversity intentionally in diagnostics to distinguish:
+- maintaining steady beat within one meter;
+- recognizing and accenting the opening beat and grouping of beats;
+- adapting to simple duple versus triple meter;
+- understanding compound subdivisions where suitable to the student's stage (6/8: two dotted-quarter beats, each divided into three eighths, not necessarily six equal accented beats).
+
+**Assessment policy:** diagnosis must use *actual performance evidence*, not infer a deficit from a student's preference or a single unfamiliar meter. For novices, choose an appropriate progression and permit guidance / retries; record skill outcomes by meter context, do not automatically mark a general pulse skill failed because a more complex meter is new. No automatic AI PASS without applicable audio-assessment functionality.
+
+**Metronome / playback dependency:** UI and Web Audio must show and accent the actual exercise meter. An implementation that only counts 1–4 must not be shown as a correct 3/8 or 6/8 accompaniment. Define pulse unit and accent pattern in content metadata; stop audio or show a clear limitation when unsupported. Expand the metronome tasks and tests before exposing non-4/4 pieces with misleading count-in. No silent fallback to 4/4.
+
+**Acceptance:** at least examples and checks for 2/4, 3/4, 3/8, 4/4, and 6/8 where supported; verify bar totals, onset grids, count-in and audible accents, score/TAB alignment and version integrity. The initial rollout may support a subset if honestly indicated and non-supported material is not falsely advertised as compatible.
+
 ## 2. Content-selection funnel
 1. Specify the learning skill, target level, style, melodic interest, range and expected duration.
 2. Search existing approved internal catalog and lawful external repertoires.
