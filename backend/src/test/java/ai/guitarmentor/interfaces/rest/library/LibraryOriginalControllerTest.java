@@ -88,8 +88,8 @@ class LibraryOriginalControllerTest {
         var mvc=org.springframework.test.web.servlet.setup.MockMvcBuilders
             .standaloneSetup(controller).build();
         var metadata=new MockMultipartFile("metadata","","application/json",
-            "{\\"title\\":\\"Song\\",\\"type\\":\\"ETUDE\\",\\"ownerId\\":\\"evil\\"}"
-                .getBytes(StandardCharsets.UTF_8));
+            new com.fasterxml.jackson.databind.ObjectMapper().writeValueAsBytes(
+                java.util.Map.of("title","Song","type","ETUDE","ownerId","evil")));
         var gp=new MockMultipartFile("files","song.gp5","application/octet-stream",
             new byte[]{1,2,3});
         mvc.perform(org.springframework.test.web.servlet.request.MockMvcRequestBuilders
