@@ -44,3 +44,12 @@ test('#152 invalid dates neutral, valid dates use the active locale', () => {
  assert.notEqual(ru,en);
  assert.ok(ru.length>3 && en.length>3);
 });
+
+test('#152 attempt selector has a separate, accessible full-width row', async () => {
+ const { readFile } = await import('node:fs/promises');
+ const view = await readFile(new URL('../src/entities/attempt/LearningResultsPanel.vue', import.meta.url), 'utf8');
+ assert.match(view, /<div class="learning-attempt-picker">\s*<label for="learning-attempt">/);
+ assert.match(view, /<select id="learning-attempt"[^>]+>/);
+ assert.match(view, /\.learning-attempt-picker\s*\{[^}]*flex-direction:column;[^}]*gap:8px/);
+ assert.match(view, /\.learning-attempt-picker select\s*\{[^}]*width:100%;[^}]*min-height:44px/);
+});
