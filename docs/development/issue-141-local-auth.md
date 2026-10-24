@@ -69,3 +69,12 @@ Review focus: login credential checking, transactional admission, session and ow
 5. Current HEAD Java/Vue CI after review commits; previous green checks do not automatically validate later SHA.
 
 Do not merge or mark accepted until required gates have concrete evidence.
+
+
+## Решение владельца 24.10.2026: свободная регистрация (заменяет invitation-only)
+
+**Актуальный контракт #141:** самостоятельная регистрация по email, уникальному логину и паролю **без кода приглашения**; сервер выдаёт одноразовую ссылку подтверждения почты, до подтверждения Account/Learner не активированы. После проверки создаётся только роль LEARNER. Вход Google также открыт новым пользователям с Google-verified email; первая OAuth2-аутентификация создаёт отдельный LEARNER. Совпадение адреса email никогда не сливает Google и локальный аккаунты: привязка второго метода выполняется только в аутентифицированном профиле с проверкой личности. OWNER не создаётся публичной регистрацией, администрирование остаётся отдельным.
+
+**Совместимость:** V18–V21 неизменны, V22 делает pending_local_registrations.invitation_id необязательным; прежние приглашения/аккаунты не удаляются. Стандартная форма не содержит приглашений. Письма и reset требуют настроенного SMTP, иных bypass нет. Реальная публичная публикация всё ещё зависит от #39/#40 (HTTPS, rate-limits, наблюдаемость и безопасность).
+
+**Приёмка:** без приглашения клиент отправляет POST /api/v1/local-auth/register {email,login,password,confirmPassword}; 202 при принятии на почтовое подтверждение, GET /api/v1/me недоступен до проверки почты, один verify создаёт одного LEARNER, повторный verify отклоняется. Проверяются коллизии login/email, parallel signups, unavailable SMTP, CSRF, Google first-login, unchanged identity linkage. Эти изменения имеют приоритет над устаревшими invitation-only формулировками выше.
