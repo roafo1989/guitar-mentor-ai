@@ -106,3 +106,47 @@ test('real onboarding service: 204 means no background, 200 null/malformed objec
     assert.deepEqual(await onboardingService.get(id, instrument), background);
   });
 });
+
+test('real diagnostic currentTask: 204 is absent, 200 null is invalid, valid 200 is accepted', async () => {
+  const source = await readFile(new URL('../src/entities/diagnostic/diagnostic.service.ts', import.meta.url), 'utf8');
+  const compiled = ts.transpileModule(source, {
+    compilerOptions: { target: ts.ScriptTarget.ES2022, module: ts.ModuleKind.ESNext },
+  }).outputText.replace(
+    "'../../shared/api-failure'",
+    JSON.stringify(new URL('../src/shared/api-failure.ts', import.meta.url).href),
+  );
+  const { diagnosticService } = await import('data:text/javascript,' + encodeURIComponent(compiled));
+  const learnerId = '123e4567-e89b-12d3-a456-426614174000';
+  const sessionId = '123e4567-e89b-12d3-a456-426614174001';
+  const task = {
+    id: '123e4567-e89b-12d3-a456-426614174002',
+    sessionId,
+    assignedAt: '2026-10-24T09:00:00Z',
+    exercise: {
+      code: 'BLUES-01', version: '1', title: 'Blues', styleCode: 'BLUES',
+      difficulty: 'BEGINNER', meter: '4/4', author: 'Test',
+      license: 'CC0', reviewStatus: 'APPROVED', description: 'Study',
+      scoreUrl: '/score', eventsUrl: '/events', bpm: 80, measures: 4,
+      skillCodes: [], previewAudioUrl: null, previewPdfUrl: null,
+    },
+  };
+  let count = 0;
+  await withFetch(async (url, options) => {
+    ++count;
+    assert.equal(options?.method, undefined, 'currentTask must only GET');
+    assert.ok(String(url).endsWith('/tasks'));
+    return new Response(null, { status: 204 });
+  }, async () => assert.equal(await diagnosticService.currentTask(learnerId, sessionId), null));
+  assert.equal(count, 1);
+  for (const body of ['null', '{}', '[]', '""']) {
+    let attempts = 0;
+    await withFetch(async () => { ++attempts; return new Response(body, { status: 200 }); }, async () => {
+      await assert.rejects(diagnosticService.currentTask(learnerId, sessionId),
+        error => error instanceof ApiFailure && error.kind === 'INVALID_RESPONSE');
+    });
+    assert.equal(attempts, 1, 'malformed GET is never automatically repeated');
+  }
+  await withFetch(async () => new Response(JSON.stringify(task), { status: 200 }), async () => {
+    assert.deepEqual(await diagnosticService.currentTask(learnerId, sessionId), task);
+  });
+});
