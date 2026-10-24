@@ -229,7 +229,7 @@ test('#150 final visual revisions: example audio is only in hero, status separat
  assert.doesNotMatch(preview,/role="tab"[^\n]+studioTab === 'audio'/);
  assert.match(preview,/v-if="!assigned \|\| !lightMinimal" class="exercise-preview-audio"/);
  assert.match(submission,/t\('attempt.recordingPanelTitle'\)/);
- assert.match(submission,/class="studio-recording-playback"/);
+ assert.match(submission,/class="studio-play-button"/);
  assert.match(submission,/class="studio-discard-button"/);
  for(const lang of ['ru','en']){
   const j=JSON.parse(await readFile(new URL('../src/i18n/'+lang+'.json',import.meta.url),'utf8'));
