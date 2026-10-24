@@ -94,7 +94,9 @@
     "back": "Back",
     "save": "Save questionnaire",
     "saved": "Questionnaire saved to PostgreSQL",
-    "profileBack": "Back to profile"
+    "profileBack": "Back to profile",
+    "draftConflict": "A saved background exists on the server. Your local draft is still visible, but saving is blocked to prevent data loss. Load the server version to continue.",
+    "loadServerBackground": "Load saved background (replace draft)"
   },
   "diagnostic": {
     "title": "Initial assessment",
