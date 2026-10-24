@@ -42,6 +42,22 @@ public final class LibraryOriginalController {
     private final LibraryMaterialRepository repository;
     private final LibraryObjectStore storage;
     private final boolean enabled;
+    @Value("${guitar-mentor.library.max-upload-bytes:20971520}")
+    private long maxUploadBytes=MAX_FILE_BYTES;
+    @Value("${guitar-mentor.library.max-account-bytes:209715200}")
+    private long maxAccountBytes=ACCOUNT_BYTES;
+    @Value("${guitar-mentor.library.max-account-files:100}")
+    private int maxAccountFiles=ACCOUNT_FILES;
+    @Value("${guitar-mentor.library.max-files-per-material:5}")
+    private int maxFilesPerMaterial=5;
+
+    @jakarta.annotation.PostConstruct
+    void validateConfiguration() {
+        if(maxUploadBytes<1024 || maxUploadBytes>MAX_FILE_BYTES
+            || maxAccountBytes<maxUploadBytes || maxAccountFiles<maxFilesPerMaterial
+            || maxFilesPerMaterial<1 || maxFilesPerMaterial>5)
+            throw new IllegalStateException("Invalid private library quota configuration");
+    }
 
     public LibraryOriginalController(JdbcClient jdbc, TransactionTemplate transactions,
             LibraryMaterialRepository repository, LibraryObjectStore storage,
@@ -84,7 +100,7 @@ public final class LibraryOriginalController {
                 +((Number)usage.get("reserved_bytes")).longValue();
             long count=((Number)usage.get("charged_files")).longValue()
                 +((Number)usage.get("reserved_files")).longValue();
-            if(bytes>ACCOUNT_BYTES-used || files>ACCOUNT_FILES-count)
+            if(bytes>maxAccountBytes-used || files>maxAccountFiles-count)
                 throw new Failure(409,"LIBRARY_QUOTA_EXCEEDED");
             jdbc.sql("""
                 UPDATE library_account_usage SET reserved_bytes=reserved_bytes+:bytes,
@@ -175,7 +191,7 @@ public final class LibraryOriginalController {
                 || metadata.title().strip().length()>150 || !TYPES.contains(metadata.type())
                 || metadata.author()!=null && metadata.author().strip().length()>150)
             throw new Failure(400,"LIBRARY_INVALID_METADATA");
-        if(files==null || files.isEmpty() || files.size()>5)
+        if(files==null || files.isEmpty() || files.size()>maxFilesPerMaterial)
             throw new Failure(400,"LIBRARY_INVALID_FILES");
         String title=metadata.title().strip();
         String author=metadata.author()==null?null:metadata.author().strip();
@@ -190,7 +206,7 @@ public final class LibraryOriginalController {
             if(!FORMATS.contains(format)) throw new Failure(415,"LIBRARY_UNSUPPORTED_FORMAT");
             if(file.getSize()<=0) throw new Failure(400,"LIBRARY_INVALID_FILES");
             predicted+=file.getSize();
-            if(predicted>MAX_FILE_BYTES) throw new Failure(413,"LIBRARY_UPLOAD_TOO_LARGE");
+            if(predicted>maxUploadBytes) throw new Failure(413,"LIBRARY_UPLOAD_TOO_LARGE");
             if("PDF".equals(format)) {
                 try(var input=file.getInputStream()) {
                     if(input.read()!='%' || input.read()!='P' || input.read()!='D'
@@ -212,7 +228,7 @@ public final class LibraryOriginalController {
                 int dot=name.lastIndexOf('.');
                 String format=dot<0?"":name.substring(dot+1).toUpperCase(Locale.ROOT);
                 if(!FORMATS.contains(format)) throw new Failure(415,"LIBRARY_UNSUPPORTED_FORMAT");
-                long remaining=MAX_FILE_BYTES-total;
+                long remaining=maxUploadBytes-total;
                 if(remaining<=0 || file.getSize()>remaining)
                     throw new Failure(413,"LIBRARY_UPLOAD_TOO_LARGE");
                 Stored object;
