@@ -428,15 +428,15 @@ onBeforeUnmount(() => {
       <form class="homework-form" @submit.prevent="submit">
         <div v-if="lightMinimal" class="recording-mode-tabs" role="tablist"
           :aria-label="t('attempt.inputModeLabel')" @keydown="inputModeKeys">
-          <button type="button" role="tab" :aria-selected="inputMode === 'record'"
+          <button type="button" role="tab" id="attempt-tab-record" aria-controls="attempt-panel-record" :aria-selected="inputMode === 'record'"
             :tabindex="inputMode === 'record' ? 0 : -1" :disabled="!canSwitchInput"
             @click="changeInputMode('record')"><svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" aria-hidden="true"><rect x="9" y="2" width="6" height="13" rx="3"/><path d="M5 10v2a7 7 0 0 0 14 0v-2M12 19v3m-4 0h8"/></svg>{{ t('attempt.recordTab') }}</button>
-          <button type="button" role="tab" :aria-selected="inputMode === 'file'"
+          <button type="button" role="tab" id="attempt-tab-file" aria-controls="attempt-panel-file" :aria-selected="inputMode === 'file'"
             :tabindex="inputMode === 'file' ? 0 : -1" :disabled="!canSwitchInput"
             @click="changeInputMode('file')"><svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" aria-hidden="true"><path d="M12 3v12m-4-4 4 4 4-4M4 17v3h16v-3"/></svg>{{ t('attempt.fileTab') }}</button>
         </div>
         <div v-if="lightMinimal" class="recording-primary" :class="{ 'input-mode-hidden': inputMode !== 'record' }"
-          role="tabpanel" :aria-label="t('attempt.recordTab')">
+          id="attempt-panel-record" role="tabpanel" aria-labelledby="attempt-tab-record">
           <h4>{{ t('attempt.microphoneTitle') }}</h4>
           <MicrophoneRecorder :compact="lightMinimal" :disabled="learningTerminal || uploading"
           :max-bytes="capabilities?.maxBytes ?? 20971520"
@@ -461,7 +461,7 @@ onBeforeUnmount(() => {
         </div>
         <div v-if="lightMinimal" class="recording-file-option"
           :class="{ 'input-mode-hidden': inputMode !== 'file' }"
-          role="tabpanel" :aria-label="t('attempt.fileTab')">
+          id="attempt-panel-file" role="tabpanel" aria-labelledby="attempt-tab-file">
           <input id="attempt-file" ref="fileInput" class="studio-file-input" type="file"
             accept=".mp3,.wav,.ogg,.webm,.m4a,audio/*"
             :disabled="learningTerminal || uploading || recordingActive"
@@ -618,7 +618,10 @@ onBeforeUnmount(() => {
 .studio-workspace-panel .studio-discard-button {min-height:44px;display:inline-flex;align-items:center;justify-content:center;gap:5px;align-self:auto;flex:none;padding:8px 10px;border:1px solid #dce6e0;border-radius:9px;background:#fff;color:#566c64;font-size:12px;text-decoration:none;cursor:pointer}
 .studio-file-submit {min-height:44px;border:0;border-radius:10px;background:#28776d;color:white;font-weight:650;cursor:pointer}
 .studio-file-submit:disabled {opacity:.45;cursor:not-allowed}
-.studio-result-card > details.homework-history > summary {min-height:44px;padding:10px 8px;cursor:pointer;border-radius:9px}
+.studio-result-card > details.homework-history > summary {min-height:44px;padding:10px 8px;cursor:pointer;border-radius:9px;display:flex;align-items:center;justify-content:space-between;list-style:none;font-weight:600}
+.studio-result-card > details.homework-history > summary::-webkit-details-marker {display:none}
+.studio-result-card > details.homework-history > summary::after {content:"";width:8px;height:8px;border-right:2px solid #52685e;border-bottom:2px solid #52685e;transform:rotate(45deg);transition:transform .15s;flex:none;margin-right:8px}
+.studio-result-card > details.homework-history[open] > summary::after {transform:rotate(225deg)}
 .studio-result-card > details.homework-history > summary:hover {background:#f4f8f5}
 .studio-result-card > details.homework-history > summary:focus-visible {outline:3px solid #28776d}
 .studio-record-card .recording-primary {margin:0}
