@@ -73,6 +73,7 @@ $env:GUITAR_MENTOR_SECURITY_ENABLED = 'true'
 $env:GUITAR_MENTOR_BIND_ADDRESS = '127.0.0.1'
 $env:GUITAR_MENTOR_PUBLIC_ORIGIN = 'http://localhost:5173'
 $env:VITE_GUITAR_MENTOR_AUTH_REQUIRED = 'true'
+$env:VITE_GUITAR_MENTOR_UNIFIED_LOCAL = 'true'
 $env:SPRING_PROFILES_ACTIVE = 'secure,local-auth,local-unified'
 
 $backend = Join-Path $root 'backend'
@@ -126,6 +127,7 @@ $backendCommand = "Set-Location -LiteralPath '$backend'; if (-not (Get-Command p
 $frontendCommand = "Set-Location -LiteralPath '$frontend'; if (-not (Get-Command node.exe -ErrorAction SilentlyContinue)) { throw 'Child PATH missing node.exe' }; & '$npm' run dev"
 Start-Process -FilePath $ps -ArgumentList @('-NoExit', '-Command', $backendCommand)
 Start-Process -FilePath $ps -ArgumentList @('-NoExit', '-Command', $frontendCommand)
-Write-Host 'Started private backend and Vite terminals. Open http://localhost:5173.'
+Write-Host 'Started private backend and Vite terminals. Canonical login: http://localhost:5173.'
+Write-Host 'Short entry https://guitar-mentor/ redirects to localhost when your existing local Caddy is running.'
 Write-Host 'OAuth callback must match http://localhost:5173/login/oauth2/code/guitar-mentor.'
 Write-Host 'No SMTP test-capture process is needed. Email delivery depends on your provider.'
