@@ -1,0 +1,56 @@
+{
+  "schemaVersion": 1,
+  "candidateId": "CURATED-CARULLI-OP241-01",
+  "status": "CANDIDATE_NOT_APPROVED",
+  "usage": "OPTIONAL_LEARNING_REPERTOIRE",
+  "diagnosticMandatory": false,
+  "composer": "Ferdinando Carulli",
+  "work": "Waltz, Op. 241, No. 1",
+  "meter": "3/8",
+  "genre": "classical",
+  "ownerFeedback": "musically useful and good; full performance about 71 seconds is unsuitable as a compulsory short diagnostic task",
+  "sources": [
+    {
+      "type": "CANONICAL_EDITABLE_SCORE",
+      "url": "https://www.mutopiaproject.org/cgibin/piece-info.cgi?id=1656",
+      "material": "LilyPond source + notation PDF + MIDI",
+      "attribution": "Typeset by Louie van Bommel, Mutopia Project 2018/12/04-1656",
+      "license": "CC BY 4.0",
+      "canRedistributeAfterAttributionReview": true
+    },
+    {
+      "type": "EXTERNAL_NOTATION_TAB_LINK",
+      "url": "https://remarc.jimdofree.com/videos-und-tabs/walzer-carulli/",
+      "license": "Copyright of this independent edition; commercial reuse restricted",
+      "canRedistributeAfterAttributionReview": false
+    },
+    {
+      "type": "EXTERNAL_NOTATION_TAB_LINK",
+      "url": "https://classicalguitarshed.com/sm-carulli-op241-no1/",
+      "license": "Use/republication rights not confirmed",
+      "canRedistributeAfterAttributionReview": false
+    },
+    {
+      "type": "EXTERNAL_GUITAR_AUDIO_DEMO",
+      "url": "https://charlestonclassicalguitar.org/blog/2022/01/18/carulli-waltz-op-241-no-1/",
+      "license": "Recording and embedding rights not confirmed",
+      "canRedistributeAfterAttributionReview": false
+    }
+  ],
+  "issues": [
+    "No verified downloadable combined TAB+staff source under a redistributable license",
+    "No directly playable licensed MP3 plus score from the same approved edition in our own catalog",
+    "Actual performance difficulty and preferred excerpt/alternate short probe not yet reviewed by owner",
+    "Published preview must meet MUS-NOTATION-01",
+    "Broken IMSLP link supplied previously; do not reuse unverified URL"
+  ],
+  "publicationAllowed": false,
+  "automaticAssignmentAllowed": false,
+  "releaseGate": [
+    "owner selection",
+    "legal clearance on artifacts",
+    "score+TAB validation",
+    "browser audio validation",
+    "version pinning"
+  ]
+}
