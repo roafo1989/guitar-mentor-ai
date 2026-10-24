@@ -34,8 +34,8 @@ class ExerciseMetadataPostgresTest {
                 "Равномерное ощущение долей без произвольных остановок",
                 "Басовая линия не прерывается на смене мелодических фраз",
                 "Мелодическая линия слышна поверх баса"), found.successCriteria());
-        assertEquals(found.successCriteria(), catalog.available("ACOUSTIC_GUITAR", "FINGERSTYLE")
-                .getFirst().successCriteria());
+        assertEquals(found.successCriteria(), catalog.available("ACOUSTIC_GUITAR", "FINGERSTYLE").stream()
+                .filter(item -> "GM-EB01".equals(item.code())).findFirst().orElseThrow().successCriteria());
         assertFalse(jdbc.queryForObject(
                 "SELECT EXISTS (SELECT 1 FROM information_schema.columns"
                         + " WHERE table_name='exercises' AND column_name='success_criteria')",

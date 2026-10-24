@@ -131,7 +131,7 @@ jobs:
               # FT-002-02: real HTTP against PostgreSQL, including ownership and read-only GET.
               rec_base="http://localhost:8080/api/v1/learners/$learner_id/diagnostic-sessions/$session_id/exercise-recommendations"
               novice=$(curl --fail --silent --show-error "$rec_base")
-              printf '%s' "$novice" | python3 -c 'import json,sys; a=json.load(sys.stdin); assert a["status"]=="NO_MATCH" and a["reasonCode"]=="NO_BEGINNER_EXERCISE" and not a["items"]'
+              printf '%s' "$novice" | python3 -c 'import json,sys; a=json.load(sys.stdin); assert a["status"]=="RECOMMENDED" and len(a["items"])==1 and a["items"][0]["exerciseCode"]=="GM-DIAG-PULSE-3-8-01" and a["items"][0]["exerciseVersion"]=="0.1.0"'
               curl --silent --output /dev/null --write-out '%{http_code}' "$rec_base?limit=4" | grep -qx 400
               other=11111111-1111-4111-8111-111111111111
               curl --silent --output /dev/null --write-out '%{http_code}' "http://localhost:8080/api/v1/learners/$other/diagnostic-sessions/$session_id/exercise-recommendations" | grep -qx 404
@@ -147,7 +147,7 @@ jobs:
               withdrawn=$(curl --fail --silent --show-error "$skill_base/history?skillCode=MELODY")
               printf '%s' "$withdrawn" | python3 -c 'import json,sys; a=json.load(sys.stdin); assert len(a)==2 and a[0]["claimState"]=="RETRACTED" and a[1]["claimState"]=="CLAIMED"'
               recommended=$(curl --fail --silent --show-error "$rec_base")
-              printf '%s' "$recommended" | python3 -c 'import json,sys; a=json.load(sys.stdin); assert a["status"]=="RECOMMENDED" and a["items"][0]["exerciseCode"]=="GM-EB01" and "UNKNOWN_SKILL_DIAGNOSTIC" in a["items"][0]["reasonCodes"]'
+              printf '%s' "$recommended" | python3 -c 'import json,sys; a=json.load(sys.stdin); assert a["status"]=="RECOMMENDED" and a["items"][0]["exerciseCode"]=="GM-DIAG-PULSE-3-8-01" and "UNKNOWN_SKILL_DIAGNOSTIC" in a["items"][0]["reasonCodes"]'
               curl --silent --output /dev/null --write-out '%{http_code}' "http://localhost:8080/api/v1/learners/$learner_id/diagnostic-sessions/$session_id/tasks" | grep -qx 204
               echo "Skill claims and recommendation HTTP integration: OK"
               catalog=$(curl --fail --silent --show-error \
@@ -200,6 +200,20 @@ jobs:
                 "http://localhost:8080/api/v1/exercises/GM-EB01/versions/0.8B")" = 200
               echo "Exact-version HTTP parser rejection matrix: OK"
               echo "Exact-version HTTP contract smoke: OK"
+              # #182: published probe resources are version-pinned and playable.
+              probe_base="http://localhost:8080/api/v1/exercises/GM-DIAG-PULSE-3-8-01/versions/0.1.0"
+              probe_detail=$(curl --fail --silent --show-error "$probe_base")
+              printf '%s' "$probe_detail" | python3 -c 'import json,sys; a=json.load(sys.stdin); assert a["meter"]=="3/8" and a["bpm"]==100 and a["tempoUnit"]=="eighth" and a["contentKind"]=="DIAGNOSTIC_PROBE" and a["reviewStatus"]=="APPROVED" and a["version"]=="0.1.0"'
+              for kind in pdf audio; do
+                if [ "$kind" = pdf ]; then expected=application/pdf; else expected=audio/mpeg; fi
+                curl --fail --silent --show-error "$probe_base/preview/$kind" -o "probe-$kind"
+                curl --fail --silent --show-error --head "$probe_base/preview/$kind" -o "probe-$kind-headers"
+                grep -qi "content-type: $expected" "probe-$kind-headers"
+                test "$(wc -c < "probe-$kind")" -gt 3000
+              done
+              head -c 4 probe-pdf | grep -q '%PDF'
+              echo "Approved 3/8 probe versioned PDF/MP3 HTTP smoke: OK"
+
               assigned=$(curl --fail --silent --show-error -X POST \
                 "http://localhost:8080/api/v1/learners/$learner_id/diagnostic-sessions/$session_id/tasks" \
                 -H 'Content-Type: application/json' --data '{"exerciseCode":"GM-EB01"}')
@@ -222,8 +236,11 @@ jobs:
           detail = json.load(open("qa119-detail.json"))
           assigned = json.load(open("qa119-assigned.json"))["exercise"]
           current = json.load(open("qa119-current.json"))["exercise"]
-          assert len(catalog) == 1, catalog
-          for exercise in (catalog[0], detail, assigned, current):
+          assert len(catalog) == 2, catalog
+          legacy = next(e for e in catalog if e['code'] == 'GM-EB01')
+          probe = next(e for e in catalog if e['code'] == 'GM-DIAG-PULSE-3-8-01')
+          assert probe['version'] == '0.1.0' and probe['tempoUnit'] == 'eighth'
+          for exercise in (legacy, detail, assigned, current):
               assert exercise["code"] == "GM-EB01" and exercise["version"] == "0.8B"
               assert exercise["learningGoal"] is None
               assert exercise["practiceInstructions"] is None
@@ -231,7 +248,7 @@ jobs:
               assert exercise["successCriteria"] == criteria
               assert exercise["recommendedPracticeMinutes"] == 30
               assert exercise["scoreUrl"] == "/api/v1/exercises/GM-EB01/versions/0.8B/score"
-          assert catalog[0] == detail == assigned == current
+          assert legacy == detail == assigned == current
           print("QA #119 HTTP catalog/detail/assigned/retrieved DTO contract: OK")
           PY
               task_id=$(printf '%s' "$assigned" | python3 -c 'import json,sys;print(json.load(sys.stdin)["id"])')

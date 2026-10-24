@@ -84,8 +84,8 @@ class DiagnosticRecommendationPostgresTest {
     @Test
     void noBackgroundMeansUnknownAndNoIntermediateAssignment() {
         var result = recommendations.recommend(learnerId, sessionId, 3);
-        assertEquals("NO_MATCH", result.status());
-        assertEquals("NO_BEGINNER_EXERCISE", result.reasonCode());
+        assertEquals("RECOMMENDED", result.status());
+        assertEquals("GM-DIAG-PULSE-3-8-01", result.items().getFirst().exerciseCode());
         assertEquals(0, assignedCount());
     }
 
@@ -94,8 +94,8 @@ class DiagnosticRecommendationPostgresTest {
         background("INTERMEDIATE", 45);
         var result = recommendations.recommend(learnerId, sessionId, 3);
         assertEquals("RECOMMENDED", result.status());
-        assertEquals("GM-EB01", result.items().getFirst().exerciseCode());
-        assertEquals("0.8B", result.items().getFirst().exerciseVersion());
+        assertEquals("GM-DIAG-PULSE-3-8-01", result.items().getFirst().exerciseCode());
+        assertEquals("0.1.0", result.items().getFirst().exerciseVersion());
         assertTrue(result.items().getFirst().skillCodes().contains("PULSE"));
         assertEquals(0, assignedCount());
     }
@@ -135,8 +135,9 @@ class DiagnosticRecommendationPostgresTest {
                 + "(instrument_profile_id,style_code,rating) VALUES(?,'BLUES','EXCLUDE')",
                 profileId);
         var result = recommendations.recommend(learnerId, sessionId, 3);
-        assertEquals("NO_MATCH", result.status());
-        assertEquals("ALL_STYLES_EXCLUDED", result.reasonCode());
+        assertEquals("RECOMMENDED", result.status());
+        // Neutral, skill-based diagnostic probes are not excluded by BLUES preference.
+        assertEquals("GM-DIAG-PULSE-3-8-01", result.items().getFirst().exerciseCode());
         assertEquals(0, assignedCount());
     }
 

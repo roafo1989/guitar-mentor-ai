@@ -25,6 +25,8 @@ public class ExerciseMediaService {
     public Resource get(String code, boolean audio) {
         var exercise = exercises.findByCodeAndCurrentTrue(code)
                 .orElseThrow(() -> new EntityNotFoundException("Exercise not found"));
+        if (!ExercisePublicationPolicy.eligible(exercise))
+            throw new EntityNotFoundException("Exercise not found");
         String path = audio
                 ? exercise.getPreviewAudioResource() : exercise.getPreviewPdfResource();
         if (path == null || !path.startsWith("exercises/")
