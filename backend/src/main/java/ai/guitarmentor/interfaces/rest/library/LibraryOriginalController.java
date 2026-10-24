@@ -92,8 +92,10 @@ public final class LibraryOriginalController {
             if(!existing.isEmpty()) {
                 String state=(String)existing.getFirst().get("state");
                 if("SUCCEEDED".equals(state)) return true;
-                if("FAILED".equals(state))
-                    throw new Failure(409,"LIBRARY_UPLOAD_PREVIOUSLY_FAILED");
+                if("FAILED".equals(state)) {
+                    String terminal=(String)existing.getFirst().get("terminal_code");
+                    throw new Failure(409,terminal==null?"LIBRARY_UPLOAD_PREVIOUSLY_FAILED":terminal);
+                }
                 throw new Failure(409,"LIBRARY_UPLOAD_IN_PROGRESS");
             }
             long used=((Number)usage.get("charged_bytes")).longValue()
