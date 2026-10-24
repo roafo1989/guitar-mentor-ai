@@ -38,7 +38,11 @@ export function installAuthenticatedFetch(onSessionLost: () => void): void {
       headers.set(csrf.headerName, csrf.token);
     }
     const response = await nativeFetch(input, { ...init, headers, credentials: 'same-origin' });
-    if (response.status === 401 || (response.status === 403 && path.pathname === '/api/v1/me')) {
+    const accountDenied = response.status === 403 && (
+      path.pathname === '/api/v1/me' ||
+      (await response.clone().json().catch(() => null))?.code === 'ACCOUNT_NOT_ADMITTED'
+    );
+    if (response.status === 401 || accountDenied) {
       clearActor();
       auth.expired = true;
       resetPersonalState();
