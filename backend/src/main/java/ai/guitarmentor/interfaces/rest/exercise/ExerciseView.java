@@ -7,7 +7,8 @@ import java.util.List;
 public record ExerciseView(
         String code, String version, String title, String instrumentCode,
         String techniqueCode, String styleCode, String difficulty,
-        int bpm, int measures, String meter, String author, String license,
+        int bpm, int measures, String meter, String contentKind, String tempoUnit,
+        Integer durationTargetSeconds, String author, String license,
         String reviewStatus, String description, Set<String> skillCodes,
         String learningGoal, String practiceInstructions, List<String> successCriteria,
         String tuning, Integer recommendedPracticeMinutes,
@@ -18,6 +19,7 @@ public record ExerciseView(
         return new ExerciseView(item.getCode(), item.getVersion(), item.getTitle(),
                 item.getInstrumentCode(), item.getTechniqueCode(), item.getStyleCode(),
                 item.getDifficulty(), item.getBpm(), item.getMeasures(), item.getMeter(),
+                item.getContentKind(), item.getTempoUnit(), item.getDurationTargetSeconds(),
                 item.getAuthor(), item.getLicense(), item.getReviewStatus(),
                 item.getDescription(), item.getSkillCodes(),
                 item.getLearningGoal(), item.getPracticeInstructions(),
