@@ -196,3 +196,70 @@ test('PDF HEAD after opening is ignored when preview is replaced', async () => {
     globalThis.fetch = saved;
   }
 });
+
+test('PDF recovers after initial HEAD failed and reopened after connectivity returns', async () => {
+  const saved = globalThis.fetch;
+  const requests = [];
+  globalThis.fetch = (url, options) => {
+    const item = { url, signal: options.signal, ...deferred() };
+    requests.push(item);
+    return item.promise;
+  };
+  const screen = view();
+  let app;
+  try {
+    const Preview = await component();
+    app = screen.renderer.createApp({ render: () => h(Preview, { exercise: exercise('v1') }) });
+    app.mount(screen.root);
+    requests[0].resolve({ ok: true });
+    requests[1].resolve({ ok: false }); // transient initial PDF failure
+    await flush();
+    assert.ok(screen.text().includes('diagnostic.metadata.pdfUnavailable'));
+    const details = screen.find('details');
+    details.props.onToggle({ target: { open: true } });
+    assert.equal(requests.length, 3, 'retry runs even though pdfExists is false');
+    requests[2].resolve({ ok: false });
+    await flush();
+    details.props.onToggle({ target: { open: false } });
+    details.props.onToggle({ target: { open: true } });
+    assert.equal(requests.length, 4, 'reopen attempts recovery again');
+    requests[3].resolve({ ok: true });
+    await flush();
+    assert.equal(screen.find('iframe')?.props.src, '/pdf/v1#view=FitH&toolbar=1');
+    assert.ok(screen.find('a', n => n.props.href === '/score/v1'));
+  } finally {
+    app?.unmount();
+    globalThis.fetch = saved;
+  }
+});
+
+test('opening PDF during initial HEAD allows retry and stale initial failure cannot hide it', async () => {
+  const saved = globalThis.fetch;
+  const requests = [];
+  globalThis.fetch = (url, options) => {
+    const item = { url, signal: options.signal, ...deferred() };
+    requests.push(item);
+    return item.promise;
+  };
+  const screen = view();
+  let app;
+  try {
+    const Preview = await component();
+    app = screen.renderer.createApp({ render: () => h(Preview, { exercise: exercise('v1') }) });
+    app.mount(screen.root);
+    const details = screen.find('details');
+    details.props.onToggle({ target: { open: true } });
+    assert.equal(requests.length, 3, 'opening before initial HEAD completion checks the PDF');
+    requests[2].resolve({ ok: true });
+    await flush();
+    requests[0].resolve({ ok: true });
+    requests[1].resolve({ ok: false }); // obsolete initial PDF result
+    await flush();
+    assert.equal(screen.find('iframe')?.props.src, '/pdf/v1#view=FitH&toolbar=1',
+      'manual retry succeeds despite older initial failure');
+    assert.equal(screen.text().includes('diagnostic.metadata.pdfUnavailable'), false);
+  } finally {
+    app?.unmount();
+    globalThis.fetch = saved;
+  }
+});
