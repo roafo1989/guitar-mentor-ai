@@ -415,7 +415,16 @@ async function assign(exerciseCode: string): Promise<void> {
               <span>{{ task.exercise.code }} · v{{ task.exercise.version }}</span>
               <small>{{ task.exercise.bpm }} BPM · {{ task.exercise.meter }} · {{ task.exercise.measures }} {{ t('diagnostic.bars') }}</small>
             </div>
-            <span class="studio-assignment-status">{{ t('diagnostic.studio.inProgress') }}</span>
+            <div class="studio-assignment-actions">
+              <div v-if="task.exercise.previewAudioUrl" class="studio-audio-example">
+                <span class="studio-audio-label">{{ t('diagnostic.listenExample') }}</span>
+                <audio :key="task.exercise.code + '@' + task.exercise.version"
+                  :src="task.exercise.previewAudioUrl" preload="none" controls
+                  :aria-label="t('diagnostic.listenExample')" />
+              </div>
+              <span v-else class="studio-audio-unavailable">{{ t('diagnostic.metadata.audioUnavailable') }}</span>
+              <span class="studio-assignment-status">{{ t('diagnostic.studio.inProgress') }}</span>
+            </div>
           </div>
         </div>
         <div class="studio-columns">
@@ -581,6 +590,25 @@ async function assign(exerciseCode: string): Promise<void> {
   .studio-assignment-icon {width:60px;height:60px;font-size:32px}
   .studio-assignment-status {margin-left:0}
   .studio-score {padding:10px}
+}
+
+
+/* #150 studio acceptance: real inline audio in the assigned exercise banner. */
+.studio-assignment {gap:16px}
+.studio-assignment-icon {width:76px;height:76px;font-size:40px}
+.studio-assignment-description {flex:1 1 220px}
+.studio-assignment-actions {flex:0 1 310px;min-width:190px;margin-left:auto;display:flex;align-items:center;gap:12px}
+.studio-audio-example {flex:1;min-width:0;border:1px solid #e3e9e6;background:#f9fbfa;border-radius:11px;padding:7px 10px}
+.studio-audio-label {display:block;font-size:11px;color:#4b6059;margin-bottom:2px}
+.studio-audio-example audio {width:100%;min-width:0;height:34px;display:block}
+.studio-audio-unavailable {font-size:12px;color:#687975}
+.studio-assignment-status {margin-left:0}
+@media(max-width:1280px) {
+ .studio-assignment {flex-wrap:wrap}
+ .studio-assignment-actions {flex:1 1 300px;margin-left:0}
+}
+@media(max-width:620px) {
+ .studio-assignment-actions {flex:1 1 100%;min-width:0;flex-wrap:wrap}
 }
 
 </style>
