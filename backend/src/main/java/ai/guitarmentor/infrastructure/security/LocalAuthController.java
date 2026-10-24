@@ -1,0 +1,114 @@
+package ai.guitarmentor.infrastructure.security;
+
+import jakarta.servlet.http.HttpServletRequest;
+import jakarta.servlet.http.HttpServletResponse;
+import java.util.Map;
+import java.util.UUID;
+import java.util.concurrent.ConcurrentHashMap;
+import org.springframework.http.ResponseEntity;
+import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
+import org.springframework.security.core.authority.SimpleGrantedAuthority;
+import org.springframework.security.core.context.SecurityContextHolder;
+import org.springframework.security.web.context.HttpSessionSecurityContextRepository;
+import org.springframework.web.bind.annotation.*;
+
+/** JSON endpoints. Mutating requests remain protected by the global CSRF filter. */
+@RestController
+@RequestMapping("/api/v1/local-auth")
+public class LocalAuthController {
+    private final LocalCredentialService service;
+    private final ActorRepository actors;
+    private final ConcurrentHashMap<String, Window> attempts = new ConcurrentHashMap<>();
+    public LocalAuthController(LocalCredentialService service, ActorRepository actors) {
+        this.service=service; this.actors=actors;
+    }
+    private record Window(long started,long attempts) {}
+    // Conservative single-instance safety net, not a substitute for an edge/distributed limiter (#40).
+    private void limit(HttpServletRequest req, String operation) {
+        String key=operation+":"+req.getRemoteAddr();
+        long now=System.currentTimeMillis();
+        Window w=attempts.compute(key,(k,old)-> old==null || now-old.started>60000
+            ?new Window(now,1):new Window(old.started,old.attempts+1));
+        if(w.attempts>8) throw new RateLimited();
+        if(attempts.size()>10000) attempts.entrySet().removeIf(e->now-e.getValue().started>60000);
+    }
+    @PostMapping("/register")
+    ResponseEntity<Map<String,String>> register(@RequestBody Register req,HttpServletRequest http) {
+        limit(http,"register");
+        try {
+            if(req.password()==null || !req.password().equals(req.confirmPassword()))
+                return bad("INVALID_INPUT");
+            service.register(req.invitation(),req.email(),req.login(),req.password());
+            return ResponseEntity.accepted().body(Map.of("code","VERIFY_EMAIL"));
+        } catch (IllegalArgumentException|SecurityException ex) {
+            return bad("REGISTRATION_REJECTED");
+        }
+    }
+    @PostMapping("/verify")
+    ResponseEntity<Map<String,String>> verify(@RequestBody Token req,HttpServletRequest http) {
+        limit(http,"verify");
+        try {service.verify(req.token());return ResponseEntity.ok(Map.of("code","EMAIL_VERIFIED"));}
+        catch (SecurityException|org.springframework.dao.DataIntegrityViolationException ex) {
+            return bad("TOKEN_INVALID");
+        }
+    }
+    @PostMapping("/login")
+    ResponseEntity<Map<String,String>> login(@RequestBody Login req,HttpServletRequest http,HttpServletResponse response) {
+        limit(http,"login");
+        try {
+            UUID id=service.authenticate(req.identifier(),req.password());
+            var version=actors.localVersion(id).orElseThrow(()->new SecurityException("INVALID_CREDENTIALS"));
+            http.getSession(true);
+            http.changeSessionId();
+            var principal=new LocalPrincipal(id,version);
+            var auth=new UsernamePasswordAuthenticationToken(principal,null,
+                java.util.List.of(new SimpleGrantedAuthority("ROLE_USER")));
+            var ctx=SecurityContextHolder.createEmptyContext();
+            ctx.setAuthentication(auth);
+            SecurityContextHolder.setContext(ctx);
+            new HttpSessionSecurityContextRepository().saveContext(ctx,http,
+                response);
+            return ResponseEntity.ok(Map.of("code","SIGNED_IN"));
+        } catch(SecurityException ex) {
+            return ResponseEntity.status(401).body(Map.of("code","INVALID_CREDENTIALS"));
+        }
+    }
+    @PostMapping("/request-reset")
+    ResponseEntity<Map<String,String>> requestReset(@RequestBody Email req,HttpServletRequest http) {
+        limit(http,"reset-request");
+        service.requestReset(req.email());
+        return ResponseEntity.accepted().body(Map.of("code","IF_ACCOUNT_EXISTS_EMAIL_SENT"));
+    }
+    @PostMapping("/reset")
+    ResponseEntity<Map<String,String>> reset(@RequestBody Reset req,HttpServletRequest http) {
+        limit(http,"reset");
+        try {service.reset(req.token(),req.password());return ResponseEntity.ok(Map.of("code","PASSWORD_RESET"));}
+        catch(IllegalArgumentException|SecurityException ex) {return bad("TOKEN_INVALID");}
+    }
+    @PostMapping("/change")
+    ResponseEntity<Map<String,String>> change(@RequestBody Change req,HttpServletRequest http) {
+        limit(http,"change");
+        var actor=(CurrentActor)http.getAttribute("guitarMentorActor");
+        if(actor==null)return ResponseEntity.status(401).body(Map.of("code","UNAUTHENTICATED"));
+        try {
+            service.change(actor.accountId(),req.currentPassword(),req.newPassword());
+            http.getSession().invalidate();
+            SecurityContextHolder.clearContext();
+            return ResponseEntity.ok(Map.of("code","PASSWORD_CHANGED"));
+        }catch(IllegalArgumentException|SecurityException ex){return bad("INVALID_CREDENTIALS");}
+    }
+    @ExceptionHandler(RateLimited.class)
+    ResponseEntity<Map<String,String>> limited() {
+        return ResponseEntity.status(429).body(Map.of("code","RATE_LIMITED"));
+    }
+    private static ResponseEntity<Map<String,String>> bad(String code) {
+        return ResponseEntity.badRequest().body(Map.of("code",code));
+    }
+    static class RateLimited extends RuntimeException {}
+    public record Register(String invitation,String email,String login,String password,String confirmPassword) {}
+    public record Token(String token) {}
+    public record Login(String identifier,String password) {}
+    public record Email(String email) {}
+    public record Reset(String token,String password) {}
+    public record Change(String currentPassword,String newPassword) {}
+}
