@@ -37,21 +37,6 @@ const intakeBusy = ref(false);
 const intakeDraft = ref(false);
 const submissionBusy = ref(false);
 const submissionDraft = ref(false);
-const assignedAudio = ref<HTMLAudioElement | null>(null);
-const captureActive = ref(false);
-const sampleUnavailable = ref(false);
-const currentCaptureKey = computed(() => JSON.stringify([learnerStore.learner?.id, session.value?.id, task.value?.id]));
-function onCaptureState(state: { contextKey: string; active: boolean }): void {
-  if (state.contextKey !== currentCaptureKey.value) return;
-  captureActive.value = state.active;
-  if (state.active) assignedAudio.value?.pause();
-}
-function pauseSample(): void { assignedAudio.value?.pause(); }
-function guardSamplePlay(event: Event): void { if (captureActive.value) (event.target as HTMLAudioElement).pause(); }
-watch(() => [task.value?.id, task.value?.exercise.code, task.value?.exercise.version, learnerStore.learner?.id], () => {
-  pauseSample(); captureActive.value = false; sampleUnavailable.value = false;
-});
-onBeforeUnmount(pauseSample);
 function onSubmissionDraft(value: { busy: boolean; dirty: boolean }): void {
   submissionBusy.value = value.busy;
   submissionDraft.value = value.dirty;
@@ -89,6 +74,22 @@ const recommendation = ref<DiagnosticRecommendation | null>(null);
 const recommendationBusy = ref(false);
 const recommendationError = ref('');
 const task = ref<DiagnosticTask | null>(null);
+const assignedAudio = ref<HTMLAudioElement | null>(null);
+const captureActive = ref(false);
+const sampleUnavailable = ref(false);
+const currentCaptureKey = computed(() => JSON.stringify([learnerStore.learner?.id, session.value?.id, task.value?.id]));
+function onCaptureState(state: { contextKey: string; active: boolean }): void {
+  if (state.contextKey !== currentCaptureKey.value) return;
+  captureActive.value = state.active;
+  if (state.active) assignedAudio.value?.pause();
+}
+function pauseSample(): void { assignedAudio.value?.pause(); }
+function guardSamplePlay(event: Event): void { if (captureActive.value) (event.target as HTMLAudioElement).pause(); }
+watch(() => [task.value?.id, task.value?.exercise.code, task.value?.exercise.version, learnerStore.learner?.id], () => {
+  pauseSample(); captureActive.value = false; sampleUnavailable.value = false;
+});
+onBeforeUnmount(pauseSample);
+
 watch(() => task.value?.exercise.coverUrl, () => {
   customArtworkFailed.value = false;
   fallbackArtworkFailed.value = false;
