@@ -155,3 +155,23 @@ test('email recovery hides signed-in home and home does not duplicate retry butt
   assert.match(home, /v-else-if="!restoreFailed"/);
   assert.doesNotMatch(home, /v-else-if="restoreFailed" type="button" class="home-primary"/);
 });
+
+test('unified local HTTPS alias redirects to canonical OAuth origin before auth initialization', async () => {
+  const source = await readFile(new URL('../src/core/auth/unified-local-origin.ts', import.meta.url), 'utf8');
+  const js = ts.transpileModule(source.replaceAll('import.meta.env', '({ VITE_GUITAR_MENTOR_UNIFIED_LOCAL: "true" })'), {
+    compilerOptions: { target: ts.ScriptTarget.ES2022, module: ts.ModuleKind.ESNext },
+  }).outputText;
+  const mod = await import('data:text/javascript,' + encodeURIComponent(js));
+  const resetFragment = '#authAction=reset&token=' + 'a'.repeat(64);
+  assert.equal(mod.canonicalUnifiedLocalUrl(new URL('https://guitar-mentor/profile?tab=1'+resetFragment), true),
+    'http://localhost:5173/profile?tab=1'+resetFragment);
+  assert.equal(mod.canonicalUnifiedLocalUrl(new URL('http://localhost:5173/'), true), null);
+  assert.equal(mod.canonicalUnifiedLocalUrl(new URL('https://guitar-mentor/'), false), null);
+  assert.equal(mod.canonicalUnifiedLocalUrl(new URL('https://guitar-mentor.ru/'), true), null);
+
+  const router = await readFile(new URL('../src/router/index.ts', import.meta.url), 'utf8');
+  assert.match(router, /if \(!redirectUnifiedLocalAlias\(\)\) captureEmailActionLink\(\);/);
+  assert.ok(router.indexOf('redirectUnifiedLocalAlias()') < router.indexOf('createWebHistory()'));
+  const launcher = await readFile(new URL('../../scripts/local-auth-unified.ps1', import.meta.url), 'utf8');
+  assert.match(launcher, /VITE_GUITAR_MENTOR_UNIFIED_LOCAL = 'true'/);
+});
