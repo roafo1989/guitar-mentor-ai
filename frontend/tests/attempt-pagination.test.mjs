@@ -166,3 +166,79 @@ test('CORE-U4: unavailable selected detail prevents completion, never changes se
     assert.ok(state.detailError);
   } finally { app.unmount(); delete globalThis.__qaLearning; delete globalThis.__qaAttempt; }
 });
+
+test('CORE-U5: successful upload queues Latest while page GET is pending; POST exactly once', async () => {
+  const calls = historyFixture();
+  const slow = deferred();
+  let reads = 0, posts = 0;
+  const originalPage = globalThis.__qaAttempt.page;
+  globalThis.__qaAttempt.page = (...args) => {
+    reads++;
+    return reads === 2 ? slow.promise : originalPage(...args);
+  };
+  globalThis.__qaAttempt.upload = async () => { posts++; return attempt(46); };
+  const { app, state } = await mount('SubmissionPanel.vue',
+    { learnerId: 'l', sessionId: 's', taskId: 't' });
+  try {
+    await flush();
+    const reading = state.readPage();
+    await flush();
+    state.file = new File(['sound'], 'example.wav');
+    await flush();
+    const submitting = state.submit();
+    await flush();
+    assert.equal(posts, 1);
+    slow.resolve({ items: [attempt(45)], hasMore: false, nextBeforeNumber: null });
+    await Promise.all([reading, submitting]);
+    await flush();
+    assert.equal(posts, 1);
+    assert.ok(calls.length >= 2, 'successful upload triggers a new first-page GET');
+    assert.ok(state.notice, 'upload success survives history refresh');
+  } finally { app.unmount(); delete globalThis.__qaAttempt; }
+});
+test('CORE-U6: upload 200 followed by history 500 preserves success without duplicate POST', async () => {
+  historyFixture();
+  let writes = 0;
+  globalThis.__qaAttempt.upload = async () => { writes++; return attempt(46); };
+  const original = globalThis.__qaAttempt.page;
+  let reads = 0;
+  globalThis.__qaAttempt.page = (...args) => {
+    reads++;
+    if (reads > 1) throw new Error('server 500');
+    return original(...args);
+  };
+  const { app, state } = await mount('SubmissionPanel.vue',
+    { learnerId: 'l', sessionId: 's', taskId: 't' });
+  try {
+    await flush();
+    state.file = new File(['sound'], 'example.wav');
+    await flush();
+    await state.submit();
+    assert.equal(writes, 1);
+    assert.equal(state.file, null);
+    assert.ok(state.notice);
+    assert.ok(state.historyError);
+    await state.requestRefresh();
+    assert.equal(writes, 1);
+  } finally { app.unmount(); delete globalThis.__qaAttempt; }
+});
+test('CORE-U7: unavailable selected page DTO never bypasses detail GET', async () => {
+  historyFixture({ missingId: 'id-45' });
+  globalThis.__qaLearning = {
+    state: async () => ({ taskId: 't', taskState: 'ACTIVE', version: 2,
+      availableActions: ['COMPLETE'], latestAttemptId: 'id-45', assessmentState: 'NO_ASSESSMENT' }),
+    assessments: async () => ({ items: [], nextCursor: null }),
+    decisions: async () => ({ items: [], nextCursor: null }),
+    evidence: async () => ({ items: [], nextCursor: null }),
+    decide: async () => { throw Error('must not POST'); }
+  };
+  const { app, state } = await mount('LearningResultsPanel.vue',
+    { learnerId: 'l', sessionId: 's', taskId: 't', attempts: [attempt(45)],
+      selectedId: 'id-45', latestId: 'id-45', draftBusy: false });
+  try {
+    await flush();
+    assert.equal(state.selected, 'id-45');
+    assert.equal(state.canDecide, false);
+    assert.ok(state.detailError);
+  } finally { app.unmount(); delete globalThis.__qaLearning; delete globalThis.__qaAttempt; }
+});
