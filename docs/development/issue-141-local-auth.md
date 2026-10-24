@@ -49,3 +49,23 @@ If mail delivery or HTTPS origin is not configured, registration and reset must 
 - No MFA is implemented.
 - External QA must exercise two users, request races, repeated emails/verification/reset, disabled account, expired sessions, CSRF (including on login), stale and concurrent sessions, network failure, no-mail configuration, provider failure, credentials and private data absent from browser storage, RU/EN, 360/768/1440 CSS px and 200% zoom.
 - No production rollout or merging until these checks, reviewer approval and proper HTTPS/SMTP/deployment configuration.
+
+
+## Code review — 24 October 2026
+
+Review focus: login credential checking, transactional admission, session and ownership guards, SMTP token delivery, Google account linking, frontend auth/logout and test coverage.
+
+- **Fixed:** Unknown-user authentication previously created an additional Argon2 hash on every attempt. The dummy hash is now created once per service instance and still checked on every unknown-user attempt. This avoids easy resource exhaustion from repeated fallback hashing while retaining a costly password check.
+- **Fixed:** Outbound verification/reset mail used an escaped newline sequence instead of a real line break. Email body is now formatted correctly; `LocalCredentialPostgresTest` asserts it.
+- **Previously fixed:** Both known and unknown logins now execute `encoder.matches` (instead of short-circuiting for unknown accounts).
+- **Reviewed, no claim of full penetration-test coverage:** Passwords are hashed and not exposed in API DTOs, the new API retains CSRF, local actor resolution checks ACTIVE/version, account linking is explicit and not email-based, password reset revokes existing account versions, and private learner ownership remains enforced by `ActorFilter`.
+
+### Remaining gates — NOT VERIFIED
+
+1. Independent security assessment of invitation/confirmation races, session fixation and concurrent OAuth method-linking, failed delivery and resets.
+2. End-to-end browser checks at 360/768/1440 px, RU/EN, 200% zoom and keyboard focus; screenshots and no secret leakage.
+3. Real SMTP (including outage/recovery) and a configured Google OIDC provider; synthetic tests are insufficient.
+4. Distributed anti-brute-force quota, log hygiene and HTTPS deployment under #40/#39.
+5. Current HEAD Java/Vue CI after review commits; previous green checks do not automatically validate later SHA.
+
+Do not merge or mark accepted until required gates have concrete evidence.
