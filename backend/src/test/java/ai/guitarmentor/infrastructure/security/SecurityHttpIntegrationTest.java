@@ -94,7 +94,12 @@ class SecurityHttpIntegrationTest {
 
     @Test
     void actuatorNeverExposesHealthThroughApplicationApi() throws Exception {
-        mvc.perform(get("/actuator/health")).andExpect(status().isForbidden());
+        mvc.perform(get("/actuator/health")).andExpect(status().is3xxRedirection());
+        activeA();
+        var principal = oidcLogin().idToken(t ->
+            t.claim("iss", "https://issuer.example").subject("user-a"));
+        mvc.perform(get("/actuator/health").with(principal))
+            .andExpect(status().isForbidden());
     }
 
     private void activeA() {
