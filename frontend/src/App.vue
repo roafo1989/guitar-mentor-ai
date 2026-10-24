@@ -11,6 +11,8 @@ import { metronome, type MetronomeStatus } from './shared/audio/metronome';
 import { useLearnerStore } from './stores/learner.store';
 
 const { locale, t } = useI18n();
+const tunerIconPath = 'M9 21v-6.5c-1-1-1.5-2.1-1.5-3.7V5.5A4.5 4.5 0 0 1 12 1.5a4.5 4.5 0 0 1 4.5 4v5.3c0 1.6-.5 2.7-1.5 3.7V21M7.5 6h-3m3 3h-3m3 3h-3m12-6h3m-3 3h3m-3 3h3M13.4 6.5a1.4 1.4 0 1 1-2.8 0 1.4 1.4 0 0 1 2.8 0ZM10 21h4';
+const metronomeIconPath = 'M8.5 6.5 5 20h14L15.5 6.5M4 22h16M12 18 17 3m-1.2 3.8 3.4-1.1 1.1 3.4-3.4 1.1Z';
 const localPrototype = !secureUi;
 const lightMinimal = import.meta.env?.VITE_GUITAR_MENTOR_LIGHT_MINIMAL === 'true';
 const menuOpen = ref(false);
@@ -126,11 +128,12 @@ onBeforeUnmount(() => { unsubscribeMetronome?.(); closeMetronome(); });
           aria-haspopup="dialog" :aria-expanded="tunerOpen" @click="openTuner">
           <svg viewBox="0 0 24 24" width="24" height="24" fill="none" stroke="currentColor"
             stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+            <path :d="tunerIconPath"/>
             
-            <path d="M9 21v-6.5c-1-1-1.5-2.1-1.5-3.7V5.5A4.5 4.5 0 0 1 12 1.5a4.5 4.5 0 0 1 4.5 4v5.3c0 1.6-.5 2.7-1.5 3.7V21"/>
-            <path d="M7.5 6H4.5m3 3H4.5m3 3H4.5m12-6h3m-3 3h3m-3 3h3"/>
-            <circle cx="12" cy="6.5" r="1.4"/>
-            <path d="M10 21h4"/>
+            
+            
+            
+            
           </svg>
         </button>
         <button v-if="auth.actor || localPrototype" ref="headerMetronomeButton" type="button" class="header-tool-button" :class="{ 'is-playing': metronomeStatus === 'running' }"
@@ -140,8 +143,9 @@ onBeforeUnmount(() => { unsubscribeMetronome?.(); closeMetronome(); });
           <svg viewBox="0 0 24 24" width="24" height="24" fill="none"
             stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"
             aria-hidden="true">
+            <path :d="metronomeIconPath"/>
             
-            <path d="M8.5 6.5 5 20h14L15.5 6.5M4 22h16M12 18 17 3m-1.2 3.8 3.4-1.1 1.1 3.4-3.4 1.1Z"/>
+            
           </svg>
           <span v-if="metronomeStatus === 'running'" class="metronome-running-dot" aria-hidden="true"></span>
         </button>
