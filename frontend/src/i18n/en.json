@@ -209,7 +209,23 @@
     "noProbes": "No approved probes have been published yet. You can select learning music or submit a familiar performance.",
     "chooseProbe": "Choose probe",
     "repertoireHeading": "Learning repertoire",
-    "repertoireHint": "Complete works are offered as options, not a compulsory entrance exam."
+    "repertoireHint": "Complete works are offered as options, not a compulsory entrance exam.",
+    "assignedTaskLoading": "Loading the assigned task…",
+    "assignedTaskMissing": "This session says a task is assigned, but the task was not found. The data is inconsistent; retry or report the issue.",
+    "assignedTaskUnavailable": "Could not retrieve the assigned task. Retry without changing your saved work.",
+    "startRecoveryHint": "A saved diagnostic session was found. We tried to restore it; if it no longer exists, press Start diagnostics again.",
+    "studio": {
+      "overline": "PERSONAL STUDIO",
+      "currentTitle": "Current practice",
+      "subtitle": "Practice with score, tablature and performance recording.",
+      "assigned": "Assigned exercise",
+      "inProgress": "In progress",
+      "details": "Exercise details",
+      "tabsLabel": "Lesson materials",
+      "scoreTab": "Notes and TAB",
+      "audioTab": "Audio example",
+      "descriptionTab": "Description"
+    }
   },
   "home": {
     "welcome": "Your space for music",
@@ -256,7 +272,7 @@
     "subtitle": "Submit an audio attempt and review your submission history.",
     "loading": "Loading attempts...",
     "noAiFeedback": "Recordings undergo technical file and duration checks only. AI music analysis is not yet connected; performance is not assessed.",
-    "disabledHelp": "Uploads are disabled by default because authentication is not yet implemented. For non-personal local test audio only, start the backend with GUITAR_MENTOR_ENABLE_UPLOADS=true.",
+    "disabledHelp": "Audio uploads are disabled for this server run. You can record and edit a comment locally, but sending requires server-side uploads to be enabled.",
     "fileLabel": "Performance audio file",
     "fileLimits": "MP3, WAV, OGG, WebM or M4A (AAC) · up to 20 MB. Test audio only; do not upload personal recordings.",
     "commentLabel": "Comment on this attempt",
@@ -319,7 +335,20 @@
     "refresh": "Refresh history",
     "historyStale": "Showing the previous page: new data is unavailable.",
     "onlyPage": "All attempts are on one page.",
-    "historyUpdated": "Attempt history updated."
+    "historyUpdated": "Attempt history updated.",
+    "microphoneTitle": "Record with microphone",
+    "uploadAlternative": "Or upload an existing audio file",
+    "microphoneInstructions": "About recording and microphone access",
+    "localRecordingAvailable": "You can record and preview audio locally. Sending is available only after uploads are enabled on the server.",
+    "recordingPanelTitle": "Performance recording",
+    "listenShort": "Listen",
+    "pausePlayback": "Pause",
+    "submitShort": "Send",
+    "inputModeLabel": "Audio input",
+    "recordTab": "Record with microphone",
+    "fileTab": "Upload file",
+    "chooseFile": "Choose audio file",
+    "removeAttachment": "Remove attachment"
   },
   "evidence": {
     "heading": "My performances",
@@ -440,7 +469,9 @@
     "subdivisionCount": "Clicks per beat: {count}",
     "closeSettings": "Close panel",
     "savingPreview": "Configuration to save",
-    "exerciseMeterUnavailable": "This exercise's meter or tempo is not supported by the metronome."
+    "exerciseMeterUnavailable": "This exercise's meter or tempo is not supported by the metronome.",
+    "decreaseBpm": "Decrease tempo",
+    "increaseBpm": "Increase tempo"
   },
   "tuner": {
     "title": "Guitar tuner",
@@ -551,5 +582,41 @@
     "tooLarge": "The file exceeds the size limit.",
     "http": "The request failed. Try again later.",
     "invalid": "Could not read the app response. Try again."
+  },
+  "score": {
+    "heading": "Score and tablature",
+    "open": "Open score",
+    "close": "Collapse score",
+    "previous": "Previous page",
+    "next": "Next page",
+    "zoomIn": "Zoom in",
+    "zoomOut": "Zoom out",
+    "fitWidth": "Fit width",
+    "focus": "Focus on score",
+    "exitFocus": "Exit score focus",
+    "openOriginal": "Open original PDF",
+    "musicXml": "Download MusicXML",
+    "retry": "Try loading again",
+    "unavailable": "No PDF is available for this version. Use the original or MusicXML where available.",
+    "states": {
+      "CLOSED": "Score collapsed",
+      "CHECKING": "Checking PDF…",
+      "LOADING": "Loading and preparing score…",
+      "READY": "Score ready"
+    },
+    "errors": {
+      "network": "Could not load the PDF. Check the connection and retry.",
+      "auth": "You cannot access this PDF. Check your session.",
+      "missing": "This PDF version was not found.",
+      "type": "Server returned an unsupported content type.",
+      "limit": "This PDF exceeds the viewer safety limits. Open the original separately.",
+      "signature": "The returned file is not a PDF.",
+      "timeout": "The PDF request timed out. Try again.",
+      "password": "This PDF is password protected and cannot be shown here.",
+      "corrupt": "The PDF is damaged or unsupported.",
+      "render": "Could not render this PDF page. You can open the original separately."
+    },
+    "page": "Page number",
+    "pageRange": "Enter a page between 1 and {count}."
   }
 }

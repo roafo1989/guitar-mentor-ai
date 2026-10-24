@@ -1,7 +1,7 @@
 import { isHttp, ApiFailure } from '../../shared/api-failure';
 import { diagnosticService } from '../../entities/diagnostic/diagnostic.service';
 import { onboardingService } from '../../entities/onboarding/onboarding.service';
-import { learningService } from '../../entities/attempt/learning.service';
+import { LearningHttpError, learningService } from '../../entities/attempt/learning.service';
 import type { DiagnosticSession, DiagnosticTask } from '../../shared/model/diagnostic.model';
 
 export type HomeNextStep = 'profile' | 'onboarding' | 'diagnostics' | 'choose' | 'lesson' | 'result';
@@ -51,12 +51,23 @@ export async function resolveHomeSummary(
   if (session.status !== 'TASK_ASSIGNED') throw new ApiFailure('INVALID_RESPONSE');
   const task: DiagnosticTask | null = await diagnosticService.currentTask(learnerId, session.id);
   if (!task?.exercise) throw new ApiFailure('INVALID_RESPONSE');
-  const learning = await learningService.state(learnerId, session.id, task.id);
-  if (!['ACTIVE', 'COMPLETED_PASSED', 'COMPLETED_BY_LEARNER'].includes(learning.taskState)) {
-    throw new ApiFailure('INVALID_RESPONSE');
+  // Learning decisions are independently feature-gated. Their temporary
+  // unavailability must not hide a real, version-pinned assigned exercise.
+  // Never infer completion from a 503: continue to the existing lesson.
+  let step: 'lesson' | 'result' = 'lesson';
+  try {
+    const learning = await learningService.state(learnerId, session.id, task.id);
+    if (!['ACTIVE', 'COMPLETED_PASSED', 'COMPLETED_BY_LEARNER'].includes(learning.taskState)) {
+      throw new ApiFailure('INVALID_RESPONSE');
+    }
+    step = learning.taskState === 'ACTIVE' ? 'lesson' : 'result';
+  } catch (cause) {
+    if (!(cause instanceof LearningHttpError && cause.status === 503 && cause.code === 'LEARNING_DISABLED')) {
+      throw cause;
+    }
   }
   return {
-    step: learning.taskState === 'ACTIVE' ? 'lesson' : 'result',
+    step,
     title: task.exercise.title,
     exerciseCode: task.exercise.code,
     exerciseVersion: task.exercise.version,

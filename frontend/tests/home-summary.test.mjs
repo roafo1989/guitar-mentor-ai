@@ -10,7 +10,7 @@ const compiled = ts.transpileModule(source, {
   compilerOptions: { module: ts.ModuleKind.CommonJS, target: ts.ScriptTarget.ES2022 },
 }).outputText;
 
-function harness({ session, task, learning, background = null, sessionError, taskError } = {}) {
+function harness({ session, task, learning, background = null, sessionError, taskError, learningError } = {}) {
   const calls = [];
   const selected = 'saved-session';
   const data = new Map([['guitar-mentor.diagnostic.learner-1.ACOUSTIC_GUITAR', selected]]);
@@ -30,7 +30,8 @@ function harness({ session, task, learning, background = null, sessionError, tas
       onboardingService: { get: async () => { calls.push('get-background'); return background; } },
     },
     '../../entities/attempt/learning.service': {
-      learningService: { state: async () => { calls.push('get-learning'); return learning; } },
+      LearningHttpError: class LearningHttpError extends Error { constructor(status, code) { super(code); this.status = status; this.code = code; } },
+      learningService: { state: async () => { calls.push('get-learning'); if (learningError) throw new services['../../entities/attempt/learning.service'].LearningHttpError(learningError.status, learningError.code); return learning; } },
     },
   };
   const exports = {};
@@ -99,7 +100,7 @@ test('late 404 cannot erase a more recent selection', async () => {
     '../../shared/api-failure': { ApiFailure: class ApiFailure extends Error {}, isHttp: (cause, status) => cause?.status === status },
     '../../entities/diagnostic/diagnostic.service': { diagnosticService: { get: () => request } },
     '../../entities/onboarding/onboarding.service': { onboardingService: { get: async () => null } },
-    '../../entities/attempt/learning.service': { learningService: { state: async () => null } },
+    '../../entities/attempt/learning.service': { LearningHttpError: class LearningHttpError extends Error {}, learningService: { state: async () => null } },
   };
   const exports = {};
   new Function('require', 'exports', compiled)(id => services[id], exports);
@@ -164,5 +165,35 @@ test('#149 opt-in home layout is localized and does not fabricate learning data'
     }
     assert.ok(messages.home.light.currentTitle);
     assert.ok(messages.home.light.assigned);
+  }
+});
+
+test('#149 regression: disabled optional learning module must not blank assigned lesson', async () => {
+  const h = harness({
+    session: { id: 'saved-session', status: 'TASK_ASSIGNED' },
+    task: { id: 'task-1', exercise: { title: 'Triple meter pulse', code: 'GM-DIAG-PULSE-3-8-01', version: '0.1.0' } },
+    learningError: { status: 503, code: 'LEARNING_DISABLED' },
+  });
+  assert.deepEqual(await h.resolveHomeSummary('learner-1', h.storage), {
+    step: 'lesson', title: 'Triple meter pulse',
+    exerciseCode: 'GM-DIAG-PULSE-3-8-01', exerciseVersion: '0.1.0',
+  });
+  assert.deepEqual(h.calls, ['get-session', 'get-task', 'get-learning']);
+  assert.equal(h.storage.getItem(h.selectedSessionKey('learner-1')), 'saved-session');
+});
+test('#149 regression: unrelated learning faults must not be silently swallowed', async () => {
+  for (const error of [
+    { status: 401, code: 'UNAUTHENTICATED' },
+    { status: 403, code: 'FORBIDDEN' },
+    { status: 503, code: 'DATABASE_UNAVAILABLE' },
+    { status: 404, code: 'RESOURCE_NOT_FOUND' },
+  ]) {
+    const h = harness({
+      session: { id: 'saved-session', status: 'TASK_ASSIGNED' },
+      task: { id: 'task-1', exercise: { title: 'Study', code: 'GM-E1', version: '1' } },
+      learningError: error,
+    });
+    await assert.rejects(h.resolveHomeSummary('learner-1', h.storage), e => e.status === error.status && e.code === error.code);
+    assert.equal(h.storage.getItem(h.selectedSessionKey('learner-1')), 'saved-session');
   }
 });

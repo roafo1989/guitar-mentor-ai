@@ -101,8 +101,20 @@ $env:SPRING_DATASOURCE_PASSWORD = UnwrapSecret $conf.databaseSecret
 $env:GUITAR_MENTOR_SMTP_AUTH = 'true'
 $env:GUITAR_MENTOR_SMTP_STARTTLS = 'true'
 $env:GUITAR_MENTOR_SECURITY_ENABLED = 'true'
+# Authenticated, loopback-only private workstation: permit submission of test audio.
+# Explicit opt-out remains available: $env:GUITAR_MENTOR_ENABLE_UPLOADS = 'false'.
+# Never reuse this default for public/tunnel deployments.
+if ([string]::IsNullOrWhiteSpace($env:GUITAR_MENTOR_ENABLE_UPLOADS)) {
+    $env:GUITAR_MENTOR_ENABLE_UPLOADS = 'true'
+}
 $env:GUITAR_MENTOR_BIND_ADDRESS = '127.0.0.1'
 $env:GUITAR_MENTOR_PUBLIC_ORIGIN = 'https://guitar-mentor'
+# The accepted Light Minimal shell (#148) and Home (#149) are the default UI.
+# Developers can explicitly opt out with $env:VITE_GUITAR_MENTOR_LIGHT_MINIMAL = 'false'.
+# Vite reads the flag when its process starts; restarting Vite is necessary.
+if ([string]::IsNullOrWhiteSpace($env:VITE_GUITAR_MENTOR_LIGHT_MINIMAL)) {
+    $env:VITE_GUITAR_MENTOR_LIGHT_MINIMAL = 'true'
+}
 $env:VITE_GUITAR_MENTOR_AUTH_REQUIRED = 'true'
 $env:VITE_GUITAR_MENTOR_OAUTH_BRIDGE = 'true'
 $env:SPRING_PROFILES_ACTIVE = 'secure,local-auth,local-unified'

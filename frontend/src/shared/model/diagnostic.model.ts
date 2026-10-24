@@ -33,6 +33,8 @@ export interface Exercise {
   scoreUrl: string;
   eventsUrl: string;
   previewAudioUrl: string | null;
+  /** Optional artwork; defaults to the approved acoustic-guitar image. */
+  coverUrl?: string | null;
   previewPdfUrl: string | null;
 }
 export interface DiagnosticTask {

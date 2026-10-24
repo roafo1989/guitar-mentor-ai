@@ -3,7 +3,7 @@ import { computed, onBeforeUnmount, ref } from 'vue';
 import { useI18n } from 'vue-i18n';
 import { acquireAudio, releaseAudio } from '../../shared/audio/audio-session';
 
-const props = defineProps<{ disabled: boolean; maxBytes: number }>();
+const props = defineProps<{ disabled: boolean; maxBytes: number; compact?: boolean }>();
 const emit = defineEmits<{ recorded: [file: File]; active: [value: boolean] }>();
 const { t } = useI18n();
 
@@ -212,12 +212,29 @@ onBeforeUnmount(() => {
 
 <template>
   <div class="microphone-recorder">
-    <strong>{{ t('attempt.micHeading') }}</strong>
-    <p class="hint">{{ t('attempt.micPrivacy') }}</p>
-    <p class="hint">{{ t('attempt.metronomePracticeTip') }}</p>
+    <strong v-if="!compact">{{ t('attempt.micHeading') }}</strong>
+    <template v-if="!compact">
+      <p class="hint">{{ t('attempt.micPrivacy') }}</p>
+      <p class="hint">{{ t('attempt.metronomePracticeTip') }}</p>
+    </template>
+    <details v-else class="compact-recording-info">
+      <summary>{{ t('attempt.microphoneInstructions') }}</summary>
+      <p class="hint">{{ t('attempt.micPrivacy') }}</p>
+      <p class="hint">{{ t('attempt.metronomePracticeTip') }}</p>
+    </details>
     <p v-if="!supported" class="hint">{{ t('attempt.micUnsupported') }}</p>
-    <div v-else class="microphone-controls">
-      <button v-if="state === 'idle'" type="button" class="recorder-button"
+    <div v-if="compact && supported" class="studio-live-wave" role="meter"
+      :aria-label="t('attempt.micLevelLabel')" aria-valuemin="0" aria-valuemax="100"
+      :aria-valuenow="state === 'recording' && meterAvailable ? meterLevel : 0">
+      <span v-for="tick in 42" :key="tick" class="studio-wave-bar"
+        :class="{ 'is-listening': state === 'recording' && meterAvailable && meterLevel >= (tick % 9 + 1) * 10 }"
+        :style="{ height: (18 + ((tick * 17 + 13) % 68)) + '%' }" />
+      <span class="studio-wave-timer">{{ state === 'recording' ? timeLabel : '00:00' }} / 02:00</span>
+    </div>
+    <div v-if="supported || !compact" class="microphone-controls">
+      <button v-if="state === 'idle' && compact" type="button" class="recorder-button"
+        :disabled="disabled" :aria-label="t('attempt.startRecording')" @click="start"><span class="studio-record-dot" aria-hidden="true"></span></button>
+      <button v-else-if="state === 'idle'" type="button" class="recorder-button"
         :disabled="disabled" @click="start">{{ t('attempt.startRecording') }}</button>
       <span v-else-if="state === 'requesting'" class="hint" role="status">
         {{ t('attempt.requestingMic') }}
@@ -226,13 +243,16 @@ onBeforeUnmount(() => {
         <span class="recording-timer" role="timer" :aria-label="t('attempt.recordingTimer')">
           {{ timeLabel }} / 02:00
         </span>
-        <button type="button" class="recorder-button"
+        <button v-if="compact" type="button" class="recorder-button"
+          :disabled="state !== 'recording'" :aria-label="t('attempt.stopRecording')" @click="stop"><span class="studio-stop-square" aria-hidden="true"></span></button>
+        <button v-else type="button" class="recorder-button"
           :disabled="state !== 'recording'" @click="stop">{{ t('attempt.stopRecording') }}</button>
-        <button type="button" class="recorder-button secondary-button"
+        <button type="button" class="recorder-button secondary-button" :class="{ 'studio-cancel-button': compact }"
           :disabled="state !== 'recording'" @click="cancel">{{ t('attempt.cancelRecording') }}</button>
       </template>
+      <slot name="actions" />
     </div>
-    <div v-if="state === 'recording'" class="mic-level-panel">
+    <div v-if="state === 'recording' && !compact" class="mic-level-panel">
       <div class="mic-level-heading">
         <span>{{ t('attempt.micLevelLabel') }}</span>
         <span v-if="meterAvailable" class="mic-level-status">
@@ -253,3 +273,23 @@ onBeforeUnmount(() => {
     <p v-if="error" role="alert" class="attempt-error">{{ error }}</p>
   </div>
 </template>
+
+<style scoped>
+.compact-recording-info {margin:0 0 12px;font-size:12px;color:#64746f}
+.compact-recording-info summary {cursor:pointer;min-height:38px;display:flex;align-items:center;color:#45685e}
+.compact-recording-info summary:focus-visible {outline:3px solid #28776d;outline-offset:2px}
+ 
+.studio-live-wave {height:62px;border-radius:12px;background:#f4f8f6;padding:10px 82px 10px 12px;display:flex;align-items:center;gap:3px;position:relative;overflow:hidden}
+.studio-wave-bar {flex:1;min-width:2px;max-width:6px;background:#d2ded8;border-radius:4px;transition:background-color .1s}
+.studio-wave-bar.is-listening {background:#438e68}
+.studio-wave-timer {position:absolute;right:10px;top:50%;transform:translateY(-50%);font-variant-numeric:tabular-nums;font-size:11px;color:#51605b;white-space:nowrap}
+.microphone-recorder:has(.studio-live-wave) .microphone-controls {display:flex;gap:8px;align-items:center;flex-wrap:nowrap;margin:10px 0;min-width:0}
+.microphone-recorder:has(.studio-live-wave) .microphone-controls > button:first-child {flex:0 0 50px;width:50px;height:50px;min-width:50px;min-height:50px;padding:0;border:5px solid #e5e9e7;background:white;border-radius:999px;display:grid;place-items:center;box-shadow:0 0 0 1px #cfd8d3}
+.studio-record-dot {width:26px;height:26px;border-radius:999px;background:#dd3d37;display:block}
+.studio-stop-square {width:20px;height:20px;border-radius:5px;background:#dd3d37;display:block}
+.microphone-recorder:has(.studio-live-wave) .microphone-controls .studio-cancel-button {flex:0 1 74px;font-size:11px;padding:6px}
+@media(max-width:420px) {.microphone-recorder:has(.studio-live-wave) .microphone-controls {flex-wrap:wrap}}
+
+.microphone-recorder:has(.studio-live-wave) .recording-timer {display:none}
+.microphone-recorder:has(.studio-live-wave) .recorder-button {border-radius:999px;min-height:44px}
+</style>

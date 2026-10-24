@@ -35,9 +35,15 @@ jobs:
         run: npm run test:tuner
       - name: Typecheck and build
         run: npm run build
+      - name: PDF.js provenance and dependency audit
+        run: |
+          npm view pdfjs-dist@5.4.394 dist.integrity
+          npm audit --omit=dev --audit-level=high
       - name: Light Minimal opt-in typecheck and build
         run: npm run build
         env:
           VITE_GUITAR_MENTOR_LIGHT_MINIMAL: 'true'
+      - name: Real Chrome isolated PDF score reader
+        run: npm run test:score-browser
       - name: Real Chrome keyboard and responsive UI smoke
         run: npm run test:browser

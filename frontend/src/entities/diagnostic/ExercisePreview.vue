@@ -1,15 +1,33 @@
 <script setup lang="ts">
-import { computed, onBeforeUnmount, ref, watch } from 'vue';
+import { computed, defineAsyncComponent, onBeforeUnmount, ref, watch } from 'vue';
 import { useI18n } from 'vue-i18n';
 import type { Exercise } from '../../shared/model/diagnostic.model';
 import { leaveMetronomeExercise, openExerciseMetronome } from '../metronome/metronome-ui';
 
 const props = defineProps<{ exercise: Exercise; assigned?: boolean }>();
 const { t } = useI18n();
+const lightMinimal = import.meta.env?.VITE_GUITAR_MENTOR_LIGHT_MINIMAL === 'true';
+const ScoreReader = defineAsyncComponent(() => import('../../shared/score/ScoreReader.vue'));
 const audioExists = ref(false);
 const pdfExists = ref(false);
 const checking = ref(true);
 const pdfOpen = ref(false);
+const studioTab = ref<'score' | 'description'>('score');
+function onStudioTabKeydown(event: KeyboardEvent): void {
+  const tabs = ['score','description'] as const;
+  const index = tabs.indexOf(studioTab.value);
+  let next = index;
+  if (event.key === 'ArrowRight') next = (index + 1) % tabs.length;
+  else if (event.key === 'ArrowLeft') next = (index + tabs.length - 1) % tabs.length;
+  else if (event.key === 'Home') next = 0;
+  else if (event.key === 'End') next = tabs.length - 1;
+  else return;
+  event.preventDefault();
+  studioTab.value = tabs[next]!;
+  if (studioTab.value === 'score') pdfOpen.value = true;
+  const buttons = (event.currentTarget as HTMLElement).querySelectorAll<HTMLButtonElement>('[role="tab"]');
+  buttons[next]?.focus();
+}
 const pdfLoading = ref(false);
 const pdfReady = ref(false);
 const metronomeError = ref(false);
@@ -46,6 +64,8 @@ watch(mediaIdentity, (_identity, _previous, onCleanup) => {
   pdfExists.value = false;
   checking.value = true;
   pdfOpen.value = false;
+  if (props.assigned && lightMinimal) pdfOpen.value = true;
+  studioTab.value = 'score';
   pdfReady.value = false;
   pdfLoading.value = false;
   pdfOpenController?.abort();
@@ -110,12 +130,19 @@ onBeforeUnmount(() => pdfOpenController?.abort());
 </script>
 
 <template>
-  <section class="exercise-preview" :aria-label="t('diagnostic.previewHeading')">
-    <div class="exercise-preview-heading">
+  <section class="exercise-preview" :class="{ 'studio-preview': assigned && lightMinimal }" :aria-label="t('diagnostic.previewHeading')">
+    <div v-if="assigned && lightMinimal" class="studio-tabs" role="tablist" :aria-label="t('diagnostic.studio.tabsLabel')" @keydown="onStudioTabKeydown">
+      <button type="button" role="tab" :aria-selected="studioTab === 'score'" :tabindex="studioTab === 'score' ? 0 : -1"
+        @click="studioTab = 'score'; pdfOpen = true"><svg width="21" height="21" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M9 18V5l12-2v13"/><ellipse cx="6" cy="18" rx="3" ry="2"/><ellipse cx="18" cy="16" rx="3" ry="2"/></svg>{{ t('diagnostic.studio.scoreTab') }}</button>
+      <button type="button" role="tab" :aria-selected="studioTab === 'description'" :tabindex="studioTab === 'description' ? 0 : -1"
+        @click="studioTab = 'description'"><svg width="21" height="21" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" aria-hidden="true"><path d="M4 6h16M4 12h12M4 18h8"/></svg>{{ t('diagnostic.studio.descriptionTab') }}</button>
+    </div>
+    <div v-if="!assigned || !lightMinimal" class="exercise-preview-heading">
       <h4>{{ assigned ? t('diagnostic.assignedMediaHeading') : t('diagnostic.previewHeading') }}</h4>
       <span class="hint">{{ assigned ? t('diagnostic.assignedMediaHint') : t('diagnostic.previewBeforeAssign') }}</span>
     </div>
-    <section class="exercise-learning" :aria-label="t('diagnostic.metadata.heading')">
+    <section class="exercise-learning" :class="{ 'studio-tab-hidden': assigned && lightMinimal && studioTab !== 'description' }" :aria-label="t('diagnostic.metadata.heading')">
+      <h4 v-if="assigned && lightMinimal" class="studio-description-heading">{{ t('diagnostic.metadata.heading') }}</h4>
       <p class="exercise-version">{{ isProbe ? t('diagnostic.probeLabel') : t('diagnostic.repertoireLabel') }} · {{ t('diagnostic.metadata.version') }}: {{ exercise.code }}@{{ exercise.version }}</p>
       <h5>{{ t('diagnostic.metadata.goal') }}</h5>
       <p>{{ goal || t('diagnostic.metadata.unknown') }}</p>
@@ -137,15 +164,7 @@ onBeforeUnmount(() => pdfOpenController?.abort());
         <div><dt>{{ t('diagnostic.metadata.license') }}</dt><dd>{{ exercise.license?.trim() || t('diagnostic.metadata.unknown') }}</dd></div>
       </dl>
     </section>
-    <div class="metronome-exercise-tool">
-      <button type="button" class="recorder-button metronome-exercise-launch"
-        :title="t('metronome.openExercise')" @click="launchMetronome">
-        {{ t('metronome.openExercise') }} · {{ exercise.bpm }} BPM
-      </button>
-      <span class="hint">{{ t('metronome.recommended') }}</span>
-      <p v-if="metronomeError" role="alert" class="hint">{{ t('metronome.exerciseMeterUnavailable') }}</p>
-    </div>
-    <div class="exercise-preview-audio">
+    <div v-if="!assigned || !lightMinimal" class="exercise-preview-audio">
       <strong>{{ t('diagnostic.listenExample') }}</strong>
       <p class="hint">{{ t('diagnostic.synthesizedExample') }}</p>
       <p v-if="checking" class="hint" role="status">{{ t('diagnostic.checkingMedia') }}</p>
@@ -154,7 +173,11 @@ onBeforeUnmount(() => pdfOpenController?.abort());
         :aria-label="t('diagnostic.listenExample')" @error="audioExists = false" />
       <p v-else class="hint" role="status">{{ t('diagnostic.metadata.audioUnavailable') }}</p>
     </div>
-    <details :key="mediaIdentity" class="exercise-pdf-details" :open="pdfOpen"
+    <ScoreReader v-if="assigned && lightMinimal" :class="{ 'studio-tab-hidden': studioTab !== 'score' }" :key="mediaIdentity"
+      :exercise-key="exerciseKey()" :pdf-url="exercise.previewPdfUrl"
+      :score-url="exercise.scoreUrl" :title="exercise.title"
+      v-model:open="pdfOpen" />
+    <details v-if="!assigned || !lightMinimal" :key="mediaIdentity" class="exercise-pdf-details" :open="pdfOpen"
       @toggle="onPdfToggle">
       <summary>{{ t('diagnostic.viewNotes') }}</summary>
       <!-- Explicit PDF verification must not wait for unrelated initial audio HEAD. -->
@@ -174,11 +197,22 @@ onBeforeUnmount(() => pdfOpenController?.abort());
         <a :href="exercise.scoreUrl" download>{{ t('diagnostic.downloadScore') }}</a>
       </p>
     </details>
+    <div v-if="!assigned || !lightMinimal" class="metronome-exercise-tool">
+      <button type="button" class="recorder-button metronome-exercise-launch"
+        :title="t('metronome.openExercise')" @click="launchMetronome">
+        {{ t('metronome.openExercise') }} · {{ exercise.bpm }} BPM · {{ exercise.meter }}
+      </button>
+      <span class="hint">{{ t('metronome.recommended') }}</span>
+      <p v-if="metronomeError" role="alert" class="hint">{{ t('metronome.exerciseMeterUnavailable') }}</p>
+    </div>
   </section>
 </template>
 
 <style scoped>
 .exercise-learning { min-width: 0; margin: 1rem 0; overflow-wrap: anywhere; }
+details.exercise-learning {border:1px solid #dce5e4;border-radius:10px;padding:8px 14px;background:#f8fbfa}
+details.exercise-learning > summary {min-height:44px;display:flex;align-items:center;font-weight:650;cursor:pointer;color:#205f57}
+details.exercise-learning > summary:focus-visible {outline:3px solid #28776d;outline-offset:3px}
 .exercise-learning h5 { margin: .85rem 0 .3rem; font-size: 1rem; }
 .exercise-learning p { margin: .35rem 0; }
 .exercise-learning ul { padding-left: 1.5rem; }
@@ -187,4 +221,28 @@ onBeforeUnmount(() => pdfOpenController?.abort());
 .exercise-facts div { min-width: 0; }
 .exercise-facts dt { font-weight: 600; }
 .exercise-facts dd { margin: .2rem 0 0; overflow-wrap: anywhere; }
+
+.studio-preview {min-width:0;display:grid;grid-template-columns:max-content minmax(0,1fr);column-gap:12px;row-gap:10px;align-items:start}
+.studio-preview .studio-tab-hidden {display:none!important}
+.studio-tabs {display:flex;grid-column:1;grid-row:1;gap:4px;align-items:center;flex-wrap:nowrap;padding:4px;background:#f4f7f5;border-radius:12px;margin:0;min-width:0}
+.studio-tabs button {display:inline-flex;align-items:center;justify-content:center;gap:8px;border:0;border-radius:9px;min-height:44px;padding:10px 17px;background:transparent;color:#4b5d5b;font:inherit;font-size:13px;font-weight:600;cursor:pointer}
+.studio-tabs button[aria-selected="true"] {background:#fff;color:#205f57;box-shadow:0 1px 4px #16233116}
+.studio-tabs button:focus-visible {outline:3px solid #28776d;outline-offset:2px}
+.studio-preview :deep(.score-reader) {display:contents;border:0;padding:0}
+.studio-preview :deep(.score-toolbar) {grid-column:2;grid-row:1;gap:6px;justify-content:flex-end;padding:0;min-height:52px;align-content:center;flex-wrap:nowrap;min-width:0}
+.studio-preview :deep(.score-reader > div:not(.score-toolbar)) {grid-column:1 / -1;min-width:0}
+.studio-preview > :not(.studio-tabs):not(.score-reader) {grid-column:1 / -1}
+.studio-preview .metronome-exercise-tool {grid-column:1 / -1;margin-top:3px;display:flex;align-items:center;gap:10px;flex-wrap:wrap}
+.studio-preview :deep(.score-toolbar button) {border-color:#dce5e4;background:#fff}
+.studio-preview :deep(.score-canvas-frame) {height:min(78vh,1000px)}
+.studio-preview .exercise-preview-audio {border:1px solid #e1e9e4;border-radius:12px;background:#f8fbfa;padding:18px}
+.studio-preview .exercise-learning {border:1px solid #e1e9e4;border-radius:12px;padding:16px}
+.studio-description-heading {margin:0 0 14px;color:#205f57;font-size:15px;font-weight:700}
+@media(max-width:780px) {
+ .studio-preview {grid-template-columns:minmax(0,1fr)}
+ .studio-tabs {grid-column:1;grid-row:1;width:max-content;max-width:100%;flex-wrap:wrap}
+ .studio-preview :deep(.score-toolbar) {grid-column:1;grid-row:2;justify-content:flex-end;flex-wrap:wrap}
+ .studio-preview :deep(.score-reader > div:not(.score-toolbar)) {grid-column:1}
+}
+@media(max-width:600px) {.studio-tabs button {padding:10px 12px}.studio-preview :deep(.score-canvas-frame) {height:65vh}.studio-preview :deep(.score-toolbar) {justify-content:flex-start}}
 </style>
