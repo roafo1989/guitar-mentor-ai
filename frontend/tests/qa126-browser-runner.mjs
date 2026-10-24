@@ -22,14 +22,14 @@ try {
     '--user-data-dir='+dir,'about:blank'
   ],{stdio:'ignore'});
   let debugPort;
-  for(let i=0;i<100;i++) {
+  for(let i=0;i<300;i++) {
     try {
       debugPort = Number((await readFile(path.join(dir,'DevToolsActivePort'),'utf8')).split('\n')[0]);
       if(debugPort)break;
     } catch {}
     await new Promise(resolve=>setTimeout(resolve,100));
   }
-  assert.ok(debugPort,'Chrome DevTools port did not start');
+  assert.ok(debugPort,'Chrome DevTools port did not start within 30s');
   const tabs=await (await fetch('http://127.0.0.1:'+debugPort+'/json')).json();
   const tab=tabs.find(x=>x.type==='page');
   assert.ok(tab?.webSocketDebuggerUrl,'Cannot connect to Chrome page');
