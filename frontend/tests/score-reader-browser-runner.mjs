@@ -72,9 +72,23 @@ try {
   assert.ok(loaded.ok,'actual isolated PDF canvas must render: '+JSON.stringify(loaded));
   assert.equal(await evaluate('window.__scoreRequests()'),2,'viewer performs advisory HEAD and bounded GET only');
   assert.equal(await evaluate("document.querySelector('.score-pagination input').value"),'1');
-  assert.equal(await evaluate("document.querySelector('.score-pagination span').textContent.trim()"),'/ 1');
+  assert.equal(await evaluate("document.querySelector('.score-pagination span').textContent.trim()"),'/ 2');
   assert.equal(await evaluate("document.querySelector('.score-pagination button').disabled"),true);
-  await evaluate("(() => { const input=document.querySelector('.score-pagination input');input.value='0';input.dispatchEvent(new Event('input',{bubbles:true}));input.dispatchEvent(new Event('change',{bubbles:true})); })()");
+  assert.equal(await evaluate("document.querySelector('.score-pagination button:last-child').disabled"),false);
+  await evaluate("document.querySelector('.score-pagination button:last-child').click()");
+  const page2=await evaluate(`new Promise(resolve=>{let attempts=0;const timer=setInterval(()=>{
+    if(document.querySelector('.score-reader')?.dataset.renderedPage==='2'){clearInterval(timer);resolve(true)}
+    if(++attempts>150){clearInterval(timer);resolve(false)}
+  },100)})`);
+  assert.ok(page2,'next button must render PDF page 2');
+  assert.equal(await evaluate("document.querySelector('.score-pagination input').value"),'2');
+  await evaluate("document.querySelector('.score-pagination button:first-child').click()");
+  const page1=await evaluate(`new Promise(resolve=>{let attempts=0;const timer=setInterval(()=>{
+    if(document.querySelector('.score-reader')?.dataset.renderedPage==='1'){clearInterval(timer);resolve(true)}
+    if(++attempts>150){clearInterval(timer);resolve(false)}
+  },100)})`);
+  assert.ok(page1,'previous button must render PDF page 1');
+  await evaluate("(() => { const input=document.querySelector('.score-pagination input');input.value='3';input.dispatchEvent(new Event('input',{bubbles:true}));input.dispatchEvent(new Event('change',{bubbles:true})); })()");
   assert.equal(await evaluate("document.querySelector('.score-pagination input').getAttribute('aria-invalid')"),'true');
   assert.ok(await evaluate("document.querySelector('.score-page-error')!==null"),'out of range page must be announced');
   await evaluate("(() => { const input=document.querySelector('.score-pagination input');input.value='1';input.dispatchEvent(new Event('input',{bubbles:true}));input.dispatchEvent(new Event('change',{bubbles:true})); })()");
