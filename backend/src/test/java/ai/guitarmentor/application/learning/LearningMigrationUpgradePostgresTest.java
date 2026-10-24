@@ -16,7 +16,7 @@ import static org.junit.jupiter.api.Assertions.*;
 
 /**
  * A genuinely pre-V15 database: migrate V1..V14, create task + submitted attempt,
- * apply V15, insert a legacy PASS, then V16/V17; preserve immutable history while
+ * apply V15, insert a legacy PASS, then V16/V17/V18; preserve immutable history while
  * explicitly marking the inherited assessment provenance as unverified.
  * Each run uses an isolated PostgreSQL schema, never the application's public schema.
  */
@@ -118,7 +118,7 @@ class LearningMigrationUpgradePostgresTest {
                     +" WHERE assessment_id=?",assessment));
                 assertEquals(0L,count(connection,"SELECT count(*) FROM learner_skill_signal_history"
                     +" WHERE instrument_profile_id=? AND source_type <> 'SELF_REPORTED'",profile));
-                assertEquals(17L,count(connection,
+                assertEquals(18L,count(connection,
                     "SELECT max(installed_rank) FROM flyway_schema_history WHERE success=true"));
                 assertEquals(1L,count(connection,
                     "SELECT count(*) FROM exercises WHERE id=? AND learning_goal IS NULL"
