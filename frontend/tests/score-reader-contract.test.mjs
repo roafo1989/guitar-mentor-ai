@@ -207,3 +207,13 @@ test('#150 design acceptance: assigned preview has real audio, capture waveform 
  assert.match(reader,/v-if="!fitWidth"/);
  assert.match(reader,/justify-content:flex-end/);
 });
+
+test('#150 compact capture and upload are placed in one real form action row', async () => {
+ const submission=await readFile(new URL('../src/entities/attempt/SubmissionPanel.vue',import.meta.url),'utf8');
+ const microphone=await readFile(new URL('../src/entities/attempt/MicrophoneRecorder.vue',import.meta.url),'utf8');
+ assert.match(submission, /<template #actions>/);
+ assert.match(submission, /class="recorder-button studio-send-button"/);
+ assert.match(submission, /<div v-if="!lightMinimal" class="form-actions">/);
+ assert.match(microphone, /<slot name="actions"\s*\/>/);
+ assert.match(submission, /:disabled="learningTerminal \|\| !file \|\| !capabilities\?\.enabled \|\| uploading \|\| recordingActive"/);
+});
