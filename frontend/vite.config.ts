@@ -12,6 +12,7 @@ export default defineConfig({
     strictPort: true,
     proxy: {
       '/api': { target: 'http://127.0.0.1:8080', changeOrigin: false },
+      '/oauth-bridge': { target: 'http://127.0.0.1:8080', changeOrigin: false },
       '/oauth2': { target: 'http://127.0.0.1:8080', changeOrigin: false },
       '/login/oauth2': { target: 'http://127.0.0.1:8080', changeOrigin: false },
       '/logout': { target: 'http://127.0.0.1:8080', changeOrigin: false },

@@ -1,12 +1,13 @@
 import { createRouter, createWebHistory } from 'vue-router';
 import { captureEmailActionLink } from '../core/auth/auth-link';
+import { captureOAuthBridgeTicket } from '../core/auth/oauth-bridge-ticket';
 import LearnerProfileView from '../entities/learner/LearnerProfileView.vue';
 import OnboardingView from '../entities/onboarding/OnboardingView.vue';
 import DiagnosticView from '../entities/diagnostic/DiagnosticView.vue';
 import HomeView from '../core/home/HomeView.vue';
 
-// This must run BEFORE createWebHistory snapshots location and its hash.
-// Capturing only in main.ts is too late: ESM evaluates router imports first.
+// Scrub one-time email and OAuth tickets before Vue Router snapshots browser history.
+captureOAuthBridgeTicket();
 captureEmailActionLink();
 
 export const router = createRouter({

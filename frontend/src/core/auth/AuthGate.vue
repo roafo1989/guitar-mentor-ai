@@ -3,6 +3,7 @@ import { nextTick, onBeforeUnmount, onMounted, ref } from 'vue';
 import { useI18n } from 'vue-i18n';
 import { auth, clearActor, login, refreshActor, secureUi } from './auth';
 import { captureEmailActionLink, takeEmailActionLink } from './auth-link';
+import { captureOAuthBridgeTicket, takeOAuthBridgeTicket } from './oauth-bridge-ticket';
 const { t, locale } = useI18n();
 const localPrototype = !secureUi;
 type Mode = 'login' | 'register' | 'verify' | 'forgot' | 'reset' | 'google';
@@ -134,7 +135,26 @@ function consumeAuthFragment(): void {
 onMounted(() => {
   consumeAuthFragment();
   window.addEventListener('hashchange', consumeAuthFragment);
-  if (!localPrototype) void refreshActor();
+  if (!localPrototype) {
+    void (async () => {
+      captureOAuthBridgeTicket();
+      const ticket = takeOAuthBridgeTicket();
+      if (ticket) {
+        try {
+          if (!tokenPattern.test(ticket)) throw new Error('INVALID_OAUTH_TICKET');
+          const response = await fetch('/api/v1/oauth-bridge/consume', {
+            method: 'POST', headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ ticket }), credentials: 'same-origin',
+          });
+          if (!response.ok) throw new Error('OAUTH_BRIDGE_FAILED');
+        } catch {
+          error.value = label('Не удалось завершить вход через Google. Попробуйте снова.',
+            'Could not finish Google sign-in. Please try again.');
+        }
+      }
+      await refreshActor();
+    })();
+  }
 });
 onBeforeUnmount(() => window.removeEventListener('hashchange', consumeAuthFragment));
 </script>
