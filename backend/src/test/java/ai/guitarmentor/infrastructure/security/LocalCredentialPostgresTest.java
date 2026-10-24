@@ -107,7 +107,7 @@ class LocalCredentialPostgresTest {
         UUID first=local.authenticate(login,"first-password-999");
         long version=actors.localVersion(first).orElseThrow();
         var oidc=mock(org.springframework.security.oauth2.core.oidc.user.OidcUser.class);
-        when(oidc.getIssuer()).thenReturn(java.net.URI.create(InvitationService.GOOGLE_ISSUER));
+        when(oidc.getIssuer()).thenReturn(java.net.URI.create(InvitationService.GOOGLE_ISSUER).toURL());
         when(oidc.getEmailVerified()).thenReturn(true);
         when(oidc.getSubject()).thenReturn("synthetic-"+UUID.randomUUID());
         googleLinks.attachVerifiedGoogle(first,version,oidc);
