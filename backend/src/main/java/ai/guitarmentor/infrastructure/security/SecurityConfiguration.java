@@ -36,8 +36,13 @@ public class SecurityConfiguration {
     SecurityFilterChain securityFilterChain(HttpSecurity http, ActorRepository actors,
             @Value("${guitar-mentor.security.enabled:true}") boolean enabled,
             @Value("${guitar-mentor.security.absolute-session-minutes:720}") long absoluteMinutes,
-            @Value("${server.address:127.0.0.1}") String bind)
+            @Value("${server.address:127.0.0.1}") String bind,
+            @Value("${guitar-mentor.security.local-http:false}") boolean localHttp)
             throws Exception {
+        if (localHttp && (!enabled || !(bind.equals("127.0.0.1") || bind.equals("::1")
+                || bind.equals("localhost")))) {
+            throw new IllegalStateException("Local HTTP OAuth test mode requires secure auth and loopback binding");
+        }
         if (!enabled) {
             // Fail during SecurityFilterChain creation, before Tomcat can accept requests.
             rejectInsecureNonLoopback(false, bind).run(null);
@@ -47,7 +52,7 @@ public class SecurityConfiguration {
         }
         var csrfRepo = CookieCsrfTokenRepository.withHttpOnlyFalse();
         csrfRepo.setCookieCustomizer(cookie -> cookie.path("/").sameSite("Lax")
-                .secure(true));
+                .secure(!localHttp));
         http
             .authorizeHttpRequests(auth -> auth
                 .requestMatchers("/actuator/**").denyAll()
