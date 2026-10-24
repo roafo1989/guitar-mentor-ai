@@ -115,7 +115,8 @@ def apply(data, account_id, dsn):
         import psycopg
     except ImportError as e:
         raise SystemExit("Install psycopg for --apply: py -3 -m pip install 'psycopg[binary]'") from e
-    scrubbed = {}\n    with psycopg.connect(dsn) as conn:
+    scrubbed = {}
+    with psycopg.connect(dsn) as conn:
         with conn.transaction():
             with conn.cursor() as cur:
                 cur.execute("SELECT 1 FROM accounts WHERE id=%s AND status='ACTIVE'",(account_id,))
@@ -141,7 +142,9 @@ def apply(data, account_id, dsn):
                         f"ON CONFLICT (owner_account_id, {', '.join(keys)}) DO UPDATE SET {updates}"
                     )
                     print(f"Upserted {len(data[i])} rows into {table}")
-    print("Committed. No music file bytes were imported.")\n    print("Removed NUL bytes from PostgreSQL text values:", sum(scrubbed.values()),\n          "(by field:", sorted(scrubbed.items()), ")")
+    print("Committed. No music file bytes were imported.")
+    print("Removed NUL bytes from PostgreSQL text values:", sum(scrubbed.values()),
+          "(by field:", sorted(scrubbed.items()), ")")
 
 def main():
     p=argparse.ArgumentParser()
