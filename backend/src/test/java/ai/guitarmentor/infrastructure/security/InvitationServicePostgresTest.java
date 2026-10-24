@@ -1,0 +1,67 @@
+package ai.guitarmentor.infrastructure.security;
+
+import static org.junit.jupiter.api.Assertions.*;
+import java.time.Instant;
+import java.util.Map;
+import java.util.UUID;
+import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.condition.EnabledIfEnvironmentVariable;
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.boot.test.context.SpringBootTest;
+import org.springframework.jdbc.core.simple.JdbcClient;
+import org.springframework.security.oauth2.core.oidc.OidcIdToken;
+import org.springframework.security.oauth2.core.oidc.user.DefaultOidcUser;
+import org.springframework.security.core.authority.SimpleGrantedAuthority;
+import org.springframework.transaction.annotation.Transactional;
+import java.util.List;
+
+@SpringBootTest
+@Transactional
+@EnabledIfEnvironmentVariable(named="GUITAR_MENTOR_TEST_POSTGRES",matches="true")
+class InvitationServicePostgresTest {
+    @Autowired InvitationService service;
+    @Autowired JdbcClient jdbc;
+
+    private DefaultOidcUser user(String sub, String mail, boolean verified) {
+        return new DefaultOidcUser(List.of(new SimpleGrantedAuthority("ROLE_USER")),
+            new OidcIdToken("testing",Instant.now().minusSeconds(20),Instant.now().plusSeconds(200),
+                Map.of("iss",InvitationService.GOOGLE_ISSUER, "sub",sub,
+                       "email",mail,"email_verified",verified,"name","Tester")));
+    }
+
+    @Test
+    void invitationIsSingleUseAndBoundToVerifiedGoogleEmailAndSubject() {
+        String token=service.issue("Example+tag@Gmail.com",null,false);
+        assertFalse(jdbc.sql("SELECT token_hash FROM invitations WHERE email_normalized=:e")
+            .param("e","example+tag@gmail.com").query(String.class).single().equals(token));
+        assertThrows(SecurityException.class,()->service.activate(token,user("unverified","example+tag@gmail.com",false)));
+        assertThrows(SecurityException.class,()->service.activate(token,user("mismatch","someone@gmail.com",true)));
+        UUID account=service.activate(token,user("sub-valid","example+tag@gmail.com",true));
+        assertNotNull(account);
+        assertThrows(SecurityException.class,()->service.activate(token,user("sub-other","example+tag@gmail.com",true)));
+        assertEquals(1L,jdbc.sql("SELECT count(*) FROM accounts WHERE id=:id")
+            .param("id",account).query(Long.class).single());
+        service.disable(account);
+        assertTrue(jdbc.sql("SELECT status FROM accounts WHERE id=:id")
+            .param("id",account).query(String.class).single().equals("DISABLED"));
+    }
+
+    @Test
+    void revokedInvitationCannotActivateAndNoAccountIsCreated() {
+        String token=service.issue("revoked@example.com",null,false);
+        UUID invite=jdbc.sql("SELECT id FROM invitations WHERE token_hash=:hash")
+            .param("hash",InvitationService.digest(token)).query(UUID.class).single();
+        service.revoke(invite);
+        assertThrows(SecurityException.class,()->service.activate(token,user("revoked-sub","revoked@example.com",true)));
+        assertEquals(0L,jdbc.sql("SELECT count(*) FROM accounts WHERE role='LEARNER' AND learner_id IN (SELECT id FROM learners WHERE display_name='Tester')")
+            .query(Long.class).single());
+    }
+
+    @Test
+    void ownerBootstrapIsOneTimeAndNoGenericDisableAllowed() {
+        String token=service.issue("owner@example.com",null,true);
+        UUID account=service.activate(token,user("owner-sub","owner@example.com",true));
+        assertThrows(IllegalStateException.class,()->service.issue("other-owner@example.com",null,true));
+        assertThrows(IllegalArgumentException.class,()->service.disable(account));
+    }
+}
