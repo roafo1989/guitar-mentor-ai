@@ -137,7 +137,8 @@ onBeforeUnmount(() => { unsubscribeMetronome?.(); closeMetronome(); });
         <button v-if="auth.actor || localPrototype" ref="tunerButton" class="header-tool-button" type="button"
           :title="t('tuner.title')" :aria-label="t('tuner.open')"
           aria-haspopup="dialog" :aria-expanded="tunerOpen" @click="openTuner">
-          <svg viewBox="0 0 24 24" width="24" height="24" fill="none" stroke="currentColor"
+          <img v-if="lightMinimal" class="header-icon-image" src="/icons/tuner-flaticon.svg" alt="" aria-hidden="true" width="18" height="18" />
+          <svg v-else viewBox="0 0 24 24" width="24" height="24" fill="none" stroke="currentColor"
             stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
             <path :d="tunerIconPath"/>
             
@@ -152,7 +153,8 @@ onBeforeUnmount(() => { unsubscribeMetronome?.(); closeMetronome(); });
           :title="metronomeStatus === 'running' ? t('metronome.playingInBackground') : t('metronome.open')"
           :aria-label="metronomeStatus === 'running' ? t('metronome.playingInBackground') : t('metronome.open')"
           aria-haspopup="dialog" :aria-expanded="metronomeUi.open" @click="openHeaderMetronome">
-          <svg viewBox="0 0 24 24" width="24" height="24" fill="none"
+          <img v-if="lightMinimal" class="header-icon-image" src="/icons/metronome-flaticon.svg" alt="" aria-hidden="true" width="18" height="18" />
+          <svg v-else viewBox="0 0 24 24" width="24" height="24" fill="none"
             stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"
             aria-hidden="true">
             <path :d="metronomeIconPath"/>
@@ -198,6 +200,6 @@ onBeforeUnmount(() => { unsubscribeMetronome?.(); closeMetronome(); });
     <MetronomeDialog v-if="(auth.actor || localPrototype) && metronomeUi.open" @close="closeMetronome" @minimize="minimizeMetronome" />
     <TunerDialog :open="(auth.actor || localPrototype) && tunerOpen" @close="closeTuner" />
     <AuthGate><main class="main-content"><RouterView /></main></AuthGate>
-    <footer>Guitar Mentor AI · MVP</footer>
+    <footer>Guitar Mentor AI · MVP <span v-if="lightMinimal" class="icon-credits">· Иконки: <a href="https://www.flaticon.com/ru/free-icon/tuner_8031641" target="_blank" rel="noopener noreferrer">тюнер</a> и <a href="https://www.flaticon.com/ru/free-icon/metronome_3564896" target="_blank" rel="noopener noreferrer">метроном</a> — Flaticon</span></footer>
   </div>
 </template>
