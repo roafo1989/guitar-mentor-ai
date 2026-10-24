@@ -1,6 +1,8 @@
 package ai.guitarmentor.infrastructure.security;
 
 import static org.mockito.Mockito.when;
+import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.anyString;
 import static org.springframework.security.test.web.servlet.request.SecurityMockMvcRequestPostProcessors.csrf;
 import static org.springframework.security.test.web.servlet.request.SecurityMockMvcRequestPostProcessors.oidcLogin;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
@@ -23,6 +25,7 @@ import org.springframework.security.oauth2.client.registration.InMemoryClientReg
 import org.springframework.security.oauth2.core.AuthorizationGrantType;
 import org.springframework.test.context.bean.override.mockito.MockitoBean;
 import org.springframework.test.web.servlet.MockMvc;
+import org.springframework.http.MediaType;
 
 /**
  * Full Spring Security filter chain + MVC with synthetic signed-in actors.
@@ -37,6 +40,7 @@ import org.springframework.test.web.servlet.MockMvc;
 class SecurityHttpIntegrationTest {
     @Autowired MockMvc mvc;
     @MockitoBean ActorRepository actors;
+    @MockitoBean InvitationService invitations;
 
     private final UUID learnerA = UUID.randomUUID();
     private final UUID learnerB = UUID.randomUUID();
@@ -90,6 +94,32 @@ class SecurityHttpIntegrationTest {
         mvc.perform(post("/logout").with(principal)).andExpect(status().isForbidden());
         mvc.perform(post("/logout").with(principal).with(csrf()))
             .andExpect(status().isNoContent());
+    }
+
+    @Test
+    void unknownGoogleIdentityMayOnlyActivateInviteWithCsrf() throws Exception {
+        var pending = oidcLogin().idToken(t -> t
+            .claim("iss", InvitationService.GOOGLE_ISSUER).subject("pending-google-user")
+            .claim("email", "pending@example.com").claim("email_verified", true));
+        mvc.perform(get("/api/v1/me").with(pending))
+            .andExpect(status().isForbidden())
+            .andExpect(jsonPath("$.code").value("ACCOUNT_NOT_ADMITTED"));
+        mvc.perform(get("/api/v1/csrf").with(pending))
+            .andExpect(status().isOk()).andExpect(jsonPath("$.token").isString());
+        String token = "a".repeat(64);
+        String body = "{\\"token\\":\\"" + token + "\\"}";
+        mvc.perform(post("/api/v1/invitations/activate").with(pending)
+                .contentType(MediaType.APPLICATION_JSON).content(body))
+            .andExpect(status().isForbidden());
+        when(invitations.activate(anyString(), any()))
+            .thenReturn(UUID.randomUUID());
+        mvc.perform(post("/api/v1/invitations/activate").with(pending).with(csrf())
+                .contentType(MediaType.APPLICATION_JSON).content(body))
+            .andExpect(status().isOk())
+            .andExpect(jsonPath("$.code").value("INVITATION_ACCEPTED"));
+        mvc.perform(get("/api/v1/learners/" + learnerA).with(pending))
+            .andExpect(status().isForbidden())
+            .andExpect(jsonPath("$.code").value("ACCOUNT_NOT_ADMITTED"));
     }
 
     @Test
