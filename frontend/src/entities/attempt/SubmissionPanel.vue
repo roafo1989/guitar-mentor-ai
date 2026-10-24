@@ -88,7 +88,6 @@ function removeDraft(): void {
   clearRecordedPreview();
   if (fileInput.value) fileInput.value.value = '';
   requestId.value = crypto.randomUUID();
-  lastSubmitted = null;
   notice.value = '';
   error.value = '';
 }
