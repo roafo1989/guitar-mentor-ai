@@ -35,12 +35,25 @@ export const useLearnerStore = defineStore('learner', () => {
   async function restore(): Promise<void> {
     const id = window.localStorage.getItem(storageKey);
     if (!id) { error.value = null; return; }
-    const restored = await execute(() => learnerService.get(id));
-    // Only 404 of the original learner GET clears the matching selection.
-    if (!restored && isHttp(error.value, 404) && window.localStorage.getItem(storageKey) === id) {
-      window.localStorage.removeItem(storageKey);
-      learner.value = null;
-      error.value = null;
+    const current = ++generation;
+    busy.value = true;
+    error.value = null;
+    try {
+      const loaded = await learnerService.get(id);
+      if (current !== generation || window.localStorage.getItem(storageKey) !== id) return;
+      learner.value = loaded;
+    } catch (cause) {
+      if (current !== generation || window.localStorage.getItem(storageKey) !== id) return;
+      if (cause instanceof Error && cause.name === 'AbortError') return;
+      if (isHttp(cause, 404)) {
+        // Only a failed learner GET may forget this learner. No other key is touched.
+        window.localStorage.removeItem(storageKey);
+        learner.value = null;
+      } else {
+        error.value = asApiFailure(cause);
+      }
+    } finally {
+      if (current === generation) busy.value = false;
     }
   }
 
