@@ -126,6 +126,37 @@ public class InvitationService {
         return account;
     }
 
+    /** First Google sign-in: create a fresh LEARNER account, never merge by email. */
+    @Transactional
+    public UUID admitPublicGoogle(OidcUser identity) {
+        if (identity == null || identity.getIssuer() == null
+            || !GOOGLE_ISSUER.equals(identity.getIssuer().toString())
+            || !Boolean.TRUE.equals(identity.getEmailVerified())
+            || identity.getSubject() == null || identity.getSubject().isBlank()) {
+            throw new SecurityException("GOOGLE_ADMISSION_REJECTED");
+        }
+        String verified = email(identity.getEmail());
+        var existing = jdbc.sql("""
+            SELECT account_id FROM account_identities
+            WHERE issuer=:issuer AND subject=:subject
+            """).param("issuer",GOOGLE_ISSUER).param("subject",identity.getSubject())
+            .query(UUID.class).optional();
+        if (existing.isPresent()) return existing.get();
+        UUID learner = UUID.randomUUID();
+        String name = identity.getFullName();
+        if (name == null || name.isBlank()) name = verified.substring(0,verified.indexOf('@'));
+        if (name.length()>100) name=name.substring(0,100);
+        jdbc.sql("INSERT INTO learners(id,display_name,created_at) VALUES (:id,:name,now())")
+            .param("id",learner).param("name",name).update();
+        UUID account = UUID.randomUUID();
+        jdbc.sql("INSERT INTO accounts(id,learner_id,role,status) VALUES (:id,:learner,'LEARNER','ACTIVE')")
+            .param("id",account).param("learner",learner).update();
+        jdbc.sql("INSERT INTO account_identities(issuer,subject,account_id) VALUES (:issuer,:subject,:account)")
+            .param("issuer",GOOGLE_ISSUER).param("subject",identity.getSubject())
+            .param("account",account).update();
+        return account;
+    }
+
     @Transactional
     public void disable(UUID account) {
         int count=jdbc.sql("""
