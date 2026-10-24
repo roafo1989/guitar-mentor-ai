@@ -142,14 +142,14 @@ function failureHint(attempt: SubmissionAttempt): string {
   return t(errors[attempt.processingErrorCode || ''] || 'attempt.failedGeneric');
 }
 
-async function readPage(cursor = pageCursor.value, keepBusy = false): Promise<boolean> {
+async function readPage(cursor: number | null | undefined = pageCursor.value, keepBusy = false): Promise<boolean> {
   if (historyRequestInFlight) return false;
   historyRequestInFlight = true;
   const serial = ++requestSerial, generation = contextGeneration;
   const { learnerId, sessionId, taskId } = props;
   if (!keepBusy) pageBusy.value = true;
   try {
-    const page: AttemptPage = await attemptService.page(learnerId, sessionId, taskId, cursor);
+    const page: AttemptPage = await attemptService.page(learnerId, sessionId, taskId, cursor ?? undefined);
     if (!currentContext(generation) || serial !== requestSerial) return false;
     // Preserve the previous page when reading a requested destination fails.
     attempts.value = page.items;
@@ -186,8 +186,8 @@ async function navigate(cursor: number | undefined, direction: 'older' | 'newer'
   const stack = [...cursorStack.value];
   if (direction === 'older') stack.push(old);
   if (direction === 'newer') stack.pop();
-  if (await readPage(cursor)) {
-    pageCursor.value = cursor;
+  if (await readPage(direction === 'latest' ? null : cursor)) {
+    pageCursor.value = direction === 'latest' ? undefined : cursor;
     cursorStack.value = direction === 'latest' ? [] : stack;
   }
 }
@@ -239,8 +239,10 @@ async function refresh() {
   } catch {
     if (currentContext(generation)) error.value = t('attempt.historyLoadError');
   } finally {
-    await readPage();
-    if (currentContext(generation)) loading.value = false;
+    if (currentContext(generation)) {
+      await readPage();
+      loading.value = false;
+    }
   }
 }
 
