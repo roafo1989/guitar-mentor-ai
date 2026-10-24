@@ -22,6 +22,17 @@ def fixture():
 
 
 class MusicCatalogValidationTest(unittest.TestCase):
+    def test_nul_stripped_from_metadata_only(self):
+        stats = {}
+        self.assertEqual(mod.postgres_text("abc" + chr(0) + "def", "raw_title", stats), "abcdef")
+        self.assertEqual(stats["raw_title"], 1)
+        self.assertEqual(mod.postgres_text("plain", "raw_title", stats), "plain")
+
+    def test_nul_in_identity_and_path_rejected(self):
+        for col in ("source_work_id", "source_arrangement_id", "source_file_id", "relative_path"):
+            with self.subTest(col=col), self.assertRaises(ValueError):
+                mod.postgres_text("a" + chr(0) + "b", col, {})
+
     def test_valid_private_index(self):
         mod.verify(fixture())
 

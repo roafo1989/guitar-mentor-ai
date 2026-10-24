@@ -97,11 +97,26 @@ def verify(data):
     print("Validated", *(f"{name}={len(rows)}" for (name,*_),rows in zip(TABLES,data)))
     print("All records remain private metadata; originals are never uploaded.")
 
+# PostgreSQL text cannot contain U+0000. Never modify source CSVs.
+# Identifiers and paths are identity-bearing: reject, don't silently rewrite them.
+IDENTITY_COLUMNS = {"source_work_id", "source_arrangement_id", "source_file_id",
+                    "relative_path"}
+
+def postgres_text(value, column, stats):
+    nul = chr(0)
+    if not isinstance(value, str) or nul not in value:
+        return value
+    if column in IDENTITY_COLUMNS:
+        raise ValueError(f"NUL found in identity/path field {column}; review source data")
+    stats[column] = stats.get(column, 0) + value.count(nul)
+    return value.replace(nul, "")
+
 def apply(data, account_id, dsn):
     try:
         import psycopg
     except ImportError as e:
         raise SystemExit("Install psycopg for --apply: py -3 -m pip install 'psycopg[binary]'") from e
+    scrubbed = {}
     with psycopg.connect(dsn) as conn:
         with conn.transaction():
             with conn.cursor() as cur:
@@ -115,8 +130,8 @@ def apply(data, account_id, dsn):
                     with cur.copy(f"COPY {staging} ({', '.join(columns)}) FROM STDIN") as copy:
                         for row in data[i]:
                             values=[account_id]+[
-                                row[source]
-                                for _,source in mapping
+                                postgres_text(row[source], col, scrubbed)
+                                for col,source in mapping
                             ]
                             if table=="music_catalog_source_files":
                                 values[columns.index("size_bytes")]=int(row["size_bytes"])
@@ -129,6 +144,8 @@ def apply(data, account_id, dsn):
                     )
                     print(f"Upserted {len(data[i])} rows into {table}")
     print("Committed. No music file bytes were imported.")
+    print("Removed NUL bytes from PostgreSQL text values:", sum(scrubbed.values()),
+          "(by field:", sorted(scrubbed.items()), ")")
 
 def main():
     p=argparse.ArgumentParser()
