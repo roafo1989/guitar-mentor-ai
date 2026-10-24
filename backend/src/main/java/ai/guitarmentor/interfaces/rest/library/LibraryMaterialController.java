@@ -3,104 +3,155 @@ package ai.guitarmentor.interfaces.rest.library;
 import ai.guitarmentor.infrastructure.persistence.LibraryMaterialRepository;
 import ai.guitarmentor.infrastructure.persistence.LibraryMaterialRepository.Material;
 import ai.guitarmentor.infrastructure.security.CurrentActor;
+import com.fasterxml.jackson.databind.JsonNode;
 import jakarta.servlet.http.HttpServletRequest;
-import jakarta.validation.Valid;
-import jakarta.validation.constraints.NotBlank;
-import jakarta.validation.constraints.Size;
 import java.nio.charset.StandardCharsets;
 import java.time.OffsetDateTime;
 import java.util.ArrayList;
 import java.util.Base64;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
 import java.util.UUID;
+import javax.crypto.Mac;
+import javax.crypto.spec.SecretKeySpec;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.http.CacheControl;
 import org.springframework.http.ResponseEntity;
+import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.bind.annotation.*;
 
 @RestController
 @RequestMapping("/api/v1/library/materials")
 public class LibraryMaterialController {
     private final LibraryMaterialRepository repository;
-    public LibraryMaterialController(LibraryMaterialRepository repository) { this.repository=repository; }
+    private final byte[] cursorSecret;
+    private final boolean enabled;
+
+    public LibraryMaterialController(LibraryMaterialRepository repository,
+            @Value("${guitar-mentor.library.cursor-secret:}") String secret,
+            @Value("${guitar-mentor.library.enabled:false}") boolean enabled) {
+        this.repository=repository;
+        this.cursorSecret=secret.getBytes(StandardCharsets.UTF_8);
+        this.enabled=enabled;
+    }
 
     private UUID owner(HttpServletRequest request) {
         CurrentActor actor=(CurrentActor)request.getAttribute("guitarMentorActor");
         if(actor==null) throw new ApiError(401,"UNAUTHENTICATED");
+        if(!enabled) throw new ApiError(503,"LIBRARY_DISABLED");
         return actor.accountId();
     }
-    public record Edit(@NotBlank @Size(max=200) String title,
-                       @NotBlank String materialType, @Size(max=4000) String description) {}
-    public record Page(List<Material> items,String nextCursor) {}
+
+    public record FileView(UUID id,String originalName,String format,long byteSize,
+            String sha256,String validationStatus,String downloadUrl) {}
+    public record MaterialView(UUID id,String title,String type,String author,
+            String state,String visibility,String reviewStatus,long revision,
+            OffsetDateTime createdAt,OffsetDateTime updatedAt,List<FileView> files) {}
+    public record Page(List<MaterialView> items,String nextCursor) {}
+    public record Deleting(UUID id,String state) {}
+
+    private MaterialView view(UUID owner,Material m) {
+        List<FileView> files=repository.assets(owner,m.id()).stream().map(a -> new FileView(
+            a.id(),a.originalName(),a.format(),a.byteSize(),a.sha256(),
+            a.format().equals("PDF")?"PDF_HEADER_CHECKED":"ORIGINAL_UNVERIFIED",
+            "/api/v1/library/materials/"+m.id()+"/files/"+a.id()+"/content")).toList();
+        return new MaterialView(m.id(),m.title(),m.type(),m.author(),m.state(),
+                "PRIVATE","UNREVIEWED",m.revision(),m.createdAt(),m.updatedAt(),files);
+    }
 
     @GetMapping
     public ResponseEntity<Page> list(HttpServletRequest request,
-            @RequestParam(defaultValue="20") int limit, @RequestParam(required=false) String cursor) {
-        if(limit<1||limit>100) throw new ApiError(400,"INVALID_LIMIT");
-        OffsetDateTime time=null; UUID id=null;
+            @RequestParam(defaultValue="20") int limit,@RequestParam(required=false) String cursor) {
+        UUID account=owner(request);
+        if(limit<1||limit>50) throw new ApiError(400,"LIBRARY_INVALID_METADATA");
+        OffsetDateTime before=null; UUID id=null;
         if(cursor!=null) {
             try {
                 String decoded=new String(Base64.getUrlDecoder().decode(cursor),StandardCharsets.UTF_8);
-                String[] parts=decoded.split("\\|",-1);
-                if(parts.length!=2) throw new IllegalArgumentException();
-                time=OffsetDateTime.parse(parts[0]); id=UUID.fromString(parts[1]);
-            } catch(RuntimeException ex) {throw new ApiError(400,"INVALID_CURSOR");}
+                String[] segments=decoded.split("\\|",-1);
+                if(segments.length!=4 || !segments[0].equals("v1")
+                        || !segments[1].equals(account.toString())) throw new IllegalArgumentException();
+                String message=String.join("|",segments[0],segments[1],segments[2]);
+                if(!java.security.MessageDigest.isEqual(
+                    sign(message).getBytes(StandardCharsets.US_ASCII),
+                    segments[3].getBytes(StandardCharsets.US_ASCII))) throw new IllegalArgumentException();
+                String[] key=segments[2].split(",",-1);
+                if(key.length!=2) throw new IllegalArgumentException();
+                before=OffsetDateTime.parse(key[0]); id=UUID.fromString(key[1]);
+            } catch(RuntimeException ex) {throw new ApiError(400,"LIBRARY_INVALID_CURSOR");}
         }
-        List<Material> rows=repository.page(owner(request),time,id,limit+1);
+        List<Material> rows=repository.page(account,before,id,limit+1);
         boolean more=rows.size()>limit;
-        List<Material> items=new ArrayList<>(rows.subList(0,Math.min(limit,rows.size())));
+        List<Material> slice=new ArrayList<>(rows.subList(0,Math.min(limit,rows.size())));
         String next=null;
         if(more) {
-            Material last=items.get(items.size()-1);
+            Material last=slice.get(slice.size()-1);
+            String message="v1|"+account+"|"+last.createdAt()+","+last.id();
             next=Base64.getUrlEncoder().withoutPadding().encodeToString(
-                (last.createdAt().toString()+"|"+last.id()).getBytes(StandardCharsets.UTF_8));
+                (message+"|"+sign(message)).getBytes(StandardCharsets.UTF_8));
         }
-        return ResponseEntity.ok().cacheControl(CacheControl.noStore()).body(new Page(items,next));
+        return ResponseEntity.ok().cacheControl(CacheControl.noStore())
+                .body(new Page(slice.stream().map(m->view(account,m)).toList(),next));
     }
 
     @GetMapping("/{id}")
-    public ResponseEntity<Material> get(HttpServletRequest request,@PathVariable UUID id) {
-        Material result=repository.find(owner(request),id).orElseThrow(()->new ApiError(404,"NOT_FOUND"));
+    public ResponseEntity<MaterialView> get(HttpServletRequest request,@PathVariable UUID id) {
+        UUID account=owner(request);
+        Material material=repository.find(account,id)
+                .orElseThrow(()->new ApiError(404,"LIBRARY_MATERIAL_NOT_FOUND"));
         return ResponseEntity.ok().cacheControl(CacheControl.noStore())
-            .eTag("\"" + result.revision() + "\"").body(result);
+            .eTag("\"" + material.revision() + "\"").body(view(account,material));
     }
 
-    @PutMapping("/{id}")
-    public ResponseEntity<Material> edit(HttpServletRequest request,@PathVariable UUID id,
-            @RequestHeader(value="If-Match",required=false) String ifMatch,@Valid @RequestBody Edit edit) {
+    @PatchMapping("/{id}")
+    @Transactional
+    public ResponseEntity<MaterialView> edit(HttpServletRequest request,@PathVariable UUID id,
+            @RequestHeader(value="If-Match",required=false) String ifMatch,
+            @RequestBody JsonNode patch) {
         UUID account=owner(request);
-        if(!List.of("EXERCISE","ETUDE","COMPOSITION","OTHER").contains(edit.materialType()))
-            throw new ApiError(400,"INVALID_TYPE");
-        if(edit.title()==null||edit.title().isBlank()||edit.title().length()>200
-                ||edit.description()!=null&&edit.description().length()>4000)
-            throw new ApiError(400,"INVALID_METADATA");
         long revision=parseRevision(ifMatch);
-        if(repository.update(account,id,revision,edit.title().strip(),edit.materialType(),
-                    edit.description()==null?"":edit.description())==0) {
-            if(repository.find(account,id).isEmpty()) throw new ApiError(404,"NOT_FOUND");
-            throw new ApiError(412,"REVISION_CONFLICT");
-        }
+        if(patch==null || !patch.isObject() || patch.size()==0 || patch.size()>3)
+            throw new ApiError(400,"LIBRARY_INVALID_METADATA");
+        var fields=patch.fieldNames();
+        while(fields.hasNext()) if(!Set.of("title","type","author").contains(fields.next()))
+            throw new ApiError(400,"LIBRARY_INVALID_METADATA");
+        Material old=repository.find(account,id)
+                .orElseThrow(()->new ApiError(404,"LIBRARY_MATERIAL_NOT_FOUND"));
+        String title=patch.has("title") ? text(patch.get("title"),false) : old.title();
+        String type=patch.has("type") ? text(patch.get("type"),false) : old.type();
+        String author=patch.has("author") ? text(patch.get("author"),true) : old.author();
+        if(title==null || title.isBlank() || title.length()>150
+                || !Set.of("EXERCISE","ETUDE","COMPOSITION","OTHER").contains(type)
+                || author!=null&&author.length()>150)
+            throw new ApiError(400,"LIBRARY_INVALID_METADATA");
+        if(repository.update(account,id,revision,title,type,author)==0)
+            throw new ApiError(412,"LIBRARY_REVISION_CONFLICT");
         return get(request,id);
     }
 
-
-    @DeleteMapping("/{id}")
-    public ResponseEntity<Void> delete(HttpServletRequest request, @PathVariable UUID id,
-            @RequestHeader(value="If-Match",required=false) String ifMatch) {
-        UUID account=owner(request);
-        long revision=parseRevision(ifMatch);
-        if(repository.delete(account,id,revision)==0) {
-            if(repository.find(account,id).isEmpty()) throw new ApiError(404,"NOT_FOUND");
-            throw new ApiError(412,"REVISION_CONFLICT");
-        }
-        return ResponseEntity.noContent().cacheControl(CacheControl.noStore()).build();
+    private String text(JsonNode node,boolean nullable) {
+        if(node.isNull() && nullable) return null;
+        if(!node.isTextual()) throw new ApiError(400,"LIBRARY_INVALID_METADATA");
+        String value=node.asText().strip();
+        return nullable&&value.isEmpty()?null:value;
     }
 
     private long parseRevision(String ifMatch) {
-        if(ifMatch==null || !ifMatch.matches("\\\"[0-9]+\\\""))
-            throw new ApiError(428,"REVISION_REQUIRED");
-        try { return Long.parseLong(ifMatch.substring(1,ifMatch.length()-1)); }
-        catch(NumberFormatException e) {throw new ApiError(400,"INVALID_REVISION");}
+        if(ifMatch==null) throw new ApiError(428,"LIBRARY_PRECONDITION_REQUIRED");
+        if(!ifMatch.matches("\"[1-9][0-9]*\""))
+            throw new ApiError(400,"LIBRARY_INVALID_METADATA");
+        try{return Long.parseLong(ifMatch.substring(1,ifMatch.length()-1));}
+        catch(NumberFormatException e){throw new ApiError(400,"LIBRARY_INVALID_METADATA");}
+    }
+
+    private String sign(String message) {
+        try {
+            Mac mac=Mac.getInstance("HmacSHA256");
+            mac.init(new SecretKeySpec(cursorSecret,"HmacSHA256"));
+            return Base64.getUrlEncoder().withoutPadding().encodeToString(
+                mac.doFinal(message.getBytes(StandardCharsets.UTF_8)));
+        } catch(Exception ex) {throw new IllegalStateException("Library cursor secret invalid",ex);}
     }
 
     static final class ApiError extends RuntimeException {
