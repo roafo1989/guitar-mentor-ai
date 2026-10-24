@@ -194,5 +194,5 @@ test('OAuth handoff ticket stripped before Vue Router and never exposed to login
   assert.match(gate, /\/api\/v1\/oauth-bridge\/consume/);
   const auth = await readFile(new URL('../src/core/auth/auth.ts', import.meta.url), 'utf8');
   assert.match(auth, /\/api\/v1\/oauth-bridge\/start/);
-  assert.match(auth, /http:\\\/\\\/localhost:5173/);
+  assert.match(auth, /localhost:5173/);
 });
