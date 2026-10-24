@@ -40,6 +40,7 @@ async function component(filename) {
       name === 'vue-i18n' ? import.meta.resolve('vue-i18n') :
       name.endsWith('attempt.service') ? service :
       name.endsWith('learning.service') ? learningService :
+      name.endsWith('learning-presentation') ? import.meta.resolve('../src/entities/attempt/learning-presentation.ts') :
       name.endsWith('metronome-ui') ? metronomeUi :
       name.endsWith('/audio/metronome') ? audioMetronome :
       name.endsWith('.vue') ? blank : null;
