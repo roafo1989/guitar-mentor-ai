@@ -58,7 +58,7 @@ public class MusicCatalogRepository {
                           AND f.source_arrangement_id=a.source_arrangement_id
                           AND lower(f.extension)=concat('.',:format)))
               )
-            ORDER BY """ + order + " LIMIT :limit OFFSET :offset";
+            ORDER BY """ + " " + order + " LIMIT :limit OFFSET :offset";
         return jdbc.sql(sql).param("owner",owner).param("q",query)
             .param("parser",parserStatus).param("format",format)
             .param("limit",limit).param("offset",offset).query(WORK).list();
