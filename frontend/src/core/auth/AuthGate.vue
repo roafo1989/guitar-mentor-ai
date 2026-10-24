@@ -102,13 +102,14 @@ async function redeem() {
 }
 onMounted(() => {
   const url = new URL(window.location.href);
-  const action = url.searchParams.get('authAction');
-  const token = url.searchParams.get('token');
+  const fragment = new URLSearchParams(url.hash.slice(1));
+  const action = fragment.get('authAction');
+  const token = fragment.get('token');
   if (token && /^[a-f0-9]{64}$/.test(token) && (action === 'verify' || action === 'reset')) {
     verificationToken.value = token;
     mode.value = action;
-    url.searchParams.delete('token'); url.searchParams.delete('authAction');
-    window.history.replaceState(null, '', url.pathname + url.search + url.hash);
+    fragment.delete('token'); fragment.delete('authAction');
+    window.history.replaceState(null, '', url.pathname + url.search + (fragment.toString() ? '#' + fragment : ''));
   }
   if (!localPrototype) void refreshActor();
 });
