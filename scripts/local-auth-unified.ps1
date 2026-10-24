@@ -58,6 +58,22 @@ if ($Setup) {
 if (-not (Test-Path -LiteralPath $settingsPath)) {
     throw "Run .\scripts\local-auth-unified.ps1 -Setup first."
 }
+# Start the existing local HTTPS reverse proxy BEFORE decrypting any secrets.
+# A Caddy process must never inherit Google/SMTP/database credentials.
+$projectRoot = (Resolve-Path (Join-Path $PSScriptRoot '..')).Path
+$caddyConfig = Join-Path $projectRoot 'infra\local\Caddyfile'
+$caddyExe = 'C:\Tools\Caddy\caddy.exe'
+$caddyListening = Get-NetTCPConnection -LocalAddress '127.0.0.1' -LocalPort 443 -State Listen -ErrorAction SilentlyContinue
+if (-not $caddyListening) {
+    if (-not (Test-Path -LiteralPath $caddyExe)) {
+        throw 'Caddy HTTPS server not running. Install Caddy in C:\Tools\Caddy or start it manually.'
+    }
+    if (-not (Test-Path -LiteralPath $caddyConfig)) { throw 'Missing local Caddyfile.' }
+    Start-Process -FilePath $caddyExe -WorkingDirectory $projectRoot -ArgumentList @(
+        'run', '--config', ('"' + $caddyConfig + '"'), '--adapter', 'caddyfile'
+    )
+    Write-Host 'Started local Caddy HTTPS proxy for https://guitar-mentor.'
+}
 $conf = Get-Content -LiteralPath $settingsPath -Raw | ConvertFrom-Json
 $env:GUITAR_MENTOR_OIDC_CLIENT_ID = [string]$conf.clientId
 $env:GUITAR_MENTOR_OIDC_CLIENT_SECRET = UnwrapSecret $conf.clientSecret
