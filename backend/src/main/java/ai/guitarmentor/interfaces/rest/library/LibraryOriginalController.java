@@ -388,7 +388,9 @@ public final class LibraryOriginalController {
     }
     @ExceptionHandler(Failure.class)
     public ResponseEntity<?> problem(Failure e) {
-        return ResponseEntity.status(e.status).cacheControl(CacheControl.noStore())
-            .body(Map.of("code",e.code));
+        var response=ResponseEntity.status(e.status).cacheControl(CacheControl.noStore());
+        if(e.status==429 || "LIBRARY_UPLOAD_IN_PROGRESS".equals(e.code))
+            response.header(HttpHeaders.RETRY_AFTER,"3");
+        return response.body(Map.of("code",e.code));
     }
 }
