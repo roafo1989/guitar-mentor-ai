@@ -129,7 +129,7 @@ test('#150 accepted layout contract: actual assignment banner, full-width score 
  assert.equal((diagnostic.match(/<SubmissionPanel/g)||[]).length,2,'one submission component per exclusive branch');
  assert.match(preview,/role="tablist"/);
  assert.match(preview,/studioTab === 'score'/);
- assert.match(preview,/studioTab === 'audio'/);
+ assert.doesNotMatch(preview,/studioTab === 'audio'/);
  assert.match(preview,/studioTab === 'description'/);
  assert.match(preview,/onStudioTabKeydown/);
  assert.match(preview,/if \(props\.assigned && lightMinimal\) pdfOpen\.value = true/);
@@ -139,7 +139,7 @@ test('#150 accepted layout contract: actual assignment banner, full-width score 
  assert.match(microphone,/class="compact-recording-info"/);
  for(const lang of ['ru','en']){
   const json=JSON.parse(await readFile(new URL('../src/i18n/'+lang+'.json',import.meta.url),'utf8'));
-  for(const key of ['currentTitle','subtitle','assigned','scoreTab','audioTab','descriptionTab'])
+  for(const key of ['currentTitle','subtitle','assigned','scoreTab','descriptionTab'])
    assert.ok(json.diagnostic.studio[key],lang+':'+key);
   assert.ok(json.attempt.microphoneInstructions);
  }
@@ -216,4 +216,23 @@ test('#150 compact capture and upload are placed in one real form action row', a
  assert.match(submission, /<div v-if="!lightMinimal" class="form-actions">/);
  assert.match(microphone, /<slot name="actions"\s*\/>/);
  assert.match(submission, /:disabled="learningTerminal \|\| !file \|\| !capabilities\?\.enabled \|\| uploading \|\| recordingActive"/);
+});
+
+test('#150 final visual revisions: example audio is only in hero, status separate, recording playback is inline',async()=>{
+ const diagnostic=await readFile(new URL('../src/entities/diagnostic/DiagnosticView.vue',import.meta.url),'utf8');
+ const preview=await readFile(new URL('../src/entities/diagnostic/ExercisePreview.vue',import.meta.url),'utf8');
+ const submission=await readFile(new URL('../src/entities/attempt/SubmissionPanel.vue',import.meta.url),'utf8');
+ assert.match(diagnostic,/class="studio-assignment-actions"/);
+ assert.match(diagnostic,/class="studio-assignment-status"/);
+ assert.match(diagnostic,/class="studio-audio-example"/);
+ assert.match(preview,/const tabs = \['score','description'\]/);
+ assert.doesNotMatch(preview,/role="tab"[^\n]+studioTab === 'audio'/);
+ assert.match(preview,/v-if="!assigned \|\| !lightMinimal" class="exercise-preview-audio"/);
+ assert.match(submission,/t\('attempt.recordingPanelTitle'\)/);
+ assert.match(submission,/class="studio-recording-playback"/);
+ assert.match(submission,/class="studio-discard-button"/);
+ for(const lang of ['ru','en']){
+  const j=JSON.parse(await readFile(new URL('../src/i18n/'+lang+'.json',import.meta.url),'utf8'));
+  assert.ok(j.attempt.recordingPanelTitle);
+ }
 });
