@@ -19,3 +19,15 @@ The unit tests in `ActorFilterTest` check anonymous 401, foreign learner 404, ow
 | SEC38-E08 production deployment | Closed until #42/#39/#40 | NOT_RUN |
 
 All NOT_RUN rows are release blockers, not implicit passes. No staging IdP, public domain or production credentials were configured in this PR.
+
+## Review follow-up — 2026-10-24
+
+The review found an insecure-by-default switch, stale cross-account UI state, non-revoking 403 handling, and insufficient logout/CSRF regression. Fixes are committed on the feature branch, including fail-fast rejection of insecure non-loopback binding before the server begins listening, authenticated-profile-only ownership, account-switch state clearing, and RU/EN secure UI.
+
+Additional committed automated checks:
+- `frontend/tests/auth-security.test.mjs` — multipart CSRF, logout and account-disabled 403 vs ordinary forbidden 403.
+- `backend/src/test/java/ai/guitarmentor/infrastructure/security/SecurityStartupTest.java` — explicit localhost-only development bypass.
+- `ActorRepositoryPostgresTest` — two distinct identities and immediate disable.
+- `ActorFilterTest` — nested path GET/HEAD/POST/PUT denial.
+
+**Verification discipline:** historical PASS results from SHA `6871260800f90e5deb1b29c44ac94ec44c1b10d4` apply only to that SHA. After review changes, no Actions workflow run has been confirmed for the current head. No claims of green CI, full security QA, independent human review or production acceptance apply to the new commit. Full OIDC/HTTPS/browser tests remain NOT_RUN and block external rollout.
