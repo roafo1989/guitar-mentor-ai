@@ -110,7 +110,7 @@ onBeforeUnmount(() => { unsubscribeMetronome?.(); closeMetronome(); });
   <div class="app-shell" :data-ui="lightMinimal ? 'light-minimal' : undefined" :inert="metronomeUi.open || tunerOpen">
     <header class="site-header" @keydown="onHeaderKeydown">
       <RouterLink to="/" class="brand" :aria-label="t('app.home') + ' · Guitar Mentor AI'">
-        <img class="brand-icon" src="/favicon.png" alt="" aria-hidden="true" width="40" height="40" />
+        <img class="brand-icon" src="/brand/guitar-mentor-logo-128.png" alt="" aria-hidden="true" width="40" height="40" />
         <div>
           <strong>Guitar Mentor AI</strong>
           <small>{{ t('app.subtitle') }}</small>
