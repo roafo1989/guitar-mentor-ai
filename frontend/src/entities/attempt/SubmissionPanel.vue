@@ -91,13 +91,12 @@ function fetchDetail(id: string): Promise<SubmissionAttempt> {
   const inFlight = activeDetails;
   let request: Promise<SubmissionAttempt>;
   request = attemptService.detail(learnerId, sessionId, taskId, id)
-    .catch(cause => {
-      // A rejected request is never reusable for Retry. Do not remove a newer
-      // request for the same id, created after a page refresh.
+    .finally(() => {
+      // Deduplicate only in-flight GETs, never cache fulfilled or rejected
+      // results. A manual results refresh must always revalidate the detail.
       if (detailCache.get(id) === request) detailCache.delete(id);
-      throw cause;
-    })
-    .finally(() => { inFlight.delete(request); });
+      inFlight.delete(request);
+    });
   inFlight.add(request);
   detailCache.set(id, request);
   return request;
@@ -175,7 +174,8 @@ async function readPage(cursor: number | null | undefined = pageCursor.value, ke
   if (historyRequestInFlight) return false;
   historyRequestInFlight = true;
   const serial = ++requestSerial, generation = contextGeneration;
-  detailCache.clear();
+  // Keep in-flight requests discoverable throughout page reloads. Clearing
+  // the map here would allow duplicate GETs for the same selected UUID.
   const { learnerId, sessionId, taskId } = props;
   if (!keepBusy) pageBusy.value = true;
   try {
