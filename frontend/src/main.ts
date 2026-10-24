@@ -4,6 +4,7 @@ import App from './App.vue';
 import { i18n } from './core/i18n';
 import { router } from './router';
 import './assets/main.css';
+import './assets/light-minimal.css';
 import { installAuthenticatedFetch } from './core/auth/auth';
 import { captureEmailActionLink } from './core/auth/auth-link';
 import { useLearnerStore } from './stores/learner.store';
