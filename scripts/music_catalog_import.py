@@ -103,12 +103,13 @@ IDENTITY_COLUMNS = {"source_work_id", "source_arrangement_id", "source_file_id",
                     "relative_path"}
 
 def postgres_text(value, column, stats):
-    if not isinstance(value, str) or "\\x00" not in value:
+    nul = chr(0)
+    if not isinstance(value, str) or nul not in value:
         return value
     if column in IDENTITY_COLUMNS:
         raise ValueError(f"NUL found in identity/path field {column}; review source data")
-    stats[column] = stats.get(column, 0) + value.count("\\x00")
-    return value.replace("\\x00", "")
+    stats[column] = stats.get(column, 0) + value.count(nul)
+    return value.replace(nul, "")
 
 def apply(data, account_id, dsn):
     try:
