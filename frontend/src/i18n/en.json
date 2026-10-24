@@ -209,7 +209,10 @@
     "noProbes": "No approved probes have been published yet. You can select learning music or submit a familiar performance.",
     "chooseProbe": "Choose probe",
     "repertoireHeading": "Learning repertoire",
-    "repertoireHint": "Complete works are offered as options, not a compulsory entrance exam."
+    "repertoireHint": "Complete works are offered as options, not a compulsory entrance exam.",
+    "assignedTaskLoading": "Loading the assigned task…",
+    "assignedTaskMissing": "This session says a task is assigned, but the task was not found. The data is inconsistent; retry or report the issue.",
+    "assignedTaskUnavailable": "Could not retrieve the assigned task. Retry without changing your saved work."
   },
   "home": {
     "welcome": "Your space for music",
