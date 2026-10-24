@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { computed, onBeforeUnmount, onMounted, ref } from 'vue';
+import { computed, onBeforeUnmount, onMounted, ref, watch } from 'vue';
 import { apiFailureKey, asApiFailure, isHttp, type ApiFailure } from '../../shared/api-failure';
 import { onBeforeRouteLeave } from 'vue-router';
 import { useI18n } from 'vue-i18n';
@@ -14,6 +14,23 @@ import type { DiagnosticSession, DiagnosticTask, Exercise, DiagnosticRecommendat
 
 const { t } = useI18n();
 const lightMinimal = import.meta.env?.VITE_GUITAR_MENTOR_LIGHT_MINIMAL === 'true';
+const fallbackArtwork = '/images/exercise-default-acoustic.jpg';
+const customArtworkFailed = ref(false);
+const fallbackArtworkFailed = ref(false);
+// The exercise API may supply its own art later; validate scheme before assigning to an image src.
+const artworkSrc = computed(() => {
+  const candidate = task.value?.exercise.coverUrl?.trim();
+  return !customArtworkFailed.value && candidate && (candidate.startsWith('/') && !candidate.startsWith('//') || /^https:\/\//i.test(candidate))
+    ? candidate : fallbackArtwork;
+});
+watch(() => task.value?.exercise.coverUrl, () => {
+  customArtworkFailed.value = false;
+  fallbackArtworkFailed.value = false;
+});
+function onArtworkError(): void {
+  if (artworkSrc.value !== fallbackArtwork) customArtworkFailed.value = true;
+  else fallbackArtworkFailed.value = true;
+}
 // Match auth.ts secure-mode rule without introducing a runtime dependency in diagnostic views.
 const showPrototypeNotice = import.meta.env?.DEV === true && import.meta.env?.VITE_GUITAR_MENTOR_AUTH_REQUIRED !== 'true';
 const learnerStore = useLearnerStore();
@@ -409,7 +426,12 @@ async function assign(exerciseCode: string): Promise<void> {
             <p>{{ t('diagnostic.studio.subtitle') }}</p>
           </div>
           <div class="studio-assignment" :aria-label="t('diagnostic.studio.assigned')">
-            <div class="studio-assignment-icon" aria-hidden="true">♫</div>
+            <div class="studio-assignment-artwork">
+              <img v-if="!fallbackArtworkFailed" class="studio-assignment-cover"
+                :src="artworkSrc" :alt="task.exercise.title" width="112" height="96"
+                @error="onArtworkError" />
+              <div v-else class="studio-assignment-icon" aria-hidden="true">♫</div>
+            </div>
             <div class="studio-assignment-description">
               <strong>{{ task.exercise.title }}</strong>
               <span>{{ task.exercise.code }} · v{{ task.exercise.version }}</span>
@@ -613,6 +635,10 @@ async function assign(exerciseCode: string): Promise<void> {
 }
 
 
+.studio-assignment-artwork {flex:0 0 112px;width:112px;height:96px;border-radius:12px;overflow:hidden;background:#edf2ee}
+.studio-assignment-cover {display:block;width:100%;height:100%;object-fit:cover;border-radius:12px}
+.studio-assignment-artwork .studio-assignment-icon {width:100%;height:100%;border-radius:12px}
+@media(max-width:740px){.studio-assignment-artwork {flex-basis:76px;width:76px;height:76px}}
 /* Reviewed assignment hero: details/audio share space; status anchored in corner. */
 .studio-assignment {position:relative;gap:14px;padding:18px 22px;min-height:116px;box-sizing:border-box}
 .studio-assignment-description {flex:1 1 225px;max-width:none;padding-right:8px}
