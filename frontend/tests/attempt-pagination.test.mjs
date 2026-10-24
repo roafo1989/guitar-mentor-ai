@@ -376,9 +376,10 @@ test('CORE-U13: selected off-page remains displayed if pinned GET later fails', 
 test('CORE-U14: selected detail outside page is coalesced with parent pinned fetch', async () => {
   historyFixture();
   const original = globalThis.__qaAttempt.detail;
+  const delayed = deferred();
   let count = 0;
   globalThis.__qaAttempt.detail = (...args) => {
-    if (args[3] === 'id-2') count++;
+    if (args[3] === 'id-2') { count++; return delayed.promise; }
     return original(...args);
   };
   const { app, state } = await mount('SubmissionPanel.vue',
@@ -386,10 +387,12 @@ test('CORE-U14: selected detail outside page is coalesced with parent pinned fet
   try {
     await flush();
     state.selectedId = 'id-2'; await flush();
-    const detail = await state.fetchDetail('id-2');
+    const pending = state.fetchDetail('id-2');
+    assert.equal(count, 1, 'selected detail and pinned detail share pending GET');
+    delayed.resolve(attempt(2));
+    const detail = await pending;
     assert.equal(detail.id, 'id-2');
-    assert.equal(count, 1);
-  } finally { app.unmount(); delete globalThis.__qaAttempt; }
+  } finally { delayed.resolve(attempt(2)); app.unmount(); delete globalThis.__qaAttempt; }
 });
 
 test('CORE-U15: failed detail is evicted and Retry performs a fresh network GET', async () => {
@@ -410,7 +413,7 @@ test('CORE-U15: failed detail is evicted and Retry performs a fresh network GET'
     assert.equal(restored.id, 'id-2');
     assert.equal(reads, 2, 'Retry must issue a new GET, not reuse rejected Promise');
     await state.fetchDetail('id-2');
-    assert.equal(reads, 2, 'successful detail is still coalesced');
+    assert.equal(reads, 3, 'fulfilled detail is not cached after completion');
   } finally { app.unmount(); delete globalThis.__qaAttempt; }
 });
 test('CORE-U16: old-context completion cannot unblock polling while new detail is in flight', async () => {
@@ -486,4 +489,70 @@ test('CORE-U17: retry selected detail recovers guarded decision after transient 
     assert.equal(state.detailError, '');
     assert.equal(state.canDecide, true);
   } finally { app.unmount(); delete globalThis.__qaLearning; delete globalThis.__qaAttempt; }
+});
+
+test('QA-126-B01: explicit results Refresh fetches updated detail, not a fulfilled cached Promise', async () => {
+  historyFixture();
+  const { app: parent, state: parentState } = await mount('SubmissionPanel.vue',
+    { learnerId: 'l', sessionId: 's', taskId: 't' });
+  let version = 1, detailCalls = 0;
+  const original = globalThis.__qaAttempt.detail;
+  globalThis.__qaAttempt.detail = async (...args) => {
+    detailCalls++;
+    return { ...await original(...args), number: version };
+  };
+  globalThis.__qaLearning = {
+    state: async () => ({ taskId: 't', taskState: 'ACTIVE', version: 3,
+      availableActions: ['CONTINUE_PRACTICING'], latestAttemptId: 'id-45',
+      assessmentState: 'NO_ASSESSMENT' }),
+    assessments: async () => ({ items: [], nextCursor: null }),
+    decisions: async () => ({ items: [], nextCursor: null }),
+    evidence: async () => ({ items: [], nextCursor: null }),
+    decide: async () => ({})
+  };
+  const { app: child, state: childState } = await mount('LearningResultsPanel.vue',
+    { learnerId: 'l', sessionId: 's', taskId: 't', attempts: [attempt(45)],
+      selectedId: 'id-45', latestId: 'id-45', draftBusy: false,
+      loadAttemptDetail: parentState.fetchDetail });
+  try {
+    await flush();
+    assert.equal(childState.currentAttempt.number, 1);
+    const first = detailCalls;
+    version = 2;
+    await childState.refresh(); await flush();
+    assert.equal(detailCalls, first + 1, 'manual Refresh must issue a fresh GET');
+    assert.equal(childState.currentAttempt.number, 2);
+    assert.equal(childState.canDecide, true);
+  } finally {
+    child.unmount(); parent.unmount();
+    delete globalThis.__qaLearning; delete globalThis.__qaAttempt;
+  }
+});
+test('QA-126-B02: pending selected GET remains shared through page refresh', async () => {
+  historyFixture();
+  const pendingDetail = deferred();
+  const original = globalThis.__qaAttempt.detail;
+  let calls = 0;
+  globalThis.__qaAttempt.detail = (...args) => {
+    if (args[3] === 'id-2') { calls++; return pendingDetail.promise; }
+    return original(...args);
+  };
+  const { app, state } = await mount('SubmissionPanel.vue',
+    { learnerId: 'l', sessionId: 's', taskId: 't' });
+  try {
+    await flush();
+    state.selectedId = 'id-2';
+    await flush();
+    const selectedGet = state.fetchDetail('id-2');
+    const pageReload = state.readPage();
+    await flush();
+    assert.equal(calls, 1, 'page reload cannot start a duplicate selected detail GET');
+    const childSameId = state.fetchDetail('id-2');
+    assert.equal(calls, 1, 'in-flight GET is shared by child and pinned refresh');
+    pendingDetail.resolve(attempt(2));
+    await Promise.all([pageReload, selectedGet, childSameId]);
+    assert.ok(state.displayAttempts.some(a => a.id === 'id-2'));
+  } finally {
+    pendingDetail.resolve(attempt(2)); app.unmount(); delete globalThis.__qaAttempt;
+  }
 });
