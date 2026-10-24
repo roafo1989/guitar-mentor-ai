@@ -12,7 +12,7 @@ const authModuleUrl = 'data:text/javascript,' + encodeURIComponent(transpiled);
 
 function response(status, body = null) {
   return { status, ok: status >= 200 && status < 300,
-    json: async () => body };
+    json: async () => body, clone() { return response(status, body); } };
 }
 async function fixture() {
   const calls = [];
@@ -29,6 +29,8 @@ async function fixture() {
         return response(200, { accountId: 'account-a', learnerId: 'learner-a', role: 'LEARNER' });
       }
       if (path === '/api/v1/learner-data') return response(401);
+      if (path === '/api/v1/disabled') return response(403, { code: 'ACCOUNT_NOT_ADMITTED' });
+      if (path === '/api/v1/ordinary-forbidden') return response(403, { code: 'BUSINESS_RULE_DENIED' });
       return response(200);
     },
   };
@@ -69,5 +71,17 @@ test('logout posts with verified CSRF and clears current actor', async () => {
     assert.equal(outgoing.options.headers['X-XSRF-TOKEN'], 'csrf-secret');
     assert.equal(mod.auth.actor, null);
     assert.equal(cleared, true);
+  } finally { restore(); }
+});
+
+test('account disable clears session but unrelated business 403 preserves actor', async () => {
+  const { mod, restore } = await fixture();
+  try {
+    await mod.refreshActor();
+    await window.fetch('/api/v1/ordinary-forbidden');
+    assert.equal(mod.auth.actor?.learnerId, 'learner-a');
+    await window.fetch('/api/v1/disabled');
+    assert.equal(mod.auth.actor, null);
+    assert.equal(mod.auth.expired, true);
   } finally { restore(); }
 });
