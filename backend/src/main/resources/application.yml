@@ -11,6 +11,18 @@ spring:
     open-in-view: false
   flyway:
     enabled: true
+  security:
+    oauth2:
+      client:
+        registration:
+          guitar-mentor:
+            provider: guitar-mentor
+            client-id: ${GUITAR_MENTOR_OIDC_CLIENT_ID:}
+            client-secret: ${GUITAR_MENTOR_OIDC_CLIENT_SECRET:}
+            scope: openid,profile,email
+        provider:
+          guitar-mentor:
+            issuer-uri: ${GUITAR_MENTOR_OIDC_ISSUER:}
   servlet:
     multipart:
       max-file-size: 20MB
@@ -19,8 +31,17 @@ spring:
 # External access requires auth and explicit identity admission. Local opt-out MUST stay loopback-only.
 server:
   address: ${GUITAR_MENTOR_BIND_ADDRESS:127.0.0.1}
+  servlet:
+    session:
+      timeout: ${GUITAR_MENTOR_SESSION_IDLE_TIMEOUT:30m}
+      cookie:
+        http-only: true
+        secure: true
+        same-site: lax
 
 guitar-mentor:
+  security:
+    enabled: ${GUITAR_MENTOR_SECURITY_ENABLED:true}
   submissions:
     # Explicit opt-in for local, non-personal test recordings only.
     enabled: ${GUITAR_MENTOR_ENABLE_UPLOADS:false}
@@ -54,25 +75,3 @@ management:
   endpoint:
     health:
       show-details: never
-
-  security:
-    enabled: ${GUITAR_MENTOR_SECURITY_ENABLED:true}
-  security:
-    oauth2:
-      client:
-        registration:
-          guitar-mentor:
-            provider: guitar-mentor
-            client-id: ${GUITAR_MENTOR_OIDC_CLIENT_ID:}
-            client-secret: ${GUITAR_MENTOR_OIDC_CLIENT_SECRET:}
-            scope: openid,profile,email
-        provider:
-          guitar-mentor:
-            issuer-uri: ${GUITAR_MENTOR_OIDC_ISSUER:}
-  servlet:
-    session:
-      timeout: ${GUITAR_MENTOR_SESSION_IDLE_TIMEOUT:30m}
-      cookie:
-        http-only: true
-        secure: true
-        same-site: lax
