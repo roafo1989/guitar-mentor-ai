@@ -6,7 +6,6 @@ const { t, locale } = useI18n();
 const localPrototype = !secureUi;
 type Mode = 'login' | 'register' | 'verify' | 'forgot' | 'reset' | 'google';
 const mode = ref<Mode>('login');
-const code = ref('');
 const email = ref('');
 const username = ref('');
 const identifier = ref('');
@@ -83,23 +82,6 @@ async function reset() {
     success.value = label('Пароль изменён. Войдите снова.', 'Password changed. Please sign in.');
   }
 }
-async function redeem() {
-  if (!/^[a-f0-9]{64}$/.test(code.value)) {
-    error.value = t('auth.invalidInvitation'); return;
-  }
-  if (busy.value) return;
-  busy.value = true; error.value = '';
-  try {
-    const response = await fetch('/api/v1/invitations/activate', {
-      method: 'POST', headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ token: code.value }),
-    });
-    if (!response.ok) { error.value = t('auth.invalidInvitation'); return; }
-    code.value = '';
-    await refreshActor();
-  } catch { error.value = t('auth.invalidInvitation'); }
-  finally { busy.value = false; }
-}
 onMounted(() => {
   const url = new URL(window.location.href);
   const fragment = new URLSearchParams(url.hash.slice(1));
@@ -167,11 +149,7 @@ onMounted(() => {
       </form>
       <section v-else class="auth-form">
         <button type="button" class="auth-primary" @click="login">{{ t('auth.signIn') }}</button>
-        <form class="auth-form" @submit.prevent="redeem">
-          <label for="google-invite">{{ t('auth.invitationCode') }}</label>
-          <input id="google-invite" v-model.trim="code" autocomplete="off" maxlength="64" />
-          <button class="auth-primary" type="submit" :disabled="busy || code.length !== 64">{{ t('auth.activate') }}</button>
-        </form>
+
       </section>
       <p v-if="success" class="success" role="status">{{ success }}</p>
       <p v-if="error" class="auth-error" role="alert">{{ error }}</p>
