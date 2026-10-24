@@ -29,6 +29,11 @@
             <groupId>org.springframework.security</groupId>
             <artifactId>spring-security-crypto</artifactId>
         </dependency>
+        <dependency>
+            <groupId>org.bouncycastle</groupId>
+            <artifactId>bcprov-jdk18on</artifactId>
+            <version>1.82</version>
+        </dependency>
         <!-- Offline audio research tool uses Jackson 2 independently of Spring MVC JSON defaults. -->
         <dependency>
             <groupId>com.fasterxml.jackson.core</groupId>
