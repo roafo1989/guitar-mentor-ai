@@ -564,7 +564,8 @@ async function assign(exerciseCode: string): Promise<void> {
 .studio-columns {display:grid;grid-template-columns:minmax(0,1fr) minmax(340px,500px);align-items:start;gap:16px}
 .studio-score,.studio-sidebar {min-width:0}
 .studio-score {padding:18px;background:#fff;border:1px solid #e0e7e4;border-radius:16px;box-shadow:0 5px 24px #16233108}
-.studio-sidebar :deep(.homework-panel) {margin:0;padding:18px;border:1px solid #e0e7e4;border-radius:16px;background:#fff;box-shadow:0 5px 24px #16233108}
+.studio-sidebar :deep(.homework-panel:not(.studio-workspace-panel)) {margin:0;padding:18px;border:1px solid #e0e7e4;border-radius:16px;background:#fff;box-shadow:0 5px 24px #16233108}
+.studio-sidebar :deep(.homework-panel.studio-workspace-panel) {margin:0;padding:0;border:0;background:transparent;box-shadow:none;overflow:visible}
 .studio-sidebar :deep(.homework-heading p) {font-size:13px}
 .studio-sidebar :deep(.homework-form) {gap:12px}
 .studio-sidebar :deep(.recording-primary) {border:0;background:transparent;padding:0}
