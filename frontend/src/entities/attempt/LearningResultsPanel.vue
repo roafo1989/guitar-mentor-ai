@@ -3,13 +3,14 @@ import { computed, onBeforeUnmount, onMounted, ref, watch } from 'vue';
 import { useI18n } from 'vue-i18n';
 import { LearningHttpError, learningService } from './learning.service';
 import type { AssessmentView, DecisionCommand, DecisionView, SkillEvidenceView, TaskLearningView } from './learning.service';
+import { attemptService } from './attempt.service';
 import type { SubmissionAttempt } from './attempt.service';
 
 const props = defineProps<{
   learnerId: string; sessionId: string; taskId: string; attempts: SubmissionAttempt[];
-  draftBusy: boolean;
+  draftBusy: boolean; selectedId: string; latestId: string;
 }>();
-const emit = defineEmits<{ 'decision-busy': [value: boolean]; 'terminal-state': [value: boolean] }>();
+const emit = defineEmits<{ 'decision-busy': [value: boolean]; 'terminal-state': [value: boolean]; 'selected-id': [id: string]; 'latest-id': [id: string] }>();
 const { t } = useI18n();
 const state = ref<TaskLearningView | null>(null);
 const assessments = ref<AssessmentView[]>([]);
@@ -21,6 +22,11 @@ const evidenceLoading = ref(false);
 const decisionHistoryError = ref('');
 const decisionHistoryLoading = ref(false);
 const selected = ref('');
+const pinnedDetail = ref<SubmissionAttempt | null>(null);
+const detailError = ref('');
+const detailFresh = ref(false);
+let detailSequence = 0;
+watch(selected, id => emit('selected-id', id));
 const reason = ref('');
 const loading = ref(true);
 const sending = ref(false);
@@ -34,17 +40,35 @@ const stateFresh = ref(false);
 const assessmentFresh = ref(false);
 const pending = ref<DecisionCommand | null>(null);
 
-const currentAttempt = computed(() => props.attempts.find(a => a.id === selected.value));
+const currentAttempt = computed(() => props.attempts.find(a => a.id === selected.value) ?? (pinnedDetail.value?.id === selected.value ? pinnedDetail.value : null));
+const selectorAttempts = computed(() => [...new Map(props.attempts.map(a => [a.id, a])).values()].sort((a, b) => b.number - a.number));
 const latestAssessment = computed(() => assessments.value[0] ?? null);
 const terminal = computed(() => !!state.value && state.value.taskState !== 'ACTIVE');
 watch(terminal, value => emit('terminal-state', value), { immediate: true });
 const canDecide = computed(() => !!state.value && !!currentAttempt.value &&
-  !terminal.value && stateFresh.value && assessmentFresh.value && !pending.value && !props.draftBusy && !sending.value && !loading.value);
+  !terminal.value && detailFresh.value && !detailError.value && stateFresh.value && assessmentFresh.value && !pending.value && !props.draftBusy && !sending.value && !loading.value);
 const missingAssessment = computed(() => !latestAssessment.value);
 function message(e: unknown): string {
   if (!(e instanceof LearningHttpError)) return t('learning.errors.UNEXPECTED_RESPONSE');
   const key = 'learning.errors.' + e.code;
   return t(key) === key ? t('learning.errors.UNEXPECTED_RESPONSE') : t(key);
+}
+async function loadDetail(seq: number) {
+  const id = selected.value;
+  const serial = ++detailSequence;
+  detailFresh.value = false; detailError.value = '';
+  pinnedDetail.value = null;
+  if (!id) return;
+  const onPage = props.attempts.find(a => a.id === id);
+  if (onPage) { pinnedDetail.value = onPage; detailFresh.value = true; return; }
+  try {
+    const detail = await attemptService.detail(props.learnerId, props.sessionId, props.taskId, id);
+    if (seq === generation && serial === detailSequence && selected.value === id) {
+      pinnedDetail.value = detail; detailFresh.value = true;
+    }
+  } catch {
+    if (seq === generation && serial === detailSequence) detailError.value = t('learning.attemptUnavailable');
+  }
 }
 async function refresh() {
   const seq = ++generation;
@@ -53,12 +77,11 @@ async function refresh() {
     const next = await learningService.state(props.learnerId, props.sessionId, props.taskId);
     if (seq !== generation) return;
     state.value = next; stateFresh.value = true;
+    emit('latest-id', next.latestAttemptId ?? '');
     void loadDecisionHistory(seq);
     void loadEvidence(seq);
-    if (!selected.value || !props.attempts.some(a => a.id === selected.value)) {
-      selected.value = next.latestAttemptId ?? props.attempts[0]?.id ?? '';
-    }
-    await loadAssessments(seq);
+    if (!selected.value) selected.value = next.latestAttemptId ?? props.attempts[0]?.id ?? '';
+    await Promise.all([loadDetail(seq), loadAssessments(seq)]);
   } catch (cause) {
     if (seq !== generation) return;
     error.value = message(cause);
@@ -113,7 +136,7 @@ async function chooseAttempt(id: string) {
   selected.value = id;
   const seq = ++generation;
   loading.value = true; error.value = '';
-  try { await loadAssessments(seq); }
+  try { await Promise.all([loadDetail(seq), loadAssessments(seq)]); }
   finally { if (seq === generation) loading.value = false; }
 }
 async function moreAssessments() {
@@ -192,17 +215,20 @@ async function sendCommand(command: DecisionCommand) {
   } finally { sending.value = false; }
 }
 watch(() => [props.learnerId, props.sessionId, props.taskId], () => {
-  ++generation; selected.value = ''; pending.value = null; state.value = null;
+  ++generation; ++detailSequence; selected.value = ''; pinnedDetail.value = null;
+  detailFresh.value = false; detailError.value = ''; pending.value = null; state.value = null;
   assessments.value = []; decisions.value = []; evidence.value = [];
   evidenceCursor.value = null; evidenceError.value = '';
   decisionCursor.value = null; decisionHistoryError.value = ''; stateFresh.value = false;
   assessmentFresh.value = false; reason.value = ''; void refresh();
 });
-watch(() => props.attempts.map(a => `${a.id}:${a.status}:${a.assessmentAvailable}`).join(','), () => {
-  if (!loading.value && !sending.value && !pending.value) void refresh();
+watch(() => props.attempts.map(a => a.id + ':' + a.status + ':' + a.assessmentAvailable).join(','), () => {
+  if (!loading.value && !sending.value && !pending.value && currentAttempt.value &&
+    (currentAttempt.value.status === 'UPLOADED' || currentAttempt.value.status === 'PROCESSING')) void refresh();
 });
+
 onMounted(() => { void refresh(); });
-onBeforeUnmount(() => { ++generation; pending.value = null; });
+onBeforeUnmount(() => { ++generation; ++detailSequence; pending.value = null; });
 </script>
 
 <template>
@@ -218,10 +244,11 @@ onBeforeUnmount(() => { ++generation; pending.value = null; });
       <p v-if="terminal" class="hint">{{ t('learning.nextUnavailable') }}</p>
       <label for="learning-attempt">{{ t('learning.chooseAttempt') }}</label>
       <select id="learning-attempt" :value="selected" :disabled="loading || sending" @change="chooseAttempt(($event.target as HTMLSelectElement).value)">
-        <option v-for="attempt in attempts" :key="attempt.id" :value="attempt.id">
+        <option v-for="attempt in selectorAttempts" :key="attempt.id" :value="attempt.id">
           {{ t('attempt.attempt') }} №{{ attempt.number }}
         </option>
       </select>
+      <p v-if="detailError" class="error" role="alert">{{ detailError }} <button type="button" @click="loadDetail(generation)">{{ t("learning.retry") }}</button></p>
       <p v-if="!currentAttempt" class="hint">{{ t('learning.noAttempts') }}</p>
       <template v-else>
         <p v-if="currentAttempt.status === 'FAILED'" class="hint">{{ t('learning.technicalFailure') }}</p>
