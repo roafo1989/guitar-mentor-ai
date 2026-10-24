@@ -3,8 +3,12 @@ package ai.guitarmentor.infrastructure.security;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
+import static org.mockito.Mockito.spy;
+import static org.mockito.Mockito.doReturn;
+import static org.mockito.Mockito.verify;
 
 import java.time.Instant;
+import jakarta.servlet.http.HttpSession;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
@@ -70,6 +74,19 @@ class ActorFilterTest {
         signIn();
         when(repository.findActive("https://idp.example", "sub-A")).thenReturn(Optional.empty());
         assertEquals(403, request("/api/v1/me").getStatus());
+    }
+
+    @Test
+    void expiredAbsoluteSessionIsInvalidatedBeforeAnyApiRead() throws Exception {
+        HttpSession session = mock(HttpSession.class);
+        when(session.getCreationTime()).thenReturn(System.currentTimeMillis() - 13L * 60 * 60 * 1000);
+        var request = spy(new MockHttpServletRequest("GET", "/api/v1/me"));
+        doReturn(session).when(request).getSession(false);
+        var response = new MockHttpServletResponse();
+        filter.doFilter(request, response, new MockFilterChain());
+        assertEquals(401, response.getStatus());
+        assertEquals("{\\"code\\":\\"SESSION_EXPIRED\\"}", response.getContentAsString());
+        verify(session).invalidate();
     }
 
     @Test
