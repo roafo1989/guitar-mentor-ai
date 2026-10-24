@@ -53,7 +53,7 @@ async function register() {
     error.value = label('Пароли не совпадают.', 'Passwords do not match.'); return;
   }
   if (await request('register', {
-    invitation: code.value, email: email.value, login: username.value,
+    email: email.value, login: username.value,
     password: password.value, confirmPassword: confirmPassword.value,
   })) {
     password.value = ''; confirmPassword.value = '';
@@ -119,7 +119,7 @@ onMounted(() => {
   <main v-else-if="auth.ready" class="main-content auth-page" aria-live="polite">
     <section class="auth-panel">
       <h1>{{ auth.expired ? t('auth.expired') : t('auth.welcome') }}</h1>
-      <p>{{ t('auth.invited') }}</p>
+      <p>{{ label('Создайте аккаунт или войдите в Guitar Mentor AI.', 'Create an account or sign in to Guitar Mentor AI.') }}</p>
       <div class="auth-mode-switch">
         <button type="button" class="auth-secondary" @click="setMode('login')">{{ label('Вход', 'Sign in') }}</button>
         <button type="button" class="auth-secondary" @click="setMode('register')">{{ label('Регистрация', 'Register') }}</button>
@@ -135,8 +135,6 @@ onMounted(() => {
         <button type="button" class="auth-link" @click="setMode('forgot')">{{ label('Забыли пароль?', 'Forgot password?') }}</button>
       </form>
       <form v-else-if="mode === 'register'" class="auth-form" @submit.prevent="register">
-        <label for="registration-code">{{ t('auth.invitationCode') }}</label>
-        <input id="registration-code" v-model.trim="code" autocomplete="off" spellcheck="false" maxlength="64" required />
         <label for="registration-email">Email</label>
         <input id="registration-email" v-model.trim="email" type="email" autocomplete="email" maxlength="320" required />
         <label for="registration-login">{{ label('Логин', 'Username') }}</label>
