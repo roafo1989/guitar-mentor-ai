@@ -13,6 +13,7 @@ import { intakeNavigationAction, permitIntakeNavigation, shouldWarnBeforeUnload 
 import type { DiagnosticSession, DiagnosticTask, Exercise, DiagnosticRecommendation } from '../../shared/model/diagnostic.model';
 
 const { t } = useI18n();
+const lightMinimal = import.meta.env?.VITE_GUITAR_MENTOR_LIGHT_MINIMAL === 'true';
 // Match auth.ts secure-mode rule without introducing a runtime dependency in diagnostic views.
 const showPrototypeNotice = import.meta.env?.DEV === true && import.meta.env?.VITE_GUITAR_MENTOR_AUTH_REQUIRED !== 'true';
 const learnerStore = useLearnerStore();
@@ -255,7 +256,7 @@ async function assign(exerciseCode: string): Promise<void> {
 </script>
 
 <template>
-  <section class="profile-page">
+  <section class="profile-page diagnostic-workspace" :class="{ 'diagnostic-workspace--light': lightMinimal }">
     <div class="intro">
       <span class="eyebrow">{{ t("diagnostic.workspace.lesson") }}</span>
       <h1>{{ session?.status === 'TASK_ASSIGNED' ? t('diagnostic.workspace.lesson') : t('diagnostic.title') }}</h1>
@@ -271,7 +272,7 @@ async function assign(exerciseCode: string): Promise<void> {
       <p>{{ t('diagnostic.needProfile') }}</p>
       <RouterLink to="/profile">{{ t('app.profile') }}</RouterLink>
     </div>
-    <div v-else class="panel">
+    <div v-else class="panel" :class="{ 'lesson-panel--light': lightMinimal && session?.status === 'TASK_ASSIGNED' }">
       <details v-if="session" class="session-details">
         <summary>{{ t('diagnostic.workspace.sessionDetails') }}</summary>
         <p class="hint">{{ t('diagnostic.session') }}: {{ session.id }}</p>
@@ -360,14 +361,15 @@ async function assign(exerciseCode: string): Promise<void> {
       <template v-else-if="session?.status === 'TASK_ASSIGNED' && task">
         <div class="exercise-meta">{{ task.exercise.code }} · v{{ task.exercise.version }}</div>
         <h2>{{ task.exercise.title }}</h2>
-        <p>{{ task.exercise.description }}</p>
+        <p>{{ task.exercise.learningGoal?.trim() || task.exercise.description || t('diagnostic.metadata.unknown') }}</p>
         <div class="exercise-stats">
-          <span>{{ task.exercise.bpm }} BPM</span>
+          <span>{{ task.exercise.bpm }} BPM · {{ task.exercise.tempoUnit || 'quarter' }}</span>
           <span>{{ task.exercise.meter }}</span>
           <span>{{ task.exercise.measures }} {{ t('diagnostic.bars') }}</span>
           <span>{{ task.exercise.license }}</span>
+          <span v-if="task.exercise.recommendedPracticeMinutes != null">{{ t('diagnostic.practiceDuration', { minutes: task.exercise.recommendedPracticeMinutes }) }}</span>
         </div>
-        <div class="lesson-workspace">
+        <div class="lesson-workspace" :class="{ 'lesson-workspace--light': lightMinimal }">
           <section class="lesson-materials" :aria-label="t('diagnostic.workspace.materials')">
             <h3>{{ t('diagnostic.workspace.materials') }}</h3>
             <p class="hint">{{ t('diagnostic.draftWarning') }}</p>
@@ -398,4 +400,24 @@ async function assign(exerciseCode: string): Promise<void> {
 .session-details p { overflow-wrap: anywhere; }
 @media(max-width: 800px) { .lesson-workspace { grid-template-columns: 1fr; gap: 16px; } }
 @media(max-width: 400px) { .lesson-materials { padding: 14px; } }
+/* #150 opt-in lesson layout; existing diagnostic states keep their controls. */
+.diagnostic-workspace--light {max-width:1560px;padding:clamp(24px,4vw,54px) 24px 80px}
+.diagnostic-workspace--light .intro {margin-bottom:24px}
+.diagnostic-workspace--light .intro h1 {font-size:clamp(28px,3.2vw,44px);letter-spacing:-.035em}
+.diagnostic-workspace--light .lesson-panel--light {background:transparent;border:0;box-shadow:none;padding:0}
+.lesson-workspace--light {grid-template-columns:minmax(0,1fr) 320px;gap:24px;align-items:start}
+.lesson-workspace--light .lesson-materials {background:var(--gm-surface,#fff);border-color:var(--gm-border,#dce5e4);padding:24px;border-radius:16px;min-width:0}
+.lesson-workspace--light .lesson-submission {min-width:0}
+.lesson-workspace--light :deep(.score-canvas-frame) {max-width:100%}
+.lesson-workspace--light .lesson-materials h3 {color:var(--gm-text,#162331)}
+.lesson-workspace--light :deep(.exercise-preview) {min-width:0}
+@media(max-width:1099px) {
+  .lesson-workspace--light {grid-template-columns:minmax(0,1fr)}
+}
+@media(max-width:600px) {
+  .diagnostic-workspace--light {padding:24px 16px 60px}
+  .lesson-workspace--light {gap:16px}
+  .lesson-workspace--light .lesson-materials {padding:14px}
+}
+
 </style>
