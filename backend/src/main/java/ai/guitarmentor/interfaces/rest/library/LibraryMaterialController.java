@@ -7,7 +7,6 @@ import jakarta.servlet.http.HttpServletRequest;
 import jakarta.validation.Valid;
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.Size;
-import java.nio.ByteBuffer;
 import java.nio.charset.StandardCharsets;
 import java.time.OffsetDateTime;
 import java.util.ArrayList;
@@ -61,8 +60,9 @@ public class LibraryMaterialController {
 
     @GetMapping("/{id}")
     public ResponseEntity<Material> get(HttpServletRequest request,@PathVariable UUID id) {
+        Material result=repository.find(owner(request),id).orElseThrow(()->new ApiError(404,"NOT_FOUND"));
         return ResponseEntity.ok().cacheControl(CacheControl.noStore())
-            .body(repository.find(owner(request),id).orElseThrow(()->new ApiError(404,"NOT_FOUND")));
+            .eTag("\"" + result.revision() + "\"").body(result);
     }
 
     @PutMapping("/{id}")
@@ -74,17 +74,33 @@ public class LibraryMaterialController {
         if(edit.title()==null||edit.title().isBlank()||edit.title().length()>200
                 ||edit.description()!=null&&edit.description().length()>4000)
             throw new ApiError(400,"INVALID_METADATA");
-        if(ifMatch==null||!ifMatch.matches("\"[0-9]+\""))
-            throw new ApiError(428,"REVISION_REQUIRED");
-        long revision;
-        try {revision=Long.parseLong(ifMatch.substring(1,ifMatch.length()-1));}
-        catch(NumberFormatException e){throw new ApiError(400,"INVALID_REVISION");}
+        long revision=parseRevision(ifMatch);
         if(repository.update(account,id,revision,edit.title().strip(),edit.materialType(),
                     edit.description()==null?"":edit.description())==0) {
             if(repository.find(account,id).isEmpty()) throw new ApiError(404,"NOT_FOUND");
             throw new ApiError(412,"REVISION_CONFLICT");
         }
         return get(request,id);
+    }
+
+
+    @DeleteMapping("/{id}")
+    public ResponseEntity<Void> delete(HttpServletRequest request, @PathVariable UUID id,
+            @RequestHeader(value="If-Match",required=false) String ifMatch) {
+        UUID account=owner(request);
+        long revision=parseRevision(ifMatch);
+        if(repository.delete(account,id,revision)==0) {
+            if(repository.find(account,id).isEmpty()) throw new ApiError(404,"NOT_FOUND");
+            throw new ApiError(412,"REVISION_CONFLICT");
+        }
+        return ResponseEntity.noContent().cacheControl(CacheControl.noStore()).build();
+    }
+
+    private long parseRevision(String ifMatch) {
+        if(ifMatch==null || !ifMatch.matches("\\\"[0-9]+\\\""))
+            throw new ApiError(428,"REVISION_REQUIRED");
+        try { return Long.parseLong(ifMatch.substring(1,ifMatch.length()-1)); }
+        catch(NumberFormatException e) {throw new ApiError(400,"INVALID_REVISION");}
     }
 
     static final class ApiError extends RuntimeException {
