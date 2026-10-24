@@ -12,9 +12,9 @@ const audioExists = ref(false);
 const pdfExists = ref(false);
 const checking = ref(true);
 const pdfOpen = ref(false);
-const studioTab = ref<'score' | 'audio' | 'description'>('score');
+const studioTab = ref<'score' | 'description'>('score');
 function onStudioTabKeydown(event: KeyboardEvent): void {
-  const tabs = ['score','audio','description'] as const;
+  const tabs = ['score','description'] as const;
   const index = tabs.indexOf(studioTab.value);
   let next = index;
   if (event.key === 'ArrowRight') next = (index + 1) % tabs.length;
@@ -134,8 +134,6 @@ onBeforeUnmount(() => pdfOpenController?.abort());
     <div v-if="assigned && lightMinimal" class="studio-tabs" role="tablist" :aria-label="t('diagnostic.studio.tabsLabel')" @keydown="onStudioTabKeydown">
       <button type="button" role="tab" :aria-selected="studioTab === 'score'" :tabindex="studioTab === 'score' ? 0 : -1"
         @click="studioTab = 'score'; pdfOpen = true">{{ t('diagnostic.studio.scoreTab') }}</button>
-      <button type="button" role="tab" :aria-selected="studioTab === 'audio'" :tabindex="studioTab === 'audio' ? 0 : -1"
-        @click="studioTab = 'audio'">{{ t('diagnostic.studio.audioTab') }}</button>
       <button type="button" role="tab" :aria-selected="studioTab === 'description'" :tabindex="studioTab === 'description' ? 0 : -1"
         @click="studioTab = 'description'">{{ t('diagnostic.studio.descriptionTab') }}</button>
     </div>
@@ -174,7 +172,7 @@ onBeforeUnmount(() => pdfOpenController?.abort());
       <span class="hint">{{ t('metronome.recommended') }}</span>
       <p v-if="metronomeError" role="alert" class="hint">{{ t('metronome.exerciseMeterUnavailable') }}</p>
     </div>
-    <div class="exercise-preview-audio" :class="{ 'studio-tab-hidden': assigned && lightMinimal && studioTab !== 'audio' }">
+    <div v-if="!assigned || !lightMinimal" class="exercise-preview-audio">
       <strong>{{ t('diagnostic.listenExample') }}</strong>
       <p class="hint">{{ t('diagnostic.synthesizedExample') }}</p>
       <p v-if="checking" class="hint" role="status">{{ t('diagnostic.checkingMedia') }}</p>
