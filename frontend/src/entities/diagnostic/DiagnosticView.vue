@@ -228,7 +228,13 @@ onMounted(() => { void restoreSession(); });
 
 async function start(): Promise<void> {
   const id = learnerStore.learner?.id;
-  if (!id || busy.value || loading.value || failedRestoreRead.value || window.localStorage.getItem(storageKey(id))) return;
+  if (!id || busy.value || loading.value || failedRestoreRead.value) return;
+  if (window.localStorage.getItem(storageKey(id))) {
+    // A local selection exists but no session is shown. Recover it visibly; never silently ignore Start.
+    await restoreSession();
+    if (!session.value && !failedRestoreRead.value) error.value = t('diagnostic.startRecoveryHint');
+    return;
+  }
   busy.value = true;
   error.value = '';
   writeError.value = null;
@@ -440,13 +446,46 @@ async function assign(exerciseCode: string): Promise<void> {
 .assigned-task-recovery {padding:24px;border:1px solid #dce5e4;border-radius:12px;background:#f8fbfa}
 .assigned-task-recovery p {margin:0 0 14px}
 /* #150 opt-in lesson layout; existing diagnostic states keep their controls. */
-.diagnostic-workspace--light {max-width:1560px;padding:clamp(24px,4vw,54px) 24px 80px}
+.diagnostic-workspace--light {
+  width:min(100% - 48px,1560px);box-sizing:border-box;margin-inline:auto;
+  padding:32px 0 72px;min-width:0;
+}
+.diagnostic-workspace--light .intro {max-width:100%;margin-inline:0}
+.diagnostic-workspace--light .intro .eyebrow {display:none}
+.diagnostic-workspace--light .lesson-panel--light > .session-details {margin:0 0 14px}
+.diagnostic-workspace--light .lesson-panel--light > .session-details + :deep(.evidence-details) {margin-bottom:12px}
+
 .diagnostic-workspace--light .intro {margin-bottom:24px}
 .diagnostic-workspace--light .intro h1 {font-size:clamp(28px,3.2vw,44px);letter-spacing:-.035em}
 .diagnostic-workspace--light .lesson-panel--light {background:transparent;border:0;box-shadow:none;padding:0}
 .lesson-workspace--light {grid-template-columns:minmax(0,1fr) 320px;gap:24px;align-items:start}
 .lesson-workspace--light .lesson-materials {background:var(--gm-surface,#fff);border-color:var(--gm-border,#dce5e4);padding:24px;border-radius:16px;min-width:0}
 .lesson-workspace--light .lesson-submission {min-width:0}
+.lesson-workspace--light .lesson-submission :deep(.homework-panel) {
+  background:var(--gm-surface,#fff);border:1px solid var(--gm-border,#dce5e4);
+  border-radius:16px;padding:20px;box-shadow:none;overflow-wrap:anywhere;
+}
+.lesson-workspace--light .lesson-submission :deep(.homework-form) {
+  display:flex;flex-direction:column;gap:9px;min-width:0;
+}
+.lesson-workspace--light .lesson-submission :deep(input[type="file"]) {
+  max-width:100%;width:100%;min-width:0;box-sizing:border-box;
+  font-size:13px;padding:10px;border:1px solid var(--gm-border,#dce5e4);
+  background:#f8fbfa;border-radius:10px;
+}
+.lesson-workspace--light .lesson-submission :deep(input[type="file"]::file-selector-button) {
+  border:0;border-radius:8px;background:#e5f0eb;color:#205f57;
+  padding:9px 12px;cursor:pointer;margin-right:8px;font:inherit;
+}
+.lesson-workspace--light .lesson-submission :deep(textarea) {
+  width:100%;box-sizing:border-box;min-width:0;border-radius:10px;
+}
+.lesson-workspace--light .lesson-submission :deep(.homework-heading) {margin-bottom:16px}
+.lesson-workspace--light .lesson-submission :deep(.homework-heading h3) {font-size:17px;margin:0 0 6px}
+.lesson-workspace--light .lesson-submission :deep(.hint) {line-height:1.45}
+.lesson-workspace--light .lesson-submission :deep(.form-actions .action-button) {width:100%;min-height:44px}
+.lesson-workspace--light .lesson-submission :deep(.recorded-preview audio) {max-width:100%;width:100%}
+
 .lesson-workspace--light :deep(.score-canvas-frame) {max-width:100%}
 .lesson-workspace--light .lesson-materials h3 {color:var(--gm-text,#162331)}
 .lesson-workspace--light :deep(.exercise-preview) {min-width:0}
@@ -454,7 +493,7 @@ async function assign(exerciseCode: string): Promise<void> {
   .lesson-workspace--light {grid-template-columns:minmax(0,1fr)}
 }
 @media(max-width:600px) {
-  .diagnostic-workspace--light {padding:24px 16px 60px}
+  .diagnostic-workspace--light {width:calc(100% - 32px);padding:24px 0 60px}
   .lesson-workspace--light {gap:16px}
   .lesson-workspace--light .lesson-materials {padding:14px}
 }
