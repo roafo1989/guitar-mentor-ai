@@ -168,6 +168,24 @@
       "sessionDetails": "Assessment details",
       "lesson": "Lesson",
       "lessonSubtitle": "Materials, recording and results in one place."
+    },
+    "metadata": {
+      "heading": "Exercise goals and details",
+      "version": "Material version",
+      "goal": "Goal",
+      "instructions": "Practice instructions",
+      "criteria": "Learning criteria",
+      "criteriaHint": "These are practice guidelines, not completed assessments.",
+      "unknown": "Not provided yet",
+      "duration": "Duration",
+      "tuning": "Tuning",
+      "tempo": "Tempo and meter",
+      "difficulty": "Difficulty",
+      "author": "Author",
+      "license": "License",
+      "audioUnavailable": "Audio preview for this version is unavailable.",
+      "pdfUnavailable": "PDF for this version is unavailable. Use the source score if available.",
+      "pdfViewerFallback": "If the embedded viewer fails to load, open the PDF separately or use MusicXML."
     }
   },
   "home": {
