@@ -551,5 +551,39 @@
     "tooLarge": "The file exceeds the size limit.",
     "http": "The request failed. Try again later.",
     "invalid": "Could not read the app response. Try again."
+  },
+  "score": {
+    "heading": "Score and tablature",
+    "open": "Open score",
+    "close": "Collapse score",
+    "previous": "Previous page",
+    "next": "Next page",
+    "zoomIn": "Zoom in",
+    "zoomOut": "Zoom out",
+    "fitWidth": "Fit width",
+    "focus": "Focus on score",
+    "exitFocus": "Exit score focus",
+    "openOriginal": "Open original PDF",
+    "musicXml": "Download MusicXML",
+    "retry": "Try loading again",
+    "unavailable": "No PDF is available for this version. Use the original or MusicXML where available.",
+    "states": {
+      "CLOSED": "Score collapsed",
+      "CHECKING": "Checking PDF…",
+      "LOADING": "Loading and preparing score…",
+      "READY": "Score ready"
+    },
+    "errors": {
+      "network": "Could not load the PDF. Check the connection and retry.",
+      "auth": "You cannot access this PDF. Check your session.",
+      "missing": "This PDF version was not found.",
+      "type": "Server returned an unsupported content type.",
+      "limit": "This PDF exceeds the viewer safety limits. Open the original separately.",
+      "signature": "The returned file is not a PDF.",
+      "timeout": "The PDF request timed out. Try again.",
+      "password": "This PDF is password protected and cannot be shown here.",
+      "corrupt": "The PDF is damaged or unsupported.",
+      "render": "Could not render this PDF page. You can open the original separately."
+    }
   }
 }
