@@ -411,13 +411,13 @@ onBeforeUnmount(() => {
 
 <template>
   <section class="homework-panel" :class="{ 'studio-workspace-panel': lightMinimal }" aria-labelledby="homework-heading">
+    <div v-if="loading" class="hint">{{ t('attempt.loading') }}</div>
+    <template v-else>
     <div :class="{ 'studio-record-card': lightMinimal }">
     <div class="homework-heading">
       <h3 id="homework-heading"><svg v-if="lightMinimal" class="studio-mic-icon" width="21" height="21" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="9" y="2" width="6" height="13" rx="3"/><path d="M5 10v2a7 7 0 0 0 14 0v-2M12 19v3m-4 0h8"/></svg>{{ lightMinimal ? t('attempt.recordingPanelTitle') : t('attempt.title') }}</h3>
       <p v-if="!lightMinimal" class="hint">{{ t('attempt.subtitle') }}</p>
     </div>
-    <div v-if="loading" class="hint">{{ t('attempt.loading') }}</div>
-    <template v-else>
       <p v-if="!capabilities?.enabled" class="hint" role="status">
         {{ t('attempt.disabledHelp') }}
       </p>
