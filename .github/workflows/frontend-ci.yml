@@ -35,5 +35,9 @@ jobs:
         run: npm run test:tuner
       - name: Typecheck and build
         run: npm run build
+      - name: Light Minimal opt-in typecheck and build
+        run: npm run build
+        env:
+          VITE_GUITAR_MENTOR_LIGHT_MINIMAL: 'true'
       - name: Real Chrome keyboard and responsive UI smoke
         run: npm run test:browser
