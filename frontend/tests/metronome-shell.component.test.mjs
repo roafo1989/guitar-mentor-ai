@@ -10,7 +10,7 @@ const vueUrl = import.meta.resolve('vue');
 const i18nUrl = asModule("import {ref} from '"+vueUrl+"'; export const useI18n=()=>({locale:ref('ru'),t:key=>key});");
 const routerUrl = asModule("export const useRoute=()=>globalThis.__shellRoute;");
 const authGateUrl = asModule("export default { setup(_,{slots}) { return () => slots.default?.(); } };");
-const authUrl = asModule("export const auth={actor:null};export const logout=async()=>{};");
+const authUrl = asModule("export const auth={actor:null};export const secureUi=false;export const logout=async()=>{};");
 const learnerUrl = asModule("export const useLearnerStore=()=>({learner:{displayName:'Sample'}});");
 const audioUrl = asModule("export const metronome=globalThis.__shellAudio;");
 const uiUrl = asModule([
