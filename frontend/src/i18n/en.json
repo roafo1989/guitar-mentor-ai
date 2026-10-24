@@ -237,6 +237,18 @@
       "choose": "Choose an exercise",
       "lesson": "Continue lesson",
       "result": "View results"
+    },
+    "light": {
+      "currentTitle": "Your current practice",
+      "assigned": "Current exercise",
+      "descriptions": {
+        "profile": "Add your instrument and a few details first so we can guide your next steps.",
+        "onboarding": "Tell us about your experience and goals to make practice relevant to you.",
+        "diagnostics": "Let's get to know your playing and find an appropriate first exercise.",
+        "choose": "Your assessment is ready for the next step. Choose a suggested exercise.",
+        "lesson": "Continue your assigned exercise. Its score, sample and recording are in the practice view.",
+        "result": "Your exercise is complete. Review your saved results and feedback."
+      }
     }
   },
   "attempt": {

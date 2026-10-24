@@ -119,3 +119,50 @@ test('new registered learner without instrument must be directed to profile befo
   assert.equal((await h.resolveHomeSummary(null, h.storage)).step, 'profile');
   assert.deepEqual(h.calls, []);
 });
+
+
+test('ready for task directs to exercise selection without reading learning state', async () => {
+  const h = harness({ session: { id: 'saved-session', status: 'READY_FOR_TASK' } });
+  assert.equal((await h.resolveHomeSummary('learner-1', h.storage)).step, 'choose');
+  assert.deepEqual(h.calls, ['get-session']);
+});
+test('collecting evidence resumes assessment without falsely assigning an exercise', async () => {
+  const h = harness({ session: { id: 'saved-session', status: 'COLLECTING_EVIDENCE' } });
+  assert.equal((await h.resolveHomeSummary('learner-1', h.storage)).step, 'diagnostics');
+  assert.deepEqual(h.calls, ['get-session']);
+});
+test('completed passed task leads to result, not an invented next lesson', async () => {
+  const h = harness({
+    session: { id: 'saved-session', status: 'TASK_ASSIGNED' },
+    task: { id: 'task-1', exercise: { title: 'Study', code: 'GM-E1', version: '2' } },
+    learning: { taskState: 'COMPLETED_PASSED' },
+  });
+  assert.equal((await h.resolveHomeSummary('learner-1', h.storage)).step, 'result');
+});
+test('unknown diagnostic status and malformed assigned task reject instead of producing a misleading CTA', async () => {
+  const unknown = harness({ session: { id: 'saved-session', status: 'UNKNOWN' } });
+  await assert.rejects(unknown.resolveHomeSummary('learner-1', unknown.storage));
+  const malformed = harness({ session: { id: 'saved-session', status: 'TASK_ASSIGNED' }, task: null });
+  await assert.rejects(malformed.resolveHomeSummary('learner-1', malformed.storage));
+  assert.equal(malformed.storage.getItem(malformed.selectedSessionKey('learner-1')), 'saved-session');
+});
+test('#149 opt-in home layout is localized and does not fabricate learning data', () => {
+  const view = readFileSync(new URL('../src/core/home/HomeView.vue', import.meta.url), 'utf8');
+  const ru = JSON.parse(readFileSync(new URL('../src/i18n/ru.json', import.meta.url), 'utf8'));
+  const en = JSON.parse(readFileSync(new URL('../src/i18n/en.json', import.meta.url), 'utf8'));
+  assert.match(view, /VITE_GUITAR_MENTOR_LIGHT_MINIMAL === 'true'/);
+  assert.match(view, /:data-home-ui="lightMinimal/);
+  assert.match(view, /hasAssignedWork/);
+  assert.match(view, /visibleSections/);
+  assert.match(view, /watch\(\(\) => auth\.actor\?\.accountId/);
+  assert.match(view, /auth\.actor\?\.accountId !== actorId/);
+  assert.doesNotMatch(view, /streak|mockProgress|fakeMinutes|Math\.random\(/i);
+  for (const messages of [ru,en]) {
+    for (const step of ['profile','onboarding','diagnostics','choose','lesson','result']) {
+      assert.ok(messages.home.next[step], 'primary CTA locale ' + step);
+      assert.ok(messages.home.light.descriptions[step], 'state description locale ' + step);
+    }
+    assert.ok(messages.home.light.currentTitle);
+    assert.ok(messages.home.light.assigned);
+  }
+});
