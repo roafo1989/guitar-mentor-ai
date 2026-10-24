@@ -318,13 +318,15 @@ test('#150 artwork: approved acoustic image replaces note tile with safe fallbac
  assert.match(model,/coverUrl\?: string \| null/);
 });
 
-test('#150 regression: exercise metronome stays visible in both score and description tabs', async () => {
- const source=await readFile(new URL('../src/entities/diagnostic/ExercisePreview.vue',import.meta.url),'utf8');
- const block=source.match(/<div class="metronome-exercise-tool"[^>]*>[\s\S]*?<\/div>/)?.[0];
- assert.ok(block,'exercise metronome button should remain mounted');
- assert.doesNotMatch(block,/studio-tab-hidden|studioTab !== 'description'/);
- assert.match(block,/@click="launchMetronome"/);
- assert.match(block,/exercise\.bpm/);
- assert.match(block,/exercise\.meter/);
- assert.ok(source.indexOf('class="metronome-exercise-tool"') > source.indexOf('<ScoreReader '),'metronome below score');
+test('#150 exercise metronome lives between recording and result without duplicate under notation', async () => {
+ const preview=await readFile(new URL('../src/entities/diagnostic/ExercisePreview.vue',import.meta.url),'utf8');
+ const submission=await readFile(new URL('../src/entities/attempt/SubmissionPanel.vue',import.meta.url),'utf8');
+ const diagnostic=await readFile(new URL('../src/entities/diagnostic/DiagnosticView.vue',import.meta.url),'utf8');
+ assert.match(preview,/v-if="!assigned \|\| !lightMinimal" class="metronome-exercise-tool"/);
+ assert.match(submission,/class="studio-metronome-card"/);
+ assert.ok(submission.indexOf('class="studio-metronome-card"') > submission.indexOf('studio-record-card'));
+ assert.ok(submission.indexOf('class="studio-metronome-card"') < submission.indexOf('studio-result-card'));
+ assert.match(submission,/openExerciseMetronome\(/);
+ assert.match(submission,/exercise\.bpm, exercise\.meter, exercise\.tempoUnit/);
+ assert.match(diagnostic,/:exercise="task\.exercise" @draft-state="onSubmissionDraft"/);
 });
