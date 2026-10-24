@@ -1,13 +1,15 @@
 import { createRouter, createWebHistory } from 'vue-router';
 import { captureEmailActionLink } from '../core/auth/auth-link';
+import { redirectUnifiedLocalAlias } from '../core/auth/unified-local-origin';
 import LearnerProfileView from '../entities/learner/LearnerProfileView.vue';
 import OnboardingView from '../entities/onboarding/OnboardingView.vue';
 import DiagnosticView from '../entities/diagnostic/DiagnosticView.vue';
 import HomeView from '../core/home/HomeView.vue';
 
-// This must run BEFORE createWebHistory snapshots location and its hash.
-// Capturing only in main.ts is too late: ESM evaluates router imports first.
-captureEmailActionLink();
+// Redirect the legacy HTTPS alias before creating a second auth session or
+// scrubbing an emailed action token. The canonical localhost route handles both.
+// ESM runs this before main.ts and createWebHistory().
+if (!redirectUnifiedLocalAlias()) captureEmailActionLink();
 
 export const router = createRouter({
   history: createWebHistory(),
