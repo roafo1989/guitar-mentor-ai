@@ -21,7 +21,7 @@ import org.springframework.security.oauth2.core.oidc.user.DefaultOidcUser;
 
 class ActorFilterTest {
     private final ActorRepository repository = mock(ActorRepository.class);
-    private final ActorFilter filter = new ActorFilter(repository);
+    private final ActorFilter filter = new ActorFilter(repository, java.time.Duration.ofHours(12));
     private final UUID owner = UUID.randomUUID();
     private final UUID foreign = UUID.randomUUID();
 
