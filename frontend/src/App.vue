@@ -141,9 +141,7 @@ onBeforeUnmount(() => { unsubscribeMetronome?.(); closeMetronome(); });
             stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"
             aria-hidden="true">
             
-            <path d="M8.5 6.5 5 20h14L15.5 6.5"/>
-            <path d="M4 22h16M12 18 17 3"/>
-            <rect x="15.8" y="4.4" width="3.4" height="3.4" rx=".6" transform="rotate(18 17.5 6.1)"/>
+            <path d="M8.5 6.5 5 20h14L15.5 6.5M4 22h16M12 18 17 3m-1.2 3.8 3.4-1.1 1.1 3.4-3.4 1.1Z"/>
           </svg>
           <span v-if="metronomeStatus === 'running'" class="metronome-running-dot" aria-hidden="true"></span>
         </button>
