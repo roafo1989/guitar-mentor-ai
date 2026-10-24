@@ -305,8 +305,8 @@ onBeforeUnmount(()=>{
   <section ref="container" class="score-reader" :data-rendered-page="renderedPage ?? undefined" :class="{ 'score-fullscreen': fullscreen }"
     :aria-label="t('score.heading')">
     <div class="score-toolbar">
-      <button ref="focusButton" type="button" class="score-toggle score-close" :aria-expanded="open"
-        @click="open ? close() : emit('update:open', true)">{{ open ? t('score.close') : t('score.open') }}</button>
+      <button v-if="!open" ref="focusButton" type="button" class="score-toggle score-close" :aria-expanded="false"
+        @click="emit('update:open', true)">{{ t('score.open') }}</button>
       <button v-if="!open" ref="focusTrigger" type="button" class="score-focus" @click="focusMode">{{ t('score.focus') }}</button>
       <template v-if="open">
         <div class="score-pagination">
@@ -322,11 +322,12 @@ onBeforeUnmount(()=>{
           <button type="button" :disabled="state!=='READY'||(!fitWidth&&zoom<=50)" :aria-label="t('score.zoomOut')" @click="adjustZoom(fitWidth?75:zoom-25)">−</button>
           <span>{{ fitWidth ? t('score.fitWidth') : zoom+'%' }}</span>
           <button type="button" :disabled="state!=='READY'||(!fitWidth&&zoom>=250)" :aria-label="t('score.zoomIn')" @click="adjustZoom(fitWidth?125:zoom+25)">+</button>
-          <button type="button" :disabled="state!=='READY'" @click="autoFit">{{ t('score.fitWidth') }}</button>
+          <button v-if="!fitWidth" type="button" :disabled="state!=='READY'" @click="autoFit">{{ t('score.fitWidth') }}</button>
         </div>
         <button ref="focusTrigger" type="button" class="score-focus" @click="fullscreen?leaveFullscreen():focusMode()">
           {{ fullscreen?t('score.exitFocus'):t('score.focus') }}
         </button>
+        <button type="button" class="score-close" :aria-label="t('score.close')" @click="close">×</button>
       </template>
     </div>
     <div v-if="open">
@@ -348,11 +349,12 @@ onBeforeUnmount(()=>{
 
 <style scoped>
 .score-reader {min-width:0;border:1px solid #dce5e4;border-radius:12px;background:white;padding:12px}
-.score-toolbar {display:flex;gap:10px;align-items:center;justify-content:space-between;flex-wrap:wrap}
+.score-toolbar {display:flex;gap:6px;align-items:center;justify-content:flex-end;flex-wrap:wrap}
 .score-toolbar button,.score-reader [role="alert"] button {min-height:44px;min-width:44px;padding:8px 10px;border:1px solid #7c8987;border-radius:8px;background:white;color:#162331;cursor:pointer}
 .score-toolbar button:disabled {opacity:.45;cursor:not-allowed}
 .score-toolbar button:focus-visible,.score-fallback a:focus-visible {outline:3px solid #28776d;outline-offset:3px}
-.score-pagination,.score-zoom {display:flex;align-items:center;gap:8px}
+.score-pagination,.score-zoom {display:flex;align-items:center;gap:5px}
+.score-close {font-size:17px}
 .score-pagination span,.score-zoom span {white-space:nowrap}
 .score-pagination input {width:62px;min-height:44px;border:1px solid #7c8987;border-radius:8px;text-align:center;color:#162331;background:#fff}
 .score-pagination input:focus-visible {outline:3px solid #28776d;outline-offset:3px}
