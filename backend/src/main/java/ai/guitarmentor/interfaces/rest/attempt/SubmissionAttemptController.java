@@ -77,6 +77,9 @@ public class SubmissionAttemptController {
             @PathVariable String attemptId) {
         UUID id;
         try {
+            if (!attemptId.matches("(?i)[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}")) {
+                throw new IllegalArgumentException("Invalid UUID");
+            }
             id = UUID.fromString(attemptId);
         } catch (IllegalArgumentException invalid) {
             return safeError(HttpStatus.BAD_REQUEST, "INVALID_ATTEMPT_REFERENCE");
