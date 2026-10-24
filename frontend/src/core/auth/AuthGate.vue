@@ -19,7 +19,7 @@ const manualCode = ref(false);
 const mailPurpose = ref<'register' | 'reset'>('register');
 const heading = ref<HTMLElement | null>(null);
 const requestEpoch = ref(0);
-let mounted = true;
+let mounted = false;
 const oauthPending = ref(false);
 const busy = ref(false);
 const error = ref('');
@@ -39,7 +39,7 @@ function setMode(next: Mode) {
   if (busy.value) return;
   requestEpoch.value++;
   mode.value = next; error.value = ''; success.value = '';
-  if (next !== 'verify' && next !== 'reset' && next !== 'expired-link') emailActionInProgress.value = false;
+  emailActionInProgress.value = next === 'verify' || next === 'reset' || next === 'expired-link';
   password.value = ''; confirmPassword.value = ''; showPassword.value = false; showConfirm.value = false; manualCode.value = false;
   if (next !== 'verify' && next !== 'reset') {
     verificationToken.value = ''; tokenFromLink.value = false;
@@ -77,18 +77,22 @@ async function request(path: string, body: object): Promise<boolean> {
   } finally { if (mounted && epoch === requestEpoch.value) busy.value = false; }
 }
 async function localLogin() {
+  if (busy.value || oauthPending.value) return;
   clearTokenLikeIdentifier();
   if (!identifier.value || !password.value) {
     error.value = label('Введите email или логин.', 'Enter your email or username.');
     return;
   }
+  const epoch = requestEpoch.value + 1;
   if (await request('login', { identifier: identifier.value, password: password.value })) {
     password.value = '';
     await refreshActor();
+    if (!mounted || epoch !== requestEpoch.value) return;
     if (!auth.actor) error.value = label('Не удалось завершить вход. Попробуйте ещё раз.', 'Could not complete sign-in. Please retry.');
   }
 }
 async function register() {
+  if (busy.value || oauthPending.value) return;
   if (!/^[a-z0-9][a-z0-9._-]{2,63}$/.test(username.value.toLowerCase())) { error.value = label('Проверьте логин: 3–64 латинских символа, цифры, точка, _ или -.', 'Check username: 3–64 Latin letters, digits, dot, _ or -.'); return; }
   if (password.value.length < 12 || password.value.length > 128) { error.value = label('Пароль должен содержать 12–128 символов.', 'Password must be 12–128 characters.'); return; }
   if (password.value !== confirmPassword.value) {
@@ -104,6 +108,10 @@ async function register() {
   }
 }
 async function verify() {
+  if (busy.value || !tokenPattern.test(verificationToken.value)) {
+    if (!busy.value) error.value = label('Код подтверждения недействителен.', 'Invalid verification code.');
+    return;
+  }
   if (await request('verify', { token: verificationToken.value })) {
     verificationToken.value = '';
     tokenFromLink.value = false;
@@ -112,12 +120,15 @@ async function verify() {
   }
 }
 async function forgot() {
+  if (busy.value) return;
   if (await request('request-reset', { email: email.value })) {
     mailPurpose.value = 'reset';
     setMode('check-mail');
   }
 }
 async function reset() {
+  if (busy.value) return;
+  if (!tokenPattern.test(verificationToken.value)) { error.value = label('Код восстановления недействителен.', 'Invalid reset code.'); return; }
   if (password.value.length < 12 || password.value.length > 128) { error.value = label('Пароль должен содержать 12–128 символов.', 'Password must be 12–128 characters.'); return; }
   if (password.value !== confirmPassword.value) {
     error.value = label('Пароли не совпадают.', 'Passwords do not match.'); return;
@@ -142,10 +153,12 @@ function consumeAuthFragment(): void {
   requestEpoch.value++; busy.value = false;
   emailActionInProgress.value = true;
   if (!link.token || !tokenPattern.test(link.token)) {
-    verificationToken.value = '';
-    tokenFromLink.value = false;
     mailPurpose.value = link.action === 'reset' ? 'reset' : 'register';
-    setMode('expired-link');
+    mode.value = 'expired-link';
+    verificationToken.value = ''; tokenFromLink.value = false;
+    password.value = ''; confirmPassword.value = '';
+    error.value = ''; success.value = '';
+    void nextTick(() => heading.value?.focus());
     return;
   }
   verificationToken.value = link.token;
@@ -160,7 +173,7 @@ function consumeAuthFragment(): void {
   void nextTick(() => heading.value?.focus());
 }
 function handleGoogle(): void {
-  if (busy.value || oauthPending.value) return;
+  if (busy.value || oauthPending.value || !mounted) return;
   oauthPending.value = true;
   password.value = ''; confirmPassword.value = '';
   login();
@@ -173,8 +186,9 @@ function consumeGoogleError(): void {
   window.history.replaceState(window.history.state, '', url.pathname + url.search + url.hash);
   error.value = label('Не удалось войти через Google. Попробуйте снова или войдите по email.', 'Could not sign in with Google. Try again or sign in with email.');
 }
-function onPageShow(): void {
-  oauthPending.value = false; password.value = ''; confirmPassword.value = '';
+function onPageShow(event: PageTransitionEvent): void {
+  // A restored page never retains a disabled OAuth button or a secret.
+  if (event.persisted) { oauthPending.value = false; password.value = ''; confirmPassword.value = ''; }
 }
 
 onMounted(() => {
