@@ -52,4 +52,26 @@ class DiagnosticProbePostgresTest {
         assertEquals(1L,jdbc.queryForObject("SELECT count(*) FROM exercise_skills"
             +" WHERE exercise_id=? AND target_role='PRIMARY'",Long.class,draft.getId()));
     }
+    @Test
+    @org.springframework.transaction.annotation.Transactional
+    void reviewerApprovedVersionWouldExposeItsOwnPlayableMediaWithoutLegacyRegression()
+            throws Exception {
+        var draft = exercises.findByCodeAndVersion("GM-DIAG-PULSE-3-8-01", "0.1.0")
+                .orElseThrow();
+        // This transaction rolls back: not a publication operation.
+        jdbc.update("UPDATE exercises SET is_current=true,license='ORIGINAL_OWNED',"
+                + " review_status='APPROVED' WHERE id=?", draft.getId());
+        var version = catalog.findVersion("GM-DIAG-PULSE-3-8-01", "0.1.0");
+        assertEquals("DIAGNOSTIC_PROBE", version.contentKind());
+        assertEquals("eighth", version.tempoUnit());
+        assertEquals(22, version.durationTargetSeconds());
+        assertTrue(catalog.available("ACOUSTIC_GUITAR", "FINGERSTYLE")
+                .stream().anyMatch(e -> e.code().equals("GM-DIAG-PULSE-3-8-01")));
+        assertTrue(media.read("GM-DIAG-PULSE-3-8-01", "0.1.0",
+                ExerciseVersionResourceService.Kind.PDF).length > 3000);
+        assertTrue(media.read("GM-DIAG-PULSE-3-8-01", "0.1.0",
+                ExerciseVersionResourceService.Kind.AUDIO).length > 3000);
+        assertEquals("LEARNING_REPERTOIRE", catalog.find("GM-EB01").contentKind());
+    }
+
 }
