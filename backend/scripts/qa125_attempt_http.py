@@ -69,6 +69,10 @@ check(base + "/not-a-uuid", 400, "INVALID_ATTEMPT_REFERENCE")
 check(base + "/00000000-0000-4000-8000-000000000000", 404, "RESOURCE_NOT_FOUND")
 foreign_learner = prefix + "11111111-1111-4111-8111-111111111111" + "/diagnostic-sessions/" + session_id + "/tasks/" + task_id + "/attempts"
 foreign_task = prefix + learner_id + "/diagnostic-sessions/" + session_id + "/tasks/11111111-1111-4111-8111-111111111111/attempts"
+# Failed capabilities ownership goes through a controller-level exception handler:
+# the same safe 404 and no-store must apply as to successful read responses.
+check(foreign_learner + "/capabilities", 404, "RESOURCE_NOT_FOUND")
+check(foreign_task + "/capabilities", 404, "RESOURCE_NOT_FOUND")
 check(foreign_learner + "/page", 404, "RESOURCE_NOT_FOUND")
 check(foreign_task + "/page", 404, "RESOURCE_NOT_FOUND")
 check(foreign_learner + "/" + attempt_id, 404, "RESOURCE_NOT_FOUND")
