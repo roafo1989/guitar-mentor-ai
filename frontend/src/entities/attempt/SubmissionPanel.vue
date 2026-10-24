@@ -421,7 +421,7 @@ onBeforeUnmount(() => {
           <p v-else-if="item.mediaState === 'DELETE_PENDING'" class="hint">{{ t('attempt.mediaPending') }}</p>
         </article>
         <p v-if="!hasMore && !cursorStack.length && !pageBusy" class="hint">{{ t('attempt.onlyPage') }}</p>
-        <nav class="form-actions attempt-history-navigation" :aria-label="t('attempt.history')">
+        <nav class="form-actions" :aria-label="t('attempt.history')">
           <button type="button" class="secondary-button" :disabled="pageBusy || !cursorStack.length" @click="navigate(cursorStack[cursorStack.length - 1], 'newer')">{{ t('attempt.newer') }}</button>
           <button type="button" class="secondary-button" :disabled="pageBusy || !hasMore" @click="navigate(attempts[attempts.length - 1]?.number, 'older')">{{ t('attempt.older') }}</button>
           <button type="button" class="secondary-button" :disabled="pageBusy" @click="navigate(undefined, 'latest')">{{ t('attempt.latest') }}</button>
