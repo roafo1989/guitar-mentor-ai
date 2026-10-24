@@ -87,3 +87,14 @@ test('account disable clears session but unrelated business 403 preserves actor'
     assert.equal(mod.auth.expired, true);
   } finally { restore(); }
 });
+
+test('password reset links do not render secrets as form inputs or retain them in login', async () => {
+  const gate = await readFile(new URL('../src/core/auth/AuthGate.vue', import.meta.url), 'utf8');
+  assert.match(gate, /tokenFromLink = ref\(false\)/);
+  assert.match(gate, /v-if="!tokenFromLink" id="reset-token"/);
+  assert.match(gate, /v-if="!tokenFromLink" id="verify-token"/);
+  assert.match(gate, /fragment\.delete\('token'\)/);
+  assert.match(gate, /identifier\.value = ''; email\.value = '';/);
+  assert.match(gate, /clearTokenLikeIdentifier/);
+  assert.match(gate, /if \(identifierInput\.value\) identifierInput\.value\.value = '';/);
+});
