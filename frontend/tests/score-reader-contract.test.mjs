@@ -78,3 +78,20 @@ test('#150 toolbar and errors are bilingual',async()=>{
   for(const key of ['missing','network','auth','type','limit','signature','timeout','password','corrupt','render']) assert.ok(messages.errors[key],language+': '+key);
  }
 });
+
+
+test('#150 assigned session must not become a silent empty workspace when task GET is null or fails',async()=>{
+ const source=await readFile(new URL('../src/entities/diagnostic/DiagnosticView.vue',import.meta.url),'utf8');
+ assert.match(source,/const taskFailure = ref/);
+ assert.match(source,/if \(!requestedTask\) taskFailure\.value = 'missing'/);
+ assert.match(source,/taskFailure\.value = isHttp\(cause, 404\) \? 'missing' : 'network'/);
+ assert.match(source,/session\?\.status === 'TASK_ASSIGNED' && !task/);
+ assert.match(source,/role="alert"/);
+ assert.match(source,/@click="retryAssignedTask"/);
+ assert.match(source,/seq === taskGeneration/);
+ for(const lang of ['ru','en']) {
+  const json=JSON.parse(await readFile(new URL('../src/i18n/'+lang+'.json',import.meta.url),'utf8'));
+  for(const label of ['assignedTaskLoading','assignedTaskMissing','assignedTaskUnavailable'])
+   assert.ok(json.diagnostic[label],lang+': '+label);
+ }
+});
