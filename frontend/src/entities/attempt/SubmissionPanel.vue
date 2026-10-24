@@ -192,12 +192,12 @@ watch([selectedId, latestId], () => {
   }
 });
 async function pollHistory() {
-  if (document.hidden || uploading.value || loading.value || pageBusy.value || historyRequestInFlight ||
+  if ((typeof document !== 'undefined' && document.hidden) || uploading.value || loading.value || pageBusy.value || historyRequestInFlight ||
       !displayAttempts.value.some(isProcessing)) return;
   await readPage(pageCursor.value, true);
 }
 function onVisibility() {
-  if (!document.hidden && !loading.value && !historyRequestInFlight) void readPage();
+  if ((typeof document === 'undefined' || !document.hidden) && !loading.value && !historyRequestInFlight) void readPage();
 }
 
 function uploadErrorMessage(cause: unknown): string {
@@ -279,14 +279,14 @@ function fileSize(bytes: number): string {
 onMounted(() => {
   mounted = true;
   void refresh();
-  document.addEventListener('visibilitychange', onVisibility);
+  if (typeof document !== 'undefined') document.addEventListener('visibilitychange', onVisibility);
   polling = setInterval(() => { void pollHistory(); }, 3000);
 });
 onBeforeUnmount(() => {
   mounted = false;
   ++contextGeneration;
   ++requestSerial;
-  document.removeEventListener('visibilitychange', onVisibility);
+  if (typeof document !== 'undefined') document.removeEventListener('visibilitychange', onVisibility);
   if (polling !== undefined) clearInterval(polling);
   clearRecordedPreview();
 });
