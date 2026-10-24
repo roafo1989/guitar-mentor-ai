@@ -60,6 +60,15 @@ export const useLearnerStore = defineStore('learner', () => {
     learner.value = null;
     error.value = '';
     window.localStorage.removeItem(storageKey);
+    if (secureUi) {
+      // Per-learner draft/session pointers are private browser context, not server identity.
+      for (let i = window.localStorage.length - 1; i >= 0; i--) {
+        const key = window.localStorage.key(i);
+        if (key?.startsWith('guitar-mentor.diagnostic.')) {
+          window.localStorage.removeItem(key);
+        }
+      }
+    }
   }
 
   return { learner, busy, error, restore, create, replacePreferences, clearLocalSelection };
