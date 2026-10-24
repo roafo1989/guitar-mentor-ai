@@ -18,9 +18,11 @@ import org.springframework.web.bind.annotation.*;
 public class LocalAuthController {
     private final LocalCredentialService service;
     private final ActorRepository actors;
+    private final org.springframework.beans.factory.ObjectProvider<org.springframework.security.oauth2.client.registration.ClientRegistrationRepository> oidcClients;
     private final ConcurrentHashMap<String, Window> attempts = new ConcurrentHashMap<>();
-    public LocalAuthController(LocalCredentialService service, ActorRepository actors) {
-        this.service=service; this.actors=actors;
+    public LocalAuthController(LocalCredentialService service, ActorRepository actors,
+            org.springframework.beans.factory.ObjectProvider<org.springframework.security.oauth2.client.registration.ClientRegistrationRepository> oidcClients) {
+        this.service=service; this.actors=actors; this.oidcClients=oidcClients;
     }
     private record Window(long started,long attempts) {}
     // Conservative single-instance safety net, not a substitute for an edge/distributed limiter (#40).
@@ -89,7 +91,29 @@ public class LocalAuthController {
     ResponseEntity<Map<String,Boolean>> methods(HttpServletRequest http) {
         var actor=(CurrentActor) http.getAttribute("guitarMentorActor");
         if(actor == null) return ResponseEntity.status(401).build();
-        return ResponseEntity.ok(Map.of("passwordEnabled",actors.hasLocalCredential(actor.accountId())));
+        return ResponseEntity.ok(Map.of("passwordEnabled",actors.hasLocalCredential(actor.accountId()),
+            "googleEnabled",actors.hasGoogleIdentity(actor.accountId()),
+            "googleAvailable",oidcClients.getIfAvailable()!=null));
+    }
+
+    @PostMapping("/link/google/start")
+    ResponseEntity<Map<String,String>> startGoogleLink(@RequestBody Login req,HttpServletRequest http) {
+        limit(http,"google-link");
+        var actor=(CurrentActor)http.getAttribute("guitarMentorActor");
+        if(actor==null || !(SecurityContextHolder.getContext().getAuthentication().getPrincipal() instanceof LocalPrincipal))
+            return ResponseEntity.status(403).body(Map.of("code","REAUTH_REQUIRED"));
+        if(oidcClients.getIfAvailable()==null)
+            return ResponseEntity.status(409).body(Map.of("code","GOOGLE_NOT_CONFIGURED"));
+        try {
+            var confirmed=service.authenticate(req.identifier(),req.password());
+            if(!confirmed.equals(actor.accountId())) throw new SecurityException("REAUTH_REQUIRED");
+            var session=http.getSession(true);
+            session.setAttribute("guitarMentorLinkGoogleAccount",actor.accountId());
+            session.setAttribute("guitarMentorLinkGoogleVersion",
+                actors.localVersion(actor.accountId()).orElseThrow());
+            session.setAttribute("guitarMentorLinkGoogleStarted",System.currentTimeMillis());
+            return ResponseEntity.ok(Map.of("code","GOOGLE_LINK_STARTED"));
+        } catch(SecurityException ex) {return bad("REAUTH_REQUIRED");}
     }
 
     @PostMapping("/link/password/start")
