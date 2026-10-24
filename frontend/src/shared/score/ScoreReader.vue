@@ -265,7 +265,7 @@ onBeforeUnmount(()=>{
     :aria-label="t('score.heading')">
     <div class="score-toolbar">
       <button ref="focusButton" type="button" class="score-toggle" :aria-expanded="open"
-        @click="close">{{ t('score.close') }}</button>
+        @click="open ? close() : emit('update:open', true)">{{ open ? t('score.close') : t('score.open') }}</button>
       <template v-if="open">
         <div class="score-pagination">
           <button type="button" :disabled="state!=='READY'||page<=1" :aria-label="t('score.previous')" @click="switchPage(page-1)">‹</button>
