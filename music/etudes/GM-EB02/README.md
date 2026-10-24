@@ -1,13 +1,22 @@
-# GM-EB02 — «Шаги к мелодии: Вопрос и ответ»
+# GM-EB02 — «Тихая дорога» (2.0.0-draft)
 
-**Version:** 1.1.0-draft · **Status:** PENDING_HUMAN_MUSICAL_REVIEW · **Origin:** ORIGINAL
+**Origin:** ORIGINAL (AI-assisted draft). **Musical review:** PENDING_HUMAN_MUSICAL_REVIEW. **License:** ALL_RIGHTS_RESERVED_PENDING_OWNER_DECISION.
 
-Original AI-assisted beginner fingerstyle etude, 8 measures, standard E2-A2-D3-G3-B3-E4 tuning, 4/4, 72 BPM. Two 4-bar phrases with a short melodic question and answer; ten eighth notes across five bars supplement the stable quarter-note pulse. Maximum fret 3. Uses fingers p/i/m/a without pick or percussion.
+### Rationale
+The owner rejected editions 1.0 and 1.1 as mechanical, unattractive exercises. This is a **new original composition proposal**, not another embellishment of the rejected sequence. It contains an independent upper melodic voice and thumb bass on beats 1 and 3, two four-measure phrases, a gentle folk-inspired contour, sparse dotted/eighth rhythms and a closing return to C. Harmony: C — G — Am — C | Fmaj7 — Am — G — C.
 
-**Learning goal:** maintain four quarter beats and the thumb's bass on beat one, while placing pairs of eighths accurately on beat three (or final beat of bar three). Suggested practice 56 → 64 → 72 BPM; count eighth notes “3-и” where applicable. Success suggestion: two uninterrupted performances at the selected tempo. This is not automatic grading.
+### Teaching notes
+- **Level:** Beginner. No pick, no percussion. Standard tuning E2 A2 D3 G3 B3 E4. Frets 0–3 only.
+- **Skills:** PULSE and RH_HAND. 4/4 at 76 BPM. Count 1–2–3–4, play thumb bass on beats 1 and 3 and a distinct melody with i/m/a on upper strings.
+- **First sing the melody** on its own, then practise bass, then combine. Begin at 56 BPM and increase slowly. Playing goal: sustain steady tempo and both voices throughout eight measures, with deliberate phrasing and the resolving cadence.
+- **Form:** bars 1–4 statement/question; bars 5–8 developed answer and tonal resolution.
+- **Rights:** no external copyrighted song source used intentionally; owner must review rights/publication and decide license.
 
-**Canonical sources:** `score.musicxml` and `score_events.json` must describe the exact same events. `python music/etudes/GM-EB02/test_score.py` runs the offline validator (also covered by the GM-EB02 GitHub Actions workflow). Printable PDF with standard notation and 6-line TAB, MIDI and synthesized listening sample are preview-only review artifacts, produced for owner evaluation. Production PDF/MP3 pack is tracked separately in #81, database/API registration in #84.
+### Files and checks
+- `score.musicxml`: primary pitched score, two distinct voices (melody 1, bass 2), with MusicXML backup event.
+- `score_events.json`: pitch, onset beat, voice, string/fret, duration and finger per event.
+- `test_score.py`: built-in Python unittest checks per-voice totals, every pitch vs fret/string, JSON/MusicXML event equality, first-position range, final double bar, and deliberately corrupted cases. Run `python music/etudes/GM-EB02/test_score.py`.
+- Reference audio/notation artifacts are **unapproved review previews**, not production media; final PDF/TAB/MP3 are tracked in #81 and MUST conform to MUS-NOTATION-01 (reference `ex2(1).pdf`).
+- Database/catalog inclusion is #84, only **after** explicit musical approval. A green CI result is not musical acceptance.
 
-**Rights:** author credit “Guitar Mentor AI (original AI-assisted draft)”, origin ORIGINAL, release license not selected (`ALL_RIGHTS_RESERVED_PENDING_OWNER_DECISION`). No published third-party melody is deliberately reproduced; publication and licensing require owner decision.
-
-**Review:** musical approval **PENDING_HUMAN_MUSICAL_REVIEW**. The owner identified the prior edition as overly mechanical, so it was replaced by v1.1.0-draft. Machine verification does not establish musical attractiveness or guitar playability. Do not mark this approved until actual owner acceptance.
+**Important:** Neither prior editions nor this draft may be marked musically accepted on the basis of automated checks. Owner acceptance remains pending.
