@@ -65,6 +65,20 @@ class LocalCredentialPostgresTest {
     }
 
     @Test
+    void publicRegistrationIsInactiveUntilEmailVerificationAndCannotReplay() {
+        String email=UUID.randomUUID()+"@example.test";
+        String login="public"+UUID.randomUUID().toString().substring(0,9);
+        local.registerPublic(email,login,"secure-public-password-999");
+        assertThrows(SecurityException.class,
+            () -> local.authenticate(login,"secure-public-password-999"));
+        String token=latestMailToken();
+        local.verify(token);
+        assertThrows(SecurityException.class,()->local.verify(token));
+        UUID account=local.authenticate(login,"secure-public-password-999");
+        assertEquals("LEARNER",actors.findActiveLocal(account,0L).orElseThrow().role());
+    }
+
+    @Test
     void noInvitationNeverRegistersOrSendsMail() {
         assertThrows(SecurityException.class,()->local.register("f".repeat(64),
             UUID.randomUUID()+"@example.test","uninvited","secure-password-999"));
