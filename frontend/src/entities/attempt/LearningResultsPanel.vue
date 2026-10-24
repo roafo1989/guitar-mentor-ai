@@ -50,6 +50,7 @@ let generation = 0;
 const stateFresh = ref(false);
 const assessmentFresh = ref(false);
 const pending = ref<DecisionCommand | null>(null);
+let decisionSequence = 0;
 
 const currentAttempt = computed(() => (pinnedDetail.value?.id === selected.value ? pinnedDetail.value : null) ?? props.attempts.find(a => a.id === selected.value));
 const selectorAttempts = computed(() => {
@@ -227,26 +228,29 @@ async function retry() {
 }
 async function sendCommand(command: DecisionCommand) {
   const seq = generation;
+  const operation = ++decisionSequence;
+  const context = JSON.stringify([props.learnerId, props.sessionId, props.taskId]);
+  const currentDecision = () => operation === decisionSequence && context === JSON.stringify([props.learnerId, props.sessionId, props.taskId]);
   sending.value = true; error.value = ''; notice.value = '';
   try {
     await learningService.decide(props.learnerId, props.sessionId, props.taskId, command);
-    if (seq !== generation) return;
+    if (seq !== generation || !currentDecision()) return;
     pending.value = null;
     await refresh();
-    if (stateFresh.value) notice.value = t('learning.saved');
+    if (currentDecision() && stateFresh.value) notice.value = t('learning.saved');
   } catch (cause) {
-    if (seq !== generation) return;
+    if (seq !== generation || !currentDecision()) return;
     if (cause instanceof LearningHttpError && cause.status === 409) {
       pending.value = null;
       await refresh();
-      error.value = t('learning.conflict');
+      if (currentDecision()) error.value = t('learning.conflict');
     } else {
       error.value = message(cause);
     }
-  } finally { if (seq === generation) sending.value = false; }
+  } finally { if (currentDecision()) sending.value = false; }
 }
 watch(() => [props.learnerId, props.sessionId, props.taskId], () => {
-  ++generation; ++detailSequence; selected.value = ''; pinnedDetail.value = null;
+  ++generation; ++detailSequence; ++decisionSequence; selected.value = ''; pinnedDetail.value = null;
   detailFresh.value = false; detailError.value = ''; pending.value = null; state.value = null;
   assessments.value = []; decisions.value = []; evidence.value = [];
   evidenceCursor.value = null; evidenceError.value = '';
@@ -268,7 +272,7 @@ watch(() => {
 });
 
 onMounted(() => { void refresh(); });
-onBeforeUnmount(() => { ++generation; ++detailSequence; pending.value = null; stateFresh.value = false; learningStateEvent(); });
+onBeforeUnmount(() => { ++generation; ++detailSequence; ++decisionSequence; pending.value = null; stateFresh.value = false; learningStateEvent(); });
 </script>
 
 <template>
