@@ -60,8 +60,13 @@ export function login(): void {
 
 export async function logout(onLogout: () => void): Promise<void> {
   // CSRF is attached to this modifying request by the installed fetch adapter.
+  if (!csrf) {
+    const tokenResponse = await fetch('/api/v1/csrf');
+    if (!tokenResponse.ok) throw new Error('CSRF_UNAVAILABLE');
+    csrf = await tokenResponse.json() as { headerName: string; token: string };
+  }
   const response = await fetch('/logout', { method: 'POST', credentials: 'same-origin',
-    headers: { 'X-XSRF-TOKEN': (document.cookie.match(/(?:^|; )XSRF-TOKEN=([^;]*)/) || [])[1] || '' } });
+    headers: { [csrf.headerName]: csrf.token } });
   if (!response.ok) throw new Error('LOGOUT_FAILED');
   auth.actor = null;
   csrf = null;
