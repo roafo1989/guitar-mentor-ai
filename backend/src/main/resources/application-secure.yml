@@ -1,0 +1,17 @@
+# Explicit secure profile required for any internet/staging use.
+guitar-mentor:
+  security:
+    enabled: true
+spring:
+  security:
+    oauth2:
+      client:
+        registration:
+          guitar-mentor:
+            provider: guitar-mentor
+            client-id: ${GUITAR_MENTOR_OIDC_CLIENT_ID}
+            client-secret: ${GUITAR_MENTOR_OIDC_CLIENT_SECRET}
+            scope: openid,profile,email
+        provider:
+          guitar-mentor:
+            issuer-uri: ${GUITAR_MENTOR_OIDC_ISSUER}
