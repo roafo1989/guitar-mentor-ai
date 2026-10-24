@@ -340,7 +340,10 @@
     "uploadAlternative": "Или загрузить готовый аудиофайл",
     "microphoneInstructions": "О записи и использовании микрофона",
     "localRecordingAvailable": "Можно записать и прослушать исполнение локально. Отправка станет доступна после включения приёма аудио на сервере.",
-    "recordingPanelTitle": "Запись исполнения"
+    "recordingPanelTitle": "Запись исполнения",
+    "listenShort": "Прослушать",
+    "pausePlayback": "Пауза",
+    "submitShort": "Отправить"
   },
   "evidence": {
     "heading": "Мои исполнения",
