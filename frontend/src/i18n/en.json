@@ -9,6 +9,9 @@
     "home": "Home"
   },
   "auth": {
+    "invitationCode": "Invitation code",
+    "activate": "Activate invitation",
+    "invalidInvitation": "Invalid invitation or Google sign-in required",
     "signIn": "Sign in",
     "signOut": "Sign out",
     "expired": "Session expired",
