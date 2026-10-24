@@ -11,18 +11,6 @@ spring:
     open-in-view: false
   flyway:
     enabled: true
-  security:
-    oauth2:
-      client:
-        registration:
-          guitar-mentor:
-            provider: guitar-mentor
-            client-id: ${GUITAR_MENTOR_OIDC_CLIENT_ID:}
-            client-secret: ${GUITAR_MENTOR_OIDC_CLIENT_SECRET:}
-            scope: openid,profile,email
-        provider:
-          guitar-mentor:
-            issuer-uri: ${GUITAR_MENTOR_OIDC_ISSUER:}
   servlet:
     multipart:
       max-file-size: 20MB
@@ -41,7 +29,7 @@ server:
 
 guitar-mentor:
   security:
-    enabled: ${GUITAR_MENTOR_SECURITY_ENABLED:true}
+    enabled: ${GUITAR_MENTOR_SECURITY_ENABLED:false}
   submissions:
     # Explicit opt-in for local, non-personal test recordings only.
     enabled: ${GUITAR_MENTOR_ENABLE_UPLOADS:false}
