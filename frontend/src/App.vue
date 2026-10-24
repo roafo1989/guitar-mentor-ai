@@ -4,14 +4,14 @@ import { useRoute } from 'vue-router';
 import { useI18n } from 'vue-i18n';
 import MetronomeDialog from './entities/metronome/MetronomeDialog.vue';
 import AuthGate from './core/auth/AuthGate.vue';
-import { auth, logout } from './core/auth/auth';
+import { auth, logout, secureUi } from './core/auth/auth';
 import TunerDialog from './shared/tuner/TunerDialog.vue';
 import { closeMetronome, metronomeUi, minimizeMetronome, openMetronome, stopMetronomeForAudioCapture } from './entities/metronome/metronome-ui';
 import { metronome, type MetronomeStatus } from './shared/audio/metronome';
 import { useLearnerStore } from './stores/learner.store';
 
 const { locale, t } = useI18n();
-const localPrototype = import.meta.env?.DEV === true && import.meta.env?.VITE_GUITAR_MENTOR_AUTH_REQUIRED !== 'true';
+const localPrototype = !secureUi;
 // All routed pages restore the selected learner on mount; this header reacts to Pinia changes.
 const learnerStore = useLearnerStore();
 const route = useRoute();
@@ -68,7 +68,7 @@ onBeforeUnmount(() => { unsubscribeMetronome?.(); closeMetronome(); });
         </div>
       </RouterLink>
       <div class="header-actions">
-        <nav aria-label="Navigation">
+        <nav v-if="auth.actor || localPrototype" aria-label="Navigation">
           <RouterLink to="/profile">{{ t('app.profile') }}</RouterLink>
           <RouterLink to="/onboarding">{{ t('app.onboarding') }}</RouterLink>
           <RouterLink to="/diagnostics">{{ t('app.diagnostics') }}</RouterLink>
@@ -82,7 +82,7 @@ onBeforeUnmount(() => { unsubscribeMetronome?.(); closeMetronome(); });
           <span>{{ t('app.currentLearner') }}:</span>
           <strong class="header-learner-name">{{ learnerStore.learner.displayName }}</strong>
         </RouterLink>
-        <button ref="tunerButton" class="header-tool-button" type="button"
+        <button v-if="auth.actor || localPrototype" ref="tunerButton" class="header-tool-button" type="button"
           :title="t('tuner.title')" :aria-label="t('tuner.open')"
           aria-haspopup="dialog" :aria-expanded="tunerOpen" @click="openTuner">
           <svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor"
@@ -90,7 +90,7 @@ onBeforeUnmount(() => { unsubscribeMetronome?.(); closeMetronome(); });
             <path d="M8 3v5a4 4 0 0 0 8 0V3M8 3 5 6m11-3 3 3M12 12v9m-3 0h6"/>
           </svg>
         </button>
-        <button ref="headerMetronomeButton" type="button" class="header-tool-button" :class="{ 'is-playing': metronomeStatus === 'running' }"
+        <button v-if="auth.actor || localPrototype" ref="headerMetronomeButton" type="button" class="header-tool-button" :class="{ 'is-playing': metronomeStatus === 'running' }"
           :title="metronomeStatus === 'running' ? t('metronome.playingInBackground') : t('metronome.open')"
           :aria-label="metronomeStatus === 'running' ? t('metronome.playingInBackground') : t('metronome.open')"
           aria-haspopup="dialog" :aria-expanded="metronomeUi.open" @click="openHeaderMetronome">
@@ -111,8 +111,8 @@ onBeforeUnmount(() => { unsubscribeMetronome?.(); closeMetronome(); });
         </label>
       </div>
     </header>
-    <MetronomeDialog v-if="metronomeUi.open" @close="closeMetronome" @minimize="minimizeMetronome" />
-    <TunerDialog :open="tunerOpen" @close="closeTuner" />
+    <MetronomeDialog v-if="(auth.actor || localPrototype) && metronomeUi.open" @close="closeMetronome" @minimize="minimizeMetronome" />
+    <TunerDialog :open="(auth.actor || localPrototype) && tunerOpen" @close="closeTuner" />
     <AuthGate><main class="main-content"><RouterView /></main></AuthGate>
     <footer>Guitar Mentor AI · MVP</footer>
   </div>
