@@ -118,6 +118,19 @@ public final class LibraryOriginalController {
         }));
     }
 
+    /** Durable manifest prevents orphan recovery from racing an active upload. */
+    private void recordObject(UUID owner,UUID key,String objectKey) {
+        if(transactions.execute(status -> jdbc.sql("""
+            UPDATE library_upload_operations
+            SET manifest=jsonb_set(manifest,'{keys}',
+                COALESCE(manifest->'keys','[]'::jsonb)
+                  || jsonb_build_array(CAST(:object AS text)),true),
+                last_lease_at=now(),updated_at=now()
+            WHERE owner_account_id=:owner AND idempotency_key=:key AND state='RECEIVING'
+            """).param("object",objectKey).param("owner",owner).param("key",key).update())!=1)
+            throw new Failure(409,"LIBRARY_UPLOAD_INTERRUPTED");
+    }
+
     private void abort(UUID owner,UUID key,String code) {
         transactions.executeWithoutResult(status -> {
             jdbc.sql("INSERT INTO library_account_usage(account_id) VALUES(:owner) ON CONFLICT DO NOTHING")
@@ -258,6 +271,7 @@ public final class LibraryOriginalController {
                     object=storage.put(stream,remaining);
                 }
                 staged.add(new Incoming(name,format,object));
+                if(!replay) recordObject(owner,key,object.key());
                 if(format.equals("PDF")) {
                     try(var stream=Files.newInputStream(storage.file(object.key()))) {
                         if(stream.read()!='%' || stream.read()!='P' || stream.read()!='D'
