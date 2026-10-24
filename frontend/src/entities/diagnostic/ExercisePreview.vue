@@ -12,6 +12,7 @@ const checking = ref(true);
 const pdfOpen = ref(false);
 const pdfLoading = ref(false);
 const pdfReady = ref(false);
+const metronomeError = ref(false);
 let pdfOpenController: AbortController | null = null;
 // A retry must take precedence over the initial PDF HEAD, even if that older request resolves later.
 let pdfCheckGeneration = 0;
@@ -26,7 +27,9 @@ const criteria = computed(() => Array.isArray(props.exercise.successCriteria)
   : []);
 
 function launchMetronome(event: MouseEvent): void {
-  openExerciseMetronome(event.currentTarget as HTMLElement, exerciseKey(), props.exercise.bpm);
+  metronomeError.value = !openExerciseMetronome(
+    event.currentTarget as HTMLElement, exerciseKey(), props.exercise.bpm, props.exercise.meter,
+  );
 }
 
 watch(exerciseKey, (_newKey, previous) => leaveMetronomeExercise(previous));
@@ -138,6 +141,7 @@ onBeforeUnmount(() => pdfOpenController?.abort());
         {{ t('metronome.openExercise') }} · {{ exercise.bpm }} BPM
       </button>
       <span class="hint">{{ t('metronome.recommended') }}</span>
+      <p v-if="metronomeError" role="alert" class="hint">{{ t('metronome.exerciseMeterUnavailable') }}</p>
     </div>
     <div class="exercise-preview-audio">
       <strong>{{ t('diagnostic.listenExample') }}</strong>
