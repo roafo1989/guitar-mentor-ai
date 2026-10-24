@@ -67,7 +67,9 @@ class LearnerServiceTest {
                 new ai.guitarmentor.domain.learner.MusicPreference(
                         "BLUES", PreferenceRating.LIKE)));
         learner.addInstrumentProfile(instrument);
-        when(learnerRepository.findById(learner.getId())).thenReturn(Optional.of(learner));
+        when(learnerRepository.findLockedById(learner.getId())).thenReturn(Optional.of(learner));
+        when(learnerRepository.saveAndFlush(any(Learner.class)))
+                .thenAnswer(invocation -> invocation.getArgument(0));
 
         var result = service.replacePreferences(learner.getId(),
                 new UpdatePreferencesRequest("ACOUSTIC_GUITAR",
@@ -77,4 +79,30 @@ class LearnerServiceTest {
         assertEquals("JAZZ", result.instruments().getFirst().preferences().getFirst().styleCode());
         assertEquals(1, result.instruments().getFirst().preferences().size());
     }
+    @Test
+    void publicSignupBareLearnerCanAddFirstInstrumentWithoutCreatingAnotherLearner() {
+        var learner = new Learner("new-student");
+        when(learnerRepository.findLockedById(learner.getId())).thenReturn(Optional.of(learner));
+        when(learnerRepository.saveAndFlush(any(Learner.class)))
+                .thenAnswer(invocation -> invocation.getArgument(0));
+        var request = new UpdatePreferencesRequest("ACOUSTIC_GUITAR",
+                List.of(new PreferenceInput("BLUES", PreferenceRating.LIKE)));
+        var result = service.replacePreferences(learner.getId(), request);
+        assertEquals(learner.getId(), result.id());
+        assertEquals(1, result.instruments().size());
+        assertEquals("FINGERSTYLE", result.instruments().getFirst().techniqueCode());
+        assertEquals("BLUES", result.instruments().getFirst().preferences().getFirst().styleCode());
+        var repeated = service.replacePreferences(learner.getId(), request);
+        assertEquals(1, repeated.instruments().size());
+    }
+
+    @Test
+    void bareLearnerRejectsUnsupportedFirstInstrument() {
+        var learner = new Learner("new-student");
+        when(learnerRepository.findLockedById(learner.getId())).thenReturn(Optional.of(learner));
+        assertThrows(jakarta.persistence.EntityNotFoundException.class,
+                () -> service.replacePreferences(learner.getId(),
+                    new UpdatePreferencesRequest("DRUMS", List.of())));
+    }
+
 }
