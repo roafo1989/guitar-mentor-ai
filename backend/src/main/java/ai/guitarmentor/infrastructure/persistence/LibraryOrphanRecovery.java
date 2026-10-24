@@ -20,14 +20,45 @@ public class LibraryOrphanRecovery {
     private final LibraryObjectStore store;
     private final JdbcClient jdbc;
     private final boolean enabled;
+    private final org.springframework.transaction.support.TransactionTemplate transactions;
     public LibraryOrphanRecovery(LibraryObjectStore store, JdbcClient jdbc,
+            org.springframework.transaction.support.TransactionTemplate transactions,
             @Value("${guitar-mentor.library.enabled:false}") boolean enabled) {
-        this.store=store;this.jdbc=jdbc;this.enabled=enabled;
+        this.store=store;this.jdbc=jdbc;this.enabled=enabled;this.transactions=transactions;
     }
     @Scheduled(fixedDelayString="${guitar-mentor.library.reconcile-delay-ms:600000}")
     public void reconcile() {
         if(!enabled) return;
         try {
+            // Release abandoned quota reservations before scavenging physical objects.
+            for(var stale:jdbc.sql("""
+                SELECT id,owner_account_id FROM library_upload_operations
+                WHERE state='RECEIVING' AND updated_at < now()-interval '60 minutes'
+                ORDER BY updated_at LIMIT 100
+                """).query().listOfRows()) {
+                java.util.UUID operation=(java.util.UUID)stale.get("id");
+                java.util.UUID owner=(java.util.UUID)stale.get("owner_account_id");
+                transactions.executeWithoutResult(status -> {
+                    jdbc.sql("SELECT account_id FROM library_account_usage WHERE account_id=:owner FOR UPDATE")
+                        .param("owner",owner).query().singleRow();
+                    var row=jdbc.sql("""
+                        SELECT state,reserved_bytes,reserved_files FROM library_upload_operations
+                        WHERE id=:id FOR UPDATE
+                        """).param("id",operation).query().singleRow();
+                    if(!"RECEIVING".equals(row.get("state"))) return;
+                    jdbc.sql("""
+                        UPDATE library_account_usage
+                        SET reserved_bytes=reserved_bytes-:bytes,reserved_files=reserved_files-:files,
+                            revision=revision+1 WHERE account_id=:owner
+                        """).param("bytes",row.get("reserved_bytes"))
+                        .param("files",row.get("reserved_files")).param("owner",owner).update();
+                    jdbc.sql("""
+                        UPDATE library_upload_operations SET state='FAILED',reserved_bytes=0,
+                          reserved_files=0,terminal_code='LIBRARY_UPLOAD_INTERRUPTED',updated_at=now()
+                        WHERE id=:id
+                        """).param("id",operation).update();
+                });
+            }
             for(Path candidate:store.expiredCandidates(Duration.ofMinutes(60),100)) {
                 String name=candidate.getFileName().toString();
                 if(name.startsWith(".staging-")) {
