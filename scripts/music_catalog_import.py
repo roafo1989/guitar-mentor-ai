@@ -97,12 +97,25 @@ def verify(data):
     print("Validated", *(f"{name}={len(rows)}" for (name,*_),rows in zip(TABLES,data)))
     print("All records remain private metadata; originals are never uploaded.")
 
+# PostgreSQL text cannot contain U+0000. Never modify source CSVs.
+# Identifiers and paths are identity-bearing: reject, don't silently rewrite them.
+IDENTITY_COLUMNS = {"source_work_id", "source_arrangement_id", "source_file_id",
+                    "relative_path"}
+
+def postgres_text(value, column, stats):
+    if not isinstance(value, str) or "\\x00" not in value:
+        return value
+    if column in IDENTITY_COLUMNS:
+        raise ValueError(f"NUL found in identity/path field {column}; review source data")
+    stats[column] = stats.get(column, 0) + value.count("\\x00")
+    return value.replace("\\x00", "")
+
 def apply(data, account_id, dsn):
     try:
         import psycopg
     except ImportError as e:
         raise SystemExit("Install psycopg for --apply: py -3 -m pip install 'psycopg[binary]'") from e
-    with psycopg.connect(dsn) as conn:
+    scrubbed = {}\n    with psycopg.connect(dsn) as conn:
         with conn.transaction():
             with conn.cursor() as cur:
                 cur.execute("SELECT 1 FROM accounts WHERE id=%s AND status='ACTIVE'",(account_id,))
@@ -115,8 +128,8 @@ def apply(data, account_id, dsn):
                     with cur.copy(f"COPY {staging} ({', '.join(columns)}) FROM STDIN") as copy:
                         for row in data[i]:
                             values=[account_id]+[
-                                row[source]
-                                for _,source in mapping
+                                postgres_text(row[source], col, scrubbed)
+                                for col,source in mapping
                             ]
                             if table=="music_catalog_source_files":
                                 values[columns.index("size_bytes")]=int(row["size_bytes"])
@@ -128,7 +141,7 @@ def apply(data, account_id, dsn):
                         f"ON CONFLICT (owner_account_id, {', '.join(keys)}) DO UPDATE SET {updates}"
                     )
                     print(f"Upserted {len(data[i])} rows into {table}")
-    print("Committed. No music file bytes were imported.")
+    print("Committed. No music file bytes were imported.")\n    print("Removed NUL bytes from PostgreSQL text values:", sum(scrubbed.values()),\n          "(by field:", sorted(scrubbed.items()), ")")
 
 def main():
     p=argparse.ArgumentParser()
