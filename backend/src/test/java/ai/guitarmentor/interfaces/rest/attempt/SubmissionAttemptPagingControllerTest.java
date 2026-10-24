@@ -83,6 +83,22 @@ class SubmissionAttemptPagingControllerTest {
     }
 
     @Test
+    void missingCapabilitiesReturnSafeNoStore404ThroughMvc() throws Exception {
+        var mvc = MockMvcBuilders.standaloneSetup(controller).build();
+        String base = "/api/v1/learners/" + learner + "/diagnostic-sessions/" + session
+                + "/tasks/" + task + "/attempts";
+        doThrow(new EntityNotFoundException("private learner details"))
+                .when(service).verifyOwnership(learner,session,task);
+        var response = mvc.perform(get(base + "/capabilities"))
+                .andExpect(status().isNotFound())
+                .andExpect(header().string("Cache-Control",
+                        org.hamcrest.Matchers.containsString("no-store")))
+                .andReturn().getResponse();
+        assertEquals("{\\"code\\":\\"RESOURCE_NOT_FOUND\\"}",response.getContentAsString());
+        verify(service,never()).isEnabled();
+    }
+
+    @Test
     void capabilitiesChecksOwnershipWithoutReadingHistory() {
         var result = controller.capabilities(learner,session,task);
         assertEquals(HttpStatus.OK,result.getStatusCode());
