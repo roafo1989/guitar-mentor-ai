@@ -16,6 +16,8 @@ const { t } = useI18n();
 const state = ref<ViewerState>('CLOSED');
 const reasonCode = ref('');
 const page = ref(1);
+const pageInput = ref('1');
+const pageError = ref(false);
 const pageCount = ref(0);
 const renderedPage = ref<number | null>(null);
 const zoom = ref(100);
@@ -58,6 +60,8 @@ function reset() {
   stopWork();
   leaveFullscreen();
   page.value = 1;
+  pageInput.value = '1';
+  pageError.value = false;
   pageCount.value = 0;
   renderedPage.value = null;
   zoom.value = 100;
@@ -102,7 +106,20 @@ function sendRender() {
   if (!channel || state.value !== 'READY') return;
   channel.port1.postMessage({type:'render',nonce:nonce.value,page:page.value,zoom:zoom.value,fitWidth:fitWidth.value});
 }
-function switchPage(next: number) { page.value = Math.max(1, Math.min(pageCount.value, next)); sendRender(); }
+function switchPage(next: number) {
+  page.value = Math.max(1, Math.min(pageCount.value,next));
+  pageInput.value = String(page.value);
+  pageError.value = false;
+  sendRender();
+}
+function goToPage() {
+  const selected = Number(pageInput.value);
+  if (!Number.isInteger(selected) || selected < 1 || selected > pageCount.value) {
+    pageError.value = true;
+    return;
+  }
+  switchPage(selected);
+}
 function adjustZoom(next: number) { fitWidth.value = false; zoom.value = Math.max(50, Math.min(250,next)); sendRender(); }
 function autoFit() { fitWidth.value = true; sendRender(); }
 const statusText = computed(() => state.value === 'UNAVAILABLE' ? t('score.unavailable')
@@ -282,9 +299,13 @@ onBeforeUnmount(()=>{
       <template v-if="open">
         <div class="score-pagination">
           <button type="button" :disabled="state!=='READY'||page<=1" :aria-label="t('score.previous')" @click="switchPage(page-1)">‹</button>
-          <span aria-live="polite">{{ page }} / {{ pageCount || '—' }}</span>
+          <input v-model="pageInput" type="number" min="1" :max="pageCount" step="1"
+            :aria-label="t('score.page')" :aria-invalid="pageError"
+            :disabled="state!=='READY'" @change="goToPage" @keydown.enter.prevent="goToPage" />
+          <span aria-live="polite">/ {{ pageCount || '—' }}</span>
           <button type="button" :disabled="state!=='READY'||page>=pageCount" :aria-label="t('score.next')" @click="switchPage(page+1)">›</button>
         </div>
+        <p v-if="pageError" class="score-page-error" role="alert">{{ t('score.pageRange', {count:pageCount}) }}</p>
         <div class="score-zoom">
           <button type="button" :disabled="state!=='READY'||(!fitWidth&&zoom<=50)" :aria-label="t('score.zoomOut')" @click="adjustZoom(fitWidth?75:zoom-25)">−</button>
           <span>{{ fitWidth ? t('score.fitWidth') : zoom+'%' }}</span>
@@ -321,6 +342,10 @@ onBeforeUnmount(()=>{
 .score-toolbar button:focus-visible,.score-fallback a:focus-visible {outline:3px solid #28776d;outline-offset:3px}
 .score-pagination,.score-zoom {display:flex;align-items:center;gap:8px}
 .score-pagination span,.score-zoom span {white-space:nowrap}
+.score-pagination input {width:62px;min-height:44px;border:1px solid #7c8987;border-radius:8px;text-align:center;color:#162331;background:#fff}
+.score-pagination input:focus-visible {outline:3px solid #28776d;outline-offset:3px}
+.score-pagination input[aria-invalid="true"] {border-color:#a42d32}
+.score-page-error {color:#a42d32;margin:0}
 .score-canvas-frame {display:block;width:100%;height:min(70vh,850px);border:0;margin-top:12px;background:#e7ebe9}
 .score-fallback {display:flex;flex-wrap:wrap;gap:20px;margin:12px 0 0}
 .score-fallback a {color:#205f57;overflow-wrap:anywhere}
