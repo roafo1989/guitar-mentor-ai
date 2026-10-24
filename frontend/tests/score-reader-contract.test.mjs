@@ -1,0 +1,80 @@
+import test from 'node:test';
+import assert from 'node:assert/strict';
+import {readFile} from 'node:fs/promises';
+import ts from 'typescript';
+import {parse,compileScript,compileTemplate} from '@vue/compiler-sfc';
+const transport = await readFile(new URL('../src/shared/score/score-transport.ts',import.meta.url),'utf8');
+const compiled=ts.transpileModule(transport,{compilerOptions:{module:ts.ModuleKind.CommonJS,target:ts.ScriptTarget.ES2022}}).outputText;
+const exported={};new Function('exports',compiled)(exported);
+const {pinnedPdfUrl,safeScoreLink,fetchBoundedPdf,ScoreFetchError,MAX_PDF_BYTES}=exported;
+const origin='https://guitar-mentor.ru';
+
+test('#150 only version-pinned same-origin PDF URLs are accepted',()=>{
+ const good='/api/v1/exercises/GM-EX01/versions/1.0/preview/pdf';
+ assert.equal(pinnedPdfUrl(good,'GM-EX01@1.0',origin),origin+good);
+ for(const invalid of [
+  '//evil.tld/x','https://guitar-mentor.ru'+good,good+'?download=1',
+  good+'#page=3','/api/v1/exercises/GM-EX01/versions/2.0/preview/pdf',
+  '/api/v1/exercises/GM-EX01/versions/1.0/preview/audio',
+  '/api/v1/exercises/../versions/1.0/preview/pdf',
+ ]) assert.equal(pinnedPdfUrl(invalid,'GM-EX01@1.0',origin),null,invalid);
+ assert.equal(pinnedPdfUrl(good,'GM-EX01@2.0',origin),null);
+ assert.equal(pinnedPdfUrl(null,'GM-EX01@1.0',origin),null);
+ assert.equal(safeScoreLink('//attacker/file',origin),null);
+ assert.equal(safeScoreLink('/api/v1/exercises/GM-EX01/versions/1.0/score',origin),origin+'/api/v1/exercises/GM-EX01/versions/1.0/score');
+});
+const encoder=new TextEncoder();
+function response(chunks,headers={'Content-Type':'application/pdf'},status=200) {
+ let index=0, cancelCount=0;
+ return {get cancelCount(){return cancelCount},status,ok:status>=200&&status<300,
+   headers:new Headers(headers),
+   body:{getReader(){return {
+     async read(){return index>=chunks.length?{done:true}:{done:false,value:chunks[index++]};},
+     async cancel(){cancelCount++}
+   }}}};
+}
+test('#150 reads bounded PDF bytes and never trusts only Content-Length',async()=>{
+ const save=globalThis.fetch;
+ try{
+  const file=response([encoder.encode('%PDF-1.7'),encoder.encode(' test')]);
+  globalThis.fetch=async (_url,init)=>{assert.equal(init.method,'GET');assert.equal(init.credentials,'same-origin');return file};
+  const result=await fetchBoundedPdf(origin+'/pdf',new AbortController().signal);
+  assert.equal(new TextDecoder().decode(result),'%PDF-1.7 test');
+  assert.equal(file.cancelCount,1);
+  globalThis.fetch=async()=>response([encoder.encode('%PDF-')],{'Content-Type':'text/html'});
+  await assert.rejects(fetchBoundedPdf(origin+'/pdf',new AbortController().signal),e=>e.reasonCode==='type');
+  globalThis.fetch=async()=>response([encoder.encode('NOT_PDF')]);
+  await assert.rejects(fetchBoundedPdf(origin+'/pdf',new AbortController().signal),e=>e.reasonCode==='signature');
+  globalThis.fetch=async()=>response([encoder.encode('%PDF-')],{'Content-Type':'application/pdf','Content-Length':String(MAX_PDF_BYTES+1)});
+  await assert.rejects(fetchBoundedPdf(origin+'/pdf',new AbortController().signal),e=>e.reasonCode==='limit');
+  globalThis.fetch=async()=>response([encoder.encode('%PDF-'),new Uint8Array(MAX_PDF_BYTES)]);
+  await assert.rejects(fetchBoundedPdf(origin+'/pdf',new AbortController().signal),e=>e.reasonCode==='limit');
+  globalThis.fetch=async()=>response([],{},404);
+  await assert.rejects(fetchBoundedPdf(origin+'/pdf',new AbortController().signal),e=>e.reasonCode==='missing');
+ }finally{globalThis.fetch=save}
+});
+test('#150 sandbox reader and lesson compile and remain behind opt-in feature flag',async()=>{
+ const source=await readFile(new URL('../src/shared/score/ScoreReader.vue',import.meta.url),'utf8');
+ const preview=await readFile(new URL('../src/entities/diagnostic/ExercisePreview.vue',import.meta.url),'utf8');
+ const diagnostic=await readFile(new URL('../src/entities/diagnostic/DiagnosticView.vue',import.meta.url),'utf8');
+ const {descriptor,errors}=parse(source,{filename:'ScoreReader.vue'});
+ assert.deepEqual(errors,[]);
+ assert.ok(compileScript(descriptor,{id:'score-reader'}).content);
+ assert.deepEqual(compileTemplate({source:descriptor.template.content,filename:'ScoreReader.vue',id:'score-reader'}).errors,[]);
+ for(const expected of ["sandbox=\"allow-scripts\"","connect-src 'none'","worker-src blob:","nonce","MessageChannel","MAX_CANVAS_PIXELS","isEvalSupported:false","pdfjs-dist/build/pdf.mjs?raw","pdfjs-dist/build/pdf.worker.mjs?raw"]) {
+  assert.ok(source.includes(expected)||transport.includes(expected),expected);
+ }
+ assert.doesNotMatch(source,/allow-same-origin|iframe[^\n]*:src="pdfUrl"/);
+ assert.match(preview,/assigned && lightMinimal/);
+ assert.match(preview,/defineAsyncComponent\(\(\) => import\('\.\.\/\.\.\/shared\/score\/ScoreReader\.vue'\)\)/);
+ assert.match(diagnostic,/grid-template-columns:minmax\(0,1fr\) 320px/);
+ assert.match(diagnostic,/@media\(max-width:1099px\)/);
+ assert.match(diagnostic,/TASK_ASSIGNED/);
+});
+test('#150 toolbar and errors are bilingual',async()=>{
+ for(const language of ['ru','en']){
+  const messages=JSON.parse(await readFile(new URL('../src/i18n/'+language+'.json',import.meta.url),'utf8')).score;
+  for(const key of ['heading','open','close','previous','next','zoomIn','zoomOut','fitWidth','focus','exitFocus','openOriginal','musicXml','retry','unavailable']) assert.ok(messages[key],language+': '+key);
+  for(const key of ['missing','network','auth','type','limit','signature','timeout','password','corrupt','render']) assert.ok(messages.errors[key],language+': '+key);
+ }
+});
