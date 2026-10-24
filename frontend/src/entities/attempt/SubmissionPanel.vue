@@ -35,8 +35,19 @@ const capabilities = ref<UploadCapabilities | null>(null);
 const file = ref<File | null>(null);
 const fileInput = ref<HTMLInputElement | null>(null);
 const recordedPreview = ref<string | null>(null);
+const playbackElement = ref<HTMLAudioElement | null>(null);
+const playbackActive = ref(false);
+async function togglePlayback(): Promise<void> {
+  const audio = playbackElement.value;
+  if (!audio || !recordedPreview.value) return;
+  if (!audio.paused) { audio.pause(); playbackActive.value = false; return; }
+  try { await audio.play(); playbackActive.value = true; }
+  catch { playbackActive.value = false; }
+}
 
 function clearRecordedPreview() {
+  playbackElement.value?.pause();
+  playbackActive.value = false;
   if (recordedPreview.value) URL.revokeObjectURL(recordedPreview.value);
   recordedPreview.value = null;
 }
@@ -359,7 +370,7 @@ onBeforeUnmount(() => {
 <template>
   <section class="homework-panel" aria-labelledby="homework-heading">
     <div class="homework-heading">
-      <h3 id="homework-heading"><span v-if="lightMinimal" aria-hidden="true">♩ </span>{{ lightMinimal ? t('attempt.recordingPanelTitle') : t('attempt.title') }}</h3>
+      <h3 id="homework-heading"><svg v-if="lightMinimal" class="studio-mic-icon" width="21" height="21" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="9" y="2" width="6" height="13" rx="3"/><path d="M5 10v2a7 7 0 0 0 14 0v-2M12 19v3m-4 0h8"/></svg>{{ lightMinimal ? t('attempt.recordingPanelTitle') : t('attempt.title') }}</h3>
       <p v-if="!lightMinimal" class="hint">{{ t('attempt.subtitle') }}</p>
     </div>
     <div v-if="loading" class="hint">{{ t('attempt.loading') }}</div>
@@ -378,11 +389,19 @@ onBeforeUnmount(() => {
           :max-bytes="capabilities?.maxBytes ?? 20971520"
           @recorded="onRecorded" @active="onRecordingActive">
             <template #actions>
-              <audio v-if="file && recordedPreview" :src="recordedPreview" controls preload="metadata"
-                class="studio-recording-playback" :aria-label="t('attempt.listenRecording')" />
+              <audio v-if="file && recordedPreview" ref="playbackElement" class="studio-playback-source"
+                :src="recordedPreview" preload="metadata" @ended="playbackActive = false" @pause="playbackActive = false" />
+              <button type="button" class="studio-play-button" :disabled="!file || !recordedPreview || recordingActive || uploading"
+                :aria-label="playbackActive ? t('attempt.pausePlayback') : t('attempt.listenRecording')"
+                @click="togglePlayback">
+                <svg v-if="playbackActive" width="16" height="16" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><rect x="6" y="4" width="4" height="16" rx="1"/><rect x="14" y="4" width="4" height="16" rx="1"/></svg>
+                <svg v-else width="16" height="16" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M8 5.5a1 1 0 0 1 1.53-.85l10 6.5a1 1 0 0 1 0 1.7l-10 6.5A1 1 0 0 1 8 18.5z"/></svg>
+                <span>{{ playbackActive ? t('attempt.pausePlayback') : t('attempt.listenShort') }}</span>
+              </button>
               <button type="submit" class="recorder-button studio-send-button"
                 :disabled="learningTerminal || !file || !capabilities?.enabled || uploading || recordingActive">
-                {{ uploading ? t('attempt.uploading') : t('attempt.submit') }}
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M21 3 10 14m11-11-7 18-4-7-7-4 18-7Z"/></svg>
+                <span>{{ uploading ? t('attempt.uploading') : t('attempt.submitShort') }}</span>
               </button>
             </template>
           </MicrophoneRecorder>
@@ -488,7 +507,17 @@ onBeforeUnmount(() => {
 .homework-panel:has(.recording-primary) .studio-send-button:disabled {opacity:.45;cursor:not-allowed}
 .homework-panel:has(.recording-primary) .studio-results-divider {border-top:1px solid #edf1ed;margin:18px 0 12px}
 
-.homework-panel:has(.recording-primary) .studio-recording-playback {min-width:140px;flex:1 1 180px;height:40px;max-width:100%}
+
+.homework-panel:has(.recording-primary) .studio-mic-icon {flex:none;color:#162331}
+.homework-panel:has(.recording-primary) .homework-heading h3 {display:flex;align-items:center;gap:9px}
+.homework-panel:has(.recording-primary) .studio-playback-source {display:none}
+.homework-panel:has(.recording-primary) .studio-play-button,
+.homework-panel:has(.recording-primary) .studio-send-button {display:inline-flex;align-items:center;justify-content:center;gap:7px;min-width:0;flex:1 1 0;white-space:nowrap;font-size:13px;padding:9px 12px;border-radius:999px;min-height:44px}
+.homework-panel:has(.recording-primary) .studio-play-button {border:1px solid #dfe7e3;background:#fff;color:#243a35;cursor:pointer}
+.homework-panel:has(.recording-primary) .studio-play-button:disabled {opacity:.45;cursor:not-allowed}
+.homework-panel:has(.recording-primary) .studio-play-button:focus-visible,
+.homework-panel:has(.recording-primary) .studio-send-button:focus-visible {outline:3px solid #28776d;outline-offset:2px}
+
 .homework-panel:has(.recording-primary) .studio-discard-button {align-self:flex-start;border:0;background:transparent;color:#526e64;text-decoration:underline;font-size:12px;min-height:34px;cursor:pointer}
 .homework-panel:has(.recording-primary) .studio-discard-button:focus-visible {outline:2px solid #28776d}
 </style>
