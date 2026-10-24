@@ -14,6 +14,7 @@ const props = defineProps<{
   sessionId: string;
   taskId: string;
   exercise?: Exercise;
+  samplePlaying?: boolean;
 }>();
 const emit = defineEmits<{ 'draft-state': [state: { busy: boolean; dirty: boolean }]; 'capture-state': [state: { contextKey: string; active: boolean }]; 'preview-play': [] }>();
 const { t } = useI18n();
@@ -115,6 +116,7 @@ const fileInput = ref<HTMLInputElement | null>(null);
 const recordedPreview = ref<string | null>(null);
 const playbackElement = ref<HTMLAudioElement | null>(null);
 const playbackActive = ref(false);
+watch(() => props.samplePlaying, playing => { if (playing) { playbackElement.value?.pause(); playbackActive.value = false; } });
 async function togglePlayback(): Promise<void> {
   const audio = playbackElement.value;
   if (!audio || !recordedPreview.value || recordingActive.value || uploading.value) return;
