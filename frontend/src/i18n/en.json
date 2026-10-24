@@ -272,7 +272,7 @@
     "subtitle": "Submit an audio attempt and review your submission history.",
     "loading": "Loading attempts...",
     "noAiFeedback": "Recordings undergo technical file and duration checks only. AI music analysis is not yet connected; performance is not assessed.",
-    "disabledHelp": "Uploads are disabled by default because authentication is not yet implemented. For non-personal local test audio only, start the backend with GUITAR_MENTOR_ENABLE_UPLOADS=true.",
+    "disabledHelp": "Audio uploads are disabled for this server run. You can record and edit a comment locally, but sending requires server-side uploads to be enabled.",
     "fileLabel": "Performance audio file",
     "fileLimits": "MP3, WAV, OGG, WebM or M4A (AAC) · up to 20 MB. Test audio only; do not upload personal recordings.",
     "commentLabel": "Comment on this attempt",
@@ -339,7 +339,7 @@
     "microphoneTitle": "Record with microphone",
     "uploadAlternative": "Or upload an existing audio file",
     "microphoneInstructions": "About recording and microphone access",
-    "localRecordingAvailable": "You can record and preview audio locally. Sending it to the server is currently disabled."
+    "localRecordingAvailable": "You can record and preview audio locally. Sending is available only after uploads are enabled on the server."
   },
   "evidence": {
     "heading": "My performances",
