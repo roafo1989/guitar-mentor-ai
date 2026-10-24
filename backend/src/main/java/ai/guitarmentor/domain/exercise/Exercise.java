@@ -39,6 +39,12 @@ public class Exercise {
     private int measures;
     @Column(nullable = false)
     private String meter;
+    @Column(name = "content_kind", nullable = false)
+    private String contentKind = "LEARNING_REPERTOIRE";
+    @Column(name = "tempo_unit", nullable = false)
+    private String tempoUnit = "quarter";
+    @Column(name = "duration_target_seconds")
+    private Integer durationTargetSeconds;
     @Column(nullable = false)
     private String author;
     @Column(nullable = false)
@@ -86,6 +92,9 @@ public class Exercise {
     public int getBpm() { return bpm; }
     public int getMeasures() { return measures; }
     public String getMeter() { return meter; }
+    public String getContentKind() { return contentKind; }
+    public String getTempoUnit() { return tempoUnit; }
+    public Integer getDurationTargetSeconds() { return durationTargetSeconds; }
     public String getAuthor() { return author; }
     public String getLicense() { return license; }
     public String getReviewStatus() { return reviewStatus; }
