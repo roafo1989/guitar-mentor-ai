@@ -127,6 +127,21 @@ public final class LibraryOriginalController {
         });
     }
 
+    private static final java.util.concurrent.ConcurrentHashMap<String,Window> RATE_WINDOWS =
+        new java.util.concurrent.ConcurrentHashMap<>();
+    private static final class Window {
+        private long minute=-1;
+        private int count=0;
+        synchronized boolean admit(int maximum) {
+            long now=System.currentTimeMillis()/60000L;
+            if(now!=minute) {minute=now;count=0;}
+            return ++count<=maximum;
+        }
+    }
+    private static void rate(String key,int maximum) {
+        if(!RATE_WINDOWS.computeIfAbsent(key,k->new Window()).admit(maximum))
+            throw new Failure(429,"LIBRARY_RATE_LIMITED");
+    }
     private static final java.util.concurrent.Semaphore GLOBAL_UPLOADS =
         new java.util.concurrent.Semaphore(4,true);
     private static final java.util.concurrent.ConcurrentHashMap<UUID,java.util.concurrent.Semaphore>
@@ -138,6 +153,8 @@ public final class LibraryOriginalController {
             @RequestPart("metadata") Metadata metadata,
             @RequestPart("files") List<MultipartFile> files) {
         UUID owner=actor(request);
+        rate("account:"+owner,10);
+        rate("source:"+request.getRemoteAddr(),30);
         var actorGate=ACTOR_UPLOADS.computeIfAbsent(owner,id->new java.util.concurrent.Semaphore(1,true));
         if(!actorGate.tryAcquire()) throw new Failure(409,"LIBRARY_UPLOAD_IN_PROGRESS");
         try {
