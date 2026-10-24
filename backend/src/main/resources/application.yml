@@ -16,7 +16,7 @@ spring:
       max-file-size: 20MB
       max-request-size: 32MB
 
-# Still a single-user local prototype. An ID in a URL is not authentication.
+# External access requires auth and explicit identity admission. Local opt-out MUST stay loopback-only.
 server:
   address: ${GUITAR_MENTOR_BIND_ADDRESS:127.0.0.1}
 
@@ -54,3 +54,25 @@ management:
   endpoint:
     health:
       show-details: never
+
+  security:
+    enabled: ${GUITAR_MENTOR_SECURITY_ENABLED:true}
+  security:
+    oauth2:
+      client:
+        registration:
+          guitar-mentor:
+            provider: guitar-mentor
+            client-id: ${GUITAR_MENTOR_OIDC_CLIENT_ID:}
+            client-secret: ${GUITAR_MENTOR_OIDC_CLIENT_SECRET:}
+            scope: openid,profile,email
+        provider:
+          guitar-mentor:
+            issuer-uri: ${GUITAR_MENTOR_OIDC_ISSUER:}
+  servlet:
+    session:
+      timeout: ${GUITAR_MENTOR_SESSION_IDLE_TIMEOUT:30m}
+      cookie:
+        http-only: true
+        secure: true
+        same-site: lax
