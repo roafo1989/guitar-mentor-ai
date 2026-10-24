@@ -6,6 +6,8 @@ export const auth = reactive<{ actor: Actor | null; ready: boolean; expired: boo
 });
 let csrf: { headerName: string; token: string } | null = null;
 let installed = false;
+let resetPersonalState: () => void = () => {};
+
 export const secureUi = !(import.meta.env?.DEV === true &&
   import.meta.env?.VITE_GUITAR_MENTOR_AUTH_REQUIRED !== 'true');
 export function clearActor(): void {
@@ -17,6 +19,7 @@ export function clearActor(): void {
 
 export function installAuthenticatedFetch(onSessionLost: () => void): void {
   if (!secureUi) return;
+  resetPersonalState = onSessionLost;
   if (installed) return;
   installed = true;
   const nativeFetch = window.fetch.bind(window);
@@ -38,7 +41,7 @@ export function installAuthenticatedFetch(onSessionLost: () => void): void {
     if (response.status === 401 || (response.status === 403 && path.pathname === '/api/v1/me')) {
       clearActor();
       auth.expired = true;
-      onSessionLost();
+      resetPersonalState();
     }
     return response;
   };
@@ -53,8 +56,16 @@ export async function refreshActor(): Promise<void> {
   try {
     const response = await fetch('/api/v1/me', { credentials: 'same-origin' });
     const next = response.ok ? await response.json() as Actor : null;
-    if (!next) clearActor();
-    else auth.actor = next;
+    if (!next) {
+      clearActor();
+      resetPersonalState();
+    } else {
+      if (auth.actor && auth.actor.accountId !== next.accountId) {
+        resetPersonalState();
+        csrf = null;
+      }
+      auth.actor = next;
+    }
     auth.expired = false;
   } catch {
     clearActor();
