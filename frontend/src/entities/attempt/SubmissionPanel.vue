@@ -2,6 +2,8 @@
 import { computed, onBeforeUnmount, onMounted, ref, watch } from 'vue';
 import MicrophoneRecorder from './MicrophoneRecorder.vue';
 import LearningResultsPanel from './LearningResultsPanel.vue';
+import { openExerciseMetronome } from '../metronome/metronome-ui';
+import type { Exercise } from '../../shared/model/diagnostic.model';
 import { useI18n } from 'vue-i18n';
 import { AttemptHttpError, attemptService } from './attempt.service';
 import type { AttemptPage, SubmissionAttempt, UploadCapabilities } from './attempt.service';
@@ -10,10 +12,21 @@ const props = defineProps<{
   learnerId: string;
   sessionId: string;
   taskId: string;
+  exercise?: Exercise;
 }>();
 const emit = defineEmits<{ 'draft-state': [state: { busy: boolean; dirty: boolean }] }>();
 const { t } = useI18n();
 const lightMinimal = import.meta.env?.VITE_GUITAR_MENTOR_LIGHT_MINIMAL === 'true';
+const metronomeError = ref(false);
+function launchExerciseMetronome(event: MouseEvent): void {
+  const exercise = props.exercise;
+  if (!exercise) return;
+  metronomeError.value = !openExerciseMetronome(
+    event.currentTarget as HTMLElement,
+    exercise.code + '@' + exercise.version,
+    exercise.bpm, exercise.meter, exercise.tempoUnit,
+  );
+}
 const inputMode = ref<'record' | 'file'>('record');
 const sourceKind = ref<'record' | 'file' | null>(null);
 const canSwitchInput = computed(() => !recordingActive.value && !uploading.value);
@@ -516,6 +529,27 @@ onBeforeUnmount(() => {
       <p v-if="notice" role="status" class="saved-status">{{ notice }}</p>
       <p v-if="error" role="alert" class="error">{{ error }}</p>
     </div>
+
+    <section v-if="lightMinimal && exercise" class="studio-metronome-card" :aria-label="t('metronome.title')">
+      <div class="studio-metronome-heading">
+        <svg width="23" height="23" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+          stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+          <path d="M9 3h6l5 18H4L9 3Z"/><path d="m12 17 4-10"/>
+        </svg>
+        <h3>{{ t('metronome.title') }}</h3>
+      </div>
+      <div class="studio-metronome-controls">
+        <span class="studio-metronome-setting"><small>BPM</small><strong>{{ exercise.bpm }}</strong></span>
+        <span class="studio-metronome-setting"><small>{{ t('diagnostic.metadata.tempo') }}</small><strong>{{ exercise.meter }}</strong></span>
+        <button type="button" class="studio-metronome-launch" @click="launchExerciseMetronome"
+          :aria-label="t('metronome.openExercise')">
+          <svg width="19" height="19" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true">
+            <path d="M8 5.5a1 1 0 0 1 1.53-.85l10 6.5a1 1 0 0 1 0 1.7l-10 6.5A1 1 0 0 1 8 18.5z"/>
+          </svg>{{ t('metronome.openExercise') }}
+        </button>
+      </div>
+      <p v-if="metronomeError" role="alert" class="error">{{ t('metronome.exerciseMeterUnavailable') }}</p>
+    </section>
     <div :class="{ 'studio-result-card': lightMinimal }">
       <LearningResultsPanel :learner-id="learnerId" :session-id="sessionId" :task-id="taskId"
          :attempts="displayAttempts" :selected-id="selectedId" :latest-id="latestId"
@@ -626,4 +660,15 @@ onBeforeUnmount(() => {
 .studio-result-card > details.homework-history > summary:focus-visible {outline:3px solid #28776d}
 .studio-record-card .recording-primary {margin:0}
 @media(max-width:430px) {.studio-record-card,.studio-result-card {padding:13px}.studio-record-card .studio-selected-file {flex-wrap:wrap}}
+
+.studio-metronome-card {background:#fff;border:1px solid #e0e7e4;border-radius:16px;padding:16px 18px;box-shadow:0 5px 24px #16233108;min-width:0}
+.studio-metronome-heading {display:flex;align-items:center;gap:9px;margin-bottom:12px}
+.studio-metronome-heading h3 {margin:0;font-size:16px;color:#172333}
+.studio-metronome-controls {display:flex;align-items:center;gap:10px;flex-wrap:wrap}
+.studio-metronome-setting {display:flex;align-items:center;gap:8px;padding:9px 12px;background:#f6f9f7;border:1px solid #e0e8e3;border-radius:9px;min-height:42px}
+.studio-metronome-setting small {font-size:12px;color:#75847c}
+.studio-metronome-setting strong {font-size:15px;font-variant-numeric:tabular-nums}
+.studio-metronome-launch {display:inline-flex;align-items:center;justify-content:center;gap:8px;margin-left:auto;min-height:44px;padding:9px 14px;border-radius:10px;border:0;color:#fff;background:#28776d;font-weight:600;cursor:pointer}
+.studio-metronome-launch:focus-visible {outline:3px solid #28776d;outline-offset:3px}
+@media(max-width:380px) {.studio-metronome-launch {width:100%;margin-left:0}}
 </style>
