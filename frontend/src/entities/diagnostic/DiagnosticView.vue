@@ -51,6 +51,9 @@ function onIntakeState(value: { busy: boolean; dirty: boolean }): void {
 }
 const catalogBusy = ref(false);
 const exercises = ref<Exercise[]>([]);
+// Missing contentKind on legacy API responses is learning repertoire, never a diagnostic probe.
+const probes = computed(() => exercises.value.filter(e => e.contentKind === 'DIAGNOSTIC_PROBE'));
+const repertoire = computed(() => exercises.value.filter(e => e.contentKind !== 'DIAGNOSTIC_PROBE'));
 const recommendation = ref<DiagnosticRecommendation | null>(null);
 const recommendationBusy = ref(false);
 const recommendationError = ref('');
@@ -319,14 +322,28 @@ async function assign(exerciseCode: string): Promise<void> {
               @click="assign(item.exerciseCode)">{{ t('diagnostic.assignRecommended') }}</button>
           </article>
         </section>
-        <h3>{{ t('diagnostic.catalogAll') }}</h3>
+        <h3>{{ t('diagnostic.probesHeading') }}</h3>
+        <p class="hint">{{ t('diagnostic.probesHint') }}</p>
+        <p v-if="!catalogBusy && !catalogFailure && probes.length === 0" class="hint" role="status">
+          {{ t('diagnostic.noProbes') }}
+        </p>
+        <article v-for="exercise in probes" :key="exercise.code + '@' + exercise.version"
+          class="exercise-card">
+          <h4>{{ exercise.title }}</h4>
+          <p class="hint">{{ t('diagnostic.probeDuration') }}: {{ exercise.durationTargetSeconds ?? '—' }} {{ t('diagnostic.seconds') }}</p>
+          <ExercisePreview :exercise="exercise" />
+          <button type="button" class="action-button" :disabled="busy"
+            @click="assign(exercise.code)">{{ t('diagnostic.chooseProbe') }}</button>
+        </article>
+        <h3>{{ t('diagnostic.repertoireHeading') }}</h3>
+        <p class="hint">{{ t('diagnostic.repertoireHint') }}</p>
         <p v-if="catalogBusy" class="hint">{{ t('diagnostic.catalogLoading') }}</p>
-        <p v-else-if="!catalogFailure && exercises.length === 0" class="hint">{{ t('diagnostic.noExercises') }}</p>
+        <p v-else-if="!catalogFailure && repertoire.length === 0" class="hint">{{ t('diagnostic.noExercises') }}</p>
         <p v-if="catalogFailure" class="error" role="alert">{{ catalogErrorMessage }}</p>
         <button v-if="catalogFailure" type="button" class="action-button secondary-button" :disabled="catalogBusy" @click="loadCatalog">
           {{ t('diagnostic.retryCatalog') }}
         </button>
-        <article v-for="exercise in exercises" :key="exercise.code" class="exercise-card">
+        <article v-for="exercise in repertoire" :key="exercise.code" class="exercise-card">
           <div class="exercise-meta">{{ exercise.code }} · v{{ exercise.version }} · {{ exercise.bpm }} BPM · {{ exercise.measures }} {{ t('diagnostic.bars') }}</div>
           <h3>{{ exercise.title }}</h3>
           <p>{{ exercise.description }}</p>
