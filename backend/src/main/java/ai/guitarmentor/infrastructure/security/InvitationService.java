@@ -38,8 +38,14 @@ public class InvitationService {
     }
 
     @Transactional
-    public String issue(String address, UUID existingLearner) {
+    public String issue(String address, UUID existingLearner, boolean owner) {
         String normalized = email(address);
+        if (owner && existingLearner != null) throw new IllegalArgumentException("OWNER legacy binding must be explicit");
+        if (owner) {
+            long count=jdbc.sql("SELECT count(*) FROM accounts WHERE role='OWNER' AND status='ACTIVE'")
+                .query(Long.class).single();
+            if(count!=0) throw new IllegalStateException("OWNER already provisioned");
+        }
         if (existingLearner != null) {
             long used = jdbc.sql("SELECT count(*) FROM accounts WHERE learner_id=:id")
                 .param("id",existingLearner).query(Long.class).single();
@@ -51,12 +57,12 @@ public class InvitationService {
         random.nextBytes(randomBytes);
         String token = HexFormat.of().formatHex(randomBytes);
         jdbc.sql("""
-            INSERT INTO invitations(id,token_hash,issuer,email_normalized,learner_id,status,expires_at)
-            VALUES (:id,:hash,:issuer,:email,:learner,'PENDING',:expiry)
+            INSERT INTO invitations(id,token_hash,issuer,email_normalized,learner_id,role,status,expires_at)
+            VALUES (:id,:hash,:issuer,:email,:learner,:role,'PENDING',:expiry)
             """)
             .param("id",UUID.randomUUID()).param("hash",digest(token))
             .param("issuer",GOOGLE_ISSUER).param("email",normalized)
-            .param("learner",existingLearner).param("expiry",Instant.now().plus(7,ChronoUnit.DAYS))
+            .param("learner",existingLearner).param("role",owner?"OWNER":"LEARNER").param("expiry",Instant.now().plus(7,ChronoUnit.DAYS))
             .update();
         return token;
     }
@@ -73,12 +79,12 @@ public class InvitationService {
         try { verifiedEmail = email(identity.getEmail()); }
         catch (IllegalArgumentException ex) { throw new SecurityException("INVITATION_INVALID"); }
         var invitations = jdbc.sql("""
-           SELECT id,email_normalized,issuer,learner_id,status,expires_at
+           SELECT id,email_normalized,issuer,learner_id,role,status,expires_at
            FROM invitations WHERE token_hash=:hash FOR UPDATE
            """).param("hash",digest(secret)).query((rs,i)->new InvitationRow(
                rs.getObject("id",UUID.class),rs.getString("email_normalized"),
                rs.getString("issuer"),rs.getObject("learner_id",UUID.class),
-               rs.getString("status"),rs.getTimestamp("expires_at").toInstant())).list();
+               rs.getString("role"),rs.getString("status"),rs.getTimestamp("expires_at").toInstant())).list();
         if (invitations.size()!=1) throw new SecurityException("INVITATION_INVALID");
         var invite=invitations.getFirst();
         if (!"PENDING".equals(invite.status()) || !invite.expires().isAfter(Instant.now())
@@ -88,6 +94,11 @@ public class InvitationService {
             .param("iss",GOOGLE_ISSUER).param("sub",identity.getSubject())
             .query(Long.class).single();
         if(already!=0) throw new SecurityException("INVITATION_INVALID");
+        if ("OWNER".equals(invite.role())) {
+            long owners=jdbc.sql("SELECT count(*) FROM accounts WHERE role='OWNER' AND status='ACTIVE'")
+                .query(Long.class).single();
+            if (owners!=0) throw new SecurityException("INVITATION_INVALID");
+        }
         UUID learner=invite.learner()==null ? UUID.randomUUID() : invite.learner();
         if(invite.learner()==null) {
             String name = identity.getFullName();
@@ -97,8 +108,8 @@ public class InvitationService {
                 .param("id",learner).param("name",name).param("created",Instant.now()).update();
         }
         UUID account=UUID.randomUUID();
-        jdbc.sql("INSERT INTO accounts(id,learner_id,role,status) VALUES (:id,:learner,'LEARNER','ACTIVE')")
-            .param("id",account).param("learner",learner).update();
+        jdbc.sql("INSERT INTO accounts(id,learner_id,role,status) VALUES (:id,:learner,:role,'ACTIVE')")
+            .param("id",account).param("learner",learner).param("role",invite.role()).update();
         jdbc.sql("INSERT INTO account_identities(issuer,subject,account_id) VALUES (:iss,:sub,:id)")
             .param("iss",GOOGLE_ISSUER).param("sub",identity.getSubject()).param("id",account).update();
         jdbc.sql("""
@@ -123,5 +134,5 @@ public class InvitationService {
             .param("id",invite).update();
         if(count!=1) throw new IllegalArgumentException("pending invitation not found");
     }
-    private record InvitationRow(UUID id,String email,String issuer,UUID learner,String status,Instant expires){}
+    private record InvitationRow(UUID id,String email,String issuer,UUID learner,String role,String status,Instant expires){}
 }
