@@ -40,7 +40,7 @@ public class LocalAuthController {
                 return bad("INVALID_INPUT");
             service.register(req.invitation(),req.email(),req.login(),req.password());
             return ResponseEntity.accepted().body(Map.of("code","VERIFY_EMAIL"));
-        } catch (IllegalArgumentException|SecurityException ex) {
+        } catch (IllegalArgumentException|SecurityException|org.springframework.dao.DataIntegrityViolationException ex) {
             return bad("REGISTRATION_REJECTED");
         }
     }
