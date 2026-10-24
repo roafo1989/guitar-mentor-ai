@@ -13,6 +13,10 @@ on:
 jobs:
   backend:
     runs-on: ubuntu-latest
+    env:
+      # Existing local prototype smoke tests are deliberately unauthenticated;
+      # secure mode has separate security tests and must never be default outside CI.
+      GUITAR_MENTOR_SECURITY_ENABLED: 'false'
     services:
       postgres:
         image: postgres:17
