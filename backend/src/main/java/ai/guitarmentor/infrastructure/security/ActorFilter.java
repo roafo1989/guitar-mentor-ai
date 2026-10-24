@@ -46,7 +46,8 @@ public class ActorFilter extends OncePerRequestFilter {
         }
         // Validated Google OIDC users without admission may redeem an invite only.
         // All other private API routes still require an admitted active account.
-        if (path.equals("/api/v1/invitations/activate") && request.getMethod().equals("POST")) {
+        if ((path.equals("/api/v1/invitations/activate") && request.getMethod().equals("POST"))
+            || (path.equals("/api/v1/csrf") && request.getMethod().equals("GET"))) {
             chain.doFilter(request, response);
             return;
         }
