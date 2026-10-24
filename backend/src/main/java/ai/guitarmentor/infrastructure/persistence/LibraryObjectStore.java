@@ -36,6 +36,7 @@ public final class LibraryObjectStore {
                 throw new IllegalStateException("Library root must not be a symlink");
             Files.createDirectories(root);
             rejectSymlinkComponents(root);
+            restrictPermissions(root,true);
             if (!Files.isDirectory(root,LinkOption.NOFOLLOW_LINKS))
                 throw new IllegalStateException("Invalid library root");
         } catch (IOException e) { throw new IllegalStateException("Library storage unavailable",e); }
@@ -71,6 +72,7 @@ public final class LibraryObjectStore {
                 }
             }
             if(count==0) throw new EmptyFile();
+            restrictPermissions(staging,false);
             Files.move(staging,target,StandardCopyOption.ATOMIC_MOVE);
             return new Stored(key,count,HexFormat.of().formatHex(sha.digest()));
         } catch(IOException|RuntimeException e) {
@@ -103,6 +105,13 @@ public final class LibraryObjectStore {
         Path result=safe(key);
         if (!Files.isRegularFile(result,LinkOption.NOFOLLOW_LINKS)) throw new IOException("Missing object");
         return result;
+    }
+    private static void restrictPermissions(Path path,boolean directory) throws IOException {
+        if(Files.getFileStore(path).supportsFileAttributeView("posix")) {
+            Files.setPosixFilePermissions(path,
+                java.nio.file.attribute.PosixFilePermissions.fromString(
+                    directory?"rwx------":"rw-------"));
+        }
     }
     public void delete(String key) throws IOException { Files.deleteIfExists(fileOrAbsent(key)); }
     private Path fileOrAbsent(String key) throws IOException {
