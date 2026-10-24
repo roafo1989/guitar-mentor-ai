@@ -81,6 +81,7 @@ public class LocalOAuthBridge {
 
     /** Burns even a mismatched ticket so a stolen ticket cannot be retried. */
     public OidcUser consume(String ticket, String originalSessionId) {
+        prune();
         if (ticket == null || !ticket.matches("[a-f0-9]{64}"))
             throw new SecurityException("INVALID_BRIDGE_TICKET");
         Completed finished = completed.remove(ticket);
