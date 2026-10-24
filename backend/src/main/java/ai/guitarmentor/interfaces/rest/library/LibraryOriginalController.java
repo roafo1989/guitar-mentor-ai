@@ -131,6 +131,16 @@ public final class LibraryOriginalController {
             throw new Failure(409,"LIBRARY_UPLOAD_INTERRUPTED");
     }
 
+    /** Committed intent is recoverable if the process stops before the READY transaction. */
+    private void commitIntent(UUID owner,UUID key) {
+        if(transactions.execute(status -> jdbc.sql("""
+            UPDATE library_upload_operations SET state='COMMITTING',
+                last_lease_at=now(),updated_at=now()
+            WHERE owner_account_id=:owner AND idempotency_key=:key AND state='RECEIVING'
+            """).param("owner",owner).param("key",key).update())!=1)
+            throw new Failure(409,"LIBRARY_UPLOAD_INTERRUPTED");
+    }
+
     private void abort(UUID owner,UUID key,String code) {
         transactions.executeWithoutResult(status -> {
             jdbc.sql("INSERT INTO library_account_usage(account_id) VALUES(:owner) ON CONFLICT DO NOTHING")
@@ -141,7 +151,7 @@ public final class LibraryOriginalController {
                 SELECT state,reserved_bytes,reserved_files FROM library_upload_operations
                 WHERE owner_account_id=:owner AND idempotency_key=:key FOR UPDATE
                 """).param("owner",owner).param("key",key).query().listOfRows();
-            if(rows.isEmpty() || !"RECEIVING".equals(rows.getFirst().get("state"))) return;
+            if(rows.isEmpty() || !Set.of("RECEIVING","COMMITTING").contains(rows.getFirst().get("state"))) return;
             var row=rows.getFirst();
             jdbc.sql("""
                 UPDATE library_account_usage SET reserved_bytes=reserved_bytes-:bytes,
@@ -282,6 +292,7 @@ public final class LibraryOriginalController {
                 total+=object.length();
             }
             String fingerprint=fingerprint(title,metadata.type(),author,staged);
+            if(!replay) commitIntent(owner,key);
             long totalBytes=total;
             record Outcome(UUID id,boolean replay) {}
             Outcome outcome=transactions.execute(status -> {
@@ -302,7 +313,7 @@ public final class LibraryOriginalController {
                         throw new Failure(410,"LIBRARY_UPLOAD_RESULT_DELETED");
                     return new Outcome(id,true);
                 }
-                if(!"RECEIVING".equals(operation.get("state")))
+                if(!"COMMITTING".equals(operation.get("state")))
                     throw new Failure(409,"LIBRARY_UPLOAD_IN_PROGRESS");
                 long reservedBytes=((Number)operation.get("reserved_bytes")).longValue();
                 long reservedFiles=((Number)operation.get("reserved_files")).longValue();
