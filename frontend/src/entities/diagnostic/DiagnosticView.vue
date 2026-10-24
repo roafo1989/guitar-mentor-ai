@@ -423,8 +423,8 @@ async function assign(exerciseCode: string): Promise<void> {
                   :aria-label="t('diagnostic.listenExample')" />
               </div>
               <span v-else class="studio-audio-unavailable">{{ t('diagnostic.metadata.audioUnavailable') }}</span>
-              <span class="studio-assignment-status">{{ t('diagnostic.studio.inProgress') }}</span>
             </div>
+            <span class="studio-assignment-status">{{ t('diagnostic.studio.inProgress') }}</span>
           </div>
         </div>
         <div class="studio-columns">
@@ -611,4 +611,23 @@ async function assign(exerciseCode: string): Promise<void> {
  .studio-assignment-actions {flex:1 1 100%;min-width:0;flex-wrap:wrap}
 }
 
+
+/* Reviewed assignment hero: details/audio share space; status anchored in corner. */
+.studio-assignment {position:relative;gap:14px;padding:18px 22px;min-height:116px;box-sizing:border-box}
+.studio-assignment-description {flex:1 1 225px;max-width:none;padding-right:8px}
+.studio-assignment-actions {flex:1 1 270px;min-width:220px;margin:0 100px 0 0}
+.studio-audio-example {width:100%;min-width:0;padding:9px 12px}
+.studio-audio-example audio {height:42px;width:100%}
+.studio-audio-label {font-size:12px;font-weight:600}
+.studio-assignment-status {position:absolute;right:16px;top:14px;font-size:11px;white-space:nowrap}
+@media(max-width:1280px){
+ .studio-assignment {flex-wrap:wrap}
+ .studio-assignment-actions {flex:1 1 270px;margin:0 90px 0 0}
+}
+@media(max-width:740px){
+ .studio-assignment {padding-top:42px}
+ .studio-assignment-description {flex:1 1 160px}
+ .studio-assignment-actions {flex:1 1 100%;margin:0}
+ .studio-assignment-status {top:10px;right:12px}
+}
 </style>
