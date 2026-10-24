@@ -109,7 +109,7 @@ public class SecurityConfiguration {
                     }
                     res.sendRedirect("/");
                 })
-                .failureHandler((req, res, ex) -> res.sendRedirect("/?auth=failed")))
+                .failureHandler((req, res, ex) -> res.sendRedirect("/?auth=failed")));
         }
         return http.build();
     }
