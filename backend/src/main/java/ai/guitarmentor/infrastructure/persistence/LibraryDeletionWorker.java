@@ -117,14 +117,13 @@ public class LibraryDeletionWorker {
 
         // Only after all physical objects are absent may quotas and DB references go.
         jdbc.sql("DELETE FROM library_assets WHERE material_id=:id").param("id",id).update();
-        jdbc.sql("""
+        int updated=jdbc.sql("""
             UPDATE library_account_usage
             SET charged_bytes=charged_bytes-:bytes,
                 charged_files=charged_files-:files,revision=revision+1
             WHERE account_id=:owner AND charged_bytes>=:bytes AND charged_files>=:files
             """).param("bytes",bytes).param("files",assets.size()).param("owner",owner).update();
-        // If quota invariant is violated, do not commit any asset deletion; retry on next pass.
-        // A separate checked update (above) is deliberately validated below.
+        if(updated!=1) throw new IllegalStateException("Library quota invariant violated");
         long remaining=jdbc.sql("""
             SELECT count(*) FROM library_assets WHERE material_id=:id
             """).param("id",id).query(Long.class).single();
