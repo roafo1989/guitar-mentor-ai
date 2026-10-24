@@ -9,6 +9,7 @@ import type { SubmissionAttempt } from './attempt.service';
 const props = defineProps<{
   learnerId: string; sessionId: string; taskId: string; attempts: SubmissionAttempt[];
   draftBusy: boolean; selectedId: string; latestId: string;
+  loadAttemptDetail?: (id: string) => Promise<SubmissionAttempt>;
 }>();
 const emit = defineEmits<{ 'decision-busy': [value: boolean]; 'terminal-state': [value: boolean]; 'selected-id': [id: string]; 'latest-id': [id: string] }>();
 const { t } = useI18n();
@@ -41,7 +42,11 @@ const assessmentFresh = ref(false);
 const pending = ref<DecisionCommand | null>(null);
 
 const currentAttempt = computed(() => (pinnedDetail.value?.id === selected.value ? pinnedDetail.value : null) ?? props.attempts.find(a => a.id === selected.value));
-const selectorAttempts = computed(() => [...new Map(props.attempts.map(a => [a.id, a])).values()].sort((a, b) => b.number - a.number));
+const selectorAttempts = computed(() => {
+  const entries = [...props.attempts];
+  if (pinnedDetail.value?.id === selected.value) entries.push(pinnedDetail.value);
+  return [...new Map(entries.map(a => [a.id, a])).values()].sort((a, b) => b.number - a.number);
+});
 const latestAssessment = computed(() => assessments.value[0] ?? null);
 const terminal = computed(() => !!state.value && state.value.taskState !== 'ACTIVE');
 watch(terminal, value => emit('terminal-state', value), { immediate: true });
@@ -57,11 +62,13 @@ async function loadDetail(seq: number) {
   const id = selected.value;
   const serial = ++detailSequence;
   detailFresh.value = false; detailError.value = '';
-  pinnedDetail.value = null;
-  if (!id) return;
+  // Retain the previously displayed detail while revalidating it.
+  if (!id) { pinnedDetail.value = null; return; }
   // A page DTO is display-only; a decision needs a successful authoritative detail GET.
   try {
-    const detail = await attemptService.detail(props.learnerId, props.sessionId, props.taskId, id);
+    const detail = await (props.loadAttemptDetail
+      ? props.loadAttemptDetail(id)
+      : attemptService.detail(props.learnerId, props.sessionId, props.taskId, id));
     if (seq === generation && serial === detailSequence && selected.value === id) {
       pinnedDetail.value = detail; detailFresh.value = true;
     }
@@ -254,6 +261,7 @@ onBeforeUnmount(() => { ++generation; ++detailSequence; pending.value = null; })
       <p v-if="terminal" class="hint">{{ t('learning.nextUnavailable') }}</p>
       <label for="learning-attempt">{{ t('learning.chooseAttempt') }}</label>
       <select id="learning-attempt" :value="selected" :disabled="loading || sending" @change="chooseAttempt(($event.target as HTMLSelectElement).value)">
+        <option v-if="selected && !selectorAttempts.some(attempt => attempt.id === selected)" :value="selected">{{ t('learning.attemptUnavailable') }}</option>
         <option v-for="attempt in selectorAttempts" :key="attempt.id" :value="attempt.id">
           {{ t('attempt.attempt') }} №{{ attempt.number }}
         </option>
