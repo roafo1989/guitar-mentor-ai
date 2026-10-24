@@ -73,4 +73,14 @@ class LibraryOriginalControllerTest {
         }
     }
 
+    @Test void forbidsClientOwnedSecurityMetadata() {
+        var controller=controller(true);
+        var malicious=java.util.Map.<String,Object>of(
+            "title","Title","type","ETUDE","ownerId",UUID.randomUUID().toString());
+        var file=new MockMultipartFile("files","etude.gp","application/octet-stream",new byte[]{1});
+        assertEquals("LIBRARY_INVALID_METADATA",assertThrows(RuntimeException.class,
+            ()->controller.upload(request(),UUID.randomUUID().toString(),malicious,
+                List.of(file))).getMessage());
+    }
+
 }
