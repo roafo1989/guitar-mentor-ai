@@ -329,7 +329,8 @@ test('CORE-U11: real Vue template renders keyboard-native buttons and translated
   const filename = 'SubmissionPanel.vue';
   const source = await readFile(new URL('../src/entities/attempt/' + filename, import.meta.url), 'utf8');
   const { descriptor } = parse(source, { filename });
-  const output = compileTemplate({ source: descriptor.template.content, filename, id: 'pagination-dom' });
+  const bindings = compileScript(descriptor, { id: 'pagination-dom' }).bindings;
+  const output = compileTemplate({ source: descriptor.template.content, filename, id: 'pagination-dom', compilerOptions: { bindingMetadata: bindings } });
   assert.deepEqual(output.errors, []);
   const compiled = output.code.replace(/from ["']vue["']/g, 'from ' + JSON.stringify(import.meta.resolve('vue')));
   const actualRender = (await import(moduleUrl(compiled))).render;
