@@ -1,0 +1,8 @@
+flowchart TD
+    browser["Vue: Мои материалы"] --> api["Library API + CurrentActor"]
+    api --> service["LibraryService и UploadService"]
+    service --> db[("PostgreSQL: карточки, usage, operations")]
+    service --> store["Private LibraryObjectStore"]
+    recovery["LibraryRecovery: staging и delete"] --> db
+    recovery --> store
+    attempts["Attempt/evidence TTL cleanup"] --> other["Только attempts и scores roots"]

@@ -1,0 +1,7 @@
+erDiagram
+    ACCOUNT ||--o{ LIBRARY_MATERIAL : owns
+    ACCOUNT ||--|| LIBRARY_USAGE : limits
+    ACCOUNT ||--o{ UPLOAD_OPERATION : scopes
+    LIBRARY_MATERIAL ||--|{ LIBRARY_ASSET : contains
+    LIBRARY_MATERIAL ||--o| DELETION_JOB : retires
+    UPLOAD_OPERATION o|--o| LIBRARY_MATERIAL : commits

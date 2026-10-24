@@ -1,0 +1,535 @@
+openapi: 3.0.3
+info:
+  title: Guitar Mentor AI private library P0
+  version: 1.0.0
+  description: Analysis contract, not running API. CATALOG-01/BT0.18/TZ0.25; all runtime
+    tests NOT_RUN.
+servers:
+- url: /
+security:
+- cookieAuth: []
+paths:
+  /api/v1/library/capabilities:
+    get:
+      operationId: libraryCapabilities
+      responses:
+        '200':
+          description: Current limits and usage
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Capabilities'
+        '401': &id001
+          description: Authentication required
+        '403': &id002
+          description: Not admitted/disabled/CSRF
+  /api/v1/library/materials:
+    get:
+      operationId: listMyLibrary
+      parameters:
+      - name: limit
+        in: query
+        required: false
+        schema:
+          type: integer
+          minimum: 1
+          maximum: 50
+          default: 20
+      - name: cursor
+        in: query
+        required: false
+        schema:
+          type: string
+          description: Opaque signed owner/sort-scoped keyset cursor
+      responses:
+        '200':
+          description: READY own materials newest first
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Page'
+        '400': &id003
+          description: Validation/cursor/file error
+        '401': *id001
+        '403': *id002
+        '503': &id004
+          description: Disabled or storage unavailable
+    post:
+      operationId: createLibraryMaterial
+      description: 1-5 immutable original files, combined actual bytes <=20MiB. GP
+        opaque/unverified, no converter. Owner derived only from CurrentActor. Idempotency
+        window24h; same fingerprint replay200.
+      parameters:
+      - &id005
+        name: X-XSRF-TOKEN
+        in: header
+        required: true
+        schema:
+          type: string
+          description: Obtain headerName/token from common CSRF bootstrap; current
+            Spring repository header is X-XSRF-TOKEN.
+      - name: Idempotency-Key
+        in: header
+        required: true
+        schema:
+          type: string
+          format: uuid
+      requestBody:
+        required: true
+        content:
+          multipart/form-data:
+            schema:
+              type: object
+              required:
+              - metadata
+              - files
+              properties:
+                metadata:
+                  $ref: '#/components/schemas/CreateMetadata'
+                files:
+                  type: array
+                  minItems: 1
+                  maxItems: 5
+                  items:
+                    type: string
+                    format: binary
+            encoding:
+              metadata:
+                contentType: application/json
+      responses:
+        '201':
+          description: Committed READY; no partial success
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Material'
+          headers:
+            Location:
+              schema:
+                type: string
+        '200':
+          description: Idempotent replay
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Material'
+          headers:
+            Idempotency-Replayed:
+              schema:
+                type: boolean
+        '400': *id003
+        '401': *id001
+        '403': *id002
+        '409':
+          description: Quota/in-progress/idempotency conflict
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Problem'
+        '410':
+          description: Idempotent result deleted
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Problem'
+        '413':
+          description: Upload too large; upstream may return non-JSON
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Problem'
+        '415':
+          description: Unsupported extension
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Problem'
+        '429':
+          description: Rate limit, Retry-After
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Problem'
+        '503': *id004
+  /api/v1/library/materials/{materialId}:
+    parameters:
+    - &id010
+      name: materialId
+      in: path
+      required: true
+      schema:
+        type: string
+        format: uuid
+    get:
+      operationId: getMyLibraryMaterial
+      responses:
+        '200':
+          description: Own READY card
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Material'
+          headers:
+            ETag:
+              schema:
+                type: string
+                example: '"1"'
+        '400': *id003
+        '401': *id001
+        '403': *id002
+        '404': &id006
+          description: Missing or foreign resource
+        '503': *id004
+    patch:
+      operationId: editMyLibraryMetadata
+      parameters:
+      - *id005
+      - &id007
+        name: If-Match
+        in: header
+        required: true
+        schema:
+          type: string
+          example: '"1"'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/PatchMetadata'
+      responses:
+        '200':
+          description: Revision incremented; original bytes unchanged
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Material'
+          headers:
+            ETag:
+              schema:
+                type: string
+        '400': *id003
+        '401': *id001
+        '403': *id002
+        '404': *id006
+        '412': &id008
+          description: Stale revision
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Problem'
+        '428': &id009
+          description: If-Match required
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Problem'
+        '503': *id004
+    delete:
+      operationId: deleteMyLibraryMaterial
+      description: READY requires If-Match. DELETING replay202, absent after physical
+        deletion404. Files hidden immediately, quota freed after actual deletion.
+      parameters:
+      - *id005
+      - *id007
+      responses:
+        '202':
+          description: Durable deletion accepted
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Deleting'
+        '400': *id003
+        '401': *id001
+        '403': *id002
+        '404': *id006
+        '412': *id008
+        '428': *id009
+        '503': *id004
+  /api/v1/library/materials/{materialId}/files/{assetId}/content:
+    parameters:
+    - *id010
+    - name: assetId
+      in: path
+      required: true
+      schema:
+        type: string
+        format: uuid
+    get:
+      operationId: getMyLibraryFile
+      responses:
+        '200':
+          description: Exact immutable bytes; attachment-only, no-store/nosniff; HEAD
+            no body
+          headers: &id011
+            Content-Disposition:
+              schema:
+                type: string
+            Content-Length:
+              schema:
+                type: string
+            Cache-Control:
+              schema:
+                type: string
+            X-Content-Type-Options:
+              schema:
+                type: string
+          content:
+            application/pdf:
+              schema:
+                type: string
+                format: binary
+            application/octet-stream:
+              schema:
+                type: string
+                format: binary
+        '400': *id003
+        '401': *id001
+        '403': *id002
+        '404': *id006
+        '503': *id004
+    head:
+      operationId: headMyLibraryFile
+      responses:
+        '200':
+          description: Exact immutable bytes; attachment-only, no-store/nosniff; HEAD
+            no body
+          headers: *id011
+        '400': *id003
+        '401': *id001
+        '403': *id002
+        '404': *id006
+        '503': *id004
+components:
+  securitySchemes:
+    cookieAuth:
+      type: apiKey
+      in: cookie
+      name: JSESSIONID
+  schemas:
+    CreateMetadata:
+      type: object
+      additionalProperties: false
+      required:
+      - title
+      - type
+      properties:
+        title:
+          type: string
+          minLength: 1
+          maxLength: 150
+        type:
+          $ref: '#/components/schemas/MaterialType'
+        author:
+          type: string
+          nullable: true
+          maxLength: 150
+    PatchMetadata:
+      type: object
+      additionalProperties: false
+      minProperties: 1
+      properties:
+        title:
+          type: string
+          minLength: 1
+          maxLength: 150
+        type:
+          $ref: '#/components/schemas/MaterialType'
+        author:
+          type: string
+          nullable: true
+          maxLength: 150
+    MaterialType:
+      type: string
+      enum:
+      - EXERCISE
+      - ETUDE
+      - COMPOSITION
+      - OTHER
+    File:
+      type: object
+      required:
+      - id
+      - originalName
+      - format
+      - byteSize
+      - sha256
+      - validationStatus
+      - downloadUrl
+      properties:
+        id:
+          type: string
+          format: uuid
+        originalName:
+          type: string
+          maxLength: 255
+        format:
+          type: string
+          enum:
+          - PDF
+          - GTP
+          - GP3
+          - GP4
+          - GP5
+          - GPX
+          - GP
+        byteSize:
+          type: integer
+          format: int64
+          minimum: 1
+          maximum: 20971520
+        sha256:
+          type: string
+          pattern: ^[a-f0-9]{64}$
+        validationStatus:
+          type: string
+          enum:
+          - PDF_HEADER_CHECKED
+          - ORIGINAL_UNVERIFIED
+        downloadUrl:
+          type: string
+          description: Authenticated relative owner-checked download URL
+    Material:
+      type: object
+      required:
+      - id
+      - title
+      - type
+      - author
+      - state
+      - visibility
+      - reviewStatus
+      - revision
+      - createdAt
+      - updatedAt
+      - files
+      properties:
+        id:
+          type: string
+          format: uuid
+        title:
+          type: string
+        type:
+          $ref: '#/components/schemas/MaterialType'
+        author:
+          type: string
+          nullable: true
+        state:
+          type: string
+          enum:
+          - READY
+        visibility:
+          type: string
+          enum:
+          - PRIVATE
+        reviewStatus:
+          type: string
+          enum:
+          - UNREVIEWED
+        revision:
+          type: integer
+          format: int64
+          minimum: 1
+        createdAt:
+          type: string
+          format: date-time
+        updatedAt:
+          type: string
+          format: date-time
+        files:
+          type: array
+          minItems: 1
+          maxItems: 5
+          items:
+            $ref: '#/components/schemas/File'
+    Page:
+      type: object
+      required:
+      - items
+      - nextCursor
+      properties:
+        items:
+          type: array
+          maxItems: 50
+          items:
+            $ref: '#/components/schemas/Material'
+        nextCursor:
+          type: string
+          nullable: true
+    Problem:
+      type: object
+      required:
+      - code
+      properties:
+        code:
+          type: string
+        message:
+          type: string
+        requestId:
+          type: string
+      description: Security errors may contain code only; proxy 413 may be non-JSON.
+    Capabilities:
+      type: object
+      required:
+      - enabled
+      - extensions
+      - maxUploadBytes
+      - maxFilesPerMaterial
+      - maxAccountBytes
+      - maxAccountFiles
+      - chargedBytes
+      - reservedBytes
+      - chargedFiles
+      - reservedFiles
+      properties:
+        enabled:
+          type: boolean
+        extensions:
+          type: array
+          items:
+            type: string
+        maxUploadBytes:
+          type: integer
+          format: int64
+          minimum: 0
+        maxFilesPerMaterial:
+          type: integer
+          format: int64
+          minimum: 0
+        maxAccountBytes:
+          type: integer
+          format: int64
+          minimum: 0
+        maxAccountFiles:
+          type: integer
+          format: int64
+          minimum: 0
+        chargedBytes:
+          type: integer
+          format: int64
+          minimum: 0
+        reservedBytes:
+          type: integer
+          format: int64
+          minimum: 0
+        chargedFiles:
+          type: integer
+          format: int64
+          minimum: 0
+        reservedFiles:
+          type: integer
+          format: int64
+          minimum: 0
+    Deleting:
+      type: object
+      required:
+      - id
+      - state
+      properties:
+        id:
+          type: string
+          format: uuid
+        state:
+          type: string
+          enum:
+          - DELETING

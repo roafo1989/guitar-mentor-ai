@@ -1,0 +1,18 @@
+sequenceDiagram
+    participant U as Vue
+    participant A as Library API
+    participant D as PostgreSQL
+    participant F as Private storage
+    participant R as Recovery
+    U->>A: Multipart + actor-scoped Idempotency-Key
+    A->>D: Reserve quota and upload operation
+    A->>F: Bounded staging, digest, manifest, move
+    A->>D: Commit READY assets and charged usage
+    alt Commit succeeds
+        A-->>U: 201 or replay200
+    else IO or DB failure
+        A-->>U: Safe error, no false success
+        R->>D: Lock expired operation and recheck references
+        R->>F: Reconcile only unreferenced library keys
+        R->>D: Finalize or compensate reservation
+    end

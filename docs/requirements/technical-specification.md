@@ -4,10 +4,11 @@
 
 **Эталон нот/TAB утверждён 24.10.2026:** [MUS-NOTATION-01](../specifications/MUS-NOTATION-01-score-tab-standard.md): нотный стан с длительностями сверху, синхронная шестилинейная TAB снизу, четыре полных такта в строке; соответствие финального PDF проверяется визуально. Это обязательный формат, а не рекомендация.
 
-**Действующий состав:** 9 US / 38 FT. Ещё 1 US / 4 FT сохранены как отменённые и не входят в объём. **Отмена 24.10.2026:** владелец отказался от US-010/#112 и задач #113–116 («Я передумал, они мне не нужны»). BT-020 и FT-010-01…04 сняты с действующего объёма; разработка, оценки и условия старта этой ветки больше не применяются. Основной интерфейс метронома #111 сохраняется. Ниже сведения о скинах оставлены только как история.
+**Действующий состав:** 14 US / 54 FT. Ещё 1 US / 4 FT сохранены как отменённые и не входят в объём. **Отмена 24.10.2026:** владелец отказался от US-010/#112 и задач #113–116 («Я передумал, они мне не нужны»). BT-020 и FT-010-01…04 сняты с действующего объёма; разработка, оценки и условия старта этой ветки больше не применяются. Основной интерфейс метронома #111 сохраняется. Ниже сведения о скинах оставлены только как история.
 
 | Версия | Дата | Что поменялось |
 | --- | --- | --- |
+| 0.25 | 24.10.2026 | БТ0.18/BT-021…025: EPIC004,5US/16FT для пользовательской библиотеки и подготовки материалов; P0 готовыеPDF/GP.14действующихUS/54FT, ещёUS010/4FT отменены. OpenAPI/ADR/схемы/TC и поэтапные gates. |
 | 0.24 | 24.10.2026 | FT-007-05/#141: в объём добавлены исправление logout/header и единая вёрстка всех auth-форм; AUTH-02v1.1, AC-PWD-10…14. 9 действующих US/38FT, БТ0.17 сохранены. |
 | 0.23 | 24.10.2026 | БТ0.17/BT-013: добавлен FT-007-05/AUTH-02/#141, локальный вход по email/login/password наряду с Google; сохраняются приглашения и common actor. 9 действующих US / 38 FT. BT-021…025 остаются вне этой предметной синхронизации. |
 | 0.22 | 24.10.2026 | БТ0.12/BT-004: обязательный эталон PDF нот/TAB MUS-NOTATION-01 в FT-002-03; AC-NOT-01…04. 9 действующих US / 37 FT сохранены. |
@@ -39,7 +40,7 @@
 
 ## 1. Границы и основания
 
-Цель M1 — локальный персональный веб-цикл обучения акустическому fingerstyle. Основания: БТ 0.17, MVP Scope v1.1, UC-01/02/03 и ADR-0001/0002/0003. Текущий стек берётся из репозитория: Java/Spring Boot, Vue, PostgreSQL; прежний Python-каркас не становится целевой архитектурой.
+Цель M1 — локальный персональный веб-цикл обучения акустическому fingerstyle. Основания: БТ 0.18, MVP Scope v1.1, UC-01/02/03 и ADR-0001/0002/0003. Текущий стек берётся из репозитория: Java/Spring Boot, Vue, PostgreSQL; прежний Python-каркас не становится целевой архитектурой.
 
 US-009 покрывает BT-010/BT-011 версии БТ 0.2; реализация уже объединена в PR #48, новая приёмка не проводилась. US-007 — будущий интернет-пилот по приглашениям, вне M1; источник — решение владельца и #37/#38/#39/#40/#42. UX-часть FT-003-04 — BT-012, #51. US-008 — процессное требование владельца от 18.10.2026. Ранее принятые правила интернет-пилота и поставки консолидированы в BT-013/014 БТ 0.4; новый объём разработки этим не создаётся.
 
@@ -336,6 +337,72 @@ US-009 покрывает BT-010/BT-011 версии БТ 0.2; реализац�
 **Последующее решение владельца:** только frontend/обычный Java backend, без аудиоанализа/ИИ/PoC. Текущая тройка109/113/114;15отложена вБэклог/Вочереди с сохранением исследования. [Design #114](../specifications/TOOL-06-tempo-dial.md), FT-010-02:8ч(6–10)условно, Анализ/Ожидание до113и утверждения макетаA. Следующий абзац сохраняет историю первичной подготовки15, а не действующее разрешение на её старт.
 
 [Обоснование и готовность #109/#113/#15](../project/next-development-candidates-2026-10-22.md). #109: [Full-контракт](../specifications/TOOL-02-background-metronome.md), BT-019/FT-003-07. #15: [v1.1](../specifications/MVP-R2-02-audio-poc.md), прежний FT-005-02, только diagnostic; независимая validation/#22 заблокированы #97. Код не изменён. #19 уже в разработке, #108 в открытом PR110; новая тройка их не заменяет. БТ0.9 по репертуару прочитаны и сохранены, BT-017/018 не получают фиктивной полной трассировки/готовности этим ограниченным пакетом.
+
+## 3.1. Новая область: пользовательская библиотека и подготовка материалов
+
+Эпик EPIC-004/#154. [План/трассировка](../project/CATALOG-ROADMAP-2026-10-24.md). Старая US010 остаётся отменённой, её номера не переиспользуются. Публикация пользователя не равна проверенному exercises; хранение готового GP не равно конвертации. P0 имеет самостоятельную приёмку.
+
+### US-011 — Сохранить готовые PDF и Guitar Pro в личной библиотеке
+
+Как допущенный пользователь, я хочу сохранить готовые pdf и guitar pro в личной библиотеке, чтобы сохранять и выбирать материалы для занятий. Источник BT-021/022, БТ0.18, [стори#155](https://github.com/roafo1989/guitar-mentor-ai/issues/155). Приоритет P0. Загрузить готовые оригиналы PDF/Guitar Pro, сохранить личную карточку, увидеть список, скачать неизменённый файл и удалить материал. Без публикации, конвертации, ИИ и интернета.
+
+[Спецификация](../specifications/CATALOG-01-private-library.md). Предусловия и ошибки — в ней; критерий завершения — все дочерние результаты, общий сценарий и предусмотренная приёмка. Runtime NOT_RUN.
+
+| ID | Требование / принимаемый результат | Критерий | Задача |
+| --- | --- | --- | --- |
+| FT-011-01 | Аддитивные PostgreSQL LibraryMaterial/LibraryAsset/LibraryUploadOperation, owner=CurrentActor.accountId, metadata/detail/list/optimistic edit, stable cursor. Без записи в exercises. | Изоляция двух аккаунтов; title/type validation; keyset без пропусков при добавлении; конфликт revision=409; старые assignments неизменны. | [#160](https://github.com/roafo1989/guitar-mentor-ai/issues/160) |
+| FT-011-02 | Multipart create с1–5файлами, bounded stream и SHA-256, random storage keys, private separate root, owner-only GET/HEAD attachment и actor-scoped idempotency/quota reservation. GP — opaque original, без импорта/конвертера. | PDF/.gtp/.gp3/.gp4/.gp5/.gpx/.gp сохраняются и скачиваются byte-identical; extension/MIME spoof не даёт исполнения; лимиты/CSRF/404/HEAD; повтор не создаёт вторую карточку. | [#161](https://github.com/roafo1989/guitar-mentor-ai/issues/161) |
+| FT-011-03 | Delete202 → hidden/deleting → physical deletion с retry, квота освобождается по факту, recovery pending/crash/orphan только library root. Сохранённые материалы не затрагиваются48h TTL попыток. | Сбой DB/fs/restart не даёт потери чужих/READY files; delete идемпотентен; чтение после delete=404; квоты под гонкой не превышены; recovery проверен на fault fixtures. | [#162](https://github.com/roafo1989/guitar-mentor-ai/issues/162) |
+| FT-011-04 | Vue /library: список/пусто/карточка, название/тип/автор, выбор1–5PDF/GP, progress/busy/errors, повтор с тем же key, скачать оригинал и явное удаление. RU/EN/mobile/keyboard, текущие design tokens. | Без Google-specific зависимостей, работает с CurrentActor и auth-state; поля сохраняются при ошибке, нет fake success; выход очищает private cache; F5 сохраняет карточки; unsupported/oversize понятны. | [#163](https://github.com/roafo1989/guitar-mentor-ai/issues/163) |
+| FT-011-05 | Независимый прогон TC-LIB-01…24 на выбранном RC: PostgreSQL/fs/HTTP/UI, два accounts, 48h retention isolation, rollback и recovery. Протокол SHA/CI/скриншоты и остаток приёмки владельца. | Все обязательные TC исполнены или есть конкретный blocker; никакого PASS по одному CI; source bytes совпадают; owner-only files и регрессия текущего упражнения/метронома подтверждены. | [#164](https://github.com/roafo1989/guitar-mentor-ai/issues/164) |
+
+### US-012 — Публиковать материалы и находить их в общем каталоге
+
+Как допущенный пользователь, я хочу публиковать материалы и находить их в общем каталоге, чтобы сохранять и выбирать материалы для занятий. Источник BT-021/022/023, БТ0.18, [стори#156](https://github.com/roafo1989/guitar-mentor-ai/issues/156). Приоритет P1. Явная публикация личной редакции для допущенных пользователей, снятие публикации, тип/теги/поиск/фильтры, PDF/photo preview и необязательные аудиопримеры. Опубликовано ≠ проверено для обучения.
+
+[Спецификация](../specifications/CATALOG-02-evolution-roadmap.md). Предусловия и ошибки — в ней; критерий завершения — все дочерние результаты, общий сценарий и предусмотренная приёмка. Runtime NOT_RUN.
+
+| ID | Требование / принимаемый результат | Критерий | Задача |
+| --- | --- | --- | --- |
+| FT-012-01 | Отдельная publication revision/snapshot; права владельца, provenance/право распространения по asset, withdrawn-revocation файлов, запрет anonymous/auto-exercises; admin moderation policy до оценки. | DRAFT чужому=404; только explicit publish открывает snapshot; owner edit не меняет опубликованные bytes; withdrawal закрывает прямые URLs; audio optional; role не даёт читать чужие drafts. | [#165](https://github.com/roafo1989/guitar-mentor-ai/issues/165) |
+| FT-012-02 | Published-only list/detail и keyset; q название/автор, type, теги, hasAudio; контракт AND/OR и нормализация зафиксированы перед кодом; индексы/нагрузка. | Private/withdrawn исключены из результатов/counts; stable cursor scope; сочетание и сброс воспроизводимы; hasAudio учитывает available file, не имя/ссылку; safe plaintext. | [#166](https://github.com/roafo1989/guitar-mentor-ai/issues/166) |
+| FT-012-03 | Расширить library asset roles JPEG/PNG и согласованные audio; безопасная выдача/preview, тип ORIGINAL/SYNTHESIZED, безOCR/PDFраспознавания/синтеза. Budget/retention/совместная revision policy до кода. | Отсутствие аудио не блокирует publish; добавление позже через новую revision; фото показывается без ложного распознавания; unsupported/error/media missing честны; приватность и лимиты работают. | [#167](https://github.com/roafo1989/guitar-mentor-ai/issues/167) |
+| FT-012-04 | Мои/Общие, publish/withdraw cпроверкой оснований распространения, поиск/type/tags/hasAudio, карточка с PDF/фото/аудио, unverified badge; browser regression. | RU/EN/mobile/keyboard; нет скрытой публикации, audio необязательно; empty/network/stale search отменены; logout очищает данные; опубликовано не выдаётся за music-approved. | [#168](https://github.com/roafo1989/guitar-mentor-ai/issues/168) |
+
+### US-013 — Получать PDF и аудиопример из поддерживаемого Guitar Pro
+
+Как допущенный пользователь, я хочу получать pdf и аудиопример из поддерживаемого guitar pro, чтобы сохранять и выбирать материалы для занятий. Источник BT-022, БТ0.18, [стори#157](https://github.com/roafo1989/guitar-mentor-ai/issues/157). Приоритет P2. Детерминированная конвертация поддерживаемых GP-версий в PDF нот/TAB по эталону и аудио той же редакции. Оригинал сохраняется при любом исходе.
+
+[Спецификация](../specifications/CATALOG-02-evolution-roadmap.md). Предусловия и ошибки — в ней; критерий завершения — все дочерние результаты, общий сценарий и предусмотренная приёмка. Runtime NOT_RUN.
+
+| ID | Требование / принимаемый результат | Критерий | Задача |
+| --- | --- | --- | --- |
+| FT-013-01 | Time-boxed technical study: Java-compatible tools (включая TuxGuitar как кандидат), лицензии/CLI/headless/OS/resources, valid/corrupt/complex fixtures, нотная октава/голоса/TAB/повторы/размеры и PDF4bars. Решение и reproducible benchmark. | Форматы storage не выдаются за conversion support; есть матрица по версиям и ограничениям, cost/timeout/sandbox, source↔PDF/audio check; no promise anyGP; GO/NO-GO обоснован. | [#169](https://github.com/roafo1989/guitar-mentor-ai/issues/169) |
+| FT-013-02 | Ограниченный job worker + Vue job state/cancel/retry, private output revision, resource caps/no network, original immutable, PDF+audio only success при всехAC; декомпозиция Java/Vue после research. | Pending/running/success/partial/failed/cancelled; retries bounded/idempotent; noexec/XXE/zipbomb; правильные score/TAB/tempo/repeats; original доступен при fail; publish отдельное действие. | [#170](https://github.com/roafo1989/guitar-mentor-ai/issues/170) |
+
+### US-014 — Найти материал в интернете и сохранить подготовленный черновик
+
+Как допущенный пользователь, я хочу найти материал в интернете и сохранить подготовленный черновик, чтобы сохранять и выбирать материалы для занятий. Источник BT-024, БТ0.18, [стори#158](https://github.com/roafo1989/guitar-mentor-ai/issues/158). Приоритет P3. После внутреннего поиска — внешний поиск названия/автора, реальные источники, уточнение существенной неоднозначности, допустимый импорт/конвертация; без найденного исходника нет выдуманного готового результата.
+
+[Спецификация](../specifications/CATALOG-02-evolution-roadmap.md). Предусловия и ошибки — в ней; критерий завершения — все дочерние результаты, общий сценарий и предусмотренная приёмка. Runtime NOT_RUN.
+
+| ID | Требование / принимаемый результат | Критерий | Задача |
+| --- | --- | --- | --- |
+| FT-014-01 | Исследовать search/provider APIs, provenance/доступность/право использования поasset, query privacy, prompt injection/SSRF/redirect/DNS controls, budgets and quality. Provider и thresholds до кода. | Реальные лицензированные/разрешённые fixtures; links≠bytes; ambiguity и login/paywall не обходятся; costcap и отключение; никакого автоплатежа или скрытой отправки приватных файлов модели. | [#171](https://github.com/roafo1989/guitar-mentor-ai/issues/171) |
+| FT-014-02 | User-triggered search → candidate/provenance → permitted fetch → existing converter → private draft с PDF/audio либоpartial/links-only. Network worker isolated, approved adapters; отдельная детализация backend/UI по research. | Нетвнутреннего результата→предложенвнешний; realURL/source/log; неоднозначность подтверждается; блокируютсяSSRF/rebinding/promptcommands; budget/cancel/errors; no auto-publish и no exacttranscriptionfallback. | [#172](https://github.com/roafo1989/guitar-mentor-ai/issues/172) |
+
+### US-015 — Готовить fingerstyle-аранжировку или транскрипцию из аудио
+
+Как допущенный пользователь, я хочу готовить fingerstyle-аранжировку или транскрипцию из аудио, чтобы сохранять и выбирать материалы для занятий. Источник BT-025, БТ0.18, [стори#159](https://github.com/roafo1989/guitar-mentor-ai/issues/159). Приоритет P4. Оба согласованных режима, сначала сольная fingerstyle-аранжировка (приоритет Б), затем расшифровка слышимой гитарной партии. Файл и допустимая ссылка, результат личный/непроверенный; качество требует исследования.
+
+[Спецификация](../specifications/CATALOG-02-evolution-roadmap.md). Предусловия и ошибки — в ней; критерий завершения — все дочерние результаты, общий сценарий и предусмотренная приёмка. Runtime NOT_RUN.
+
+| ID | Требование / принимаемый результат | Критерий | Задача |
+| --- | --- | --- | --- |
+| FT-015-01 | Ограниченный benchmark законных записей с known score; arrangement vs transcription, мотив/бас/сопровождение/играбельность, resources/cost/provider/privacy, file/link input policy, human review/rubric; модели не выбраны заранее. | Не смешаны два режима; есть reproducible corpus/references и оценки ошибок/ритма/голосов/аппликатуры, ограничения и GO/NO-GO. PDF alone не доказывает fidelity; numeric thresholds выводятся из исследования. | [#173](https://github.com/roafo1989/guitar-mentor-ai/issues/173) |
+| FT-015-02 | ПослеGO: inputfile/permittedlink → costed isolated processing → one-guitar melody+bass+accompaniment PDF/TAB + synthesized preview, uncertainty/provenance; review/edit policy и bounded retries. Декомпозиция перед кодом. | ЯвноARRANGEMENT, не точнаяпартия; result playable/declared tuning и эталонPDF; исходныйтрек/синтез различимы; uncertainsegments; no forcedpublication/AI_PASS; no emptyfake success. | [#174](https://github.com/roafo1989/guitar-mentor-ai/issues/174) |
+| FT-015-03 | Второй приоритет внутри BT025: отдельный benchmark/ограничения и user-select TRANSCRIPTION; без скрытого упрощения/аранжировки, режим сохраняется с результатом. | Оба режима доступныпо выбору без автоdefault; fidelity оценено отдельно отarrangementquality; fretplacement не выдается за восстановленную авторскуюаппликатуру; ошибки/ограничения/стоимость явны. | [#175](https://github.com/roafo1989/guitar-mentor-ai/issues/175) |
+
 
 ## 4. Нефункциональные требования
 
