@@ -323,7 +323,9 @@
     "refresh": "Refresh history",
     "historyStale": "Showing the previous page: new data is unavailable.",
     "onlyPage": "All attempts are on one page.",
-    "historyUpdated": "Attempt history updated."
+    "historyUpdated": "Attempt history updated.",
+    "microphoneTitle": "Record with microphone",
+    "uploadAlternative": "Or upload an existing audio file"
   },
   "evidence": {
     "heading": "My performances",
