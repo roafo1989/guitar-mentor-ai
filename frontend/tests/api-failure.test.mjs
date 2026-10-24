@@ -1,5 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
+import { readFile } from 'node:fs/promises';
+import ts from 'typescript';
 import { ApiFailure, apiRequest, apiFailureKey, isHttp, isUuid } from '../src/shared/api-failure.ts';
 
 async function withFetch(implementation, action) {
@@ -66,4 +68,41 @@ test('typed key classification never incorporates exception text', () => {
   assert.equal(isHttp(new Error('HTTP_404'), 404), false);
   assert.equal(isUuid('bad-id'), false);
   assert.equal(isUuid('123e4567-e89b-12d3-a456-426614174000'), true);
+});
+
+test('real onboarding service: 204 means no background, 200 null/malformed objects are INVALID_RESPONSE', async () => {
+  // Load the actual TypeScript service, rewriting only its extensionless transport import.
+  const source = await readFile(new URL('../src/entities/onboarding/onboarding.service.ts', import.meta.url), 'utf8');
+  const compiled = ts.transpileModule(source, {
+    compilerOptions: { target: ts.ScriptTarget.ES2022, module: ts.ModuleKind.ESNext },
+  }).outputText.replace(
+    "'../../shared/api-failure'",
+    JSON.stringify(new URL('../src/shared/api-failure.ts', import.meta.url).href),
+  );
+  const { onboardingService } = await import('data:text/javascript,' + encodeURIComponent(compiled));
+  const id = '123e4567-e89b-12d3-a456-426614174000';
+  const instrument = 'ACOUSTIC_GUITAR';
+  const background = {
+    experienceLevel: 'BEGINNER', yearsPlaying: 1, skills: [], knownPieces: [],
+    goals: ['FINGERSTYLE'], practiceMinutes: 40, sessionsPerWeek: 3, notes: '',
+  };
+  let count = 0;
+  await withFetch(async () => { ++count; return new Response(null, { status: 204 }); }, async () => {
+    assert.equal(await onboardingService.get(id, instrument), null);
+    assert.equal(await onboardingService.save(id, instrument, background), null);
+  });
+  assert.equal(count, 2, 'GET and PUT 204 each make only one request');
+  for (const body of ['null', '{}', '[]', '""']) {
+    let attempts = 0;
+    await withFetch(async () => { ++attempts; return new Response(body, { status: 200 }); }, async () => {
+      await assert.rejects(onboardingService.get(id, instrument),
+        error => error instanceof ApiFailure && error.kind === 'INVALID_RESPONSE');
+      await assert.rejects(onboardingService.save(id, instrument, background),
+        error => error instanceof ApiFailure && error.kind === 'INVALID_RESPONSE');
+    });
+    assert.equal(attempts, 2, 'no implicit retry for malformed JSON ' + body);
+  }
+  await withFetch(async () => new Response(JSON.stringify(background), { status: 200 }), async () => {
+    assert.deepEqual(await onboardingService.get(id, instrument), background);
+  });
 });
