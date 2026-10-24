@@ -79,3 +79,16 @@ Resend Free, по официальной странице на октябрь 20
 В первом combined UAT Google сообщил, что приложение передало `http://127.0.0.1:5173/login/oauth2/code/guitar-mentor`, хотя в Google Cloud разрешён `http://localhost:5173/login/oauth2/code/guitar-mentor`. Это разные URI. Причина: Vite proxy направляет вызов на backend 127.0.0.1, Spring OAuth по умолчанию формирует callback из proxy Host.
 
 Исправлено на уровне `application-local-unified.yml`: `spring.security.oauth2.client.registration.guitar-mentor.redirect-uri=http://localhost:5173/login/oauth2/code/{registrationId}`. Startup guard требует ровно это значение. Google Cloud OAuth Web client Authorized redirect URI должен быть **http://localhost:5173/login/oauth2/code/guitar-mentor**. Перезапустить backend после обновления Git. Не добавлять 127.0.0.1 callback вместо исправления, не менять значения токенов/SMTP и не менять DNS.
+
+## Короткий старый адрес https://guitar-mentor/
+
+Оба адреса должны открывать приложение. **В объединённом локальном режиме только один origin может хранить авторизованную сессию**: `http://localhost:5173` — именно он зарегистрирован в Google OAuth Web client и указан в ссылках из письма. Поэтому `https://guitar-mentor/` служит коротким входом и автоматически переводит браузер на `http://localhost:5173/` при запуске скрипта `local-auth-unified.ps1`. Путь, query и fragment сохраняются до перехода; токен письма затем скрывается во время загрузки основного приложения. В старых режимах без `VITE_GUITAR_MENTOR_UNIFIED_LOCAL=true` перенаправление отключено, исходное поведение Caddy не меняется.
+
+Для использования короткого адреса **должен работать уже установленный Caddy** (в терминале VS Code):
+
+```powershell
+cd D:\\Development\\guitar-mentor-ai
+& 'C:\\Tools\\Caddy\\caddy.exe' run --config .\\infra\\local\\Caddyfile --adapter caddyfile
+```
+
+Проверенный в проекте hosts: `127.0.0.1 guitar-mentor`, сертификат `tls internal` уже должен быть доверен Chrome. При работающем Caddy и Vite короткий HTTPS-адрес открывает приложение, а после перенаправления в адресной строке **будет localhost** — это ожидаемо, не баг. Нельзя сохранять отдельную Google-сессию на `guitar-mentor` и пытаться автоматически перенести cookie/CSRF с `localhost`: браузер разделяет сессии по origin. Для постоянного HTTPS-адреса без перенаправления потребуется отдельная настройка Google OAuth для реального `https://guitar-mentor.ru` и полноценный HTTPS-деплой.
