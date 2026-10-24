@@ -15,6 +15,7 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 import java.util.Optional;
 import java.util.UUID;
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.BeforeEach;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.boot.test.context.TestConfiguration;
@@ -44,6 +45,10 @@ class SecurityHttpIntegrationTest {
     @MockitoBean ActorRepository actors;
     @MockitoBean InvitationService invitations;
 
+    @BeforeEach
+    void syntheticAccountsHaveVersionZero() {
+        when(actors.localVersion(any())).thenReturn(Optional.of(0L));
+    }
     private final UUID learnerA = UUID.randomUUID();
     private final UUID learnerB = UUID.randomUUID();
 
@@ -62,13 +67,13 @@ class SecurityHttpIntegrationTest {
         activeA();
         var principal = oidcLogin().idToken(t -> t.claim("iss", "https://issuer.example").subject("user-a"));
         String base = "/api/v1/learners/" + learnerB;
-        mvc.perform(get(base).with(principal)).andExpect(status().isNotFound())
+        mvc.perform(get(base).with(principal).sessionAttr("guitarMentorAccessVersion",0L)).andExpect(status().isNotFound())
             .andExpect(jsonPath("$.code").value("RESOURCE_NOT_FOUND"))
             .andExpect(header().string("Cache-Control", "no-store"));
         mvc.perform(get(base + "/diagnostic-sessions/" + UUID.randomUUID()
-                + "/tasks/" + UUID.randomUUID() + "/attempts/page").with(principal))
+                + "/tasks/" + UUID.randomUUID() + "/attempts/page").with(principal).sessionAttr("guitarMentorAccessVersion",0L))
             .andExpect(status().isNotFound());
-        mvc.perform(post(base + "/diagnostic-sessions").with(principal).with(csrf()))
+        mvc.perform(post(base + "/diagnostic-sessions").with(principal).sessionAttr("guitarMentorAccessVersion",0L).with(csrf()))
             .andExpect(status().isNotFound());
     }
 
@@ -76,9 +81,9 @@ class SecurityHttpIntegrationTest {
     void knownActorIsResolvedForMeButUnknownActorFailsClosed() throws Exception {
         activeA();
         var principal = oidcLogin().idToken(t -> t.claim("iss", "https://issuer.example").subject("user-a"));
-        mvc.perform(get("/api/v1/me").with(principal)).andExpect(status().isOk())
+        mvc.perform(get("/api/v1/me").with(principal).sessionAttr("guitarMentorAccessVersion",0L)).andExpect(status().isOk())
             .andExpect(jsonPath("$.learnerId").value(learnerA.toString()));
-        mvc.perform(get("/api/v1/csrf").with(principal)).andExpect(status().isOk())
+        mvc.perform(get("/api/v1/csrf").with(principal).sessionAttr("guitarMentorAccessVersion",0L)).andExpect(status().isOk())
             .andExpect(jsonPath("$.headerName").isString());
         var unknown = oidcLogin().idToken(t -> t.claim("iss", "https://issuer.example").subject("unknown"));
         mvc.perform(get("/api/v1/me").with(unknown)).andExpect(status().isForbidden())
@@ -89,12 +94,12 @@ class SecurityHttpIntegrationTest {
     void csrfIsRequiredEvenForKnownActorAndLogout() throws Exception {
         activeA();
         var principal = oidcLogin().idToken(t -> t.claim("iss", "https://issuer.example").subject("user-a"));
-        mvc.perform(post("/api/v1/learners").with(principal)).andExpect(status().isForbidden());
-        mvc.perform(post("/api/v1/learners").with(principal).with(csrf()))
+        mvc.perform(post("/api/v1/learners").with(principal).sessionAttr("guitarMentorAccessVersion",0L)).andExpect(status().isForbidden());
+        mvc.perform(post("/api/v1/learners").with(principal).sessionAttr("guitarMentorAccessVersion",0L).with(csrf()))
             .andExpect(status().isForbidden())
             .andExpect(jsonPath("$.code").value("INVITATION_REQUIRED"));
-        mvc.perform(post("/logout").with(principal)).andExpect(status().isForbidden());
-        mvc.perform(post("/logout").with(principal).with(csrf()))
+        mvc.perform(post("/logout").with(principal).sessionAttr("guitarMentorAccessVersion",0L)).andExpect(status().isForbidden());
+        mvc.perform(post("/logout").with(principal).sessionAttr("guitarMentorAccessVersion",0L).with(csrf()))
             .andExpect(status().isNoContent());
     }
 
@@ -106,17 +111,17 @@ class SecurityHttpIntegrationTest {
         String scope = "/api/v1/learners/" + learnerB;
         String nested = scope + "/diagnostic-sessions/" + UUID.randomUUID()
             + "/tasks/" + UUID.randomUUID() + "/attempts";
-        mvc.perform(get(nested).with(principal))
+        mvc.perform(get(nested).with(principal).sessionAttr("guitarMentorAccessVersion",0L))
             .andExpect(status().isNotFound());
-        mvc.perform(head(nested).with(principal))
+        mvc.perform(head(nested).with(principal).sessionAttr("guitarMentorAccessVersion",0L))
             .andExpect(status().isNotFound());
-        mvc.perform(get(nested + "/" + UUID.randomUUID() + "/media").with(principal))
+        mvc.perform(get(nested + "/" + UUID.randomUUID() + "/media").with(principal).sessionAttr("guitarMentorAccessVersion",0L))
             .andExpect(status().isNotFound());
-        mvc.perform(post(nested).with(principal).with(csrf()))
+        mvc.perform(post(nested).with(principal).sessionAttr("guitarMentorAccessVersion",0L).with(csrf()))
             .andExpect(status().isNotFound());
-        mvc.perform(put(scope).with(principal).with(csrf()))
+        mvc.perform(put(scope).with(principal).sessionAttr("guitarMentorAccessVersion",0L).with(csrf()))
             .andExpect(status().isNotFound());
-        mvc.perform(delete(nested + "/" + UUID.randomUUID()).with(principal).with(csrf()))
+        mvc.perform(delete(nested + "/" + UUID.randomUUID()).with(principal).sessionAttr("guitarMentorAccessVersion",0L).with(csrf()))
             .andExpect(status().isNotFound());
     }
 
@@ -153,9 +158,9 @@ class SecurityHttpIntegrationTest {
         when(actors.findActive("https://issuer.example", "revoked-learner"))
             .thenReturn(Optional.of(new CurrentActor(UUID.randomUUID(),learnerA,"LEARNER")))
             .thenReturn(Optional.empty());
-        mvc.perform(get("/api/v1/me").with(principal))
+        mvc.perform(get("/api/v1/me").with(principal).sessionAttr("guitarMentorAccessVersion",0L))
             .andExpect(status().isOk());
-        mvc.perform(get("/api/v1/me").with(principal))
+        mvc.perform(get("/api/v1/me").with(principal).sessionAttr("guitarMentorAccessVersion",0L))
             .andExpect(status().isForbidden())
             .andExpect(jsonPath("$.code").value("ACCOUNT_NOT_ADMITTED"));
     }
@@ -166,7 +171,7 @@ class SecurityHttpIntegrationTest {
         activeA();
         var principal = oidcLogin().idToken(t ->
             t.claim("iss", "https://issuer.example").subject("user-a"));
-        mvc.perform(get("/actuator/health").with(principal))
+        mvc.perform(get("/actuator/health").with(principal).sessionAttr("guitarMentorAccessVersion",0L))
             .andExpect(status().isForbidden());
     }
 
