@@ -3,7 +3,8 @@
 INSERT INTO exercises
  (id,code,version,is_current,title,instrument_code,technique_code,style_code,difficulty,
   bpm,measures,meter,author,license,review_status,description,
-  score_resource,events_resource,content_kind,tempo_unit,duration_target_seconds,
+  score_resource,events_resource,preview_audio_resource,preview_pdf_resource,
+  content_kind,tempo_unit,duration_target_seconds,
   learning_goal,practice_instructions,tuning)
 VALUES
  ('58430000-0000-4000-8000-000000001451','GM-DIAG-PULSE-3-8-01','0.1.0',FALSE,
@@ -13,6 +14,8 @@ VALUES
   '21,6 секунды: тройки ровных восьмых на открытых струнах G, B и E.',
   'exercises/GM-DIAG-PULSE-3-8-01/score.musicxml',
   'exercises/GM-DIAG-PULSE-3-8-01/score_events.json',
+  'exercises/GM-DIAG-PULSE-3-8-01/preview_v010.mp3',
+  'exercises/GM-DIAG-PULSE-3-8-01/preview_v010.pdf',
   'DIAGNOSTIC_PROBE','eighth',22,
   'Наблюдать ровный счёт 1-2-3, акцент первой восьмой и координацию i-m-a.',
   'Прослушай пример; отсчитай три вступительные восьмые и сыграй 12 тактов ровно.',
@@ -27,5 +30,5 @@ VALUES
   'Ровный трёхдольный пульс',
   '12 групп по три восьмых в равном темпе, акцент на первой восьмой; без остановки',
   10);
--- No MP3/PDF are registered by this migration. Their review previews are
--- external to the application until the approved, version-matched release.
+-- Versioned MP3/PDF resources are packaged but HIDDEN because review and
+-- legal publication gates are pending. No learner receives these automatically.
