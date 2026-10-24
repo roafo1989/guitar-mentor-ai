@@ -1,5 +1,7 @@
 # Guitar Mentor AI — документация
 
+**[Обязательный эталон оформления нот и TAB — MUS-NOTATION-01](specifications/MUS-NOTATION-01-score-tab-standard.md)**, утверждён24.10.2026. Исходный PDF предоставлен владельцем в чате24.10.2026.
+
 **Отмена 24.10.2026:** владелец отказался от US-010/#112 и задач #113–116 («Я передумал, они мне не нужны»). BT-020 и FT-010-01…04 сняты с действующего объёма; разработка, оценки и условия старта этой ветки больше не применяются. Основной интерфейс метронома #111 сохраняется. Ниже сведения о скинах оставлены только как история.
 
 **[Состояние проекта и датированные результаты сверки](project/current-state.md)**. Последние дополнения: [стори61: актуализация четырёх задач и порядок разработки —24.10.2026](specifications/US-007-access-analysis-2026-10-24.md), [актуальные доски/стори и единый блок входа —24.10.2026](project/board-audit-2026-10-24.md), [следующие три кандидата125/126/127 —23.10.2026](project/next-development-candidates-2026-10-23.md), [UX51: аудит, прототип и передача фронтенду —23.10.2026](specifications/UX-01-student-journey.md), [текущие кандидаты #119/#120/#85 —22.10.2026](project/next-development-candidates-2026-10-22.md), [тюнер: интерфейс и строи #108 — 21.10.2026](specifications/TOOL-03-tuner-interface-and-tunings.md), [гибкий метроном #104 — 21.10.2026](specifications/TOOL-02-flexible-metronome.md), [анализ четырёх задач — 20.10.2026](project/analysis-refresh-2026-10-20.md). Приложение работает локально, без авторизации.
@@ -8,14 +10,14 @@
 
 [Задачи](https://github.com/users/roafo1989/projects/1/views/3) · [Стори](https://github.com/users/roafo1989/projects/1/views/4) · [Эпики](https://github.com/users/roafo1989/projects/1/views/5) · [Иерархия](https://github.com/users/roafo1989/projects/1/views/2)
 
-- [Жизненный цикл задачи 1.3](project/development-workflow.md)
+- [Жизненный цикл задачи 1.4](project/development-workflow.md)
 - [Стандарт спецификаций 1.0: Full / Standard / Design / Light](project/specification-standard.md)
 - [Шаблон спецификации изменения](templates/change-specification.md)
 - [Протокол настройки досок 19.10.2026](project/board-standard-migration-2026-10-19.md)
 - [Поля и переходы Kanban](project/kanban-workflow.md)
 - [Регламент бизнес-анализа 1.3](project/business-analysis-workflow.md)
 - [Регламент системного анализа 1.6](project/system-analysis-workflow.md)
-- [Регламент тестирования 1.1](project/testing-workflow.md)
+- [Регламент тестирования 1.2](project/testing-workflow.md)
 - [Реестр иерархии 0.9](project/issue-hierarchy.md)
 
 ## Требования и спецификации
@@ -35,10 +37,10 @@
 
 - [#104 / TOOL-02 — гибкий метроном](specifications/TOOL-02-flexible-metronome.md) — размеры, акценты, индивидуальная громкость, подразделения/Tap/пресеты; v1.1,36 ч; база — принятая #87, запись/minimize/reopen сохраняются
 
-- [Бизнес-требования 0.11](requirements/business-requirements.md) — два блока интервью, выбор репертуара и уверенная игра наизусть; ТЗ ещё не синхронизировано с BT-017/018
+- [Бизнес-требования 0.12](requirements/business-requirements.md) — два блока интервью, выбор репертуара и уверенная игра наизусть; ТЗ ещё не синхронизировано с BT-017/018
 - [Бизнес-анализ и варианты](https://github.com/roafo1989/guitar-mentor-ai/blob/main/docs/requirements/discovery/business-analysis-2026-10-20.md) — v0.3, уточнение по двум блокам ответов 21.10.2026
 - [Интервью заказчика](https://github.com/roafo1989/guitar-mentor-ai/blob/main/docs/requirements/discovery/customer-interview-2026-10-20.md) — v0.3, ответы BA-Q01–05/BA-Q21–24; следующий блок — занятие, запись и отзыв
-- [Техническое задание 0.21](requirements/technical-specification.md) — 9 действующих US / 37 FT, НФТ/SEC и открытые вопросы
+- [Техническое задание 0.22](requirements/technical-specification.md) — 9 действующих US / 37 FT, НФТ/SEC и открытые вопросы
 - [Системная спецификация 0.6](specifications/system-specification.md) — текущие API/данные и целевой остаток
 - [MVP Scope & Acceptance 1.1](project/mvp-scope-v1.md)
 - [Roadmap 1.1](project/roadmap-mvp-v1.md) — исходные оценки исторические, не текущий остаток
