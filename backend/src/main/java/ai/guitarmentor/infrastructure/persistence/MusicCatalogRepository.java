@@ -56,7 +56,7 @@ public class MusicCatalogRepository {
                         SELECT 1 FROM music_catalog_source_files f
                         WHERE f.owner_account_id=a.owner_account_id
                           AND f.source_arrangement_id=a.source_arrangement_id
-                          AND lower(f.extension)=:format))
+                          AND lower(f.extension)=concat('.',:format)))
               )
             ORDER BY """ + order + " LIMIT :limit OFFSET :offset";
         return jdbc.sql(sql).param("owner",owner).param("q",query)
