@@ -81,21 +81,24 @@ try {
   assert.ok(compact.nav && compact.selector,'Semantic navigation and labelled attempt select required');
   assert.equal(compact.labels.length,4);
   assert.ok(compact.scrollWidth<=compact.width,'Horizontal overflow at 360 CSS px: '+JSON.stringify(compact));
+  await cdp('Page.bringToFront');
+  await cdp('Emulation.setFocusEmulationEnabled',{enabled:true});
   // Expand native details, then ensure the keyboard can move between enabled
   // history actions without scripts swapping focus.
-  await evaluate(`(() => {
+  const startingFocus=await evaluate(`(() => {
     document.querySelector('.homework-history').open=true;
     const buttons=[...document.querySelectorAll('.homework-history nav button')];
     buttons[2].focus();
-    return buttons[2]===document.activeElement;
+    return {focused:buttons[2]===document.activeElement,disabled:buttons[2].disabled,active:document.activeElement?.outerHTML};
   })()`);
+  assert.ok(startingFocus.focused && !startingFocus.disabled,'Latest must be enabled and focused: '+JSON.stringify(startingFocus));
   await cdp('Input.dispatchKeyEvent',{type:'keyDown',key:'Tab',code:'Tab',windowsVirtualKeyCode:9});
   await cdp('Input.dispatchKeyEvent',{type:'keyUp',key:'Tab',code:'Tab',windowsVirtualKeyCode:9});
   const keyboard=await evaluate(`(() => {
     const buttons=[...document.querySelectorAll('.homework-history nav button')];
-    return {active:buttons.indexOf(document.activeElement),focusVisible:document.activeElement?.matches(':focus-visible')};
+    return {active:buttons.indexOf(document.activeElement),focusVisible:document.activeElement?.matches(':focus-visible'),activeHtml:document.activeElement?.outerHTML};
   })()`);
-  assert.equal(keyboard.active,3,'Tab must focus Refresh after Latest');
+  assert.equal(keyboard.active,3,'Tab must focus Refresh after Latest: '+JSON.stringify(keyboard));
   assert.ok(keyboard.focusVisible,'Keyboard focus indicator must remain visible');
   // Chrome page-scale tests visual zoom; keep CSS viewport at 360px to catch
   // overflow while text and controls are magnified.
