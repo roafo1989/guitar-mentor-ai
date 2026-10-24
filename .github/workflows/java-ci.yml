@@ -248,7 +248,7 @@ jobs:
               assert exercise["successCriteria"] == criteria
               assert exercise["recommendedPracticeMinutes"] == 30
               assert exercise["scoreUrl"] == "/api/v1/exercises/GM-EB01/versions/0.8B/score"
-          assert catalog[0] == detail == assigned == current
+          assert legacy == detail == assigned == current
           print("QA #119 HTTP catalog/detail/assigned/retrieved DTO contract: OK")
           PY
               task_id=$(printf '%s' "$assigned" | python3 -c 'import json,sys;print(json.load(sys.stdin)["id"])')
