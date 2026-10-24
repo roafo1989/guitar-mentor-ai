@@ -298,3 +298,22 @@ test('#150 description tab renders goal and instructions without a nested disclo
  assert.match(preview,/diagnostic\.metadata\.goal/);
  assert.match(preview,/diagnostic\.metadata\.instructions/);
 });
+
+test('#150 artwork: approved acoustic image replaces note tile with safe fallback', async () => {
+ const { stat, readFile: readBytes } = await import('node:fs/promises');
+ const artwork = new URL('../public/images/exercise-default-acoustic.jpg', import.meta.url);
+ const bytes = await readBytes(artwork);
+ assert.ok(bytes.length > 1500);
+ assert.equal(bytes[0], 0xff);
+ assert.equal(bytes[1], 0xd8);
+ assert.equal(bytes.at(-2), 0xff);
+ assert.equal(bytes.at(-1), 0xd9);
+ const view=await readFile(new URL('../src/entities/diagnostic/DiagnosticView.vue',import.meta.url),'utf8');
+ const model=await readFile(new URL('../src/shared/model/diagnostic.model.ts',import.meta.url),'utf8');
+ assert.match(view,/fallbackArtwork = '\/images\/exercise-default-acoustic\.jpg'/);
+ assert.match(view,/class="studio-assignment-cover"/);
+ assert.match(view,/:src="artworkSrc"/);
+ assert.match(view,/@error="onArtworkError"/);
+ assert.match(view,/object-fit:cover/);
+ assert.match(model,/coverUrl\?: string \| null/);
+});
