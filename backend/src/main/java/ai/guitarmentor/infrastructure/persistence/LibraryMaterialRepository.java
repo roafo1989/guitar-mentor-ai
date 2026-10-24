@@ -31,6 +31,14 @@ public class LibraryMaterialRepository {
             """).param("owner",owner).param("id",id).query(MATERIAL).optional();
     }
 
+    /** Used only for idempotent DELETE; never exposed as a readable card. */
+    public Optional<Material> findIncludingDeleting(UUID owner, UUID id) {
+        return jdbc.sql("""
+            SELECT id,title,material_type,author,state,revision,created_at,updated_at
+            FROM library_materials WHERE owner_account_id=:owner AND id=:id
+            """).param("owner",owner).param("id",id).query(MATERIAL).optional();
+    }
+
     public List<Material> page(UUID owner, OffsetDateTime before, UUID beforeId, int limit) {
         if (before == null) {
             return jdbc.sql("""
