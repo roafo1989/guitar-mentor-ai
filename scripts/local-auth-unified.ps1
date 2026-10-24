@@ -100,19 +100,30 @@ $segments = @($env:Path, $machinePath, $userPath) + $extraPaths
 $env:Path = ($segments | Where-Object { -not [string]::IsNullOrWhiteSpace($_) }) -join ';'
 
 $missing = @()
-foreach ($tool in @('powershell.exe', 'java.exe', 'npm.cmd', 'pwsh.exe')) {
+foreach ($tool in @('java.exe', 'node.exe', 'npm.cmd')) {
     if (-not (Get-Command $tool -ErrorAction SilentlyContinue)) { $missing += $tool }
 }
 if ($missing.Count -gt 0) {
     throw "Missing command(s): $($missing -join ', '). Check installation and Windows PATH. Reopen VS Code after installing Java/Node.js."
 }
 
-$ps = (Get-Command pwsh.exe -ErrorAction Stop).Source
+# Store-packaged pwsh.exe can start as an App Execution Alias with a different
+# environment. Spawn the built-in Windows PowerShell directly: it inherits this
+# process's corrected PATH and all SMTP/OAuth variables.
+$ps = Join-Path $env:WINDIR 'System32\WindowsPowerShell\v1.0\powershell.exe'
+if (-not (Test-Path -LiteralPath $ps)) {
+    throw "Windows PowerShell executable not found: $ps"
+}
 $npm = (Get-Command npm.cmd -ErrorAction Stop).Source
-# Use the native Windows .cmd wrappers for Maven/npm.
-# All protected environment values are inherited, never interpolated into command arguments.
-$backendCommand = "Set-Location -LiteralPath '$backend'; & '.\mvnw.cmd' spring-boot:run"
-$frontendCommand = "Set-Location -LiteralPath '$frontend'; & '$npm' run dev"
+$node = (Get-Command node.exe -ErrorAction Stop).Source
+if (-not (Test-Path -LiteralPath $node)) {
+    throw "Node.js executable not found: $node"
+}
+# Native .cmd wrappers rely on PATH: Maven Wrapper invokes powershell.exe,
+# npm.cmd invokes node.exe. Fail in the child before running the app when PATH
+# is broken. Do not include secret values in commands or logs.
+$backendCommand = "Set-Location -LiteralPath '$backend'; if (-not (Get-Command powershell.exe -ErrorAction SilentlyContinue)) { throw 'Child PATH missing powershell.exe' }; & '.\mvnw.cmd' spring-boot:run"
+$frontendCommand = "Set-Location -LiteralPath '$frontend'; if (-not (Get-Command node.exe -ErrorAction SilentlyContinue)) { throw 'Child PATH missing node.exe' }; & '$npm' run dev"
 Start-Process -FilePath $ps -ArgumentList @('-NoExit', '-Command', $backendCommand)
 Start-Process -FilePath $ps -ArgumentList @('-NoExit', '-Command', $frontendCommand)
 Write-Host 'Started private backend and Vite terminals. Open http://localhost:5173.'
