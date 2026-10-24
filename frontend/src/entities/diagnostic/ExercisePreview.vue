@@ -13,6 +13,21 @@ const pdfExists = ref(false);
 const checking = ref(true);
 const pdfOpen = ref(false);
 const studioTab = ref<'score' | 'audio' | 'description'>('score');
+function onStudioTabKeydown(event: KeyboardEvent): void {
+  const tabs = ['score','audio','description'] as const;
+  const index = tabs.indexOf(studioTab.value);
+  let next = index;
+  if (event.key === 'ArrowRight') next = (index + 1) % tabs.length;
+  else if (event.key === 'ArrowLeft') next = (index + tabs.length - 1) % tabs.length;
+  else if (event.key === 'Home') next = 0;
+  else if (event.key === 'End') next = tabs.length - 1;
+  else return;
+  event.preventDefault();
+  studioTab.value = tabs[next]!;
+  if (studioTab.value === 'score') pdfOpen.value = true;
+  const buttons = (event.currentTarget as HTMLElement).querySelectorAll<HTMLButtonElement>('[role="tab"]');
+  buttons[next]?.focus();
+}
 const pdfLoading = ref(false);
 const pdfReady = ref(false);
 const metronomeError = ref(false);
@@ -115,7 +130,7 @@ onBeforeUnmount(() => pdfOpenController?.abort());
 
 <template>
   <section class="exercise-preview" :class="{ 'studio-preview': assigned && lightMinimal }" :aria-label="t('diagnostic.previewHeading')">
-    <div v-if="assigned && lightMinimal" class="studio-tabs" role="tablist" :aria-label="t('diagnostic.studio.tabsLabel')">
+    <div v-if="assigned && lightMinimal" class="studio-tabs" role="tablist" :aria-label="t('diagnostic.studio.tabsLabel')" @keydown="onStudioTabKeydown">
       <button type="button" role="tab" :aria-selected="studioTab === 'score'" :tabindex="studioTab === 'score' ? 0 : -1"
         @click="studioTab = 'score'; pdfOpen = true">{{ t('diagnostic.studio.scoreTab') }}</button>
       <button type="button" role="tab" :aria-selected="studioTab === 'audio'" :tabindex="studioTab === 'audio' ? 0 : -1"
