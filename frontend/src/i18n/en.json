@@ -259,7 +259,12 @@
     "uploadServerError": "The server could not accept this recording. Please retry.",
     "historyLoadError": "Could not load attempt history. Refresh the page and check the connection.",
     "metronomePracticeTip": "You can record while playing to the metronome. Use headphones to avoid speaker clicks being captured by the microphone.",
-    "historyDetails": "Attempt history"
+    "historyDetails": "Attempt history",
+    "older": "Older",
+    "newer": "Newer",
+    "latest": "Latest",
+    "refresh": "Refresh history",
+    "historyStale": "Showing the previous page: new data is unavailable."
   },
   "evidence": {
     "heading": "My performances",
@@ -478,6 +483,7 @@
     "noSkillEvidence": "No assessed criteria yet",
     "uploadClosed": "Assignment completed. New attempts cannot be uploaded; history and feedback remain available.",
     "historyDetails": "Decision and assessment history",
-    "assessmentDetails": "Assessment details"
+    "assessmentDetails": "Assessment details",
+    "attemptUnavailable": "Attempt unavailable. Refresh history."
   }
 }
