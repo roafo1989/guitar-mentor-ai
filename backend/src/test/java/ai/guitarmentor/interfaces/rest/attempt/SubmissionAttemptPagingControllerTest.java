@@ -61,6 +61,7 @@ class SubmissionAttemptPagingControllerTest {
         assertEquals(HttpStatus.OK,result.getStatusCode());
         assertTrue(result.getHeaders().getCacheControl().contains("no-store"));
         verify(service).verifyOwnership(learner,session,task);
+        verify(service).isEnabled();
         verifyNoMoreInteractions(service);
     }
 }
