@@ -363,7 +363,7 @@ async function assign(exerciseCode: string): Promise<void> {
         <h2>{{ task.exercise.title }}</h2>
         <p>{{ task.exercise.learningGoal?.trim() || task.exercise.description || t('diagnostic.metadata.unknown') }}</p>
         <div class="exercise-stats">
-          <span>{{ task.exercise.bpm }} BPM · {{ task.exercise.tempoUnit || 'quarter' }}</span>
+          <span>{{ task.exercise.bpm }} BPM<template v-if="task.exercise.tempoUnit"> · {{ task.exercise.tempoUnit }}</template></span>
           <span>{{ task.exercise.meter }}</span>
           <span>{{ task.exercise.measures }} {{ t('diagnostic.bars') }}</span>
           <span>{{ task.exercise.license }}</span>
