@@ -104,6 +104,11 @@ test('CORE-E failed background GET prevents PUT; recovery GET enables form witho
     nodes = flatten(root);
     assert.ok(nodes.some(n => n.text === 'Нет связи'), 'already displayed error translates immediately');
     assert.equal(calls.filter(([method]) => method === 'PUT').length, 0);
+    const nextStep = nodes.find(n => n.tag === 'button' && String(n.text).includes('onboarding.next'));
+    assert.ok(nextStep?.props.onClick, 'first step navigation exists');
+    nextStep.props.onClick();
+    await settle();
+    nodes = flatten(root);
     const saveButton = nodes.find(n => n.tag === 'button' && String(n.text).includes('Сохранить'));
     assert.ok(saveButton?.props.disabled, 'unsafe PUT is disabled when GET failed');
     // Invoke the actual form submit handler: guard must also live in save(), not only in the template.
