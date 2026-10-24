@@ -246,6 +246,7 @@ onBeforeUnmount(() => {
         <button type="button" class="recorder-button secondary-button"
           :disabled="state !== 'recording'" @click="cancel">{{ t('attempt.cancelRecording') }}</button>
       </template>
+      <slot name="actions" />
     </div>
     <div v-if="state === 'recording' && !compact" class="mic-level-panel">
       <div class="mic-level-heading">
