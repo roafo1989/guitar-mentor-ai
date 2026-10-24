@@ -1,0 +1,827 @@
+{
+  "metadata": {
+    "id": "GM-EB05",
+    "version": "1.0.0",
+    "title": "Midnight Train Blues",
+    "source": "ORIGINAL",
+    "license": "CC BY 4.0",
+    "status": "PENDING_MUSICAL_REVIEW",
+    "instrument": "ACOUSTIC_GUITAR",
+    "technique": "FINGERSTYLE",
+    "meter": "4/4",
+    "bpm": 88,
+    "bars": 12,
+    "tuning": "E A D G B E",
+    "learningGoal": "Independent thumb pulse and syncopated treble blues phrases",
+    "practiceInstructions": "Play with fingers p-i-m-a; begin at 60 BPM, keep bass steady and let melodic rests breathe; no pick or percussion.",
+    "successCriteria": [
+      "Stable quarter-note bass pulse",
+      "Treble entries accurately placed on offbeats",
+      "Clear E7 resolution at bar 12"
+    ],
+    "review": {
+      "guitarPlayability": "PENDING",
+      "ownerListening": "PENDING"
+    },
+    "media": {
+      "audio": "NOT_RENDERED",
+      "pdf": "NOT_RENDERED"
+    }
+  },
+  "measures": [
+    {
+      "bar": 1,
+      "chord": "E7",
+      "bass": [
+        {
+          "beat": 0,
+          "length": 1,
+          "notes": [
+            {
+              "string": 6,
+              "fret": 0
+            }
+          ]
+        },
+        {
+          "beat": 2,
+          "length": 1,
+          "notes": [
+            {
+              "string": 6,
+              "fret": 0
+            }
+          ]
+        }
+      ],
+      "upper": [
+        {
+          "beat": 0.5,
+          "length": 0.5,
+          "notes": [
+            {
+              "string": 1,
+              "fret": 0
+            }
+          ]
+        },
+        {
+          "beat": 1.5,
+          "length": 0.5,
+          "notes": [
+            {
+              "string": 1,
+              "fret": 3
+            }
+          ]
+        },
+        {
+          "beat": 2.5,
+          "length": 0.5,
+          "notes": [
+            {
+              "string": 2,
+              "fret": 2
+            }
+          ]
+        },
+        {
+          "beat": 3,
+          "length": 1,
+          "notes": [
+            {
+              "string": 1,
+              "fret": 0
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "bar": 2,
+      "chord": "A7",
+      "bass": [
+        {
+          "beat": 0,
+          "length": 1,
+          "notes": [
+            {
+              "string": 5,
+              "fret": 0
+            }
+          ]
+        },
+        {
+          "beat": 2,
+          "length": 1,
+          "notes": [
+            {
+              "string": 5,
+              "fret": 0
+            }
+          ]
+        }
+      ],
+      "upper": [
+        {
+          "beat": 0.5,
+          "length": 0.5,
+          "notes": [
+            {
+              "string": 1,
+              "fret": 2
+            }
+          ]
+        },
+        {
+          "beat": 1.5,
+          "length": 0.5,
+          "notes": [
+            {
+              "string": 1,
+              "fret": 0
+            }
+          ]
+        },
+        {
+          "beat": 2.5,
+          "length": 0.5,
+          "notes": [
+            {
+              "string": 2,
+              "fret": 3
+            }
+          ]
+        },
+        {
+          "beat": 3,
+          "length": 1,
+          "notes": [
+            {
+              "string": 1,
+              "fret": 0
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "bar": 3,
+      "chord": "E7",
+      "bass": [
+        {
+          "beat": 0,
+          "length": 1,
+          "notes": [
+            {
+              "string": 6,
+              "fret": 0
+            }
+          ]
+        },
+        {
+          "beat": 2,
+          "length": 1,
+          "notes": [
+            {
+              "string": 6,
+              "fret": 0
+            }
+          ]
+        }
+      ],
+      "upper": [
+        {
+          "beat": 0.5,
+          "length": 0.5,
+          "notes": [
+            {
+              "string": 1,
+              "fret": 3
+            }
+          ]
+        },
+        {
+          "beat": 1.5,
+          "length": 0.5,
+          "notes": [
+            {
+              "string": 1,
+              "fret": 0
+            }
+          ]
+        },
+        {
+          "beat": 2.5,
+          "length": 0.5,
+          "notes": [
+            {
+              "string": 2,
+              "fret": 2
+            }
+          ]
+        },
+        {
+          "beat": 3,
+          "length": 1,
+          "notes": [
+            {
+              "string": 1,
+              "fret": 0
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "bar": 4,
+      "chord": "E7",
+      "bass": [
+        {
+          "beat": 0,
+          "length": 1,
+          "notes": [
+            {
+              "string": 6,
+              "fret": 0
+            }
+          ]
+        },
+        {
+          "beat": 2,
+          "length": 1,
+          "notes": [
+            {
+              "string": 6,
+              "fret": 0
+            }
+          ]
+        }
+      ],
+      "upper": [
+        {
+          "beat": 0.5,
+          "length": 0.5,
+          "notes": [
+            {
+              "string": 1,
+              "fret": 0
+            }
+          ]
+        },
+        {
+          "beat": 1.5,
+          "length": 0.5,
+          "notes": [
+            {
+              "string": 1,
+              "fret": 2
+            }
+          ]
+        },
+        {
+          "beat": 2.5,
+          "length": 0.5,
+          "notes": [
+            {
+              "string": 2,
+              "fret": 3
+            }
+          ]
+        },
+        {
+          "beat": 3,
+          "length": 1,
+          "notes": [
+            {
+              "string": 1,
+              "fret": 0
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "bar": 5,
+      "chord": "A7",
+      "bass": [
+        {
+          "beat": 0,
+          "length": 1,
+          "notes": [
+            {
+              "string": 5,
+              "fret": 0
+            }
+          ]
+        },
+        {
+          "beat": 2,
+          "length": 1,
+          "notes": [
+            {
+              "string": 5,
+              "fret": 0
+            }
+          ]
+        }
+      ],
+      "upper": [
+        {
+          "beat": 0.5,
+          "length": 0.5,
+          "notes": [
+            {
+              "string": 1,
+              "fret": 0
+            }
+          ]
+        },
+        {
+          "beat": 1.5,
+          "length": 0.5,
+          "notes": [
+            {
+              "string": 1,
+              "fret": 3
+            }
+          ]
+        },
+        {
+          "beat": 2.5,
+          "length": 0.5,
+          "notes": [
+            {
+              "string": 2,
+              "fret": 2
+            }
+          ]
+        },
+        {
+          "beat": 3,
+          "length": 1,
+          "notes": [
+            {
+              "string": 1,
+              "fret": 0
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "bar": 6,
+      "chord": "A7",
+      "bass": [
+        {
+          "beat": 0,
+          "length": 1,
+          "notes": [
+            {
+              "string": 5,
+              "fret": 0
+            }
+          ]
+        },
+        {
+          "beat": 2,
+          "length": 1,
+          "notes": [
+            {
+              "string": 5,
+              "fret": 0
+            }
+          ]
+        }
+      ],
+      "upper": [
+        {
+          "beat": 0.5,
+          "length": 0.5,
+          "notes": [
+            {
+              "string": 1,
+              "fret": 3
+            }
+          ]
+        },
+        {
+          "beat": 1.5,
+          "length": 0.5,
+          "notes": [
+            {
+              "string": 1,
+              "fret": 2
+            }
+          ]
+        },
+        {
+          "beat": 2.5,
+          "length": 0.5,
+          "notes": [
+            {
+              "string": 2,
+              "fret": 0
+            }
+          ]
+        },
+        {
+          "beat": 3,
+          "length": 1,
+          "notes": [
+            {
+              "string": 1,
+              "fret": 2
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "bar": 7,
+      "chord": "E7",
+      "bass": [
+        {
+          "beat": 0,
+          "length": 1,
+          "notes": [
+            {
+              "string": 6,
+              "fret": 0
+            }
+          ]
+        },
+        {
+          "beat": 2,
+          "length": 1,
+          "notes": [
+            {
+              "string": 6,
+              "fret": 0
+            }
+          ]
+        }
+      ],
+      "upper": [
+        {
+          "beat": 0.5,
+          "length": 0.5,
+          "notes": [
+            {
+              "string": 1,
+              "fret": 0
+            }
+          ]
+        },
+        {
+          "beat": 1.5,
+          "length": 0.5,
+          "notes": [
+            {
+              "string": 1,
+              "fret": 3
+            }
+          ]
+        },
+        {
+          "beat": 2.5,
+          "length": 0.5,
+          "notes": [
+            {
+              "string": 2,
+              "fret": 0
+            }
+          ]
+        },
+        {
+          "beat": 3,
+          "length": 1,
+          "notes": [
+            {
+              "string": 1,
+              "fret": 2
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "bar": 8,
+      "chord": "C#7",
+      "bass": [
+        {
+          "beat": 0,
+          "length": 1,
+          "notes": [
+            {
+              "string": 5,
+              "fret": 4
+            }
+          ]
+        },
+        {
+          "beat": 2,
+          "length": 1,
+          "notes": [
+            {
+              "string": 5,
+              "fret": 4
+            }
+          ]
+        }
+      ],
+      "upper": [
+        {
+          "beat": 0.5,
+          "length": 0.5,
+          "notes": [
+            {
+              "string": 1,
+              "fret": 0
+            }
+          ]
+        },
+        {
+          "beat": 1.5,
+          "length": 0.5,
+          "notes": [
+            {
+              "string": 1,
+              "fret": 2
+            }
+          ]
+        },
+        {
+          "beat": 2.5,
+          "length": 0.5,
+          "notes": [
+            {
+              "string": 2,
+              "fret": 1
+            }
+          ]
+        },
+        {
+          "beat": 3,
+          "length": 1,
+          "notes": [
+            {
+              "string": 1,
+              "fret": 0
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "bar": 9,
+      "chord": "F#m7",
+      "bass": [
+        {
+          "beat": 0,
+          "length": 1,
+          "notes": [
+            {
+              "string": 6,
+              "fret": 2
+            }
+          ]
+        },
+        {
+          "beat": 2,
+          "length": 1,
+          "notes": [
+            {
+              "string": 6,
+              "fret": 2
+            }
+          ]
+        }
+      ],
+      "upper": [
+        {
+          "beat": 0.5,
+          "length": 0.5,
+          "notes": [
+            {
+              "string": 1,
+              "fret": 2
+            }
+          ]
+        },
+        {
+          "beat": 1.5,
+          "length": 0.5,
+          "notes": [
+            {
+              "string": 1,
+              "fret": 0
+            }
+          ]
+        },
+        {
+          "beat": 2.5,
+          "length": 0.5,
+          "notes": [
+            {
+              "string": 2,
+              "fret": 2
+            }
+          ]
+        },
+        {
+          "beat": 3,
+          "length": 1,
+          "notes": [
+            {
+              "string": 1,
+              "fret": 0
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "bar": 10,
+      "chord": "B7",
+      "bass": [
+        {
+          "beat": 0,
+          "length": 1,
+          "notes": [
+            {
+              "string": 5,
+              "fret": 2
+            }
+          ]
+        },
+        {
+          "beat": 2,
+          "length": 1,
+          "notes": [
+            {
+              "string": 5,
+              "fret": 2
+            }
+          ]
+        }
+      ],
+      "upper": [
+        {
+          "beat": 0.5,
+          "length": 0.5,
+          "notes": [
+            {
+              "string": 1,
+              "fret": 2
+            }
+          ]
+        },
+        {
+          "beat": 1.5,
+          "length": 0.5,
+          "notes": [
+            {
+              "string": 1,
+              "fret": 0
+            }
+          ]
+        },
+        {
+          "beat": 2.5,
+          "length": 0.5,
+          "notes": [
+            {
+              "string": 2,
+              "fret": 2
+            }
+          ]
+        },
+        {
+          "beat": 3,
+          "length": 1,
+          "notes": [
+            {
+              "string": 1,
+              "fret": 0
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "bar": 11,
+      "chord": "E7",
+      "bass": [
+        {
+          "beat": 0,
+          "length": 1,
+          "notes": [
+            {
+              "string": 6,
+              "fret": 0
+            }
+          ]
+        },
+        {
+          "beat": 2,
+          "length": 1,
+          "notes": [
+            {
+              "string": 6,
+              "fret": 0
+            }
+          ]
+        }
+      ],
+      "upper": [
+        {
+          "beat": 0.5,
+          "length": 0.5,
+          "notes": [
+            {
+              "string": 1,
+              "fret": 0
+            }
+          ]
+        },
+        {
+          "beat": 1.5,
+          "length": 0.5,
+          "notes": [
+            {
+              "string": 1,
+              "fret": 3
+            }
+          ]
+        },
+        {
+          "beat": 2.5,
+          "length": 0.5,
+          "notes": [
+            {
+              "string": 2,
+              "fret": 2
+            }
+          ]
+        },
+        {
+          "beat": 3,
+          "length": 1,
+          "notes": [
+            {
+              "string": 1,
+              "fret": 0
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "bar": 12,
+      "chord": "E7",
+      "bass": [
+        {
+          "beat": 0,
+          "length": 1,
+          "notes": [
+            {
+              "string": 6,
+              "fret": 0
+            }
+          ]
+        },
+        {
+          "beat": 2,
+          "length": 1,
+          "notes": [
+            {
+              "string": 6,
+              "fret": 0
+            }
+          ]
+        }
+      ],
+      "upper": [
+        {
+          "beat": 0,
+          "length": 4,
+          "notes": [
+            {
+              "string": 1,
+              "fret": 0
+            },
+            {
+              "string": 2,
+              "fret": 0
+            },
+            {
+              "string": 3,
+              "fret": 1
+            }
+          ]
+        }
+      ]
+    }
+  ]
+}
