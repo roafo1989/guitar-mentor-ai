@@ -359,7 +359,7 @@ onBeforeUnmount(() => {
 <template>
   <section class="homework-panel" aria-labelledby="homework-heading">
     <div class="homework-heading">
-      <h3 id="homework-heading"><span v-if="lightMinimal" aria-hidden="true">♩ </span>{{ t('attempt.title') }}</h3>
+      <h3 id="homework-heading"><span v-if="lightMinimal" aria-hidden="true">♩ </span>{{ lightMinimal ? t('attempt.recordingPanelTitle') : t('attempt.title') }}</h3>
       <p v-if="!lightMinimal" class="hint">{{ t('attempt.subtitle') }}</p>
     </div>
     <div v-if="loading" class="hint">{{ t('attempt.loading') }}</div>
@@ -378,6 +378,8 @@ onBeforeUnmount(() => {
           :max-bytes="capabilities?.maxBytes ?? 20971520"
           @recorded="onRecorded" @active="onRecordingActive">
             <template #actions>
+              <audio v-if="file && recordedPreview" :src="recordedPreview" controls preload="metadata"
+                class="studio-recording-playback" :aria-label="t('attempt.listenRecording')" />
               <button type="submit" class="recorder-button studio-send-button"
                 :disabled="learningTerminal || !file || !capabilities?.enabled || uploading || recordingActive">
                 {{ uploading ? t('attempt.uploading') : t('attempt.submit') }}
@@ -401,7 +403,7 @@ onBeforeUnmount(() => {
           :max-bytes="capabilities?.maxBytes ?? 20971520"
           @recorded="onRecorded" @active="onRecordingActive" />
         </template>
-        <div v-if="recordedPreview && file" class="recorded-preview">
+        <div v-if="recordedPreview && file && !lightMinimal" class="recorded-preview">
           <strong>{{ t('attempt.recordingReady') }} ({{ fileSize(file.size) }})</strong>
           <audio :src="recordedPreview" controls preload="metadata"
             :aria-label="t('attempt.listenRecording')" />
@@ -410,6 +412,8 @@ onBeforeUnmount(() => {
             {{ t('attempt.discardRecording') }}
           </button>
         </div>
+        <button v-if="lightMinimal && recordedPreview && file" type="button" class="studio-discard-button"
+          :disabled="uploading" @click="file = null; clearRecordedPreview()">{{ t('attempt.discardRecording') }}</button>
         <label for="attempt-comment" :class="{ 'studio-secondary-label': lightMinimal }">{{ t('attempt.commentLabel') }}</label>
         <textarea id="attempt-comment" v-model="comment" rows="3" maxlength="2000"
           :disabled="uploading"
@@ -483,4 +487,8 @@ onBeforeUnmount(() => {
 .homework-panel:has(.recording-primary) .studio-send-button {border:1px solid #28776d!important;background:#28776d!important;color:white!important;padding:10px 16px!important;min-width:110px}
 .homework-panel:has(.recording-primary) .studio-send-button:disabled {opacity:.45;cursor:not-allowed}
 .homework-panel:has(.recording-primary) .studio-results-divider {border-top:1px solid #edf1ed;margin:18px 0 12px}
+
+.homework-panel:has(.recording-primary) .studio-recording-playback {min-width:140px;flex:1 1 180px;height:40px;max-width:100%}
+.homework-panel:has(.recording-primary) .studio-discard-button {align-self:flex-start;border:0;background:transparent;color:#526e64;text-decoration:underline;font-size:12px;min-height:34px;cursor:pointer}
+.homework-panel:has(.recording-primary) .studio-discard-button:focus-visible {outline:2px solid #28776d}
 </style>
