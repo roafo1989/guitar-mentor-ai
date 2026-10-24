@@ -41,8 +41,7 @@ class LocalAuthHttpPostgresTest {
     void localRegistrationVerificationAndSessionAccessRequireCsrf() throws Exception {
         String email=UUID.randomUUID()+"@example.test";
         String login="test"+UUID.randomUUID().toString().substring(0,10);
-        String invite=invitations.issue(email,null,false);
-        String register="{\"invitation\":\""+invite+"\",\"email\":\""+email
+        String register="{\"email\":\""+email
             +"\",\"login\":\""+login+"\",\"password\":\"safe-password-999\","
             +"\"confirmPassword\":\"safe-password-999\"}";
         mvc.perform(post("/api/v1/local-auth/register")
