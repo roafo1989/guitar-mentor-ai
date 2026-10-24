@@ -39,6 +39,7 @@ function setMode(next: Mode) {
   if (busy.value) return;
   requestEpoch.value++;
   mode.value = next; error.value = ''; success.value = '';
+  if (next !== 'verify' && next !== 'reset') emailActionInProgress.value = false;
   password.value = ''; confirmPassword.value = ''; showPassword.value = false; showConfirm.value = false; manualCode.value = false;
   if (next !== 'verify' && next !== 'reset') {
     verificationToken.value = ''; tokenFromLink.value = false;
@@ -135,10 +136,12 @@ function consumeAuthFragment(): void {
   if (!link.token || !tokenPattern.test(link.token)) {
     verificationToken.value = '';
     tokenFromLink.value = false;
+    mailPurpose.value = link.action === 'reset' ? 'reset' : 'register';
     setMode('expired-link');
     return;
   }
   verificationToken.value = link.token;
+  mailPurpose.value = link.action === 'reset' ? 'reset' : 'register';
   tokenFromLink.value = true;
   identifier.value = '';
   password.value = '';
