@@ -44,8 +44,7 @@ with psycopg.connect(DSN) as conn:
         cur.execute(MIGRATION.read_text(encoding="utf-8"))
 print("V27 DDL executed on disposable PostgreSQL")
 
-data = fixture()
-mod.verify(data)
+data = fixture()\ndata[2][0]["raw_title"] = "Test\\x00name"\nmod.verify(data)
 mod.apply(data,ACCOUNT,DSN)
 mod.apply(data,ACCOUNT,DSN)
 
@@ -54,6 +53,11 @@ with psycopg.connect(DSN) as conn:
         for _,table,_,_ in mod.TABLES:
             cur.execute(f"SELECT count(*) FROM {table}")
             assert cur.fetchone()[0] == 1, table
+
+with psycopg.connect(DSN) as conn:
+    with conn.cursor() as cur:
+        cur.execute("SELECT raw_title FROM music_catalog_source_files WHERE owner_account_id=%s",(ACCOUNT,))
+        assert cur.fetchone()[0] == "Testname"
 
 # A second account may use the same source IDs without exposing account 1's rows.
 other = uuid.uuid4()
