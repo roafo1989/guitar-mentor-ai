@@ -25,6 +25,7 @@ const saving = ref(false);
 const error = ref<ApiFailure | null>(null);
 const localValidation = ref(false);
 const failedRead = ref(false);
+const edited = ref(false);
 const errorMessage = computed(() => localValidation.value ? t('onboarding.invalidPieces') : error.value ? t(apiFailureKey(error.value)) : '');
 let loadGeneration = 0;
 let active = true;
@@ -64,7 +65,7 @@ async function loadBackground(): Promise<void> {
     if (!id) return;
     const background = await onboardingService.get(id, 'ACOUSTIC_GUITAR');
     if (active && seq === loadGeneration && learnerStore.learner?.id === id
-      && learnerAtStart === id && background) apply(background);
+      && learnerAtStart === id && background && !edited.value) apply(background);
   } catch (cause) {
     if (active && seq === loadGeneration && !(cause instanceof Error && cause.name === 'AbortError'))
       { error.value = asApiFailure(cause); failedRead.value = true; }
@@ -139,7 +140,7 @@ async function save(): Promise<void> {
       <p>{{ t('onboarding.needProfile') }}</p>
       <RouterLink to="/profile">{{ t('app.profile') }}</RouterLink>
     </div>
-    <form v-else class="panel" @submit.prevent="save">
+    <form v-else class="panel" @input="edited = true" @change="edited = true" @submit.prevent="save">
       <div class="step-indicator">{{ t('onboarding.step', { step, total: 2 }) }}</div>
 
       <template v-if="step === 1">
