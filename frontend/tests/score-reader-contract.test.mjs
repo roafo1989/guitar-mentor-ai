@@ -172,3 +172,22 @@ test('#150 microphone recording is available independently of upload capability'
     assert.ok(dict.attempt.localRecordingAvailable);
   }
 });
+
+
+test('#150 secure unified local environment explicitly enables authenticated uploads, preserving override', async () => {
+  const launcher = await readFile(new URL('../../scripts/local-auth-unified.ps1', import.meta.url), 'utf8');
+  assert.match(launcher, /GUITAR_MENTOR_SECURITY_ENABLED = 'true'/);
+  assert.match(launcher, /SPRING_PROFILES_ACTIVE = 'secure,local-auth,local-unified'/);
+  assert.match(launcher, /GUITAR_MENTOR_BIND_ADDRESS = '127.0.0.1'/);
+  assert.match(launcher, /IsNullOrWhiteSpace\(\$env:GUITAR_MENTOR_ENABLE_UPLOADS\)/);
+  assert.match(launcher, /\$env:GUITAR_MENTOR_ENABLE_UPLOADS = 'true'/);
+  const submission = await readFile(new URL('../src/entities/attempt/SubmissionPanel.vue', import.meta.url), 'utf8');
+  assert.match(submission, /id="attempt-comment"[^>]*v-model="comment"/);
+  assert.match(submission, /:disabled="uploading"\s*:placeholder="t\('attempt.commentPlaceholder'\)"/);
+  assert.match(submission, /!capabilities\.value\?\.enabled/);
+  for (const lang of ['ru','en']) {
+    const copy = JSON.parse(await readFile(new URL('../src/i18n/'+lang+'.json', import.meta.url),'utf8')).attempt;
+    assert.doesNotMatch(copy.disabledHelp, /не имеет авторизации|does not have auth/i);
+    assert.match(copy.disabledHelp, /отключен|disabled/i);
+  }
+});
