@@ -6,9 +6,17 @@ export const auth = reactive<{ actor: Actor | null; ready: boolean; expired: boo
 });
 let csrf: { headerName: string; token: string } | null = null;
 let installed = false;
+export const secureUi = !(import.meta.env?.DEV === true &&
+  import.meta.env?.VITE_GUITAR_MENTOR_AUTH_REQUIRED !== 'true');
+export function clearActor(): void {
+  auth.actor = null;
+  auth.ready = true;
+  csrf = null;
+}
+
 
 export function installAuthenticatedFetch(onSessionLost: () => void): void {
-  if (import.meta.env.DEV && import.meta.env.VITE_GUITAR_MENTOR_AUTH_REQUIRED !== 'true') return;
+  if (!secureUi) return;
   if (installed) return;
   installed = true;
   const nativeFetch = window.fetch.bind(window);
@@ -27,10 +35,9 @@ export function installAuthenticatedFetch(onSessionLost: () => void): void {
       headers.set(csrf.headerName, csrf.token);
     }
     const response = await nativeFetch(input, { ...init, headers, credentials: 'same-origin' });
-    if (response.status === 401 || response.status === 403 && auth.actor) {
-      auth.actor = null;
+    if (response.status === 401 || (response.status === 403 && path.pathname === '/api/v1/me')) {
+      clearActor();
       auth.expired = true;
-      csrf = null;
       onSessionLost();
     }
     return response;
@@ -45,10 +52,12 @@ export function installAuthenticatedFetch(onSessionLost: () => void): void {
 export async function refreshActor(): Promise<void> {
   try {
     const response = await fetch('/api/v1/me', { credentials: 'same-origin' });
-    auth.actor = response.ok ? await response.json() as Actor : null;
+    const next = response.ok ? await response.json() as Actor : null;
+    if (!next) clearActor();
+    else auth.actor = next;
     auth.expired = false;
   } catch {
-    auth.actor = null;
+    clearActor();
   } finally {
     auth.ready = true;
   }
@@ -68,7 +77,7 @@ export async function logout(onLogout: () => void): Promise<void> {
   const response = await fetch('/logout', { method: 'POST', credentials: 'same-origin',
     headers: { [csrf.headerName]: csrf.token } });
   if (!response.ok) throw new Error('LOGOUT_FAILED');
-  auth.actor = null;
-  csrf = null;
+  clearActor();
+  auth.expired = false;
   onLogout();
 }
