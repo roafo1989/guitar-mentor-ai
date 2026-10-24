@@ -11,7 +11,6 @@ import org.springframework.security.web.SecurityFilterChain;
 import org.springframework.security.web.authentication.UsernamePasswordAuthenticationFilter;
 import org.springframework.security.web.csrf.CookieCsrfTokenRepository;
 import org.springframework.security.web.header.writers.ReferrerPolicyHeaderWriter;
-import org.springframework.security.web.util.matcher.AntPathRequestMatcher;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.RestController;
 import org.springframework.security.web.csrf.CsrfToken;
@@ -56,7 +55,7 @@ public class SecurityConfiguration {
                 })
                 .failureHandler((req, res, ex) -> res.sendRedirect("/?auth=failed")))
             .csrf(csrf -> csrf.csrfTokenRepository(csrfRepo)
-                .ignoringRequestMatchers(new AntPathRequestMatcher("/oauth2/**")))
+                .ignoringRequestMatchers(request -> request.getRequestURI().startsWith("/oauth2/")))
             .sessionManagement(session -> session
                 .sessionFixation(fixation -> fixation.changeSessionId()))
             .logout(logout -> logout.logoutUrl("/logout")
