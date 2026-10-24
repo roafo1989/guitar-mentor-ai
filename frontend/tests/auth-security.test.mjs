@@ -106,7 +106,7 @@ test('SPA reset links are scrubbed and shown even when an authenticated actor ex
   assert.match(gate, /captureEmailActionLink\(\)/);
   const startup = await readFile(new URL('../src/main.ts', import.meta.url), 'utf8');
   assert.ok(startup.indexOf('captureEmailActionLink();') < startup.indexOf('app.use(router)'), 'URL is scrubbed before installing router');
-  assert.match(gate, /auth\.actor && !\(mode === 'reset' && tokenFromLink\)/);
+  assert.match(gate, /auth\.actor && !emailActionInProgress/);
   assert.match(gate, /clearActor\(\);\s*setMode\('login'\)/);
 });
 
