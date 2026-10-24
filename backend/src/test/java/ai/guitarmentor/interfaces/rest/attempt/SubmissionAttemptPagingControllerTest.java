@@ -94,7 +94,7 @@ class SubmissionAttemptPagingControllerTest {
                 .andExpect(header().string("Cache-Control",
                         org.hamcrest.Matchers.containsString("no-store")))
                 .andReturn().getResponse();
-        assertEquals("{\\"code\\":\\"RESOURCE_NOT_FOUND\\"}",response.getContentAsString());
+        assertEquals("{\"code\":\"RESOURCE_NOT_FOUND\"}",response.getContentAsString());
         verify(service,never()).isEnabled();
     }
 
