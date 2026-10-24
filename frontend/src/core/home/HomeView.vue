@@ -89,7 +89,7 @@ onMounted(restoreProfile);
 
 <template>
   <section class="home-page" :data-home-ui="lightMinimal ? 'light-minimal' : undefined" aria-labelledby="home-title">
-    <div class="home-hero">
+    <div class="home-hero" :class="{ 'home-hero--solo': lightMinimal && (loading || restoreFailed || !hasInstrument) }">
       <div class="home-welcome">
         <p class="eyebrow">
           {{ learnerStore.learner
@@ -190,6 +190,7 @@ button.home-primary { border: 0; font: inherit; cursor: pointer; }
   grid-template-columns:minmax(0,1.2fr) minmax(280px,.8fr);gap:clamp(24px,5vw,80px);
   align-items:center;margin-bottom:56px;
 }
+.home-page[data-home-ui="light-minimal"] .home-hero--solo {grid-template-columns:minmax(0,1fr)}
 .home-page[data-home-ui="light-minimal"] h1 {
   max-width:680px;font-size:clamp(38px,4.6vw,62px);line-height:1.1;
   letter-spacing:-.045em;color:var(--gm-text);font-weight:750;
