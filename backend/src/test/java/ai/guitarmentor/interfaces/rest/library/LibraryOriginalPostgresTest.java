@@ -168,4 +168,34 @@ class LibraryOriginalPostgresTest {
             "Live operation's manifested original must survive recovery");
     }
 
+    @Test void abandonedCommittingReleasesQuotaWithoutTouchingReadyObject() throws Exception {
+        UUID owner=account();
+        var store=new LibraryObjectStore(root.resolve("library").toString(),
+            root.resolve("attempts").toString(),root.resolve("scores").toString());
+        var orphan=store.put(new java.io.ByteArrayInputStream(new byte[]{9,8,7}),100);
+        Files.setLastModifiedTime(store.file(orphan.key()),
+            java.nio.file.attribute.FileTime.from(java.time.Instant.now().minusSeconds(7200)));
+        jdbc.sql("""
+            INSERT INTO library_account_usage(account_id,reserved_bytes,reserved_files)
+            VALUES(:owner,3,1)
+            """).param("owner",owner).update();
+        UUID operation=UUID.randomUUID();
+        jdbc.sql("""
+            INSERT INTO library_upload_operations
+                (id,owner_account_id,idempotency_key,state,manifest,reserved_bytes,reserved_files,
+                 expires_at,updated_at,last_lease_at)
+            VALUES(:id,:owner,:key,'COMMITTING',
+                jsonb_build_object('keys',jsonb_build_array(CAST(:object AS text))),
+                3,1,now()+interval '24 hours',now()-interval '2 hours',now()-interval '2 hours')
+            """).param("id",operation).param("owner",owner)
+                .param("key",UUID.randomUUID()).param("object",orphan.key()).update();
+        new ai.guitarmentor.infrastructure.persistence.LibraryOrphanRecovery(
+            store,jdbc,transactions,true).reconcile();
+        assertEquals("FAILED",jdbc.sql("SELECT state FROM library_upload_operations WHERE id=:id")
+            .param("id",operation).query(String.class).single());
+        assertEquals(0L,jdbc.sql("SELECT reserved_bytes FROM library_account_usage WHERE account_id=:id")
+            .param("id",owner).query(Long.class).single());
+        assertFalse(Files.exists(root.resolve("library").resolve(orphan.key())));
+    }
+
 }
