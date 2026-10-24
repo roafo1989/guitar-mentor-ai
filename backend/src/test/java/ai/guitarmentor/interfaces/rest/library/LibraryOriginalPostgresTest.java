@@ -205,4 +205,22 @@ class LibraryOriginalPostgresTest {
         assertFalse(Files.exists(root.resolve("library").resolve(orphan.key())));
     }
 
+    @Test void storageFailureReleasesReservationAndNeverCreatesReadyCard() throws Exception {
+        UUID owner=account();
+        var failing=org.mockito.Mockito.mock(LibraryObjectStore.class);
+        org.mockito.Mockito.when(failing.put(org.mockito.ArgumentMatchers.any(),
+                org.mockito.ArgumentMatchers.anyLong()))
+            .thenThrow(new java.io.IOException("simulated disk unavailable"));
+        var controller=new LibraryOriginalController(jdbc,transactions,repository,failing,true);
+        byte[] bytes="%PDF-1.7\\nexample".getBytes(java.nio.charset.StandardCharsets.UTF_8);
+        assertEquals("LIBRARY_STORAGE_UNAVAILABLE",assertThrows(RuntimeException.class,
+            ()->controller.upload(actor(owner),UUID.randomUUID().toString(),
+                new LibraryOriginalController.Metadata("Test","ETUDE",null),
+                List.of(pdf(bytes)))).getMessage());
+        assertEquals(0L,jdbc.sql("SELECT reserved_bytes FROM library_account_usage WHERE account_id=:owner")
+            .param("owner",owner).query(Long.class).single());
+        assertEquals(0L,jdbc.sql("SELECT count(*) FROM library_materials WHERE owner_account_id=:owner")
+            .param("owner",owner).query(Long.class).single());
+    }
+
 }
