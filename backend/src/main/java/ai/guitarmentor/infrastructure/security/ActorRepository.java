@@ -11,6 +11,11 @@ public class ActorRepository {
 
     public ActorRepository(JdbcClient jdbc) { this.jdbc = jdbc; }
 
+    public boolean hasLocalCredential(UUID accountId) {
+        return jdbc.sql("SELECT count(*) FROM local_credentials WHERE account_id=:id")
+            .param("id", accountId).query(Long.class).single() > 0;
+    }
+
     public Optional<Long> localVersion(UUID accountId) {
         return jdbc.sql("SELECT access_version FROM accounts WHERE id=:id AND status='ACTIVE'")
             .param("id", accountId).query(Long.class).optional();
