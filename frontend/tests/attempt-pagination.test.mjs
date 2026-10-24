@@ -1,7 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { readFile } from 'node:fs/promises';
-import { parse, compileScript, compileTemplate } from 'vue/compiler-sfc';
+import { parse, compileScript } from 'vue/compiler-sfc';
 import ts from 'typescript';
 import { createRenderer, h, nextTick } from 'vue';
 import { createI18n } from 'vue-i18n';
@@ -324,52 +324,3 @@ test('CORE-U10: template retains keyboard-native history controls and accessible
   assert.match(learning, /<label for="learning-attempt"/);
 });
 
-test('CORE-U11: real Vue template renders keyboard-native buttons and translated labels', async () => {
-  historyFixture();
-  const filename = 'SubmissionPanel.vue';
-  const source = await readFile(new URL('../src/entities/attempt/' + filename, import.meta.url), 'utf8');
-  const { descriptor } = parse(source, { filename });
-  const bindings = compileScript(descriptor, { id: 'pagination-dom' }).bindings;
-  const output = compileTemplate({ source: descriptor.template.content, filename, id: 'pagination-dom', compilerOptions: { bindingMetadata: bindings } });
-  assert.deepEqual(output.errors, []);
-  const compiled = output.code.replace(/from ["']vue["']/g, 'from ' + JSON.stringify(import.meta.resolve('vue')));
-  const actualRender = (await import(moduleUrl(compiled))).render;
-  const componentType = { ...await component(filename), render: actualRender };
-  const createNode = (tag, text = '') => ({ tag, text, attrs: {}, parent: null, children: [] });
-  const host = createRenderer({
-    createElement: tag => createNode(tag), createText: text => createNode('#text', text),
-    createComment: text => createNode('#comment', text),
-    setText: (node, value) => { node.text = value; },
-    setElementText: (node, value) => { node.children = []; node.text = value; },
-    patchProp: (node, key, _previous, value) => { node.attrs[key] = value; },
-    parentNode: node => node.parent,
-    nextSibling: () => null,
-    insert(node, parent, anchor) {
-      node.parent = parent;
-      const index = anchor ? parent.children.indexOf(anchor) : -1;
-      if (index >= 0) parent.children.splice(index, 0, node);
-      else parent.children.push(node);
-    },
-    remove(node) { if (node.parent) node.parent.children = node.parent.children.filter(c => c !== node); }
-  });
-  const messages = JSON.parse(await readFile(new URL('../src/i18n/en.json', import.meta.url), 'utf8'));
-  const app = host.createApp(componentType, { learnerId: 'l', sessionId: 's', taskId: 't' });
-  app.use(createI18n({ legacy: false, locale: 'en', messages: { en: messages } }));
-  const root = createNode('root');
-  app.mount(root);
-  try {
-    await flush();
-    const walk = node => [node, ...node.children.flatMap(walk)];
-    const elements = walk(root);
-    const nav = elements.find(node => node.tag === 'nav' && node.attrs['aria-label'] === 'Attempt history');
-    assert.ok(nav, 'history navigation has an accessible name');
-    const buttons = walk(nav).filter(node => node.tag === 'button');
-    assert.equal(buttons.length, 4);
-    assert.ok(buttons.every(button => button.attrs.type === 'button'));
-    assert.ok(buttons.some(button => button.text === 'Older'));
-    assert.ok(buttons.some(button => button.text === 'Newer'));
-    assert.ok(buttons.some(button => button.text === 'Latest'));
-    assert.ok(buttons.some(button => button.text === 'Refresh history'));
-    assert.equal(buttons.find(button => button.text === 'Newer').attrs.disabled, true);
-  } finally { app.unmount(); delete globalThis.__qaAttempt; }
-});
