@@ -74,10 +74,7 @@ onMounted(restoreProfile);
         <p class="home-description">{{ t('home.description') }}</p>
         <div class="home-start">
           <p v-if="loading" class="home-loading" role="status">{{ t('home.loading') }}</p>
-          <button v-else-if="restoreFailed" type="button" class="home-primary" @click="restoreProfile">
-            {{ t('home.retry') }} <span aria-hidden="true">↻</span>
-          </button>
-          <RouterLink v-else :to="primaryTarget" class="home-primary">
+          <RouterLink v-else-if="!restoreFailed" :to="primaryTarget" class="home-primary">
             {{ primaryLabel }} <span aria-hidden="true">→</span>
           </RouterLink>
           <p v-if="!loading && !restoreFailed && summary?.title" class="home-current-task">
