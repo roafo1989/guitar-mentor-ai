@@ -5,7 +5,7 @@ import uuid
 
 import psycopg
 
-BASE = pathlib.Path(__file__).resolve().parents[2]
+BASE = pathlib.Path(__file__).resolve().parents[1]
 SRC = BASE / "music_catalog_import.py"
 MIGRATION = BASE.parent / "backend/src/main/resources/db/migration/V27__private_music_catalog_index.sql"
 spec = importlib.util.spec_from_file_location("music_import", SRC)
