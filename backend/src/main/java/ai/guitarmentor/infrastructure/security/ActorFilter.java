@@ -39,16 +39,16 @@ public class ActorFilter extends OncePerRequestFilter {
             deny(response, 401, "SESSION_EXPIRED");
             return;
         }
-        Authentication auth = SecurityContextHolder.getContext().getAuthentication();
-        if (auth == null || !auth.isAuthenticated()) {
-            deny(response, 401, "UNAUTHENTICATED");
-            return;
-        }
         if (path.equals("/api/v1/csrf") && request.getMethod().equals("GET")) {
             chain.doFilter(request, response); return;
         }
         if (path.startsWith("/api/v1/local-auth/") && !path.equals("/api/v1/local-auth/change")) {
             chain.doFilter(request, response); return;
+        }
+        Authentication auth = SecurityContextHolder.getContext().getAuthentication();
+        if (auth == null || !auth.isAuthenticated()) {
+            deny(response, 401, "UNAUTHENTICATED");
+            return;
         }
         // Validated Google OIDC users without admission may redeem an invite only.
         // All other private API routes still require an admitted active account.
