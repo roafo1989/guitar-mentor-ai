@@ -41,10 +41,13 @@ public class LibraryOrphanRecovery {
                 transactions.executeWithoutResult(status -> {
                     jdbc.sql("SELECT account_id FROM library_account_usage WHERE account_id=:owner FOR UPDATE")
                         .param("owner",owner).query().singleRow();
-                    var row=jdbc.sql("""
+                    var rows=jdbc.sql("""
                         SELECT state,reserved_bytes,reserved_files FROM library_upload_operations
-                        WHERE id=:id FOR UPDATE
-                        """).param("id",operation).query().singleRow();
+                        WHERE id=:id AND COALESCE(last_lease_at,updated_at)
+                          < now()-interval '60 minutes' FOR UPDATE
+                        """).param("id",operation).query().listOfRows();
+                    if(rows.isEmpty()) return;
+                    var row=rows.getFirst();
                     if(!"RECEIVING".equals(row.get("state"))) return;
                     jdbc.sql("""
                         UPDATE library_account_usage
