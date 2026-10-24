@@ -138,3 +138,11 @@ test('boot pre-router capture removes reset token from URL while preserving it o
     assert.equal(mod.takeEmailActionLink(), null);
   } finally { globalThis.window = previous; }
 });
+
+test('router scrubs reset token before creating browser history (ESM import ordering)', async () => {
+  const router = await readFile(new URL('../src/router/index.ts', import.meta.url), 'utf8');
+  const capture = router.indexOf('captureEmailActionLink();');
+  const createHistory = router.indexOf('createWebHistory(),');
+  assert.ok(capture >= 0 && createHistory > capture, 'scrub must happen before createWebHistory');
+  assert.match(router, /import \{ captureEmailActionLink \} from '\.\.\/core\/auth\/auth-link'/);
+});
