@@ -1,0 +1,250 @@
+package ai.guitarmentor.interfaces.rest.library;
+
+import ai.guitarmentor.infrastructure.persistence.LibraryMaterialRepository;
+import ai.guitarmentor.infrastructure.persistence.LibraryObjectStore;
+import ai.guitarmentor.infrastructure.persistence.LibraryObjectStore.Stored;
+import ai.guitarmentor.infrastructure.security.CurrentActor;
+import jakarta.servlet.http.HttpServletRequest;
+import java.io.IOException;
+import java.nio.charset.StandardCharsets;
+import java.nio.file.Files;
+import java.security.MessageDigest;
+import java.security.NoSuchAlgorithmException;
+import java.util.ArrayList;
+import java.util.HexFormat;
+import java.util.List;
+import java.util.Locale;
+import java.util.Map;
+import java.util.Set;
+import java.util.UUID;
+import org.springframework.beans.factory.annotation.Value;
+import org.springframework.http.CacheControl;
+import org.springframework.http.HttpHeaders;
+import org.springframework.http.MediaType;
+import org.springframework.http.ResponseEntity;
+import org.springframework.jdbc.core.simple.JdbcClient;
+import org.springframework.transaction.support.TransactionTemplate;
+import org.springframework.web.bind.annotation.*;
+import org.springframework.web.multipart.MultipartFile;
+import org.springframework.core.io.FileSystemResource;
+
+/** FT-011-02: originals remain private and never run through a converter. */
+@RestController
+@RequestMapping("/api/v1/library/materials")
+public final class LibraryOriginalController {
+    private static final long MAX_FILE_BYTES=20L*1024*1024;
+    private static final long ACCOUNT_BYTES=200L*1024*1024;
+    private static final int ACCOUNT_FILES=100;
+    private static final Set<String> TYPES=Set.of("EXERCISE","ETUDE","COMPOSITION","OTHER");
+    private static final Set<String> FORMATS=Set.of("PDF","GTP","GP3","GP4","GP5","GPX","GP");
+    private final JdbcClient jdbc;
+    private final TransactionTemplate transactions;
+    private final LibraryMaterialRepository repository;
+    private final LibraryObjectStore storage;
+    private final boolean enabled;
+
+    public LibraryOriginalController(JdbcClient jdbc, TransactionTemplate transactions,
+            LibraryMaterialRepository repository, LibraryObjectStore storage,
+            @Value("${guitar-mentor.library.enabled:false}") boolean enabled) {
+        this.jdbc=jdbc; this.transactions=transactions; this.repository=repository;
+        this.storage=storage; this.enabled=enabled;
+    }
+
+    public record Metadata(String title,String type,String author) {}
+    private record Incoming(String name,String format,Stored object) {}
+
+    private UUID actor(HttpServletRequest request) {
+        CurrentActor a=(CurrentActor)request.getAttribute("guitarMentorActor");
+        if(a==null) throw new Failure(401,"UNAUTHENTICATED");
+        if(!enabled) throw new Failure(503,"LIBRARY_DISABLED");
+        return a.accountId();
+    }
+
+    @PostMapping(consumes=MediaType.MULTIPART_FORM_DATA_VALUE)
+    public ResponseEntity<?> upload(HttpServletRequest request,
+            @RequestHeader(value="Idempotency-Key",required=false) String idempotency,
+            @RequestPart("metadata") Metadata metadata,
+            @RequestPart("files") List<MultipartFile> files) {
+        UUID owner=actor(request);
+        UUID key;
+        try {key=UUID.fromString(idempotency);} catch(Exception e) {
+            throw new Failure(400,"LIBRARY_INVALID_IDEMPOTENCY_KEY");
+        }
+        if(metadata==null || metadata.title()==null || metadata.title().strip().isEmpty()
+                || metadata.title().strip().length()>150 || !TYPES.contains(metadata.type())
+                || metadata.author()!=null && metadata.author().strip().length()>150)
+            throw new Failure(400,"LIBRARY_INVALID_METADATA");
+        if(files==null || files.isEmpty() || files.size()>5)
+            throw new Failure(400,"LIBRARY_INVALID_FILES");
+        String title=metadata.title().strip();
+        String author=metadata.author()==null?null:metadata.author().strip();
+        List<Incoming> staged=new ArrayList<>();
+        long total=0;
+        try {
+            for(MultipartFile file:files) {
+                String name=file.getOriginalFilename();
+                if(name==null || name.isBlank() || name.length()>255
+                        || name.contains("/") || name.contains("\\") || name.chars().anyMatch(c->c<32))
+                    throw new Failure(400,"LIBRARY_INVALID_FILENAME");
+                int dot=name.lastIndexOf('.');
+                String format=dot<0?"":name.substring(dot+1).toUpperCase(Locale.ROOT);
+                if(!FORMATS.contains(format)) throw new Failure(415,"LIBRARY_UNSUPPORTED_FORMAT");
+                long remaining=MAX_FILE_BYTES-total;
+                if(remaining<=0 || file.getSize()>remaining)
+                    throw new Failure(413,"LIBRARY_UPLOAD_TOO_LARGE");
+                Stored object;
+                try(var stream=file.getInputStream()) {
+                    object=storage.put(stream,remaining);
+                }
+                if(format.equals("PDF")) {
+                    try(var stream=Files.newInputStream(storage.file(object.key()))) {
+                        if(stream.read()!='%' || stream.read()!='P' || stream.read()!='D'
+                                || stream.read()!='F' || stream.read()!='-')
+                            throw new Failure(400,"LIBRARY_INVALID_PDF");
+                    }
+                }
+                total+=object.length();
+                staged.add(new Incoming(name,format,object));
+            }
+            String fingerprint=fingerprint(title,metadata.type(),author,staged);
+            long totalBytes=total;
+            record Outcome(UUID id,boolean replay) {}
+            Outcome outcome=transactions.execute(status -> {
+                jdbc.sql("""
+                    INSERT INTO library_account_usage(account_id) VALUES(:owner)
+                    ON CONFLICT(account_id) DO NOTHING
+                    """).param("owner",owner).update();
+                Map<String,Object> usage=jdbc.sql("""
+                    SELECT charged_bytes,charged_files,reserved_bytes,reserved_files
+                    FROM library_account_usage WHERE account_id=:owner FOR UPDATE
+                    """).param("owner",owner).query().singleRow();
+                List<Map<String,Object>> previous=jdbc.sql("""
+                    SELECT fingerprint,state,material_id FROM library_upload_operations
+                    WHERE owner_account_id=:owner AND idempotency_key=:key
+                    """).param("owner",owner).param("key",key).query().listOfRows();
+                if(!previous.isEmpty()) {
+                    Map<String,Object> old=previous.get(0);
+                    if(!fingerprint.equals(old.get("fingerprint")))
+                        throw new Failure(409,"IDEMPOTENCY_KEY_REUSED");
+                    if(!"SUCCEEDED".equals(old.get("state")))
+                        throw new Failure(409,"LIBRARY_UPLOAD_IN_PROGRESS");
+                    UUID id=(UUID)old.get("material_id");
+                    if(repository.find(owner,id).isEmpty())
+                        throw new Failure(410,"LIBRARY_UPLOAD_RESULT_DELETED");
+                    return new Outcome(id,true);
+                }
+                long used=((Number)usage.get("charged_bytes")).longValue()
+                    +((Number)usage.get("reserved_bytes")).longValue();
+                long count=((Number)usage.get("charged_files")).longValue()
+                    +((Number)usage.get("reserved_files")).longValue();
+                if(totalBytes>ACCOUNT_BYTES-used || staged.size()>ACCOUNT_FILES-count)
+                    throw new Failure(409,"LIBRARY_QUOTA_EXCEEDED");
+                UUID id=UUID.randomUUID();
+                jdbc.sql("""
+                    INSERT INTO library_materials(id,owner_account_id,title,material_type,author,state)
+                    VALUES(:id,:owner,:title,:type,:author,'READY')
+                    """).param("id",id).param("owner",owner).param("title",title)
+                    .param("type",metadata.type()).param("author",author).update();
+                for(Incoming input:staged) {
+                    Stored obj=input.object();
+                    jdbc.sql("""
+                        INSERT INTO library_assets(id,material_id,object_key,original_name,format,byte_size,sha256)
+                        VALUES(:id,:material,:object,:name,:format,:length,:digest)
+                        """).param("id",UUID.randomUUID()).param("material",id)
+                        .param("object",obj.key()).param("name",input.name())
+                        .param("format",input.format()).param("length",obj.length())
+                        .param("digest",obj.sha256()).update();
+                }
+                jdbc.sql("""
+                    UPDATE library_account_usage SET charged_bytes=charged_bytes+:bytes,
+                      charged_files=charged_files+:files,revision=revision+1 WHERE account_id=:owner
+                    """).param("bytes",totalBytes).param("files",staged.size())
+                    .param("owner",owner).update();
+                jdbc.sql("""
+                    INSERT INTO library_upload_operations
+                      (id,owner_account_id,idempotency_key,fingerprint,state,material_id,expires_at)
+                    VALUES(:id,:owner,:key,:fingerprint,'SUCCEEDED',:material,now()+interval '24 hours')
+                    """).param("id",UUID.randomUUID()).param("owner",owner).param("key",key)
+                      .param("fingerprint",fingerprint).param("material",id).update();
+                return new Outcome(id,false);
+            });
+            if(outcome.replay()) {
+                // Never retain a second physical copy on successful replay.
+                for(Incoming item:staged) storage.delete(item.object().key());
+            }
+            var material=repository.find(owner,outcome.id()).orElseThrow();
+            return ResponseEntity.status(outcome.replay()?200:201)
+                .header("Idempotency-Replayed",Boolean.toString(outcome.replay()))
+                .header(HttpHeaders.LOCATION,"/api/v1/library/materials/"+outcome.id())
+                .cacheControl(CacheControl.noStore())
+                .body(new LibraryMaterialController.MaterialView(material.id(),material.title(),
+                    material.type(),material.author(),material.state(),"PRIVATE","UNREVIEWED",
+                    material.revision(),material.createdAt(),material.updatedAt(),
+                    repository.assets(owner,material.id()).stream()
+                        .map(a->new LibraryMaterialController.FileView(a.id(),a.originalName(),
+                            a.format(),a.byteSize(),a.sha256(),
+                            a.format().equals("PDF")?"PDF_HEADER_CHECKED":"ORIGINAL_UNVERIFIED",
+                            "/api/v1/library/materials/"+material.id()+"/files/"+a.id()+"/content"))
+                        .toList()));
+        } catch(LibraryObjectStore.FileTooLarge e) {
+            cleanup(staged); throw new Failure(413,"LIBRARY_UPLOAD_TOO_LARGE");
+        } catch(LibraryObjectStore.EmptyFile e) {
+            cleanup(staged); throw new Failure(400,"LIBRARY_INVALID_FILES");
+        } catch(IOException e) {
+            cleanup(staged); throw new Failure(503,"LIBRARY_STORAGE_UNAVAILABLE");
+        } catch(RuntimeException e) {
+            cleanup(staged); throw e;
+        }
+    }
+
+    private void cleanup(List<Incoming> files) {
+        for(Incoming input:files) try {storage.delete(input.object().key());}
+            catch(IOException ignored) { /* orphan requires operator reconciliation */ }
+    }
+    private static String fingerprint(String title,String type,String author,List<Incoming> files) {
+        try {
+            MessageDigest digest=MessageDigest.getInstance("SHA-256");
+            StringBuilder data=new StringBuilder(title).append('\\n').append(type)
+                .append('\\n').append(author==null?"":author);
+            for(Incoming f:files) data.append('\\n').append(f.name().length()).append(':')
+                .append(f.name()).append(':').append(f.object().length())
+                .append(':').append(f.object().sha256());
+            return HexFormat.of().formatHex(digest.digest(data.toString().getBytes(StandardCharsets.UTF_8)));
+        } catch(NoSuchAlgorithmException e) {throw new IllegalStateException(e);}
+    }
+
+    @RequestMapping(path="/{materialId}/files/{assetId}/content",method={RequestMethod.GET,RequestMethod.HEAD})
+    public ResponseEntity<?> content(HttpServletRequest request,
+            @PathVariable UUID materialId,@PathVariable UUID assetId) {
+        UUID owner=actor(request);
+        List<Map<String,Object>> rows=jdbc.sql("""
+            SELECT a.object_key,a.original_name,a.format,a.byte_size
+            FROM library_assets a JOIN library_materials m ON m.id=a.material_id
+            WHERE m.owner_account_id=:owner AND m.id=:material AND m.state='READY' AND a.id=:asset
+            """).param("owner",owner).param("material",materialId)
+            .param("asset",assetId).query().listOfRows();
+        if(rows.isEmpty()) throw new Failure(404,"LIBRARY_MATERIAL_NOT_FOUND");
+        Map<String,Object> asset=rows.get(0);
+        try {
+            var path=storage.file((String)asset.get("object_key"));
+            var headers=new HttpHeaders();
+            headers.setCacheControl(CacheControl.noStore());
+            headers.add("X-Content-Type-Options","nosniff");
+            headers.setContentDisposition(org.springframework.http.ContentDisposition.attachment()
+                .filename((String)asset.get("original_name"),StandardCharsets.UTF_8).build());
+            headers.setContentType("PDF".equals(asset.get("format"))?MediaType.APPLICATION_PDF:MediaType.APPLICATION_OCTET_STREAM);
+            headers.setContentLength(Files.size(path));
+            if("HEAD".equals(request.getMethod())) return ResponseEntity.ok().headers(headers).build();
+            return ResponseEntity.ok().headers(headers).body(new FileSystemResource(path));
+        } catch(IOException e) {throw new Failure(503,"LIBRARY_STORAGE_UNAVAILABLE");}
+    }
+    static final class Failure extends RuntimeException {
+        final int status; final String code;
+        Failure(int status,String code) {super(code);this.status=status;this.code=code;}
+    }
+    @ExceptionHandler(Failure.class)
+    public ResponseEntity<?> problem(Failure e) {
+        return ResponseEntity.status(e.status).cacheControl(CacheControl.noStore())
+            .body(Map.of("code",e.code));
+    }
+}
