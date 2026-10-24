@@ -66,10 +66,17 @@ class LibraryOriginalPostgresTest {
         assertArrayEquals(bytes,Files.readAllBytes(resource.getFile().toPath()));
         assertEquals("LIBRARY_MATERIAL_NOT_FOUND",assertThrows(RuntimeException.class,
             ()->controller.content(actor(bob),card.id(),asset)).getMessage());
+        jdbc.sql("UPDATE library_account_usage SET charged_bytes=209715200 WHERE account_id=:id")
+            .param("id",alice).update();
         var replay=controller.upload(actor(alice),key,metadata,List.of(pdf(bytes)));
         assertEquals(200,replay.getStatusCode().value());
         assertEquals(1L,jdbc.sql("SELECT charged_files FROM library_account_usage WHERE account_id=:id")
             .param("id",alice).query(Long.class).single());
+        assertEquals(0L,jdbc.sql("SELECT reserved_files FROM library_account_usage WHERE account_id=:id")
+            .param("id",alice).query(Long.class).single());
+        assertEquals("LIBRARY_QUOTA_EXCEEDED",assertThrows(RuntimeException.class,
+            ()->controller.upload(actor(alice),UUID.randomUUID().toString(),metadata,
+                List.of(pdf(bytes)))).getMessage());
         assertEquals("IDEMPOTENCY_KEY_REUSED",assertThrows(RuntimeException.class,
             ()->controller.upload(actor(alice),key,
                 new LibraryOriginalController.Metadata("Different","ETUDE",null),
