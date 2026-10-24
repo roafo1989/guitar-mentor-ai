@@ -22,7 +22,7 @@ scripts/diag145/generate_media.py and bundled output are the audit trail.
 Any future version must undergo its own acceptance and rights review.
 
 ## Activation / rollback
-Flyway V25 is additive: it checks there is exactly one version and the
+Flyway V26 is additive (after the library's V25): it checks there is exactly one version and the
 expected approved source metadata before transitioning V24's draft to
 is_current=true, license=ORIGINAL_OWNED and review_status=APPROVED.
 V24 is NOT edited. It does not touch GM-EB01 or previously assigned tasks.
