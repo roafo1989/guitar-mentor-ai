@@ -1,0 +1,48 @@
+/* FT-016-01: opt-in Light Minimal shell; legacy styling remains the fallback. */
+:root {
+  --lm-canvas:#f7f8f6; --lm-surface:#ffffff; --lm-ink:#202c29;
+  --lm-muted:#52635d; --lm-border:#dce5df; --lm-accent:#176a57;
+  --lm-focus:#125baf; --lm-radius:14px; --lm-shadow:0 4px 22px #1b30200b;
+}
+.app-shell.light-minimal {background:var(--lm-canvas);color:var(--lm-ink)}
+.light-minimal .site-header {
+  background:var(--lm-surface);color:var(--lm-ink);border-bottom:1px solid var(--lm-border);
+  box-shadow:0 2px 14px #1028200a;padding:12px clamp(16px,4vw,72px);
+}
+.light-minimal .brand small {color:var(--lm-muted)}
+.light-minimal .header-actions {gap:12px}
+.light-minimal .header-actions nav {gap:5px}
+.light-minimal .header-actions nav a {
+  padding:10px 12px;border-radius:9px;color:var(--lm-muted);font-weight:600;
+}
+.light-minimal .header-actions nav a:hover,
+.light-minimal .header-actions nav a.router-link-active {background:#e9f3ee;color:var(--lm-accent)}
+.light-minimal .header-learner {background:#f3f7f4;border-color:var(--lm-border);color:var(--lm-ink)}
+.light-minimal .header-tool-button {background:#fff;color:var(--lm-ink);border-color:var(--lm-border)}
+.light-minimal .header-tool-button:hover,
+.light-minimal .header-tool-button[aria-expanded=true] {background:#e9f3ee}
+.light-minimal .header-tool-button.is-playing {background:#e0f3e8;border-color:var(--lm-accent)}
+.light-minimal .language-picker select {background:#fff;color:var(--lm-ink);border-color:var(--lm-border)}
+.light-minimal .header-signout-button {border:1px solid var(--lm-border);background:white;color:var(--lm-ink);border-radius:9px;padding:9px 12px;cursor:pointer}
+.light-minimal .header-signout-button:disabled {opacity:.6;cursor:wait}
+.light-minimal :is(a,button,select,input,textarea,summary):focus-visible {
+  outline:3px solid var(--lm-focus);outline-offset:3px;
+}
+.light-minimal .panel {border-color:var(--lm-border);border-radius:var(--lm-radius);box-shadow:var(--lm-shadow)}
+.light-minimal .notice {border-color:var(--lm-border);background:#eef5f0}
+@media(max-width:900px) {
+ .light-minimal .site-header {flex-wrap:wrap;gap:10px}
+ .light-minimal .header-actions {width:100%;justify-content:flex-start;flex-wrap:wrap}
+ .light-minimal .header-actions nav {order:5;width:100%;display:flex;overflow-x:auto;flex-wrap:nowrap}
+ .light-minimal .header-actions nav a {white-space:nowrap}
+ .light-minimal .header-learner {max-width:min(55vw,240px)}
+}
+@media(max-width:420px) {
+ .light-minimal .brand small {display:none}
+ .light-minimal .brand-icon {width:34px;height:34px}
+ .light-minimal .header-actions {gap:8px}
+ .light-minimal .header-actions nav a {padding:9px}
+}
+@media(prefers-reduced-motion:reduce) {
+ .light-minimal *, .light-minimal *::before, .light-minimal *::after {scroll-behavior:auto!important;transition-duration:0.01ms!important;animation-duration:0.01ms!important}
+}
