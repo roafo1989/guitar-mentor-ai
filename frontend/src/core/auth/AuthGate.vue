@@ -2,6 +2,7 @@
 import { nextTick, onBeforeUnmount, onMounted, ref } from 'vue';
 import { useI18n } from 'vue-i18n';
 import { auth, clearActor, login, refreshActor, secureUi } from './auth';
+import { captureEmailActionLink, takeEmailActionLink } from './auth-link';
 const { t, locale } = useI18n();
 const localPrototype = !secureUi;
 type Mode = 'login' | 'register' | 'verify' | 'forgot' | 'reset' | 'google';
@@ -105,34 +106,28 @@ async function reset() {
   }
 }
 function consumeAuthFragment(): void {
-  const url = new URL(window.location.href);
-  const fragment = new URLSearchParams(url.hash.slice(1));
-  const action = fragment.get('authAction');
-  const token = fragment.get('token');
-  if (action !== 'verify' && action !== 'reset') return;
-  // Always remove authentication secrets from the visible URL, including malformed tokens.
-  // Hash-only navigation in an already-running Vue app doesn't remount AuthGate.
-  fragment.delete('token');
-  fragment.delete('authAction');
-  window.history.replaceState(window.history.state, '', url.pathname + url.search
-    + (fragment.toString() ? '#' + fragment.toString() : ''));
-  if (!token || !tokenPattern.test(token)) {
+  // On initial load main.ts already scrubbed the token before router install.
+  // For in-app hash navigation capture immediately, then consume in component state.
+  captureEmailActionLink();
+  const link = takeEmailActionLink();
+  if (!link) return;
+  if (!link.token || !tokenPattern.test(link.token)) {
     verificationToken.value = '';
     tokenFromLink.value = false;
-    error.value = label('Ссылка недействительна. Запросите новую.', 'Invalid link. Request another.');
-    setMode(action);
+    setMode(link.action);
     error.value = label('Ссылка недействительна. Запросите новую.', 'Invalid link. Request another.');
     return;
   }
-  verificationToken.value = token;
+  verificationToken.value = link.token;
   tokenFromLink.value = true;
   identifier.value = '';
   password.value = '';
   confirmPassword.value = '';
   error.value = '';
   success.value = '';
-  mode.value = action;
+  mode.value = link.action;
 }
+
 onMounted(() => {
   consumeAuthFragment();
   window.addEventListener('hashchange', consumeAuthFragment);
