@@ -19,12 +19,12 @@ import org.springframework.transaction.annotation.Transactional;
 @Service
 public class LocalCredentialService {
     private final JdbcClient jdbc;
-    private final JavaMailSender mail;
+    private final org.springframework.beans.factory.ObjectProvider<JavaMailSender> mail;
     private final PasswordEncoder encoder = Argon2PasswordEncoder.defaultsForSpringSecurity_v5_8();
     private final SecureRandom random = new SecureRandom();
     private final String publicOrigin;
     private final String from;
-    public LocalCredentialService(JdbcClient jdbc, JavaMailSender mail,
+    public LocalCredentialService(JdbcClient jdbc, org.springframework.beans.factory.ObjectProvider<JavaMailSender> mail,
             @Value("${guitar-mentor.local-auth.public-origin:}") String publicOrigin,
             @Value("${guitar-mentor.local-auth.mail-from:}") String from) {
         this.jdbc = jdbc; this.mail = mail; this.publicOrigin = publicOrigin; this.from = from;
@@ -50,7 +50,9 @@ public class LocalCredentialService {
         // No link token in logs, DTOs, persistent plaintext or analytics.
         message.setText("Open " + publicOrigin + "/?authAction=" + action + "&token=" + token
                 + "\\nIf you did not request this, ignore this message.");
-        mail.send(message);
+        JavaMailSender transport = mail.getIfAvailable();
+        if (transport == null) throw new IllegalStateException("MAIL_NOT_CONFIGURED");
+        transport.send(message);
     }
     /** A local registration consumes only an invitation issued for the normalized address. */
     @Transactional
