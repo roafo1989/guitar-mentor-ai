@@ -222,17 +222,25 @@ details.exercise-learning > summary:focus-visible {outline:3px solid #28776d;out
 .exercise-facts dt { font-weight: 600; }
 .exercise-facts dd { margin: .2rem 0 0; overflow-wrap: anywhere; }
 
-.studio-preview {min-width:0;display:flex;flex-direction:column;gap:10px}
+.studio-preview {min-width:0;display:grid;grid-template-columns:max-content minmax(0,1fr);column-gap:12px;row-gap:10px;align-items:start}
 .studio-preview .studio-tab-hidden {display:none!important}
-.studio-tabs {display:flex;gap:4px;align-items:center;flex-wrap:wrap;padding:4px;background:#f4f7f5;border-radius:12px;margin:0 0 4px}
+.studio-tabs {display:flex;grid-column:1;grid-row:1;gap:4px;align-items:center;flex-wrap:nowrap;padding:4px;background:#f4f7f5;border-radius:12px;margin:0;min-width:0}
 .studio-tabs button {display:inline-flex;align-items:center;justify-content:center;gap:8px;border:0;border-radius:9px;min-height:44px;padding:10px 17px;background:transparent;color:#4b5d5b;font:inherit;font-size:13px;font-weight:600;cursor:pointer}
 .studio-tabs button[aria-selected="true"] {background:#fff;color:#205f57;box-shadow:0 1px 4px #16233116}
 .studio-tabs button:focus-visible {outline:3px solid #28776d;outline-offset:2px}
-.studio-preview :deep(.score-reader) {border:0;padding:0}
-.studio-preview :deep(.score-toolbar) {gap:6px;justify-content:flex-end;padding:0 0 9px}
+.studio-preview :deep(.score-reader) {display:contents;border:0;padding:0}
+.studio-preview :deep(.score-toolbar) {grid-column:2;grid-row:1;gap:6px;justify-content:flex-end;padding:0;min-height:52px;align-content:center;flex-wrap:nowrap;min-width:0}
+.studio-preview :deep(.score-reader > div:not(.score-toolbar)) {grid-column:1 / -1;min-width:0}
+.studio-preview > :not(.studio-tabs):not(.score-reader) {grid-column:1 / -1}
 .studio-preview :deep(.score-toolbar button) {border-color:#dce5e4;background:#fff}
 .studio-preview :deep(.score-canvas-frame) {height:min(78vh,1000px)}
 .studio-preview .exercise-preview-audio {border:1px solid #e1e9e4;border-radius:12px;background:#f8fbfa;padding:18px}
 .studio-preview .exercise-learning {border:1px solid #e1e9e4;border-radius:12px;padding:16px}
-@media(max-width:600px) {.studio-tabs button {padding:10px 12px}.studio-preview :deep(.score-canvas-frame) {height:65vh}}
+@media(max-width:1060px) {
+ .studio-preview {grid-template-columns:minmax(0,1fr)}
+ .studio-tabs {grid-column:1;grid-row:1;width:max-content;max-width:100%;flex-wrap:wrap}
+ .studio-preview :deep(.score-toolbar) {grid-column:1;grid-row:2;justify-content:flex-end;flex-wrap:wrap}
+ .studio-preview :deep(.score-reader > div:not(.score-toolbar)) {grid-column:1}
+}
+@media(max-width:600px) {.studio-tabs button {padding:10px 12px}.studio-preview :deep(.score-canvas-frame) {height:65vh}.studio-preview :deep(.score-toolbar) {justify-content:flex-start}}
 </style>
