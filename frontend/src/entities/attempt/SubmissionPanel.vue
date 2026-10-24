@@ -4,7 +4,7 @@ import MicrophoneRecorder from './MicrophoneRecorder.vue';
 import LearningResultsPanel from './LearningResultsPanel.vue';
 import { useI18n } from 'vue-i18n';
 import { AttemptHttpError, attemptService } from './attempt.service';
-import type { SubmissionAttempt, UploadCapabilities } from './attempt.service';
+import type { AttemptPage, SubmissionAttempt, UploadCapabilities } from './attempt.service';
 
 const props = defineProps<{
   learnerId: string;
@@ -14,6 +14,21 @@ const props = defineProps<{
 const emit = defineEmits<{ 'draft-state': [state: { busy: boolean; dirty: boolean }] }>();
 const { t } = useI18n();
 const attempts = ref<SubmissionAttempt[]>([]);
+const pinned = ref<SubmissionAttempt[]>([]);
+const selectedId = ref('');
+const latestId = ref('');
+const pageCursor = ref<number | undefined>(undefined);
+const cursorStack = ref<(number | undefined)[]>([]);
+const hasMore = ref(false);
+const historyStale = ref(false);
+const historyError = ref('');
+const pageBusy = ref(false);
+const displayAttempts = computed(() => {
+  const unique = new Map<string, SubmissionAttempt>();
+  for (const item of [...attempts.value, ...pinned.value]) unique.set(item.id, item);
+  return [...unique.values()].sort((a, b) => b.number - a.number);
+});
+const isProcessing = (a: SubmissionAttempt) => a.status === 'UPLOADED' || a.status === 'PROCESSING';
 const capabilities = ref<UploadCapabilities | null>(null);
 const file = ref<File | null>(null);
 const fileInput = ref<HTMLInputElement | null>(null);
@@ -63,6 +78,7 @@ watch([uploading, recordingActive, decisionBusy, file, comment], () => {
 }, { immediate: true });
 let polling: ReturnType<typeof setInterval> | undefined;
 let historyRequestInFlight = false;
+let requestSerial = 0;
 let contextGeneration = 0;
 let mounted = true;
 function currentContext(generation: number): boolean {
@@ -70,7 +86,16 @@ function currentContext(generation: number): boolean {
 }
 function resetForContext(): void {
   ++contextGeneration;
+  ++requestSerial;
   attempts.value = [];
+  pinned.value = [];
+  selectedId.value = '';
+  latestId.value = '';
+  pageCursor.value = undefined;
+  cursorStack.value = [];
+  hasMore.value = false;
+  historyError.value = '';
+  historyStale.value = false;
   capabilities.value = null;
   loading.value = true;
   error.value = '';
@@ -114,20 +139,59 @@ function failureHint(attempt: SubmissionAttempt): string {
   return t(errors[attempt.processingErrorCode || ''] || 'attempt.failedGeneric');
 }
 
-async function pollHistory() {
-  if (historyRequestInFlight || uploading.value || loading.value ||
-      !attempts.value.some(item => item.status === 'UPLOADED' || item.status === 'PROCESSING')) return;
+async function readPage(cursor = pageCursor.value, keepBusy = false): Promise<boolean> {
+  if (historyRequestInFlight) return false;
   historyRequestInFlight = true;
-  const generation = contextGeneration;
+  const serial = ++requestSerial, generation = contextGeneration;
   const { learnerId, sessionId, taskId } = props;
+  if (!keepBusy) pageBusy.value = true;
   try {
-    const history = await attemptService.list(learnerId, sessionId, taskId);
-    if (currentContext(generation)) attempts.value = history;
+    const page: AttemptPage = await attemptService.page(learnerId, sessionId, taskId, cursor);
+    if (!currentContext(generation) || serial !== requestSerial) return false;
+    // Preserve the previous page when reading a requested destination fails.
+    attempts.value = page.items;
+    hasMore.value = page.hasMore;
+    historyError.value = '';
+    historyStale.value = false;
+    await refreshPinned(generation, serial);
+    return true;
   } catch {
-    // Keep the last known history. Manual refresh can surface network errors.
+    if (currentContext(generation) && serial === requestSerial) {
+      historyError.value = t('attempt.historyLoadError');
+      historyStale.value = true;
+    }
+    return false;
   } finally {
     historyRequestInFlight = false;
+    if (currentContext(generation) && serial === requestSerial) pageBusy.value = false;
   }
+}
+async function refreshPinned(generation: number, serial: number) {
+  const ids = [...new Set([selectedId.value, latestId.value].filter(Boolean))]
+    .filter(id => !attempts.value.some(a => a.id === id)).slice(0, 2);
+  const { learnerId, sessionId, taskId } = props;
+  const results = await Promise.allSettled(ids.map(id => attemptService.detail(learnerId, sessionId, taskId, id)));
+  if (!currentContext(generation) || serial !== requestSerial) return;
+  pinned.value = results.flatMap(result => result.status === 'fulfilled' ? [result.value] : []);
+}
+async function navigate(cursor: number | undefined, direction: 'older' | 'newer' | 'latest') {
+  if (pageBusy.value || historyRequestInFlight) return;
+  const old = pageCursor.value;
+  const stack = [...cursorStack.value];
+  if (direction === 'older') stack.push(old);
+  if (direction === 'newer') stack.pop();
+  if (await readPage(cursor)) {
+    pageCursor.value = cursor;
+    cursorStack.value = direction === 'latest' ? [] : stack;
+  }
+}
+async function pollHistory() {
+  if (document.hidden || uploading.value || loading.value || pageBusy.value || historyRequestInFlight ||
+      !displayAttempts.value.some(isProcessing)) return;
+  await readPage(pageCursor.value, true);
+}
+function onVisibility() {
+  if (!document.hidden && !loading.value && !historyRequestInFlight) void readPage();
 }
 
 function uploadErrorMessage(cause: unknown): string {
@@ -158,20 +222,16 @@ async function refresh() {
   const { learnerId, sessionId, taskId } = props;
   if (currentContext(generation)) error.value = '';
   try {
-    const [rules, history] = await Promise.all([
-      attemptService.capabilities(learnerId, sessionId, taskId),
-      attemptService.list(learnerId, sessionId, taskId),
-    ]);
-    if (currentContext(generation)) {
-      capabilities.value = rules;
-      attempts.value = history;
-    }
+    const rules = await attemptService.capabilities(learnerId, sessionId, taskId);
+    if (currentContext(generation)) capabilities.value = rules;
   } catch {
     if (currentContext(generation)) error.value = t('attempt.historyLoadError');
   } finally {
+    await readPage();
     if (currentContext(generation)) loading.value = false;
   }
 }
+
 async function submit() {
   const chosen = file.value;
   if (!chosen || learningTerminal.value || !capabilities.value?.enabled || uploading.value || recordingActive.value) return;
@@ -199,7 +259,7 @@ async function submit() {
     comment.value = '';
     requestId.value = crypto.randomUUID();
     notice.value = t('attempt.uploaded');
-    await refresh();
+    await navigate(undefined, 'latest');
   } catch (cause) {
     if (currentContext(generation)) error.value = uploadErrorMessage(cause);
     // Retain the selected file and idempotency key; user can retry or pick another file.
@@ -213,11 +273,14 @@ function fileSize(bytes: number): string {
 onMounted(() => {
   mounted = true;
   void refresh();
+  document.addEventListener('visibilitychange', onVisibility);
   polling = setInterval(() => { void pollHistory(); }, 3000);
 });
 onBeforeUnmount(() => {
   mounted = false;
   ++contextGeneration;
+  ++requestSerial;
+  document.removeEventListener('visibilitychange', onVisibility);
   if (polling !== undefined) clearInterval(polling);
   clearRecordedPreview();
 });
@@ -266,9 +329,12 @@ onBeforeUnmount(() => {
       <p v-if="notice" role="status" class="saved-status">{{ notice }}</p>
       <p v-if="error" role="alert" class="error">{{ error }}</p>
       <LearningResultsPanel :learner-id="learnerId" :session-id="sessionId" :task-id="taskId"
-        :attempts="attempts" :draft-busy="draftBusy" @decision-busy="decisionBusy = $event" @terminal-state="learningTerminal = $event" />
+         :attempts="displayAttempts" :selected-id="selectedId" :latest-id="latestId"
+        :draft-busy="draftBusy" @selected-id="selectedId = $event" @latest-id="latestId = $event" @decision-busy="decisionBusy = $event" @terminal-state="learningTerminal = $event" />
       <details class="homework-history">
         <summary>{{ t('attempt.historyDetails') }}</summary>
+        <p v-if="historyError" role="alert" class="error">{{ historyError }} <button type="button" :disabled="pageBusy" @click="readPage()">{{ t('learning.retry') }}</button></p>
+        <p v-if="historyStale" role="status" class="hint">{{ t('attempt.historyStale') }}</p>
         <p v-if="!attempts.length" class="hint">{{ t('attempt.noAttempts') }}</p>
         <article v-for="item in attempts" :key="item.id" class="attempt-card">
           <div class="attempt-card-title">
@@ -284,6 +350,12 @@ onBeforeUnmount(() => {
           <p v-if="item.mediaState === 'DELETED'" class="hint">{{ t('attempt.mediaDeleted') }}</p>
           <p v-else-if="item.mediaState === 'DELETE_PENDING'" class="hint">{{ t('attempt.mediaPending') }}</p>
         </article>
+        <nav class="form-actions" :aria-label="t('attempt.history')">
+          <button type="button" class="secondary-button" :disabled="pageBusy || !cursorStack.length" @click="navigate(cursorStack[cursorStack.length - 1], 'newer')">{{ t('attempt.newer') }}</button>
+          <button type="button" class="secondary-button" :disabled="pageBusy || !hasMore" @click="navigate(attempts[attempts.length - 1]?.number, 'older')">{{ t('attempt.older') }}</button>
+          <button type="button" class="secondary-button" :disabled="pageBusy" @click="navigate(undefined, 'latest')">{{ t('attempt.latest') }}</button>
+          <button type="button" class="secondary-button" :disabled="pageBusy" @click="readPage()">{{ t('attempt.refresh') }}</button>
+        </nav>
       </details>
     </template>
   </section>
