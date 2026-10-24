@@ -14,7 +14,7 @@ Session state is managed server-side with HttpOnly/Secure/SameSite=Lax JSESSIONI
 
 ## Running locally
 
-Existing Windows localhost workflow remains available with `GUITAR_MENTOR_SECURITY_ENABLED=false` (default), **only on loopback**, with synthetic data. Attempting this mode with a non-loopback `GUITAR_MENTOR_BIND_ADDRESS` fails startup. Local HTTPS/Caddy proxy and local development are not internet security controls.
+Existing Windows localhost workflow remains available with **explicit** `GUITAR_MENTOR_SECURITY_ENABLED=false` (never the default), **only on loopback**, with synthetic data. The default is secured and fails to start without OIDC configuration. Explicit insecure mode is only for synthetic test data. Attempting this mode with a non-loopback `GUITAR_MENTOR_BIND_ADDRESS` fails startup. Local HTTPS/Caddy proxy and local development are not internet security controls.
 
 For an *isolated* OIDC QA installation, configure the following **outside Git**, with test credentials and a valid OIDC issuer:
 
