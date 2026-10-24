@@ -146,3 +146,12 @@ test('router scrubs reset token before creating browser history (ESM import orde
   assert.ok(capture >= 0 && createHistory > capture, 'scrub must happen before createWebHistory');
   assert.match(router, /import \{ captureEmailActionLink \} from '\.\.\/core\/auth\/auth-link'/);
 });
+
+test('email recovery hides signed-in home and home does not duplicate retry buttons', async () => {
+  const gate = await readFile(new URL('../src/core/auth/AuthGate.vue', import.meta.url), 'utf8');
+  const home = await readFile(new URL('../src/core/home/HomeView.vue', import.meta.url), 'utf8');
+  assert.match(gate, /auth\.actor && !emailActionInProgress/);
+  assert.match(gate, /auth\.ready \|\| emailActionInProgress/);
+  assert.match(home, /v-else-if="!restoreFailed"/);
+  assert.doesNotMatch(home, /v-else-if="restoreFailed" type="button" class="home-primary"/);
+});
