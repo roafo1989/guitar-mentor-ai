@@ -119,6 +119,13 @@ try {
   // Exercise genuine click flows through the compiled Vue template rather
   // than only source-level unit tests: 45 rows -> 20 / 20 / 5 -> newer/latest.
   await cdp('Emulation.setDeviceMetricsOverride',{width:360,height:820,deviceScaleFactor:1,mobile:false});
+  await evaluate("window.__qa126SetLocale('ru')");
+  const localizedLabels=await evaluate("Array.from(document.querySelectorAll('details.homework-history nav button')).map(b=>b.textContent.trim())");
+  assert.deepEqual(localizedLabels,['Новее','Старее','К последним','Обновить историю'],
+    'Russian UI must not fallback to English history buttons');
+  const onePageHint=await evaluate("document.querySelector('details.homework-history')?.textContent?.includes('Все попытки находятся на одной странице.')");
+  // For the 45-record fixture pagination is available; the single-page hint must not show.
+  assert.equal(onePageHint,false);
   const firstRow=()=>evaluate("document.querySelector('details.homework-history .attempt-card strong')?.textContent?.trim() ?? ''");
   const navClick=(i)=>evaluate("(() => { const b=document.querySelectorAll('details.homework-history nav button')["+i+"]; if(b.disabled) return false; b.click(); return true; })()");
   const awaitRow=(number)=>evaluate(`new Promise(resolve=>{
