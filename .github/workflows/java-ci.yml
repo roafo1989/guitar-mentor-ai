@@ -172,6 +172,7 @@ jobs:
               grep -q 'score-partwise' qa120-score
               grep -q '"measures"' qa120-events
               test "$(curl --silent --output qa120-missing.json --write-out '%{http_code}' "$exact_base/preview/pdf")" = '404'
+              echo "QA120 missing response (synthetic):"; cat qa120-missing.json
               python3 -c 'import json; assert json.load(open("qa120-missing.json"))["code"]=="EXERCISE_RESOURCE_NOT_FOUND"'
               test "$(curl --silent --output qa120-unknown.json --write-out '%{http_code}' "http://localhost:8080/api/v1/exercises/GM-EB01/versions/no-such-version")" = '404'
               python3 -c 'import json; assert json.load(open("qa120-unknown.json"))["code"]=="EXERCISE_NOT_FOUND"'
