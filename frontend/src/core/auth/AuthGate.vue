@@ -57,6 +57,13 @@ async function request(path: string, body: object): Promise<boolean> {
     });
     if (!response.ok) {
       if (!mounted || epoch !== requestEpoch.value) return false;
+      if (response.status === 400 && (path === 'verify' || path === 'reset')) {
+        mailPurpose.value = path === 'reset' ? 'reset' : 'register';
+        mode.value = 'expired-link';
+        verificationToken.value = ''; tokenFromLink.value = false;
+        emailActionInProgress.value = true;
+        return false;
+      }
       error.value = response.status === 429
         ? label('Слишком много попыток. Попробуйте позже.', 'Too many attempts. Try later.')
         : label('Не удалось выполнить действие. Проверьте данные или ссылку.', 'Request failed. Check the details or link.');
