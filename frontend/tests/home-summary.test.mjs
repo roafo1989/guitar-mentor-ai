@@ -110,3 +110,12 @@ test('late 404 cannot erase a more recent selection', async () => {
   assert.equal(original(key), 'newer-session');
   assert.ok(!h.calls.includes('remove'));
 });
+
+test('new registered learner without instrument must be directed to profile before instrument background GET', async () => {
+  const view = readFileSync(new URL('../src/core/home/HomeView.vue', import.meta.url), 'utf8');
+  assert.match(view, /learnerStore\.learner\?\.instruments\.some\(/);
+  assert.match(view, /resolveHomeSummary\(hasGuitar \? id : null, window\.localStorage\)/);
+  const h = harness();
+  assert.equal((await h.resolveHomeSummary(null, h.storage)).step, 'profile');
+  assert.deepEqual(h.calls, []);
+});
