@@ -240,3 +240,20 @@ test('AUTH-03 deploys exact approved versioned assets instead of legacy favicon'
   assert.match(app, /src="\/brand\/guitar-mentor-logo-128\.png"/);
   assert.match(gate, /src="\/brand\/guitar-mentor-logo-128\.png"/);
 });
+
+test('AUTH-03 regression: malformed email links never unmask authenticated content', async () => {
+  const gate = await readFile(new URL('../src/core/auth/AuthGate.vue', import.meta.url), 'utf8');
+  assert.match(gate, /emailActionInProgress\.value = true;\s*if \(!link\.token/);
+  assert.match(gate, /mode\.value = 'expired-link';/);
+  assert.match(gate, /emailActionInProgress\.value = next === 'verify' \|\| next === 'reset' \|\| next === 'expired-link';/);
+  assert.match(gate, /<slot v-if="localPrototype \|\| \(auth\.ready && auth\.actor && !emailActionInProgress\)"/);
+  assert.match(gate, /requestEpoch\.value\+\+; busy\.value = false;/);
+});
+test('AUTH-03 regression: POST guarded before validation and email tokens checked before submission', async () => {
+  const gate = await readFile(new URL('../src/core/auth/AuthGate.vue', import.meta.url), 'utf8');
+  assert.match(gate, /async function register\(\) \{\s*if \(busy\.value \|\| oauthPending\.value\) return;/);
+  assert.match(gate, /async function reset\(\) \{\s*if \(busy\.value\) return;\s*if \(!tokenPattern\.test\(verificationToken\.value\)\)/);
+  assert.match(gate, /async function verify\(\) \{\s*if \(busy\.value \|\| !tokenPattern\.test\(verificationToken\.value\)\)/);
+  assert.match(gate, /const epoch = requestEpoch\.value \+ 1;/);
+  assert.match(gate, /if \(!mounted \|\| epoch !== requestEpoch\.value\) return;/);
+});
