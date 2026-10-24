@@ -30,17 +30,19 @@ onMounted(() => { if (!localPrototype) void refreshActor(); });
 </script>
 <template>
   <slot v-if="localPrototype || (auth.ready && auth.actor)" />
-  <main v-else-if="auth.ready" class="main-content" aria-live="polite">
+  <main v-else-if="auth.ready" class="main-content auth-page" aria-live="polite">
+    <section class="auth-panel">
     <h1>{{ auth.expired ? t('auth.expired') : t('auth.welcome') }}</h1>
     <p>{{ t('auth.invited') }}</p>
-    <button type="button" @click="login">{{ t('auth.signIn') }}</button>
-    <form @submit.prevent="redeem" style="margin-top:1rem">
+    <button type="button" class="auth-primary" @click="login">{{ t('auth.signIn') }}</button>
+    <form class="auth-form" @submit.prevent="redeem">
       <label for="invitation-code">{{ t('auth.invitationCode') }}</label>
       <input id="invitation-code" v-model.trim="code" :placeholder="t('auth.invitationCode')"
         autocomplete="off" spellcheck="false" maxlength="64" />
-      <button type="submit" :disabled="busy || code.length !== 64">{{ t('auth.activate') }}</button>
-      <p v-if="error" role="alert">{{ error }}</p>
+      <button type="submit" class="auth-primary" :disabled="busy || code.length !== 64" :aria-busy="busy">{{ t('auth.activate') }}</button>
+      <p v-if="error" class="auth-error" role="alert">{{ error }}</p>
     </form>
+    </section>
   </main>
   <main v-else class="main-content" aria-live="polite">{{ t('auth.loading') }}</main>
 </template>
