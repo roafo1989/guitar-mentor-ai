@@ -23,13 +23,17 @@ public class ExerciseCatalogService {
     @Transactional(readOnly = true)
     public List<ExerciseView> available(String instrumentCode, String techniqueCode) {
         return assembler.many(exercises.findByInstrumentCodeAndTechniqueCodeAndCurrentTrueOrderByCode(
-                instrumentCode, techniqueCode));
+                instrumentCode, techniqueCode).stream()
+                .filter(ExercisePublicationPolicy::eligible).toList());
     }
 
     @Transactional(readOnly = true)
     public ExerciseView find(String code) {
-        return assembler.one(exercises.findByCodeAndCurrentTrue(code)
-                .orElseThrow(() -> new EntityNotFoundException("Exercise not found")));
+        var exercise = exercises.findByCodeAndCurrentTrue(code)
+                .orElseThrow(() -> new EntityNotFoundException("Exercise not found"));
+        if (!ExercisePublicationPolicy.eligible(exercise))
+            throw new EntityNotFoundException("Exercise not found");
+        return assembler.one(exercise);
     }
 
     @Transactional(readOnly = true)
