@@ -20,7 +20,12 @@ export interface Exercise {
   author: string;
   license: string;
   reviewStatus: string;
-  description: string;
+  description: string | null;
+  learningGoal?: string | null;
+  practiceInstructions?: string | null;
+  successCriteria?: string[] | null;
+  tuning?: string | null;
+  recommendedPracticeMinutes?: number | null;
   skillCodes: string[];
   scoreUrl: string;
   eventsUrl: string;
