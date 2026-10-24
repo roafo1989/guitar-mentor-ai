@@ -327,6 +327,18 @@ test('#150 exercise metronome lives between recording and result without duplica
  assert.ok(submission.indexOf('class="studio-metronome-card"') > submission.indexOf('studio-record-card'));
  assert.ok(submission.indexOf('class="studio-metronome-card"') < submission.indexOf('studio-result-card'));
  assert.match(submission,/openExerciseMetronome\(/);
- assert.match(submission,/exercise\.bpm, exercise\.meter, exercise\.tempoUnit/);
+ assert.match(submission,/metronomeBpm\.value, exercise\.meter, exercise\.tempoUnit, false/);
  assert.match(diagnostic,/:exercise="task\.exercise" @draft-state="onSubmissionDraft"/);
+});
+
+test('#150 inline metronome controls BPM without opening settings', async () => {
+ const panel=await readFile(new URL('../src/entities/attempt/SubmissionPanel.vue',import.meta.url),'utf8');
+ assert.match(panel,/id="exercise-metronome-bpm" type="number" min="20" max="240"/);
+ assert.match(panel,/@click="setMetronomeBpm\(metronomeBpm - 1\)"/);
+ assert.match(panel,/@click="setMetronomeBpm\(metronomeBpm \+ 1\)"/);
+ assert.match(panel,/@click="toggleExerciseMetronome"/);
+ assert.match(panel,/await metronome\.start\(\)/);
+ assert.match(panel,/metronome\.stop\(\)/);
+ assert.match(panel,/metronome\.setBpm\(metronomeBpm\.value\)/);
+ assert.match(panel,/:aria-pressed="metronomeRunning/);
 });
