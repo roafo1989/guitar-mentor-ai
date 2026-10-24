@@ -147,9 +147,23 @@ public final class LibraryOriginalController {
         String author=metadata.author()==null?null:metadata.author().strip();
         long predicted=0;
         for(MultipartFile file:files) {
+            String name=file.getOriginalFilename();
+            if(name==null || name.isBlank() || name.length()>255
+                    || name.contains("/") || name.contains("\\") || name.chars().anyMatch(c->c<32))
+                throw new Failure(400,"LIBRARY_INVALID_FILENAME");
+            int dot=name.lastIndexOf('.');
+            String format=dot<0?"":name.substring(dot+1).toUpperCase(Locale.ROOT);
+            if(!FORMATS.contains(format)) throw new Failure(415,"LIBRARY_UNSUPPORTED_FORMAT");
             if(file.getSize()<=0) throw new Failure(400,"LIBRARY_INVALID_FILES");
             predicted+=file.getSize();
             if(predicted>MAX_FILE_BYTES) throw new Failure(413,"LIBRARY_UPLOAD_TOO_LARGE");
+            if("PDF".equals(format)) {
+                try(var input=file.getInputStream()) {
+                    if(input.read()!='%' || input.read()!='P' || input.read()!='D'
+                            || input.read()!='F' || input.read()!='-')
+                        throw new Failure(400,"LIBRARY_INVALID_PDF");
+                } catch(IOException e) {throw new Failure(503,"LIBRARY_STORAGE_UNAVAILABLE");}
+            }
         }
         boolean replay=reserve(owner,key,predicted,files.size());
         List<Incoming> staged=new ArrayList<>();
