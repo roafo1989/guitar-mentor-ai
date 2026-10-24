@@ -89,13 +89,22 @@ public class LearningRepository {
             """,Boolean.class,attemptId));
     }
 
-    /** One bounded query for a page, regardless of the number of revisions per attempt. */
+    // Bound parameters per statement even when the legacy GET reads all attempts.
+    // The new paginated GET (<=50 items) still issues exactly one assessment query.
+    private static final int ASSESSMENT_LOOKUP_BATCH_SIZE = 500;
+
     public Set<UUID> assessedAttemptIds(List<UUID> attemptIds) {
         if (attemptIds.isEmpty()) return Collections.emptySet();
-        String placeholders = String.join(",", Collections.nCopies(attemptIds.size(), "?"));
-        return new HashSet<>(jdbc.query(
-            "SELECT DISTINCT attempt_id FROM attempt_assessments WHERE attempt_id IN (" + placeholders + ")",
-            (rs, row) -> (UUID) rs.getObject(1), attemptIds.toArray()));
+        Set<UUID> assessed = new HashSet<>();
+        for (int offset = 0; offset < attemptIds.size(); offset += ASSESSMENT_LOOKUP_BATCH_SIZE) {
+            List<UUID> batch = attemptIds.subList(offset,
+                    Math.min(offset + ASSESSMENT_LOOKUP_BATCH_SIZE, attemptIds.size()));
+            String placeholders = String.join(",", Collections.nCopies(batch.size(), "?"));
+            assessed.addAll(jdbc.query(
+                "SELECT DISTINCT attempt_id FROM attempt_assessments WHERE attempt_id IN (" + placeholders + ")",
+                (rs, row) -> (UUID) rs.getObject(1), batch.toArray()));
+        }
+        return assessed;
     }
 
     public boolean hasAssessment(UUID attemptId) {
