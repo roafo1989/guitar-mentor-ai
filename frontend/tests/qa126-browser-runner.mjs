@@ -160,7 +160,19 @@ try {
   assert.ok((await firstRow()).includes('№45'),'Failed navigation must keep previous page');
   assert.equal(await navClick(1),true,'Retry Older should remain available');
   assert.equal(await awaitRow(25),true,'Successful retry should navigate');
-  const browserNavigation={pages:['45–26','25–6','5–1','25–6','45–26'],http500KeepsPage:true,retryOlder:true};
+  assert.equal(await navClick(3),true,'History refresh button must accept clicks');
+  const confirmationVisible=await evaluate(`new Promise(resolve=>{
+    let tries=0;const timer=setInterval(()=>{
+      const nav=document.querySelector('details.homework-history nav');
+      const following=nav?.nextElementSibling;
+      if(following?.getAttribute('role')==='status' &&
+         following.textContent?.includes('История попыток обновлена')){
+        clearInterval(timer);resolve(true);
+      } else if(++tries>=100){clearInterval(timer);resolve(false);}
+    },50);
+  })`);
+  assert.equal(confirmationVisible,true,'Refresh confirmation must appear immediately below navigation');
+  const browserNavigation={pages:['45–26','25–6','5–1','25–6','45–26'],http500KeepsPage:true,retryOlder:true,refreshMessageAdjacent:true};
   process.stdout.write(JSON.stringify({status:'PASS',viewport360:compact,keyboard,zoom200:{...zoom,pageScale:scale},reflow200:reflow,browserNavigation},null,2)+'\n');
 } finally {
   socket?.close();
