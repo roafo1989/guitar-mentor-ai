@@ -183,7 +183,7 @@ test('#150 secure unified local environment explicitly enables authenticated upl
   assert.match(launcher, /\$env:GUITAR_MENTOR_ENABLE_UPLOADS = 'true'/);
   const submission = await readFile(new URL('../src/entities/attempt/SubmissionPanel.vue', import.meta.url), 'utf8');
   assert.match(submission, /id="attempt-comment"[^>]*v-model="comment"/);
-  assert.match(submission, /:disabled="uploading"\s*:placeholder="t\('attempt.commentPlaceholder'\)"/);
+  assert.match(submission, /:disabled="uploading \\|\\| recordingActive"\\s*:placeholder="t\('attempt.commentPlaceholder'\)"/);
   assert.match(submission, /!capabilities\.value\?\.enabled/);
   for (const lang of ['ru','en']) {
     const copy = JSON.parse(await readFile(new URL('../src/i18n/'+lang+'.json', import.meta.url),'utf8')).attempt;
@@ -339,6 +339,6 @@ test('#150 inline metronome controls BPM without opening settings', async () => 
  assert.match(panel,/@click="toggleExerciseMetronome"/);
  assert.match(panel,/await metronome\.start\(\)/);
  assert.match(panel,/metronome\.stop\(\)/);
- assert.match(panel,/metronome\.setBpm\(metronomeBpm\.value\)/);
+ assert.match(panel,/metronome\.setBpm\(bpm\)/);
  assert.match(panel,/:aria-pressed="metronomeRunning/);
 });
