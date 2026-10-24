@@ -5,6 +5,7 @@ import java.util.Map;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
+import org.springframework.boot.autoconfigure.condition.ConditionalOnWebApplication;
 import org.springframework.security.config.Customizer;
 import org.springframework.security.config.annotation.web.builders.HttpSecurity;
 import org.springframework.security.web.SecurityFilterChain;
@@ -17,6 +18,7 @@ import org.springframework.security.web.csrf.CsrfToken;
 import jakarta.servlet.http.HttpServletRequest;
 
 @Configuration
+@ConditionalOnWebApplication(type = ConditionalOnWebApplication.Type.SERVLET)
 public class SecurityConfiguration {
     @Bean
     org.springframework.boot.ApplicationRunner rejectInsecureNonLoopback(
@@ -34,8 +36,13 @@ public class SecurityConfiguration {
     SecurityFilterChain securityFilterChain(HttpSecurity http, ActorRepository actors,
             @Value("${guitar-mentor.security.enabled:true}") boolean enabled,
             @Value("${guitar-mentor.security.absolute-session-minutes:720}") long absoluteMinutes,
-            @Value("${server.address:127.0.0.1}") String bind)
+            @Value("${server.address:127.0.0.1}") String bind,
+            @Value("${guitar-mentor.security.local-http:false}") boolean localHttp)
             throws Exception {
+        if (localHttp && (!enabled || !(bind.equals("127.0.0.1") || bind.equals("::1")
+                || bind.equals("localhost")))) {
+            throw new IllegalStateException("Local HTTP OAuth test mode requires secure auth and loopback binding");
+        }
         if (!enabled) {
             // Fail during SecurityFilterChain creation, before Tomcat can accept requests.
             rejectInsecureNonLoopback(false, bind).run(null);
@@ -45,7 +52,7 @@ public class SecurityConfiguration {
         }
         var csrfRepo = CookieCsrfTokenRepository.withHttpOnlyFalse();
         csrfRepo.setCookieCustomizer(cookie -> cookie.path("/").sameSite("Lax")
-                .secure(true));
+                .secure(!localHttp));
         http
             .authorizeHttpRequests(auth -> auth
                 .requestMatchers("/actuator/**").denyAll()
@@ -55,11 +62,15 @@ public class SecurityConfiguration {
             .oauth2Login(login -> login
                 .successHandler((req, res, auth) -> {
                     if (!(auth.getPrincipal() instanceof
-                            org.springframework.security.oauth2.core.oidc.user.OidcUser oidc)
-                            || actors.findActive(oidc.getIssuer().toString(), oidc.getSubject()).isEmpty()) {
+                            org.springframework.security.oauth2.core.oidc.user.OidcUser oidc)) {
                         req.getSession().invalidate();
                         org.springframework.security.core.context.SecurityContextHolder.clearContext();
                         res.sendRedirect("/?auth=denied");
+                        return;
+                    }
+                    // An OIDC-authenticated but unadmitted user can only use invitation activation.
+                    if (actors.findActive(oidc.getIssuer().toString(), oidc.getSubject()).isEmpty()) {
+                        res.sendRedirect("/?auth=invitation");
                         return;
                     }
                     res.sendRedirect("/");

@@ -14,7 +14,10 @@
     "expired": "Session expired",
     "welcome": "Sign in to Guitar Mentor AI",
     "invited": "Access is available to invited users only",
-    "loading": "Checking sign-in…"
+    "loading": "Checking sign-in…",
+    "invitationCode": "Invitation code",
+    "activate": "Activate invitation",
+    "invalidInvitation": "Invalid invitation or Google sign-in required"
   },
   "form": {
     "title": "Let's meet your student",

@@ -1,0 +1,12 @@
+# Local Google OAuth QA only. Never activate on staging/public deployments.
+# This profile MUST be combined with 'secure' and the backend bound to loopback.
+server:
+  address: 127.0.0.1
+  servlet:
+    session:
+      cookie:
+        secure: false
+guitar-mentor:
+  security:
+    enabled: true
+    local-http: true

@@ -118,7 +118,7 @@ class LearningMigrationUpgradePostgresTest {
                     +" WHERE assessment_id=?",assessment));
                 assertEquals(0L,count(connection,"SELECT count(*) FROM learner_skill_signal_history"
                     +" WHERE instrument_profile_id=? AND source_type <> 'SELF_REPORTED'",profile));
-                assertEquals(18L,count(connection,
+                assertEquals(19L,count(connection,
                     "SELECT max(installed_rank) FROM flyway_schema_history WHERE success=true"));
                 assertEquals(1L,count(connection,
                     "SELECT count(*) FROM exercises WHERE id=? AND learning_goal IS NULL"
