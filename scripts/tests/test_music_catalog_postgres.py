@@ -44,7 +44,9 @@ with psycopg.connect(DSN) as conn:
         cur.execute(MIGRATION.read_text(encoding="utf-8"))
 print("V27 DDL executed on disposable PostgreSQL")
 
-data = fixture()\ndata[2][0]["raw_title"] = "Test\\x00name"\nmod.verify(data)
+data = fixture()
+data[2][0]["raw_title"] = "Test\\x00name"
+mod.verify(data)
 mod.apply(data,ACCOUNT,DSN)
 mod.apply(data,ACCOUNT,DSN)
 
