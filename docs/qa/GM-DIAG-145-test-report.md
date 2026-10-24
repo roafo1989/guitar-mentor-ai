@@ -1,6 +1,6 @@
 # GM-DIAG-145 — Developer review and QA handoff
 
-Date: **2026-10-24**. Scope: #145, PR #176. This report distinguishes *implemented, validated code* from *product acceptance not yet obtained*.
+Date: **2026-10-24**. Scope: #145, PR #178. This report distinguishes *implemented, validated code* from *product acceptance not yet obtained*.
 
 ## Build and regression evidence
 
@@ -12,8 +12,8 @@ Date: **2026-10-24**. Scope: #145, PR #176. This report distinguishes *implement
 
 ## Development code review
 
-- Backward compatibility: V20 adds columns with defaults, does not rewrite old exercise UUIDs or task associations; existing exact task snapshots are preserved.
-- Scope discipline: V21 creates one review-only `is_current=false` row with real binary asset references. Rights and pedagogical review remain pending; no invented AI score, music approval, or publication.
+- Backward compatibility: V23 adds columns with defaults, does not rewrite old exercise UUIDs or task associations; existing exact task snapshots are preserved.
+- Scope discipline: V24 creates one review-only `is_current=false` row with real binary asset references. Rights and pedagogical review remain pending; no invented AI score, music approval, or publication.
 - Fail-closed: `ExercisePublicationPolicy` blocks drafts (including direct exact resource links) and requires approved license/status plus audio/PDF metadata before publishing a new diagnostic probe.
 - Adaptive suggestion: `ProbeSelectionPolicy` selects at most one approved short probe (5–60s) for an *actually unassessed* primary skill. Submitted audio with no validated assessment is not treated as demonstrated mastery.
 - UI: separates short probes from optional full repertoire; existing legacy DTOs without `contentKind` remain repertoire, never covertly turned into diagnostic tests. Explicit tempo unit is passed to metronome.
@@ -39,7 +39,7 @@ Date: **2026-10-24**. Scope: #145, PR #176. This report distinguishes *implement
 2. Confirm whether 15–30s remains only an initial UX target or should become an explicit accepted range.
 3. Approve release of the already **version-matched packaged MP3+PDF** after independent visual/sonic QA and rights review; then a separate audited database migration may mark the version current/publishable.
 4. Evaluate end-to-end deployed student flow, including uploading a familiar recording, single targeted suggestion, change of meter, and voluntary exit.
-5. Do not mark #145 completed or merge PR #176 as a full product acceptance until these explicit remaining tasks are satisfied.
+5. Do not mark #145 completed or merge PR #178 as a full product acceptance until these explicit remaining tasks are satisfied.
 
 ## Scope not falsely claimed as complete
 
@@ -52,4 +52,4 @@ Date: **2026-10-24**. Scope: #145, PR #176. This report distinguishes *implement
 
 ## Media build and audit addendum
 
-The media generator is checked in at `scripts/diag145/generate_media.py`. GitHub Actions run [40100784089](https://github.com/roafo1989/guitar-mentor-ai/actions/runs/40100784089) built PDF/MP3 successfully, verified a normal playable MP3 (24.06 seconds including count-in), and pushed versioned resources into PR #176. The short write-enabled CI workflow was then removed. The PostgreSQL test now requires actual packaged binary headers but still checks that draft API requests are denied. This prevents inconsistent publication of unapproved content. No owner audiovisual approval is asserted.
+The media generator is checked in at `scripts/diag145/generate_media.py`. GitHub Actions run [40100784089](https://github.com/roafo1989/guitar-mentor-ai/actions/runs/40100784089) built PDF/MP3 successfully, verified a normal playable MP3 (24.06 seconds including count-in), and pushed versioned resources into PR #178. The short write-enabled CI workflow was then removed. The PostgreSQL test now requires actual packaged binary headers but still checks that draft API requests are denied. This prevents inconsistent publication of unapproved content. No owner audiovisual approval is asserted.
