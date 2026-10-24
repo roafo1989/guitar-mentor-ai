@@ -80,6 +80,7 @@ public final class LibraryOriginalController {
         String author=metadata.author()==null?null:metadata.author().strip();
         List<Incoming> staged=new ArrayList<>();
         long total=0;
+        boolean committed=false;
         try {
             for(MultipartFile file:files) {
                 String name=file.getOriginalFilename();
@@ -96,6 +97,7 @@ public final class LibraryOriginalController {
                 try(var stream=file.getInputStream()) {
                     object=storage.put(stream,remaining);
                 }
+                staged.add(new Incoming(name,format,object));
                 if(format.equals("PDF")) {
                     try(var stream=Files.newInputStream(storage.file(object.key()))) {
                         if(stream.read()!='%' || stream.read()!='P' || stream.read()!='D'
@@ -104,7 +106,6 @@ public final class LibraryOriginalController {
                     }
                 }
                 total+=object.length();
-                staged.add(new Incoming(name,format,object));
             }
             String fingerprint=fingerprint(title,metadata.type(),author,staged);
             long totalBytes=total;
@@ -168,10 +169,8 @@ public final class LibraryOriginalController {
                       .param("fingerprint",fingerprint).param("material",id).update();
                 return new Outcome(id,false);
             });
-            if(outcome.replay()) {
-                // Never retain a second physical copy on successful replay.
-                for(Incoming item:staged) storage.delete(item.object().key());
-            }
+            committed=!outcome.replay();
+            if(outcome.replay()) cleanup(staged);
             var material=repository.find(owner,outcome.id()).orElseThrow();
             return ResponseEntity.status(outcome.replay()?200:201)
                 .header("Idempotency-Replayed",Boolean.toString(outcome.replay()))
@@ -187,13 +186,13 @@ public final class LibraryOriginalController {
                             "/api/v1/library/materials/"+material.id()+"/files/"+a.id()+"/content"))
                         .toList()));
         } catch(LibraryObjectStore.FileTooLarge e) {
-            cleanup(staged); throw new Failure(413,"LIBRARY_UPLOAD_TOO_LARGE");
+            if(!committed) cleanup(staged); throw new Failure(413,"LIBRARY_UPLOAD_TOO_LARGE");
         } catch(LibraryObjectStore.EmptyFile e) {
-            cleanup(staged); throw new Failure(400,"LIBRARY_INVALID_FILES");
+            if(!committed) cleanup(staged); throw new Failure(400,"LIBRARY_INVALID_FILES");
         } catch(IOException e) {
-            cleanup(staged); throw new Failure(503,"LIBRARY_STORAGE_UNAVAILABLE");
+            if(!committed) cleanup(staged); throw new Failure(503,"LIBRARY_STORAGE_UNAVAILABLE");
         } catch(RuntimeException e) {
-            cleanup(staged); throw e;
+            if(!committed) cleanup(staged); throw e;
         }
     }
 
