@@ -258,6 +258,10 @@ async function assign(exerciseCode: string): Promise<void> {
     </div>
     <div class="notice" role="note">{{ t('form.notice') }}</div>
     <div v-if="loading" class="panel">{{ t('diagnostic.loading') }}</div>
+    <div v-else-if="!learnerStore.learner && failedRestoreRead && restoreError" class="panel" role="alert">
+      <p>{{ t(apiFailureKey(restoreError)) }}</p>
+      <button type="button" class="action-button" @click="restoreSession">{{ t("home.retry") }}</button>
+    </div>
     <div v-else-if="!learnerStore.learner" class="panel">
       <p>{{ t('diagnostic.needProfile') }}</p>
       <RouterLink to="/profile">{{ t('app.profile') }}</RouterLink>
