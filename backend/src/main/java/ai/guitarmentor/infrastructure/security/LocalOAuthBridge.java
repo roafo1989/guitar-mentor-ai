@@ -23,7 +23,7 @@ public class LocalOAuthBridge {
     private final SecureRandom random = new SecureRandom();
     private final Map<String, Pending> pending = new ConcurrentHashMap<>();
     private final Map<String, Completed> completed = new ConcurrentHashMap<>();
-    private record Pending(String originalSessionId, long expiresAt) {}
+    private record Pending(String originalSessionId, boolean linking, long expiresAt) {}
     private record Completed(String originalSessionId, OidcUser principal, long expiresAt) {}
 
     private String token() {
@@ -38,13 +38,13 @@ public class LocalOAuthBridge {
         completed.entrySet().removeIf(e -> e.getValue().expiresAt < now);
     }
 
-    public String begin(String originalSessionId) {
+    public String begin(String originalSessionId, boolean linking) {
         if (originalSessionId == null || originalSessionId.isBlank()) throw new SecurityException("NO_SESSION");
         prune();
         if (pending.size() + completed.size() >= MAX_OUTSTANDING)
             throw new SecurityException("BRIDGE_AT_CAPACITY");
         String nonce = token();
-        pending.put(nonce, new Pending(originalSessionId, System.currentTimeMillis() + START_MS));
+        pending.put(nonce, new Pending(originalSessionId, linking, System.currentTimeMillis() + START_MS));
         return nonce;
     }
 
@@ -53,6 +53,13 @@ public class LocalOAuthBridge {
         if (nonce == null || !nonce.matches("[a-f0-9]{64}")) return false;
         Pending value = pending.get(nonce);
         return value != null && value.expiresAt >= System.currentTimeMillis();
+    }
+
+    public boolean linking(String nonce) {
+        Pending value = pending.get(nonce);
+        if (value == null || value.expiresAt < System.currentTimeMillis())
+            throw new SecurityException("OAUTH_START_EXPIRED");
+        return value.linking;
     }
 
     /**
