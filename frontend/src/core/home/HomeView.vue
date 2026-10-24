@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import { computed, onBeforeUnmount, onMounted, ref, watch } from 'vue';
+import { apiFailureKey, asApiFailure, type ApiFailure } from '../../shared/api-failure';
 import { resolveHomeSummary, type HomeSummary } from './home-summary';
 import { useI18n } from 'vue-i18n';
 import { useLearnerStore } from '../../stores/learner.store';
@@ -8,7 +9,7 @@ const { t } = useI18n();
 const learnerStore = useLearnerStore();
 const loading = ref(true);
 const summary = ref<HomeSummary | null>(null);
-const recoveryError = ref(false);
+const recoveryError = ref<ApiFailure | null>(null);
 const primaryTarget = computed(() =>
   summary.value?.step === 'profile' ? '/profile'
     : summary.value?.step === 'onboarding' ? '/onboarding' : '/diagnostics');
@@ -19,7 +20,8 @@ const primaryLabel = computed(() => {
 });
 let generation = 0;
 let active = true;
-const restoreFailed = computed(() => recoveryError.value);
+const restoreFailed = computed(() => recoveryError.value !== null);
+const recoveryMessage = computed(() => recoveryError.value ? t(apiFailureKey(recoveryError.value)) : '');
 const sections = [
   { key: 'profile', to: '/profile', number: '01', icon: 'M12 12a4 4 0 1 0 0-8 4 4 0 0 0 0 8ZM4 21v-2a6 6 0 0 1 6-6h4a6 6 0 0 1 6 6v2' },
   { key: 'onboarding', to: '/onboarding', number: '02', icon: 'M8 4H5a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2V6a2 2 0 0 0-2-2h-3M8 2h8v5H8ZM7 12h10M7 17h7' },
@@ -29,20 +31,20 @@ const sections = [
 async function restoreProfile(): Promise<void> {
   const seq = ++generation;
   loading.value = true;
-  recoveryError.value = false;
+  recoveryError.value = null;
   try {
     const previous = learnerStore.learner?.id;
     if (!learnerStore.learner) await learnerStore.restore();
     if (!active || seq !== generation) return;
-    if (learnerStore.error && !learnerStore.error.startsWith('HTTP_404')) throw new Error('RESTORE_FAILED');
+    if (learnerStore.error) throw learnerStore.error;
     // No new session or assignment is created by the home screen.
     const id = learnerStore.learner?.id ?? null;
     if (previous && id !== previous) summary.value = null;
     const next = await resolveHomeSummary(id, window.localStorage);
     if (!active || seq !== generation || learnerStore.learner?.id !== id) return;
     summary.value = next;
-  } catch {
-    if (active && seq === generation) recoveryError.value = true;
+  } catch (cause) {
+    if (active && seq === generation && !(cause instanceof Error && cause.name === 'AbortError')) recoveryError.value = asApiFailure(cause);
   } finally {
     if (active && seq === generation) loading.value = false;
   }
@@ -94,7 +96,7 @@ onMounted(restoreProfile);
     </div>
 
     <div v-if="!loading && restoreFailed" class="notice home-recovery" role="alert">
-      <span>{{ t('home.restoreError') }}</span>
+      <span>{{ recoveryMessage }}</span>
       <button type="button" class="text-button" @click="restoreProfile">{{ t('home.retry') }}</button>
     </div>
 

@@ -1,47 +1,25 @@
-import type {
-  CreateLearnerRequest,
-  Learner,
-  UpdatePreferencesRequest,
-} from '../../shared/model/learner.model';
+import type { CreateLearnerRequest, Learner, UpdatePreferencesRequest } from '../../shared/model/learner.model';
+import { apiRequest, isArrayOf, isObject, isString, isUuid } from '../../shared/api-failure';
 
 const baseUrl = '/api/v1/learners';
-
-async function request<T>(url: string, options?: RequestInit): Promise<T> {
-  let response: Response;
-  try {
-    response = await fetch(url, {
-      ...options,
-      headers: { 'Content-Type': 'application/json', ...options?.headers },
-    });
-  } catch {
-    throw new Error('NETWORK_UNAVAILABLE');
-  }
-
-  if (!response.ok) {
-    const payload: unknown = await response.json().catch(() => null);
-    const detail =
-      typeof payload === 'object' &&
-      payload !== null &&
-      'error' in payload &&
-      typeof payload.error === 'string'
-        ? payload.error
-        : response.statusText;
-    throw new Error('HTTP_' + response.status + ': ' + detail);
-  }
-  return (await response.json()) as T;
+function validLearner(value: unknown): value is Learner {
+  return isObject(value) && isUuid(value.id) && isString(value.displayName)
+    && isArrayOf(value.instruments, instrument =>
+      isObject(instrument) && isUuid(instrument.id)
+      && isString(instrument.instrumentCode) && isString(instrument.techniqueCode)
+      && isArrayOf(instrument.preferences, preference =>
+        isObject(preference) && isString(preference.styleCode)
+        && ['LIKE', 'NEUTRAL', 'EXCLUDE'].includes(String(preference.rating))));
 }
-
 export const learnerService = {
   create(data: CreateLearnerRequest): Promise<Learner> {
-    return request<Learner>(baseUrl, { method: 'POST', body: JSON.stringify(data) });
+    return apiRequest(baseUrl, { method: 'POST', body: JSON.stringify(data) }, validLearner);
   },
   get(id: string): Promise<Learner> {
-    return request<Learner>(baseUrl + '/' + encodeURIComponent(id));
+    return apiRequest(baseUrl + '/' + encodeURIComponent(id), undefined, validLearner);
   },
   replacePreferences(id: string, data: UpdatePreferencesRequest): Promise<Learner> {
-    return request<Learner>(baseUrl + '/' + encodeURIComponent(id) + '/preferences', {
-      method: 'PUT',
-      body: JSON.stringify(data),
-    });
+    return apiRequest(baseUrl + '/' + encodeURIComponent(id) + '/preferences',
+      { method: 'PUT', body: JSON.stringify(data) }, validLearner);
   },
 };

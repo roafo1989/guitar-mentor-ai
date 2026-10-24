@@ -11,6 +11,10 @@ import ai.guitarmentor.application.learning.LearningService;
 import ai.guitarmentor.interfaces.rest.attempt.AttemptDtos.AttemptView;
 import jakarta.persistence.EntityNotFoundException;
 import java.util.List;
+import java.util.Set;
+import java.util.ArrayList;
+import org.springframework.data.domain.PageRequest;
+import ai.guitarmentor.interfaces.rest.attempt.AttemptDtos.AttemptPage;
 import java.util.UUID;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.http.HttpStatus;
@@ -53,8 +57,47 @@ public class SubmissionAttemptService {
     @Transactional(readOnly = true)
     public List<AttemptView> list(UUID learnerId, UUID sessionId, UUID taskId) {
         checkOwnership(learnerId, sessionId, taskId);
-        return attempts.findByTask_IdOrderByAttemptNumberDesc(taskId).stream()
-                .map(a -> view(a)).toList();
+        return views(attempts.findByTask_IdOrderByAttemptNumberDesc(taskId));
+    }
+
+    /** Authorization without fetching submission history, even if upload is disabled. */
+    @Transactional(readOnly = true)
+    public void verifyOwnership(UUID learnerId, UUID sessionId, UUID taskId) {
+        checkOwnership(learnerId, sessionId, taskId);
+    }
+
+    @Transactional(readOnly = true)
+    public AttemptPage page(UUID learnerId, UUID sessionId, UUID taskId,
+            int limit, Integer beforeNumber) {
+        if (limit < 1 || limit > 50 || (beforeNumber != null && beforeNumber < 1)) {
+            throw new IllegalArgumentException("Invalid page");
+        }
+        checkOwnership(learnerId, sessionId, taskId);
+        var request = PageRequest.of(0, limit + 1);
+        List<SubmissionAttempt> found = beforeNumber == null
+                ? attempts.findByTask_IdOrderByAttemptNumberDesc(taskId, request)
+                : attempts.findByTask_IdAndAttemptNumberLessThanOrderByAttemptNumberDesc(
+                        taskId, beforeNumber, request);
+        boolean hasMore = found.size() > limit;
+        var visible = found.subList(0, Math.min(limit, found.size()));
+        return new AttemptPage(views(visible),
+                hasMore ? visible.get(visible.size() - 1).getAttemptNumber() : null, hasMore);
+    }
+
+    @Transactional(readOnly = true)
+    public AttemptView detail(UUID learnerId, UUID sessionId, UUID taskId, UUID attemptId) {
+        checkOwnership(learnerId, sessionId, taskId);
+        var attempt = attempts.findByIdAndTask_Id(attemptId, taskId)
+                .orElseThrow(() -> new EntityNotFoundException("Attempt not found"));
+        return view(attempt);
+    }
+
+    private List<AttemptView> views(List<SubmissionAttempt> rows) {
+        if (rows.isEmpty()) return List.of();
+        Set<UUID> assessed = learningRepository == null ? Set.of()
+                : learningRepository.assessedAttemptIds(rows.stream()
+                        .map(SubmissionAttempt::getId).toList());
+        return rows.stream().map(a -> AttemptView.from(a, assessed.contains(a.getId()))).toList();
     }
 
     @Transactional

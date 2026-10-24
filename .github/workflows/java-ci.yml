@@ -14,9 +14,7 @@ jobs:
   backend:
     runs-on: ubuntu-latest
     env:
-      # Existing local prototype smoke tests are deliberately unauthenticated;
-      # secure mode has separate security tests and must never be default outside CI.
-      GUITAR_MENTOR_SECURITY_ENABLED: 'false'
+      GUITAR_MENTOR_SECURITY_ENABLED: 'false' # synthetic loopback QA only
     services:
       postgres:
         image: postgres:17
@@ -180,9 +178,7 @@ jobs:
               test "$(curl --silent --output qa120-unknown.json --write-out '%{http_code}' "http://localhost:8080/api/v1/exercises/GM-EB01/versions/no-such-version")" = '404'
               python3 -c 'import json; assert json.load(open("qa120-unknown.json"))["code"]=="EXERCISE_NOT_FOUND"'
               test "$(curl --silent --output qa120-invalid.json --write-out '%{http_code}' "http://localhost:8080/api/v1/exercises/GM-EB01/versions/bad%25name")" = '400'
-              # Spring Security 7 may reject encoded percent at the HTTP firewall *before*
-              # the application can emit its domain-specific INVALID_EXERCISE_REFERENCE code.
-              # This generic 400 is safer than weakening the strict firewall.
+              # Strict Spring Security firewall rejects unsafe encoded percent before MVC.
               python3 -c 'import json; p=json.load(open("qa120-invalid.json")); assert p.get("code")=="INVALID_EXERCISE_REFERENCE" or (p.get("status")==400 and p.get("error")=="Bad Request" and "trace" not in p)'
               # Real Tomcat HTTP parser and application validation: encoded unsafe path segments.
               # A proxy/container may reject malformed paths itself (404) or app validation may reject (400).
@@ -313,6 +309,7 @@ jobs:
               after_rejection=$(curl --fail --silent --show-error "$attempts_base")
               printf '%s' "$after_rejection" | python3 -c 'import json,sys; a=json.load(sys.stdin); assert len(a)==2 and a[0]["number"]==2 and a[1]["number"]==1'
               echo "Attempt upload, idempotency, structured rejection and unchanged history HTTP smoke: OK"
+              python3 scripts/qa125_attempt_http.py "$attempts_base" "$attempt_id" "$learner_id" "$session_id" "$task_id"
               # Compatibility regression for all accepted formats, using real encoded audio.
               # Only the single AttemptMediaStore adapter should handle these uploads.
               for format in mp3 ogg webm; do

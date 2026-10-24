@@ -1,5 +1,6 @@
 <script setup lang="ts">
-import { computed, onMounted, reactive, ref } from 'vue';
+import { computed, onBeforeUnmount, onMounted, reactive, ref } from 'vue';
+import { apiFailureKey } from '../../shared/api-failure';
 import { useI18n } from 'vue-i18n';
 import { useLearnerStore } from '../../stores/learner.store';
 import { secureUi } from '../../core/auth/auth';
@@ -35,14 +36,16 @@ function applyProfile(): void {
 
 const hasProfile = computed(() => store.learner !== null);
 const message = computed(() =>
-  store.error === 'NETWORK_UNAVAILABLE' ? t('form.networkError') : store.error,
+  store.error ? t(apiFailureKey(store.error)) : '',
 );
 
-onMounted(async () => {
-  resetRatings();
+let mounted = true;
+onBeforeUnmount(() => { mounted = false; });
+async function loadProfile(): Promise<void> {
   await store.restore();
-  applyProfile();
-});
+  if (mounted && !store.error) applyProfile();
+}
+onMounted(() => { resetRatings(); void loadProfile(); });
 
 function newProfile(): void {
   store.clearLocalSelection();
@@ -129,6 +132,7 @@ async function save(): Promise<void> {
       </div>
 
       <p v-if="message" class="error" role="alert">{{ t('form.error') }} {{ message }}</p>
+      <button v-if="store.error && !store.busy && !hasProfile" type="button" class="text-button" @click="loadProfile">{{ t("home.retry") }}</button>
       <p v-if="success" class="success" role="status">{{ success }}</p>
 
       <div class="form-actions">

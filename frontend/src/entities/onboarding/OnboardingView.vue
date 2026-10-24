@@ -1,5 +1,6 @@
 <script setup lang="ts">
-import { onMounted, ref } from 'vue';
+import { computed, onBeforeUnmount, onMounted, ref, watch } from 'vue';
+import { apiFailureKey, asApiFailure, type ApiFailure } from '../../shared/api-failure';
 import { useI18n } from 'vue-i18n';
 import { useLearnerStore } from '../../stores/learner.store';
 import { onboardingService } from './onboarding.service';
@@ -21,7 +22,47 @@ const goalOptions: GoalCode[] = [
 const step = ref<1 | 2>(1);
 const loading = ref(true);
 const saving = ref(false);
-const error = ref('');
+const error = ref<ApiFailure | null>(null);
+const localValidation = ref(false);
+const failedRead = ref(false);
+const edited = ref(false);
+const loadedFor = ref<string | null>(null);
+const readResolved = ref(false);
+const pendingBackground = ref<LearningBackground | null>(null);
+let saveGeneration = 0;
+const needsReadResolution = computed(() => pendingBackground.value !== null);
+const maySave = computed(() => !!learnerStore.learner && !saving.value && !loading.value && !failedRead.value && readResolved.value && loadedFor.value === learnerStore.learner.id);
+function resetForm(): void {
+  step.value = 1;
+  experienceLevel.value = 'BEGINNER';
+  yearsPlaying.value = 0;
+  skills.value = [];
+  knownPiecesText.value = '';
+  goals.value = ['FINGERSTYLE'];
+  practiceMinutes.value = 40;
+  sessionsPerWeek.value = 3;
+  notes.value = '';
+  edited.value = false;
+  readResolved.value = false;
+  loadedFor.value = null;
+  pendingBackground.value = null;
+  saving.value = false;
+  ++saveGeneration;
+  failedRead.value = false;
+  error.value = null;
+  localValidation.value = false;
+  saved.value = false;
+}
+const errorMessage = computed(() => localValidation.value ? t('onboarding.invalidPieces') : error.value ? t(apiFailureKey(error.value)) : '');
+let loadGeneration = 0;
+let active = true;
+onBeforeUnmount(() => { active = false; ++loadGeneration; });
+watch(() => learnerStore.learner?.id ?? null, (next, previous) => {
+  if (next === previous) return;
+  ++loadGeneration;
+  resetForm();
+  if (next && active) void loadBackground();
+});
 const saved = ref(false);
 const experienceLevel = ref<ExperienceLevel>('BEGINNER');
 const yearsPlaying = ref(0);
@@ -31,13 +72,6 @@ const goals = ref<GoalCode[]>(['FINGERSTYLE']);
 const practiceMinutes = ref(40);
 const sessionsPerWeek = ref(3);
 const notes = ref('');
-
-function errorLabel(cause: unknown): string {
-  if (cause instanceof Error && cause.message === 'NETWORK_UNAVAILABLE') {
-    return t('form.networkError');
-  }
-  return cause instanceof Error ? cause.message : String(cause);
-}
 
 function apply(view: LearningBackground): void {
   experienceLevel.value = view.experienceLevel;
@@ -51,22 +85,49 @@ function apply(view: LearningBackground): void {
   notes.value = view.notes;
 }
 
-onMounted(async () => {
+async function loadBackground(): Promise<void> {
+  const seq = ++loadGeneration;
+  const learnerAtStart = learnerStore.learner?.id ?? window.localStorage.getItem('guitar-mentor.learnerId');
   loading.value = true;
+  failedRead.value = false;
+  error.value = null;
   try {
     if (!learnerStore.learner) await learnerStore.restore();
-    if (learnerStore.learner) {
-      const background = await onboardingService.get(
-        learnerStore.learner.id, 'ACOUSTIC_GUITAR',
-      );
-      if (background) apply(background);
+    if (learnerStore.error) throw learnerStore.error;
+    const id = learnerStore.learner?.id;
+    if (!id) return;
+    const background = await onboardingService.get(id, 'ACOUSTIC_GUITAR');
+    if (active && seq === loadGeneration && learnerStore.learner?.id === id && learnerAtStart === id) {
+      // A GET never overwrites a locally edited form. Even a successful 204
+      // resolves the load gate, so a new background can be saved explicitly.
+      loadedFor.value = id;
+      if (background && edited.value) {
+        // Preserve the draft, but do not allow a partial default-filled PUT.
+        // The learner must explicitly load the existing server version.
+        pendingBackground.value = background;
+        readResolved.value = false;
+      } else {
+        if (background) apply(background);
+        pendingBackground.value = null;
+        readResolved.value = true;
+      }
     }
   } catch (cause) {
-    error.value = errorLabel(cause);
+    if (active && seq === loadGeneration && !(cause instanceof Error && cause.name === 'AbortError'))
+      { error.value = asApiFailure(cause); failedRead.value = true; }
   } finally {
-    loading.value = false;
+    if (active && seq === loadGeneration) loading.value = false;
   }
-});
+}
+function acceptServerBackground(): void {
+  const server = pendingBackground.value;
+  if (!server || loadedFor.value !== learnerStore.learner?.id) return;
+  apply(server);
+  edited.value = false;
+  pendingBackground.value = null;
+  readResolved.value = true;
+}
+onMounted(() => { void loadBackground(); });
 
 function parseKnownPieces(): KnownPiece[] {
   return knownPiecesText.value.split(/\r?\n/).map(line => line.trim())
@@ -79,16 +140,20 @@ function parseKnownPieces(): KnownPiece[] {
 }
 
 async function save(): Promise<void> {
-  if (!learnerStore.learner || saving.value) return;
+  if (!maySave.value || !learnerStore.learner) return;
   saved.value = false;
-  error.value = '';
+  failedRead.value = false;
+  error.value = null;
+  localValidation.value = false;
   const pieces = parseKnownPieces();
   if (pieces.length > 10 || pieces.some(piece => !piece.title || piece.title.length > 120
     || piece.artist.length > 120)) {
-    error.value = t('onboarding.invalidPieces');
+    localValidation.value = true;
     return;
   }
   saving.value = true;
+  const learnerId = learnerStore.learner.id;
+  const currentSave = ++saveGeneration;
   try {
     const background: LearningBackground = {
       experienceLevel: experienceLevel.value,
@@ -101,14 +166,17 @@ async function save(): Promise<void> {
       notes: notes.value,
     };
     const result = await onboardingService.save(
-      learnerStore.learner.id, 'ACOUSTIC_GUITAR', background,
+      learnerId, 'ACOUSTIC_GUITAR', background,
     );
+    if (!active || currentSave !== saveGeneration || learnerStore.learner?.id !== learnerId) return;
     if (result) apply(result);
+    edited.value = false;
     saved.value = true;
   } catch (cause) {
-    error.value = errorLabel(cause);
+    if (active && currentSave === saveGeneration && learnerStore.learner?.id === learnerId)
+      error.value = asApiFailure(cause);
   } finally {
-    saving.value = false;
+    if (currentSave === saveGeneration) saving.value = false;
   }
 }
 </script>
@@ -123,11 +191,15 @@ async function save(): Promise<void> {
     <div class="notice" role="note">{{ t('form.notice') }}</div>
 
     <div v-if="loading" class="panel">{{ t('onboarding.loading') }}</div>
+    <div v-else-if="error && !learnerStore.learner" class="panel" role="alert">
+      <p>{{ errorMessage }}</p>
+      <button type="button" class="action-button" @click="loadBackground">{{ t('home.retry') }}</button>
+    </div>
     <div v-else-if="!learnerStore.learner" class="panel">
       <p>{{ t('onboarding.needProfile') }}</p>
       <RouterLink to="/profile">{{ t('app.profile') }}</RouterLink>
     </div>
-    <form v-else class="panel" @submit.prevent="save">
+    <form v-else class="panel" @input="edited = true" @change="edited = true" @submit.prevent="save">
       <div class="step-indicator">{{ t('onboarding.step', { step, total: 2 }) }}</div>
 
       <template v-if="step === 1">
@@ -200,12 +272,17 @@ async function save(): Promise<void> {
           <button type="button" class="action-button secondary-button" @click="step = 1">
             ← {{ t('onboarding.back') }}
           </button>
-          <button type="submit" :disabled="saving">
+          <button type="submit" :disabled="!maySave">
             {{ saving ? t('form.saving') : t('onboarding.save') }}
           </button>
         </div>
       </template>
-      <p v-if="error" class="error" role="alert">{{ error }}</p>
+      <p v-if="error || localValidation" class="error" role="alert">{{ errorMessage }}</p>
+      <div v-if="needsReadResolution" class="notice" role="alert">
+        <p>{{ t("onboarding.draftConflict") }}</p>
+        <button type="button" class="action-button secondary-button" @click="acceptServerBackground">{{ t("onboarding.loadServerBackground") }}</button>
+      </div>
+      <button v-if="failedRead && error && !saving" type="button" class="text-button" @click="loadBackground">{{ t('home.retry') }}</button>
       <p v-if="saved" class="success" role="status">{{ t('onboarding.saved') }}</p>
       <div class="form-actions"><RouterLink to="/profile">{{ t('onboarding.profileBack') }}</RouterLink><RouterLink to="/diagnostics">{{ t('diagnostic.nextFromOnboarding') }} →</RouterLink></div>
     </form>

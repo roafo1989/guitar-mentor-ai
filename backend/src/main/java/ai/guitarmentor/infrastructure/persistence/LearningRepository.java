@@ -6,6 +6,9 @@ import java.sql.SQLException;
 import java.sql.Timestamp;
 import java.time.Instant;
 import java.util.List;
+import java.util.Set;
+import java.util.HashSet;
+import java.util.Collections;
 import java.util.Optional;
 import java.util.UUID;
 import org.springframework.jdbc.core.JdbcTemplate;
@@ -84,6 +87,24 @@ public class LearningRepository {
             SELECT EXISTS(SELECT 1 FROM submission_attempts
               WHERE id=? AND status='PROCESSED' AND processing_finalized_at IS NOT NULL)
             """,Boolean.class,attemptId));
+    }
+
+    // Bound parameters per statement even when the legacy GET reads all attempts.
+    // The new paginated GET (<=50 items) still issues exactly one assessment query.
+    private static final int ASSESSMENT_LOOKUP_BATCH_SIZE = 500;
+
+    public Set<UUID> assessedAttemptIds(List<UUID> attemptIds) {
+        if (attemptIds.isEmpty()) return Collections.emptySet();
+        Set<UUID> assessed = new HashSet<>();
+        for (int offset = 0; offset < attemptIds.size(); offset += ASSESSMENT_LOOKUP_BATCH_SIZE) {
+            List<UUID> batch = attemptIds.subList(offset,
+                    Math.min(offset + ASSESSMENT_LOOKUP_BATCH_SIZE, attemptIds.size()));
+            String placeholders = String.join(",", Collections.nCopies(batch.size(), "?"));
+            assessed.addAll(jdbc.query(
+                "SELECT DISTINCT attempt_id FROM attempt_assessments WHERE attempt_id IN (" + placeholders + ")",
+                (rs, row) -> (UUID) rs.getObject(1), batch.toArray()));
+        }
+        return assessed;
     }
 
     public boolean hasAssessment(UUID attemptId) {

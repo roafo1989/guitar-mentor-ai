@@ -7,6 +7,9 @@ import java.util.UUID;
 public final class AttemptDtos {
     private AttemptDtos() {}
 
+    public record AttemptPage(java.util.List<AttemptView> items,
+            Integer nextBeforeNumber, boolean hasMore) {}
+
     public record UploadCapabilities(boolean enabled, long maxBytes, String[] formats) {}
 
     public record AttemptView(UUID id, UUID taskId, int number, Instant submittedAt,

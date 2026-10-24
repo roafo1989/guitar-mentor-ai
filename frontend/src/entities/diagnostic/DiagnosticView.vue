@@ -1,5 +1,6 @@
 <script setup lang="ts">
-import { onBeforeUnmount, onMounted, ref } from 'vue';
+import { computed, onBeforeUnmount, onMounted, ref } from 'vue';
+import { apiFailureKey, asApiFailure, isHttp, type ApiFailure } from '../../shared/api-failure';
 import { onBeforeRouteLeave } from 'vue-router';
 import { useI18n } from 'vue-i18n';
 import { useLearnerStore } from '../../stores/learner.store';
@@ -25,6 +26,18 @@ function onSubmissionDraft(value: { busy: boolean; dirty: boolean }): void {
   submissionDraft.value = value.dirty;
 }
 const error = ref('');
+const writeError = ref<ApiFailure | null>(null);
+const restoreError = ref<ApiFailure | null>(null);
+const catalogError = ref<ApiFailure | null>(null);
+const catalogMissing = ref(false);
+const catalogFailure = ref(false);
+const failedRestoreRead = ref(false);
+const displayError = computed(() => error.value || (restoreError.value ? t(apiFailureKey(restoreError.value)) : writeError.value ? t(apiFailureKey(writeError.value)) : ''));
+const catalogErrorMessage = computed(() => catalogMissing.value ? t('diagnostic.catalogApiMissing') : catalogError.value ? t(apiFailureKey(catalogError.value)) : '');
+let restoreGeneration = 0;
+let catalogGeneration = 0;
+let recommendationGeneration = 0;
+let active = true;
 
 function onIntakeState(value: { busy: boolean; dirty: boolean }): void {
   const wasBusy = intakeBusy.value;
@@ -75,39 +88,59 @@ function onBrowserUnload(event: BeforeUnloadEvent): void {
   event.returnValue = '';
 }
 onMounted(() => window.addEventListener('beforeunload', onBrowserUnload));
-onBeforeUnmount(() => window.removeEventListener('beforeunload', onBrowserUnload));
+onBeforeUnmount(() => { active = false; ++restoreGeneration; ++catalogGeneration; ++recommendationGeneration; window.removeEventListener('beforeunload', onBrowserUnload); });
 
 async function loadTask(learnerId: string, diagnosticId: string): Promise<void> {
-  task.value = await diagnosticService.currentTask(learnerId, diagnosticId);
+  const requestedTask = await diagnosticService.currentTask(learnerId, diagnosticId);
+  if (active && learnerStore.learner?.id === learnerId && session.value?.id === diagnosticId)
+    task.value = requestedTask;
 }
 
 async function loadCatalog(): Promise<void> {
+  const id = learnerStore.learner?.id;
+  const sessionId = session.value?.id;
+  const seq = ++catalogGeneration;
+  const current = () => active && seq === catalogGeneration
+    && learnerStore.learner?.id === id && session.value?.id === sessionId;
   catalogBusy.value = true;
+  catalogFailure.value = false;
   error.value = '';
+  catalogError.value = null;
+  catalogMissing.value = false;
   try {
-    exercises.value = await diagnosticService.listExercises();
+    const result = await diagnosticService.listExercises();
+    if (current()) exercises.value = result;
   } catch (cause) {
-    exercises.value = [];
-    error.value = cause instanceof Error && cause.message.startsWith('HTTP_404')
-      ? t('diagnostic.catalogApiMissing') : showError(cause);
+    if (current() && !(cause instanceof Error && cause.name === 'AbortError')) {
+      catalogFailure.value = true;
+      catalogMissing.value = isHttp(cause, 404);
+      catalogError.value = catalogMissing.value ? null : asApiFailure(cause);
+    }
   } finally {
-    catalogBusy.value = false;
+    if (current()) catalogBusy.value = false;
   }
-  await loadRecommendations();
+  if (current()) await loadRecommendations();
 }
 
 async function loadRecommendations(): Promise<void> {
   const id = learnerStore.learner?.id;
-  if (!id || !session.value || session.value.status !== 'READY_FOR_TASK') return;
+  const sessionId = session.value?.id;
+  if (!id || !sessionId || session.value?.status !== 'READY_FOR_TASK') return;
+  const seq = ++recommendationGeneration;
+  const current = () => active && seq === recommendationGeneration
+    && learnerStore.learner?.id === id && session.value?.id === sessionId;
   recommendationBusy.value = true;
   recommendationError.value = '';
   try {
-    recommendation.value = await diagnosticService.recommendations(id, session.value.id);
+    const result = await diagnosticService.recommendations(id, sessionId);
+    if (current()) recommendation.value = result;
   } catch (cause) {
-    recommendation.value = null;
-    recommendationError.value = showError(cause);
+    if (current() && !(cause instanceof Error && cause.name === 'AbortError')) {
+      recommendation.value = null;
+      recommendationError.value = 'failed';
+    }
   } finally {
-    recommendationBusy.value = false;
+    if (current()) recommendationBusy.value = false;
   }
 }
 const instrumentCode = 'ACOUSTIC_GUITAR';
@@ -116,49 +149,63 @@ function storageKey(learnerId: string): string {
   return 'guitar-mentor.diagnostic.' + learnerId + '.' + instrumentCode;
 }
 
-function showError(cause: unknown): string {
-  return cause instanceof Error && cause.message === 'NETWORK_UNAVAILABLE'
-    ? t('form.networkError') : cause instanceof Error ? cause.message : 'UNKNOWN_ERROR';
-}
-
-onMounted(async () => {
+async function restoreSession(): Promise<void> {
+  const seq = ++restoreGeneration;
+  loading.value = true;
+  restoreError.value = null;
+  failedRestoreRead.value = false;
+  const selectedLearner = learnerStore.learner?.id ?? window.localStorage.getItem('guitar-mentor.learnerId');
   try {
     if (!learnerStore.learner) await learnerStore.restore();
+    if (learnerStore.error) throw learnerStore.error;
     const id = learnerStore.learner?.id;
-    if (!id) return;
-    const stored = window.localStorage.getItem(storageKey(id));
+    if (!id || id !== selectedLearner) return;
+    const key = storageKey(id);
+    const stored = window.localStorage.getItem(key);
     if (!stored) return;
+    let loaded: DiagnosticSession;
     try {
-      session.value = await diagnosticService.get(id, stored);
+      loaded = await diagnosticService.get(id, stored);
     } catch (cause) {
-      // Only the session GET 404 invalidates its stored ID.
-      // 404 from the exercise catalog must NOT delete the session selection.
-      if (cause instanceof Error && cause.message.startsWith('HTTP_404')) {
-        window.localStorage.removeItem(storageKey(id));
-        session.value = null;
+      if (isHttp(cause, 404)) {
+        if (active && seq === restoreGeneration && learnerStore.learner?.id === id
+          && window.localStorage.getItem(key) === stored) {
+          window.localStorage.removeItem(key);
+          session.value = null;
+        }
         return;
       }
       throw cause;
     }
-    if (session.value.status === 'TASK_ASSIGNED') await loadTask(id, session.value.id);
-    if (session.value.status === 'READY_FOR_TASK') await loadCatalog();
+    if (!active || seq !== restoreGeneration || learnerStore.learner?.id !== id
+      || window.localStorage.getItem(key) !== stored) return;
+    session.value = loaded;
+    writeError.value = null;
+    if (loaded.status === 'TASK_ASSIGNED') await loadTask(id, loaded.id);
+    if (loaded.status === 'READY_FOR_TASK') await loadCatalog();
   } catch (cause) {
-    error.value = showError(cause);
+    if (active && seq === restoreGeneration && !(cause instanceof Error && cause.name === 'AbortError')) {
+      restoreError.value = asApiFailure(cause);
+      failedRestoreRead.value = true;
+    }
   } finally {
-    loading.value = false;
+    if (active && seq === restoreGeneration) loading.value = false;
   }
-});
+}
+onMounted(() => { void restoreSession(); });
 
 async function start(): Promise<void> {
   const id = learnerStore.learner?.id;
-  if (!id || busy.value) return;
+  if (!id || busy.value || loading.value || failedRestoreRead.value || window.localStorage.getItem(storageKey(id))) return;
   busy.value = true;
   error.value = '';
+  writeError.value = null;
+  failedRestoreRead.value = false;
   try {
     session.value = await diagnosticService.start(id, instrumentCode);
     window.localStorage.setItem(storageKey(id), session.value.id);
   } catch (cause) {
-    error.value = showError(cause);
+    writeError.value = asApiFailure(cause);
   } finally {
     busy.value = false;
   }
@@ -166,32 +213,36 @@ async function start(): Promise<void> {
 
 async function continueWithoutRecording(): Promise<void> {
   const id = learnerStore.learner?.id;
-  if (!id || !session.value) return;
+  if (!id || !session.value || failedRestoreRead.value) return;
   // The same confirmation policy also protects the browser Back and header links.
   if (!permitIntakeNavigation(busy.value, intakeBusy.value, intakeDraft.value,
     () => window.confirm(t('evidence.confirmDiscard')))) return;
   busy.value = true;
   error.value = '';
+  writeError.value = null;
+  failedRestoreRead.value = false;
   try {
     session.value = await diagnosticService.continueWithoutRecording(id, session.value.id);
     await loadCatalog();
   } catch (cause) {
-    error.value = showError(cause);
+    writeError.value = asApiFailure(cause);
   } finally {
     busy.value = false;
   }
 }
 async function assign(exerciseCode: string): Promise<void> {
   const id = learnerStore.learner?.id;
-  if (!id || !session.value || busy.value) return;
+  if (!id || !session.value || busy.value || failedRestoreRead.value) return;
   busy.value = true;
   error.value = '';
+  writeError.value = null;
+  failedRestoreRead.value = false;
   try {
     task.value = await diagnosticService.assignTask(id, session.value.id, exerciseCode);
     closeMetronome(); // Assignment replaces the selected exercise; no carry-over audio.
     session.value = await diagnosticService.get(id, session.value.id);
   } catch (cause) {
-    error.value = showError(cause);
+    writeError.value = asApiFailure(cause);
   } finally {
     busy.value = false;
   }
@@ -207,6 +258,10 @@ async function assign(exerciseCode: string): Promise<void> {
     </div>
     <div class="notice" role="note">{{ t('form.notice') }}</div>
     <div v-if="loading" class="panel">{{ t('diagnostic.loading') }}</div>
+    <div v-else-if="!learnerStore.learner && failedRestoreRead && restoreError" class="panel" role="alert">
+      <p>{{ t(apiFailureKey(restoreError)) }}</p>
+      <button type="button" class="action-button" @click="restoreSession">{{ t("home.retry") }}</button>
+    </div>
     <div v-else-if="!learnerStore.learner" class="panel">
       <p>{{ t('diagnostic.needProfile') }}</p>
       <RouterLink to="/profile">{{ t('app.profile') }}</RouterLink>
@@ -220,7 +275,7 @@ async function assign(exerciseCode: string): Promise<void> {
         :learner-id="learnerStore.learner.id" :session-id="session.id"
         :allow-upload="session.status === 'COLLECTING_EVIDENCE'"
         @intake-state="onIntakeState" />
-      <template v-if="!session">
+      <template v-if="!session && !failedRestoreRead">
         <h2>{{ t('diagnostic.startTitle') }}</h2>
         <p>{{ t('diagnostic.startDescription') }}</p>
         <div class="form-actions">
@@ -229,7 +284,7 @@ async function assign(exerciseCode: string): Promise<void> {
           </button>
         </div>
       </template>
-      <template v-else-if="session.status === 'COLLECTING_EVIDENCE'">
+      <template v-else-if="session?.status === 'COLLECTING_EVIDENCE'">
         <div class="form-actions">
           <button type="button" class="action-button" :disabled="busy || intakeBusy" @click="continueWithoutRecording">
             {{ busy ? t('diagnostic.working') : t('diagnostic.continue') }}
@@ -237,7 +292,7 @@ async function assign(exerciseCode: string): Promise<void> {
         </div>
       </template>
 
-      <template v-else-if="session.status === 'READY_FOR_TASK'">
+      <template v-else-if="session?.status === 'READY_FOR_TASK'">
         <h2>{{ t('diagnostic.readyTitle') }}</h2>
         <p>{{ t('diagnostic.chooseStudy') }}</p>
         <section class="recommendation-panel" aria-labelledby="recommended-heading">
@@ -266,8 +321,9 @@ async function assign(exerciseCode: string): Promise<void> {
         </section>
         <h3>{{ t('diagnostic.catalogAll') }}</h3>
         <p v-if="catalogBusy" class="hint">{{ t('diagnostic.catalogLoading') }}</p>
-        <p v-else-if="!error && exercises.length === 0" class="hint">{{ t('diagnostic.noExercises') }}</p>
-        <button v-if="error" type="button" class="action-button secondary-button" :disabled="catalogBusy" @click="loadCatalog">
+        <p v-else-if="!catalogFailure && exercises.length === 0" class="hint">{{ t('diagnostic.noExercises') }}</p>
+        <p v-if="catalogFailure" class="error" role="alert">{{ catalogErrorMessage }}</p>
+        <button v-if="catalogFailure" type="button" class="action-button secondary-button" :disabled="catalogBusy" @click="loadCatalog">
           {{ t('diagnostic.retryCatalog') }}
         </button>
         <article v-for="exercise in exercises" :key="exercise.code" class="exercise-card">
@@ -281,7 +337,7 @@ async function assign(exerciseCode: string): Promise<void> {
           </button>
         </article>
       </template>
-      <template v-else-if="session.status === 'TASK_ASSIGNED' && task">
+      <template v-else-if="session?.status === 'TASK_ASSIGNED' && task">
         <div class="exercise-meta">{{ task.exercise.code }} · v{{ task.exercise.version }}</div>
         <h2>{{ task.exercise.title }}</h2>
         <p>{{ task.exercise.description }}</p>
@@ -304,7 +360,8 @@ async function assign(exerciseCode: string): Promise<void> {
           </section>
         </div>
       </template>
-      <p v-if="error" role="alert" class="error">{{ error }}</p>
+      <p v-if="displayError" role="alert" class="error">{{ displayError }}</p>
+      <button v-if="failedRestoreRead && !busy && !intakeBusy && !submissionBusy && !intakeDraft && !submissionDraft" type="button" class="text-button" @click="restoreSession">{{ t("home.retry") }}</button>
       <p><RouterLink to="/onboarding">{{ t('diagnostic.back') }}</RouterLink></p>
     </div>
   </section>
