@@ -411,7 +411,8 @@ onBeforeUnmount(() => {
 </script>
 
 <template>
-  <section class="homework-panel" aria-labelledby="homework-heading">
+  <section class="homework-panel" :class="{ 'studio-workspace-panel': lightMinimal }" aria-labelledby="homework-heading">
+    <div :class="{ 'studio-record-card': lightMinimal }">
     <div class="homework-heading">
       <h3 id="homework-heading"><svg v-if="lightMinimal" class="studio-mic-icon" width="21" height="21" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="9" y="2" width="6" height="13" rx="3"/><path d="M5 10v2a7 7 0 0 0 14 0v-2M12 19v3m-4 0h8"/></svg>{{ lightMinimal ? t('attempt.recordingPanelTitle') : t('attempt.title') }}</h3>
       <p v-if="!lightMinimal" class="hint">{{ t('attempt.subtitle') }}</p>
@@ -426,7 +427,17 @@ onBeforeUnmount(() => {
       </p>
       <p v-if="learningTerminal" class="hint" role="status">{{ t('learning.uploadClosed') }}</p>
       <form class="homework-form" @submit.prevent="submit">
-        <div v-if="lightMinimal" class="recording-primary">
+        <div v-if="lightMinimal" class="recording-mode-tabs" role="tablist"
+          :aria-label="t('attempt.inputModeLabel')" @keydown="inputModeKeys">
+          <button type="button" role="tab" :aria-selected="inputMode === 'record'"
+            :tabindex="inputMode === 'record' ? 0 : -1" :disabled="!canSwitchInput"
+            @click="changeInputMode('record')"><svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" aria-hidden="true"><rect x="9" y="2" width="6" height="13" rx="3"/><path d="M5 10v2a7 7 0 0 0 14 0v-2M12 19v3m-4 0h8"/></svg>{{ t('attempt.recordTab') }}</button>
+          <button type="button" role="tab" :aria-selected="inputMode === 'file'"
+            :tabindex="inputMode === 'file' ? 0 : -1" :disabled="!canSwitchInput"
+            @click="changeInputMode('file')"><svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" aria-hidden="true"><path d="M12 3v12m-4-4 4 4 4-4M4 17v3h16v-3"/></svg>{{ t('attempt.fileTab') }}</button>
+        </div>
+        <div v-if="lightMinimal" class="recording-primary" :class="{ 'input-mode-hidden': inputMode !== 'record' }"
+          role="tabpanel" :aria-label="t('attempt.recordTab')">
           <h4>{{ t('attempt.microphoneTitle') }}</h4>
           <MicrophoneRecorder :compact="lightMinimal" :disabled="learningTerminal || uploading"
           :max-bytes="capabilities?.maxBytes ?? 20971520"
@@ -449,13 +460,31 @@ onBeforeUnmount(() => {
             </template>
           </MicrophoneRecorder>
         </div>
-        <details v-if="lightMinimal" class="recording-file-option">
-          <summary>{{ t('attempt.uploadAlternative') }}</summary>
-          <label for="attempt-file">{{ t('attempt.fileLabel') }}</label>
-        <input id="attempt-file" ref="fileInput" type="file" accept=".mp3,.wav,.ogg,.webm,.m4a,audio/*"
-          :disabled="learningTerminal || !capabilities?.enabled || uploading || recordingActive" @change="selectFile" />
-        <p class="hint">{{ t('attempt.fileLimits') }}</p>
-        </details>
+        <div v-if="lightMinimal" class="recording-file-option"
+          :class="{ 'input-mode-hidden': inputMode !== 'file' }"
+          role="tabpanel" :aria-label="t('attempt.fileTab')">
+          <input id="attempt-file" ref="fileInput" class="studio-file-input" type="file"
+            accept=".mp3,.wav,.ogg,.webm,.m4a,audio/*"
+            :disabled="learningTerminal || uploading || recordingActive"
+            @change="selectFile" />
+          <label class="studio-file-picker" for="attempt-file">
+            <svg width="21" height="21" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" aria-hidden="true"><path d="M12 3v12m-4-4 4 4 4-4M4 17v3h16v-3"/></svg>
+            <strong>{{ t('attempt.chooseFile') }}</strong>
+          </label>
+          <p class="hint">{{ t('attempt.fileLimits') }}</p>
+        </div>
+        <div v-if="lightMinimal && file" class="studio-selected-file" role="status">
+          <span class="studio-attachment-info"><strong>{{ file.name }}</strong>
+          <small>{{ fileSize(file.size) }} · {{ sourceKind === 'record' ? t('attempt.recordTab') : t('attempt.fileTab') }}</small></span>
+          <button type="button" class="studio-discard-button" :disabled="uploading || recordingActive" @click="removeDraft">
+            <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" aria-hidden="true"><path d="M3 6h18M8 6V4h8v2m3 0-1 15H6L5 6m5 4v7m4-7v7"/></svg>
+            {{ t('attempt.removeAttachment') }}
+          </button>
+        </div>
+        <button v-if="lightMinimal && inputMode === 'file'" type="submit" class="studio-file-submit"
+          :disabled="learningTerminal || !file || !capabilities?.enabled || uploading || recordingActive">
+          {{ uploading ? t('attempt.uploading') : t('attempt.submitShort') }}
+        </button>
         <template v-if="!lightMinimal">
           <label for="attempt-file">{{ t('attempt.fileLabel') }}</label>
         <input id="attempt-file" ref="fileInput" type="file" accept=".mp3,.wav,.ogg,.webm,.m4a,audio/*"
@@ -474,8 +503,6 @@ onBeforeUnmount(() => {
             {{ t('attempt.discardRecording') }}
           </button>
         </div>
-        <button v-if="lightMinimal && recordedPreview && file" type="button" class="studio-discard-button"
-          :disabled="uploading" @click="file = null; clearRecordedPreview()">{{ t('attempt.discardRecording') }}</button>
         <label for="attempt-comment" :class="{ 'studio-secondary-label': lightMinimal }">{{ t('attempt.commentLabel') }}</label>
         <textarea id="attempt-comment" v-model="comment" rows="3" maxlength="2000"
           :disabled="uploading"
@@ -489,7 +516,8 @@ onBeforeUnmount(() => {
       </form>
       <p v-if="notice" role="status" class="saved-status">{{ notice }}</p>
       <p v-if="error" role="alert" class="error">{{ error }}</p>
-      <div v-if="lightMinimal" class="studio-results-divider"></div>
+    </div>
+    <div :class="{ 'studio-result-card': lightMinimal }">
       <LearningResultsPanel :learner-id="learnerId" :session-id="sessionId" :task-id="taskId"
          :attempts="displayAttempts" :selected-id="selectedId" :latest-id="latestId"
         :draft-busy="draftBusy" :load-attempt-detail="fetchDetail" @selected-id="selectedId = $event" @latest-id="latestId = $event" @decision-busy="decisionBusy = $event" @terminal-state="learningTerminal = $event" />
@@ -521,6 +549,7 @@ onBeforeUnmount(() => {
         </nav>
         <p v-if="historyNotice && !historyError" role="status" class="hint">{{ historyNotice }}</p>
       </details>
+    </div>
     </template>
   </section>
 </template>
