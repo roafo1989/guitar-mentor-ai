@@ -9,6 +9,8 @@ const asModule = code => 'data:text/javascript,' + encodeURIComponent(code);
 const vueUrl = import.meta.resolve('vue');
 const i18nUrl = asModule("import {ref} from '"+vueUrl+"'; export const useI18n=()=>({locale:ref('ru'),t:key=>key});");
 const routerUrl = asModule("export const useRoute=()=>globalThis.__shellRoute;");
+const authGateUrl = asModule("export default { setup(_,{slots}) { return () => slots.default?.(); } };");
+const authUrl = asModule("export const auth={actor:null};export const logout=async()=>{};");
 const learnerUrl = asModule("export const useLearnerStore=()=>({learner:{displayName:'Sample'}});");
 const audioUrl = asModule("export const metronome=globalThis.__shellAudio;");
 const uiUrl = asModule([
@@ -86,6 +88,8 @@ async function compileRealApp(useRealTuner = false) {
     './entities/metronome/metronome-ui': uiUrl + '#app-' + instance,
     './shared/audio/metronome': audioUrl + '#app-' + instance,
     './stores/learner.store': learnerUrl,
+    './core/auth/AuthGate.vue': authGateUrl,
+    './core/auth/auth': authUrl,
   };
   const mapped = js.replace(/from (['"])(.*?)\1/g, (_full, _q, name) => {
     if (!sources[name]) throw Error('Unexpected App.vue runtime import: ' + name);
