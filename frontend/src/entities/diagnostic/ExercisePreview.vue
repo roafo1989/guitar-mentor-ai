@@ -63,7 +63,8 @@ watch(mediaIdentity, (_identity, _previous, onCleanup) => {
   audioExists.value = false;
   pdfExists.value = false;
   checking.value = true;
-  pdfOpen.value = !!(props.assigned && lightMinimal);
+  pdfOpen.value = false;
+  if (props.assigned && lightMinimal) pdfOpen.value = true;
   studioTab.value = 'score';
   pdfReady.value = false;
   pdfLoading.value = false;
@@ -142,7 +143,7 @@ onBeforeUnmount(() => pdfOpenController?.abort());
       <h4>{{ assigned ? t('diagnostic.assignedMediaHeading') : t('diagnostic.previewHeading') }}</h4>
       <span class="hint">{{ assigned ? t('diagnostic.assignedMediaHint') : t('diagnostic.previewBeforeAssign') }}</span>
     </div>
-    <component v-show="!assigned || !lightMinimal || studioTab === 'description'" :is="assigned && lightMinimal ? 'details' : 'section'" class="exercise-learning" :aria-label="t('diagnostic.metadata.heading')">
+    <component  :is="assigned && lightMinimal ? 'details' : 'section'" class="exercise-learning" :class="{ 'studio-tab-hidden': assigned && lightMinimal && studioTab !== 'description' }" :aria-label="t('diagnostic.metadata.heading')">
       <summary v-if="assigned && lightMinimal">{{ t('diagnostic.metadata.heading') }}</summary>
       <p class="exercise-version">{{ isProbe ? t('diagnostic.probeLabel') : t('diagnostic.repertoireLabel') }} · {{ t('diagnostic.metadata.version') }}: {{ exercise.code }}@{{ exercise.version }}</p>
       <h5>{{ t('diagnostic.metadata.goal') }}</h5>
@@ -165,7 +166,7 @@ onBeforeUnmount(() => pdfOpenController?.abort());
         <div><dt>{{ t('diagnostic.metadata.license') }}</dt><dd>{{ exercise.license?.trim() || t('diagnostic.metadata.unknown') }}</dd></div>
       </dl>
     </component>
-    <div v-show="!assigned || !lightMinimal || studioTab === 'description'" class="metronome-exercise-tool">
+    <div class="metronome-exercise-tool" :class="{ 'studio-tab-hidden': assigned && lightMinimal && studioTab !== 'description' }">
       <button type="button" class="recorder-button metronome-exercise-launch"
         :title="t('metronome.openExercise')" @click="launchMetronome">
         {{ t('metronome.openExercise') }} · {{ exercise.bpm }} BPM
@@ -173,7 +174,7 @@ onBeforeUnmount(() => pdfOpenController?.abort());
       <span class="hint">{{ t('metronome.recommended') }}</span>
       <p v-if="metronomeError" role="alert" class="hint">{{ t('metronome.exerciseMeterUnavailable') }}</p>
     </div>
-    <div v-show="!assigned || !lightMinimal || studioTab === 'audio'" class="exercise-preview-audio">
+    <div class="exercise-preview-audio" :class="{ 'studio-tab-hidden': assigned && lightMinimal && studioTab !== 'audio' }">
       <strong>{{ t('diagnostic.listenExample') }}</strong>
       <p class="hint">{{ t('diagnostic.synthesizedExample') }}</p>
       <p v-if="checking" class="hint" role="status">{{ t('diagnostic.checkingMedia') }}</p>
@@ -182,7 +183,7 @@ onBeforeUnmount(() => pdfOpenController?.abort());
         :aria-label="t('diagnostic.listenExample')" @error="audioExists = false" />
       <p v-else class="hint" role="status">{{ t('diagnostic.metadata.audioUnavailable') }}</p>
     </div>
-    <ScoreReader v-if="assigned && lightMinimal" v-show="studioTab === 'score'" :key="mediaIdentity"
+    <ScoreReader v-if="assigned && lightMinimal" :class="{ 'studio-tab-hidden': studioTab !== 'score' }" :key="mediaIdentity"
       :exercise-key="exerciseKey()" :pdf-url="exercise.previewPdfUrl"
       :score-url="exercise.scoreUrl" :title="exercise.title"
       v-model:open="pdfOpen" />
@@ -224,6 +225,7 @@ details.exercise-learning > summary:focus-visible {outline:3px solid #28776d;out
 .exercise-facts dd { margin: .2rem 0 0; overflow-wrap: anywhere; }
 
 .studio-preview {min-width:0;display:flex;flex-direction:column;gap:10px}
+.studio-preview .studio-tab-hidden {display:none!important}
 .studio-tabs {display:flex;gap:4px;align-items:center;flex-wrap:wrap;padding:4px;background:#f4f7f5;border-radius:12px;margin:0 0 4px}
 .studio-tabs button {border:0;border-radius:9px;min-height:44px;padding:10px 17px;background:transparent;color:#4b5d5b;font:inherit;font-size:13px;font-weight:600;cursor:pointer}
 .studio-tabs button[aria-selected="true"] {background:#fff;color:#205f57;box-shadow:0 1px 4px #16233116}
