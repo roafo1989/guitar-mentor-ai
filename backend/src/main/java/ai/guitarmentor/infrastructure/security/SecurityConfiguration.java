@@ -33,7 +33,7 @@ public class SecurityConfiguration {
     }
 
     @Bean
-    SecurityFilterChain securityFilterChain(HttpSecurity http, ActorRepository actors,
+    SecurityFilterChain securityFilterChain(HttpSecurity http, ActorRepository actors, GoogleLinkService googleLinks,
             org.springframework.beans.factory.ObjectProvider<org.springframework.security.oauth2.client.registration.ClientRegistrationRepository> oidcClients,
             @Value("${guitar-mentor.security.enabled:true}") boolean enabled,
             @Value("${guitar-mentor.security.absolute-session-minutes:720}") long absoluteMinutes,
@@ -100,6 +100,32 @@ public class SecurityConfiguration {
                         req.getSession().invalidate();
                         org.springframework.security.core.context.SecurityContextHolder.clearContext();
                         res.sendRedirect("/?auth=denied");
+                        return;
+                    }
+                    // A local user requested explicit Google linking after re-entering a password.
+                    // Do not fall back to email-based account matching on any failure.
+                    var linkingSession=req.getSession(false);
+                    if (linkingSession != null && linkingSession.getAttribute("guitarMentorLinkGoogleAccount") != null) {
+                        Object id=linkingSession.getAttribute("guitarMentorLinkGoogleAccount");
+                        Object version=linkingSession.getAttribute("guitarMentorLinkGoogleVersion");
+                        Object started=linkingSession.getAttribute("guitarMentorLinkGoogleStarted");
+                        linkingSession.removeAttribute("guitarMentorLinkGoogleAccount");
+                        linkingSession.removeAttribute("guitarMentorLinkGoogleVersion");
+                        linkingSession.removeAttribute("guitarMentorLinkGoogleStarted");
+                        try {
+                            if (!(id instanceof java.util.UUID account) || !(version instanceof Long pinned)
+                                || !(started instanceof Long timestamp)
+                                || System.currentTimeMillis()-timestamp>300000L)
+                                throw new SecurityException("GOOGLE_LINK_REJECTED");
+                            long current=googleLinks.attachVerifiedGoogle(account,pinned,oidc);
+                            linkingSession.setAttribute("guitarMentorAccessVersion",current);
+                            linkingSession.setAttribute("guitarMentorAuthenticatedAt",System.currentTimeMillis());
+                            res.sendRedirect("/profile?linked=google");
+                        } catch (RuntimeException ex) {
+                            linkingSession.invalidate();
+                            org.springframework.security.core.context.SecurityContextHolder.clearContext();
+                            res.sendRedirect("/?auth=link_failed");
+                        }
                         return;
                     }
                     // A fresh, server-side OIDC authentication is required to add a password.
