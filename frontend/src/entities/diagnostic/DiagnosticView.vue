@@ -4,7 +4,6 @@ import { apiFailureKey, asApiFailure, isHttp, type ApiFailure } from '../../shar
 import { onBeforeRouteLeave } from 'vue-router';
 import { useI18n } from 'vue-i18n';
 import { useLearnerStore } from '../../stores/learner.store';
-import { secureUi } from '../../core/auth/auth';
 import { diagnosticService } from './diagnostic.service';
 import ExercisePreview from './ExercisePreview.vue';
 import { closeMetronome } from '../metronome/metronome-ui';
@@ -14,6 +13,8 @@ import { intakeNavigationAction, permitIntakeNavigation, shouldWarnBeforeUnload 
 import type { DiagnosticSession, DiagnosticTask, Exercise, DiagnosticRecommendation } from '../../shared/model/diagnostic.model';
 
 const { t } = useI18n();
+// Match auth.ts secure-mode rule without introducing a runtime dependency in diagnostic views.
+const showPrototypeNotice = import.meta.env.DEV === true && import.meta.env.VITE_GUITAR_MENTOR_AUTH_REQUIRED !== 'true';
 const learnerStore = useLearnerStore();
 const session = ref<DiagnosticSession | null>(null);
 const loading = ref(true);
@@ -257,7 +258,7 @@ async function assign(exerciseCode: string): Promise<void> {
       <h1>{{ session?.status === 'TASK_ASSIGNED' ? t('diagnostic.workspace.lesson') : t('diagnostic.title') }}</h1>
       <p>{{ session?.status === 'TASK_ASSIGNED' ? t('diagnostic.workspace.lessonSubtitle') : t('diagnostic.subtitle') }}</p>
     </div>
-    <div v-if="!secureUi" class="notice" role="note">{{ t('form.notice') }}</div>
+    <div v-if="showPrototypeNotice" class="notice" role="note">{{ t('form.notice') }}</div>
     <div v-if="loading" class="panel">{{ t('diagnostic.loading') }}</div>
     <div v-else-if="!learnerStore.learner && failedRestoreRead && restoreError" class="panel" role="alert">
       <p>{{ t(apiFailureKey(restoreError)) }}</p>
