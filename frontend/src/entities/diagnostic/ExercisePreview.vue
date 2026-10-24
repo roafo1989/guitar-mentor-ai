@@ -22,13 +22,14 @@ const mediaIdentity = computed(() => JSON.stringify([
   props.exercise.scoreUrl,
 ]));
 const goal = computed(() => props.exercise.learningGoal?.trim() || props.exercise.description?.trim() || '');
+const isProbe = computed(() => props.exercise.contentKind === 'DIAGNOSTIC_PROBE');
 const criteria = computed(() => Array.isArray(props.exercise.successCriteria)
   ? props.exercise.successCriteria.filter((item): item is string => typeof item === 'string' && item.trim().length > 0)
   : []);
 
 function launchMetronome(event: MouseEvent): void {
   metronomeError.value = !openExerciseMetronome(
-    event.currentTarget as HTMLElement, exerciseKey(), props.exercise.bpm, props.exercise.meter,
+    event.currentTarget as HTMLElement, exerciseKey(), props.exercise.bpm, props.exercise.meter, props.exercise.tempoUnit,
   );
 }
 
@@ -115,7 +116,7 @@ onBeforeUnmount(() => pdfOpenController?.abort());
       <span class="hint">{{ assigned ? t('diagnostic.assignedMediaHint') : t('diagnostic.previewBeforeAssign') }}</span>
     </div>
     <section class="exercise-learning" :aria-label="t('diagnostic.metadata.heading')">
-      <p class="exercise-version">{{ t('diagnostic.metadata.version') }}: {{ exercise.code }}@{{ exercise.version }}</p>
+      <p class="exercise-version">{{ isProbe ? t('diagnostic.probeLabel') : t('diagnostic.repertoireLabel') }} · {{ t('diagnostic.metadata.version') }}: {{ exercise.code }}@{{ exercise.version }}</p>
       <h5>{{ t('diagnostic.metadata.goal') }}</h5>
       <p>{{ goal || t('diagnostic.metadata.unknown') }}</p>
       <h5>{{ t('diagnostic.metadata.instructions') }}</h5>
@@ -127,6 +128,7 @@ onBeforeUnmount(() => pdfOpenController?.abort());
       <p v-else class="hint">{{ t('diagnostic.metadata.unknown') }}</p>
       <p class="hint">{{ t('diagnostic.metadata.criteriaHint') }}</p>
       <dl class="exercise-facts">
+        <div v-if="isProbe && exercise.durationTargetSeconds"><dt>{{ t('diagnostic.probeDuration') }}</dt><dd>{{ exercise.durationTargetSeconds }} {{ t('diagnostic.seconds') }}</dd></div>
         <div><dt>{{ t('diagnostic.metadata.duration') }}</dt><dd>{{ exercise.recommendedPracticeMinutes != null ? t('diagnostic.practiceDuration', { minutes: exercise.recommendedPracticeMinutes }) : t('diagnostic.metadata.unknown') }}</dd></div>
         <div><dt>{{ t('diagnostic.metadata.tuning') }}</dt><dd>{{ exercise.tuning?.trim() || t('diagnostic.metadata.unknown') }}</dd></div>
         <div><dt>{{ t('diagnostic.metadata.tempo') }}</dt><dd>{{ exercise.bpm }} BPM · {{ exercise.meter }}</dd></div>
