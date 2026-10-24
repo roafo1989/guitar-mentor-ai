@@ -42,7 +42,10 @@ public class ActorFilter extends OncePerRequestFilter {
         if (path.equals("/api/v1/csrf") && request.getMethod().equals("GET")) {
             chain.doFilter(request, response); return;
         }
-        if (path.startsWith("/api/v1/local-auth/") && !path.equals("/api/v1/local-auth/change")) {
+        if (java.util.Set.of(
+                "/api/v1/local-auth/register", "/api/v1/local-auth/verify",
+                "/api/v1/local-auth/login", "/api/v1/local-auth/request-reset",
+                "/api/v1/local-auth/reset").contains(path)) {
             chain.doFilter(request, response); return;
         }
         Authentication auth = SecurityContextHolder.getContext().getAuthentication();
