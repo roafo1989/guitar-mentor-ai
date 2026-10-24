@@ -40,7 +40,7 @@ const stateFresh = ref(false);
 const assessmentFresh = ref(false);
 const pending = ref<DecisionCommand | null>(null);
 
-const currentAttempt = computed(() => props.attempts.find(a => a.id === selected.value) ?? (pinnedDetail.value?.id === selected.value ? pinnedDetail.value : null));
+const currentAttempt = computed(() => (pinnedDetail.value?.id === selected.value ? pinnedDetail.value : null) ?? props.attempts.find(a => a.id === selected.value));
 const selectorAttempts = computed(() => [...new Map(props.attempts.map(a => [a.id, a])).values()].sort((a, b) => b.number - a.number));
 const latestAssessment = computed(() => assessments.value[0] ?? null);
 const terminal = computed(() => !!state.value && state.value.taskState !== 'ACTIVE');
@@ -59,15 +59,17 @@ async function loadDetail(seq: number) {
   detailFresh.value = false; detailError.value = '';
   pinnedDetail.value = null;
   if (!id) return;
-  const onPage = props.attempts.find(a => a.id === id);
-  if (onPage) { pinnedDetail.value = onPage; detailFresh.value = true; return; }
+  // A page DTO is display-only; a decision needs a successful authoritative detail GET.
   try {
     const detail = await attemptService.detail(props.learnerId, props.sessionId, props.taskId, id);
     if (seq === generation && serial === detailSequence && selected.value === id) {
       pinnedDetail.value = detail; detailFresh.value = true;
     }
   } catch {
-    if (seq === generation && serial === detailSequence) detailError.value = t('learning.attemptUnavailable');
+    if (seq === generation && serial === detailSequence) {
+      detailFresh.value = false;
+      detailError.value = t('learning.attemptUnavailable');
+    }
   }
 }
 async function refresh() {
@@ -222,8 +224,14 @@ watch(() => [props.learnerId, props.sessionId, props.taskId], () => {
   decisionCursor.value = null; decisionHistoryError.value = ''; stateFresh.value = false;
   assessmentFresh.value = false; reason.value = ''; void refresh();
 });
+watch(() => props.attempts, () => {
+  if (selected.value && !loading.value && !sending.value && !pending.value) {
+    detailFresh.value = false;
+    void refresh();
+  }
+});
 watch(() => {
-  const item = currentAttempt.value;
+  const item = props.attempts.find(a => a.id === selected.value);
   return item ? item.id + ':' + item.status + ':' + item.assessmentAvailable : '';
 }, (next, previous) => {
   if (next && previous && next !== previous && !loading.value && !sending.value && !pending.value) void refresh();
