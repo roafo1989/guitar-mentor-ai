@@ -96,8 +96,10 @@ public class SecurityConfiguration {
         }
 
         @GetMapping("/api/v1/csrf")
-        Map<String, String> csrf(CsrfToken csrf) {
-            return Map.of("headerName", csrf.getHeaderName(), "token", csrf.getToken());
+        Map<String, String> csrf(HttpServletRequest request) {
+            CsrfToken token = (CsrfToken) request.getAttribute(CsrfToken.class.getName());
+            if (token == null) throw new IllegalStateException("CSRF not installed");
+            return Map.of("headerName", token.getHeaderName(), "token", token.getToken());
         }
     }
 }
