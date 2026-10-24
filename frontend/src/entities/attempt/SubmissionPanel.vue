@@ -185,6 +185,12 @@ async function navigate(cursor: number | undefined, direction: 'older' | 'newer'
     cursorStack.value = direction === 'latest' ? [] : stack;
   }
 }
+watch([selectedId, latestId], () => {
+  if (!loading.value && !historyRequestInFlight) {
+    const seq = requestSerial;
+    void refreshPinned(contextGeneration, seq);
+  }
+});
 async function pollHistory() {
   if (document.hidden || uploading.value || loading.value || pageBusy.value || historyRequestInFlight ||
       !displayAttempts.value.some(isProcessing)) return;
