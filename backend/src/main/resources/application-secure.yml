@@ -8,10 +8,8 @@ spring:
       client:
         registration:
           guitar-mentor:
-            provider: guitar-mentor
+            provider: google
             client-id: ${GUITAR_MENTOR_OIDC_CLIENT_ID}
             client-secret: ${GUITAR_MENTOR_OIDC_CLIENT_SECRET}
             scope: openid,profile,email
-        provider:
-          guitar-mentor:
-            issuer-uri: ${GUITAR_MENTOR_OIDC_ISSUER}
+
