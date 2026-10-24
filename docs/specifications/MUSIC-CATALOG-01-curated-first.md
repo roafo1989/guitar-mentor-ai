@@ -21,7 +21,7 @@ Use meter diversity intentionally in diagnostics to distinguish:
 
 **Assessment policy:** diagnosis must use *actual performance evidence*, not infer a deficit from a student's preference or a single unfamiliar meter. For novices, choose an appropriate progression and permit guidance / retries; record skill outcomes by meter context, do not automatically mark a general pulse skill failed because a more complex meter is new. No automatic AI PASS without applicable audio-assessment functionality.
 
-**Metronome / playback dependency:** UI and Web Audio must show and accent the actual exercise meter. An implementation that only counts 1–4 must not be shown as a correct 3/8 or 6/8 accompaniment. Define pulse unit and accent pattern in content metadata; stop audio or show a clear limitation when unsupported. Expand the metronome tasks and tests before exposing non-4/4 pieces with misleading count-in. No silent fallback to 4/4.
+**Metronome / playback dependency:** Existing Web Audio engine already supports flexible meters and accents on main; the exercise-card-to-metronome handoff defect was fixed in PR #142 (subject to merge). UI and Web Audio must show and accent the actual exercise meter. An implementation that only counts 1–4 must not be shown as a correct 3/8 or 6/8 accompaniment. Define pulse unit and accent pattern in content metadata; stop audio or show a clear limitation when unsupported. Do not duplicate the existing flexible-meter engine. Validate actual exercise handoff and real-device audition before exposing non-4/4 pieces with a count-in. No silent fallback to 4/4.
 
 **Acceptance:** at least examples and checks for 2/4, 3/4, 3/8, 4/4, and 6/8 where supported; verify bar totals, onset grids, count-in and audible accents, score/TAB alignment and version integrity. The initial rollout may support a subset if honestly indicated and non-supported material is not falsely advertised as compatible.
 
@@ -57,6 +57,7 @@ These are conceptual publication states, not a demand to replace existing databa
 - #78 GM-EB03, #79 GM-EB04, #80 GM-EB05: revisit their original-only wording. Technique outcomes stay, content source may be curated existing music with verified permissions. Their implementation/PRs must be independently reconciled; no claim that prior musical content is already accepted or rejected.
 - #81/#82 PDF+MP3 production must begin only after musical source and rights gates pass; audio synthesis may require a distinct rights review for arrangements.
 - #84 backend registration: only publishable, version-matched content; enforce approved vs review-only status, respecting current schema/compatibility and historical assignments.
+- #87 metronome integration: flexible engine already present; PR #142 fixes exercise-specific meter handoff. Do not repeat completed engine development; auditory acceptance in real browser remains separate.
 - #56 US-002 and #17 specification: revise success definition away from a quota of newly generated originals. Preserve a useful range of practice goals, but source type is no longer mandated.
 - New user-uploaded compositions/arrangements from the shared catalog require provenance, moderation and copyright-safe visibility; that upload feature is a separate future scope.
 
