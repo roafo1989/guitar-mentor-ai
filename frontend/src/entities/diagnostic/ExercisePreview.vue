@@ -10,6 +10,9 @@ const audioExists = ref(false);
 const pdfExists = ref(false);
 const checking = ref(true);
 const pdfOpen = ref(false);
+const pdfLoading = ref(false);
+const pdfReady = ref(false);
+let pdfOpenController: AbortController | null = null;
 const exerciseKey = () => props.exercise.code + '@' + props.exercise.version;
 const mediaIdentity = computed(() => JSON.stringify([
   exerciseKey(), props.exercise.previewAudioUrl, props.exercise.previewPdfUrl,
@@ -36,7 +39,11 @@ watch(mediaIdentity, (_identity, _previous, onCleanup) => {
   pdfExists.value = false;
   checking.value = true;
   pdfOpen.value = false;
-  onCleanup(() => { active = false; controller.abort(); });
+  pdfReady.value = false;
+  pdfLoading.value = false;
+  pdfOpenController?.abort();
+  pdfOpenController = null;
+  onCleanup(() => { active = false; controller.abort(); pdfOpenController?.abort(); });
 
   async function check(url: string | null): Promise<boolean> {
     if (!url) return false;
@@ -55,6 +62,43 @@ watch(mediaIdentity, (_identity, _previous, onCleanup) => {
       checking.value = false;
     });
 }, { immediate: true });
+
+// The first HEAD is advisory. Check again when PDF is actually opened,
+// since a file may have been removed between rendering the card and opening it.
+// Browsers cannot reliably report iframe HTTP failures; always retain the
+// explicit PDF link and MusicXML alternative for those later failures.
+async function onPdfToggle(event: Event): Promise<void> {
+  const opened = (event.target as HTMLDetailsElement).open;
+  pdfOpen.value = opened;
+  pdfOpenController?.abort();
+  pdfOpenController = null;
+  pdfReady.value = false;
+  pdfLoading.value = false;
+  if (!opened || checking.value || !pdfExists.value || !props.exercise.previewPdfUrl) return;
+
+  const url = props.exercise.previewPdfUrl;
+  const identity = mediaIdentity.value;
+  const controller = new AbortController();
+  pdfOpenController = controller;
+  pdfLoading.value = true;
+  try {
+    const response = await fetch(url, { method: 'HEAD', cache: 'no-cache', signal: controller.signal });
+    if (!controller.signal.aborted && pdfOpen.value && mediaIdentity.value === identity) {
+      pdfExists.value = response.ok;
+      pdfReady.value = response.ok;
+    }
+  } catch {
+    if (!controller.signal.aborted && pdfOpen.value && mediaIdentity.value === identity) {
+      pdfExists.value = false;
+    }
+  } finally {
+    if (pdfOpenController === controller) {
+      pdfLoading.value = false;
+      pdfOpenController = null;
+    }
+  }
+}
+onBeforeUnmount(() => pdfOpenController?.abort());
 </script>
 
 <template>
@@ -101,14 +145,16 @@ watch(mediaIdentity, (_identity, _previous, onCleanup) => {
       <p v-else class="hint" role="status">{{ t('diagnostic.metadata.audioUnavailable') }}</p>
     </div>
     <details :key="mediaIdentity" class="exercise-pdf-details" :open="pdfOpen"
-      @toggle="pdfOpen = ($event.target as HTMLDetailsElement).open">
+      @toggle="onPdfToggle">
       <summary>{{ t('diagnostic.viewNotes') }}</summary>
       <p v-if="checking" class="hint" role="status">{{ t('diagnostic.checkingMedia') }}</p>
+      <p v-else-if="pdfLoading" class="hint" role="status">{{ t('diagnostic.checkingMedia') }}</p>
       <template v-else-if="pdfExists && exercise.previewPdfUrl">
-        <div v-if="pdfOpen" class="score-frame-wrapper">
+        <div v-if="pdfOpen && pdfReady" class="score-frame-wrapper">
           <iframe :title="t('diagnostic.pdfTitle')" class="score-frame"
             :src="exercise.previewPdfUrl + '#view=FitH&toolbar=1'" @error="pdfExists = false" />
         </div>
+        <p class="hint">{{ t('diagnostic.metadata.pdfViewerFallback') }}</p>
         <a :href="exercise.previewPdfUrl" target="_blank" rel="noopener noreferrer">
           {{ t('diagnostic.pdfNewTab') }}
         </a>
