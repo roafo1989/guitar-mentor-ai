@@ -83,4 +83,23 @@ class LibraryOriginalControllerTest {
                 List.of(file))).getMessage());
     }
 
+    @Test void multipartHttpContractRejectsOwnerSpoofingBeforeDatabaseWork() throws Exception {
+        var controller=controller(true);
+        var mvc=org.springframework.test.web.servlet.setup.MockMvcBuilders
+            .standaloneSetup(controller).build();
+        var metadata=new MockMultipartFile("metadata","","application/json",
+            "{\\"title\\":\\"Song\\",\\"type\\":\\"ETUDE\\",\\"ownerId\\":\\"evil\\"}"
+                .getBytes(StandardCharsets.UTF_8));
+        var gp=new MockMultipartFile("files","song.gp5","application/octet-stream",
+            new byte[]{1,2,3});
+        mvc.perform(org.springframework.test.web.servlet.request.MockMvcRequestBuilders
+                .multipart("/api/v1/library/materials")
+                .file(metadata).file(gp)
+                .requestAttr("guitarMentorActor",new CurrentActor(UUID.randomUUID(),null,"LEARNER"))
+                .header("Idempotency-Key",UUID.randomUUID().toString()))
+            .andExpect(org.springframework.test.web.servlet.result.MockMvcResultMatchers.status().isBadRequest())
+            .andExpect(org.springframework.test.web.servlet.result.MockMvcResultMatchers
+                .jsonPath("$.code").value("LIBRARY_INVALID_METADATA"));
+    }
+
 }
