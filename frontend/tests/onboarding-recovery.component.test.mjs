@@ -6,6 +6,8 @@ import { parse, compileScript } from 'vue/compiler-sfc';
 import { createRenderer, h, nextTick, reactive } from 'vue';
 import { createI18n } from 'vue-i18n';
 
+// Node has no DOM Document; Vue v-model checks instanceof Document on updates.
+globalThis.Document ??= class Document {};
 const moduleUrl = code => 'data:text/javascript,' + encodeURIComponent(code);
 let component;
 async function getComponent() {
