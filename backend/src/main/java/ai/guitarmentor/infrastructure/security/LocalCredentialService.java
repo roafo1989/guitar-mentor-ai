@@ -48,7 +48,7 @@ public class LocalCredentialService {
         SimpleMailMessage message = new SimpleMailMessage();
         message.setTo(destination); message.setFrom(from); message.setSubject(subject);
         // No link token in logs, DTOs, persistent plaintext or analytics.
-        message.setText("Open " + publicOrigin + (action.equals("link") ? "/profile" : "/") + "?authAction=" + action + "&token=" + token
+        message.setText("Open " + publicOrigin + (action.equals("link") ? "/profile" : "/") + "#authAction=" + action + "&token=" + token
                 + "\\nIf you did not request this, ignore this message.");
         JavaMailSender transport = mail.getIfAvailable();
         if (transport == null) throw new IllegalStateException("MAIL_NOT_CONFIGURED");
