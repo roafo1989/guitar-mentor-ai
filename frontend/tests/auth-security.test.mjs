@@ -93,7 +93,7 @@ test('password reset links do not render secrets as form inputs or retain them i
   assert.match(gate, /tokenFromLink = ref\(false\)/);
   assert.match(gate, /v-if="!tokenFromLink" id="reset-token"/);
   assert.match(gate, /v-if="!tokenFromLink" id="verify-token"/);
-  assert.match(gate, /fragment\.delete\('token'\)/);
+  assert.match(gate, /takeEmailActionLink\(\)/);
   assert.match(gate, /identifier\.value = ''; email\.value = '';/);
   assert.match(gate, /clearTokenLikeIdentifier/);
   assert.match(gate, /if \(identifierInput\.value\) identifierInput\.value\.value = '';/);
@@ -103,8 +103,38 @@ test('SPA reset links are scrubbed and shown even when an authenticated actor ex
   const gate = await readFile(new URL('../src/core/auth/AuthGate.vue', import.meta.url), 'utf8');
   assert.match(gate, /window\.addEventListener\('hashchange', consumeAuthFragment\)/);
   assert.match(gate, /window\.removeEventListener\('hashchange', consumeAuthFragment\)/);
-  assert.match(gate, /fragment\.delete\('token'\)/);
-  assert.match(gate, /window\.history\.replaceState\(/);
+  assert.match(gate, /captureEmailActionLink\(\)/);
+  const startup = await readFile(new URL('../src/main.ts', import.meta.url), 'utf8');
+  assert.ok(startup.indexOf('captureEmailActionLink();') < startup.indexOf('app.use(router)'), 'URL is scrubbed before installing router');
   assert.match(gate, /auth\.actor && !\(mode === 'reset' && tokenFromLink\)/);
   assert.match(gate, /clearActor\(\);\s*setMode\('login'\)/);
+});
+
+test('boot pre-router capture removes reset token from URL while preserving it once in memory', async () => {
+  const source = await readFile(new URL('../src/core/auth/auth-link.ts', import.meta.url), 'utf8');
+  const js = ts.transpileModule(source, {
+    compilerOptions: { target: ts.ScriptTarget.ES2022, module: ts.ModuleKind.ESNext },
+  }).outputText;
+  const token = 'a'.repeat(64);
+  let current = 'https://guitar-mentor/#authAction=reset&token=' + token;
+  let historyState = { position: 4 };
+  const previous = globalThis.window;
+  globalThis.window = {
+    location: { get href() { return current; } },
+    history: {
+      get state() { return historyState; },
+      replaceState(state, _title, path) {
+        historyState = state;
+        current = new URL(path, 'https://guitar-mentor').href;
+      },
+    },
+  };
+  try {
+    const mod = await import('data:text/javascript,' + encodeURIComponent(js));
+    mod.captureEmailActionLink();
+    assert.equal(current, 'https://guitar-mentor/');
+    assert.deepEqual(historyState, { position: 4 });
+    assert.deepEqual(mod.takeEmailActionLink(), { action: 'reset', token });
+    assert.equal(mod.takeEmailActionLink(), null);
+  } finally { globalThis.window = previous; }
 });
