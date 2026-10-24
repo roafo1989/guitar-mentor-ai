@@ -144,3 +144,11 @@ test('#150 accepted layout contract: actual assignment banner, full-width score 
   assert.ok(json.attempt.microphoneInstructions);
  }
 });
+
+
+test('#148/#149 regression: unified local launcher retains accepted Light Minimal UI by default',async()=>{
+ const launcher=await readFile(new URL('../../scripts/local-auth-unified.ps1',import.meta.url),'utf8');
+ assert.match(launcher,/if \(\[string\]::IsNullOrWhiteSpace\(\$env:VITE_GUITAR_MENTOR_LIGHT_MINIMAL\)\)/);
+ assert.match(launcher,/\$env:VITE_GUITAR_MENTOR_LIGHT_MINIMAL = 'true'/);
+ assert.match(launcher,/\$env:VITE_GUITAR_MENTOR_AUTH_REQUIRED = 'true'/);
+});
