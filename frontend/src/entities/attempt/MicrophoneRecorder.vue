@@ -233,7 +233,7 @@ onBeforeUnmount(() => {
     </div>
     <div v-if="supported || !compact" class="microphone-controls">
       <button v-if="state === 'idle'" type="button" class="recorder-button"
-        :disabled="disabled" :aria-label="compact ? t('attempt.startRecording') : undefined" @click="start"><span v-if="compact" class="studio-record-dot" aria-hidden="true"></span><span v-else>{{ t('attempt.startRecording') }}</span></button>
+        :disabled="disabled" :aria-label="compact ? t('attempt.startRecording') : undefined" @click="start"><span v-if="compact" class="studio-record-dot" aria-hidden="true"></span>{{ compact ? '' : t('attempt.startRecording') }}</button>
       <span v-else-if="state === 'requesting'" class="hint" role="status">
         {{ t('attempt.requestingMic') }}
       </span>
@@ -242,7 +242,7 @@ onBeforeUnmount(() => {
           {{ timeLabel }} / 02:00
         </span>
         <button type="button" class="recorder-button"
-          :disabled="state !== 'recording'" :aria-label="compact ? t('attempt.stopRecording') : undefined" @click="stop"><span v-if="compact" class="studio-stop-square" aria-hidden="true"></span><span v-else>{{ t('attempt.stopRecording') }}</span></button>
+          :disabled="state !== 'recording'" :aria-label="compact ? t('attempt.stopRecording') : undefined" @click="stop"><span v-if="compact" class="studio-stop-square" aria-hidden="true"></span>{{ compact ? '' : t('attempt.stopRecording') }}</button>
         <button type="button" class="recorder-button secondary-button" :class="{ 'studio-cancel-button': compact }"
           :disabled="state !== 'recording'" @click="cancel">{{ t('attempt.cancelRecording') }}</button>
       </template>
