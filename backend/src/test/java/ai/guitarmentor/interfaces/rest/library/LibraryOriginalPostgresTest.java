@@ -66,6 +66,13 @@ class LibraryOriginalPostgresTest {
         assertArrayEquals(bytes,Files.readAllBytes(resource.getFile().toPath()));
         assertEquals("LIBRARY_MATERIAL_NOT_FOUND",assertThrows(RuntimeException.class,
             ()->controller.content(actor(bob),card.id(),asset)).getMessage());
+        var bobCreated=controller.upload(actor(bob),key,metadata,List.of(pdf(bytes)));
+        assertEquals(201,bobCreated.getStatusCode().value(),
+            "The same idempotency key belongs independently to another account");
+        var bobCard=(LibraryMaterialController.MaterialView)bobCreated.getBody();
+        assertNotNull(bobCard);
+        assertNotEquals(card.id(),bobCard.id());
+
         jdbc.sql("UPDATE library_account_usage SET charged_bytes=209715200 WHERE account_id=:id")
             .param("id",alice).update();
         var replay=controller.upload(actor(alice),key,metadata,List.of(pdf(bytes)));
