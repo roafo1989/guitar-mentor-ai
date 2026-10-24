@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { nextTick, onBeforeUnmount, onMounted, ref } from 'vue';
 import { useI18n } from 'vue-i18n';
-import { auth, login, refreshActor, secureUi } from './auth';
+import { auth, clearActor, login, refreshActor, secureUi } from './auth';
 const { t, locale } = useI18n();
 const localPrototype = !secureUi;
 type Mode = 'login' | 'register' | 'verify' | 'forgot' | 'reset' | 'google';
@@ -97,6 +97,7 @@ async function reset() {
   if (await request('reset', { token: verificationToken.value, password: password.value })) {
     verificationToken.value = ''; tokenFromLink.value = false;
     identifier.value = ''; email.value = '';
+    clearActor();
     setMode('login');
     await nextTick();
     if (identifierInput.value) identifierInput.value.value = '';
