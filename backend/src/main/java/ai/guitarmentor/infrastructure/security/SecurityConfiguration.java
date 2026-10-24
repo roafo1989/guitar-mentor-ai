@@ -5,7 +5,6 @@ import java.util.Map;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
-import org.springframework.http.HttpMethod;
 import org.springframework.security.config.Customizer;
 import org.springframework.security.config.annotation.web.builders.HttpSecurity;
 import org.springframework.security.web.SecurityFilterChain;
@@ -20,6 +19,18 @@ import jakarta.servlet.http.HttpServletRequest;
 
 @Configuration
 public class SecurityConfiguration {
+    @Bean
+    org.springframework.boot.ApplicationRunner rejectInsecureNonLoopback(
+            @Value("${guitar-mentor.security.enabled:false}") boolean enabled,
+            @Value("${server.address:127.0.0.1}") String bind) {
+        return args -> {
+            if (!enabled && !(bind.equals("127.0.0.1") || bind.equals("::1")
+                    || bind.equals("localhost"))) {
+                throw new IllegalStateException("Insecure mode is only allowed on loopback");
+            }
+        };
+    }
+
     @Bean
     SecurityFilterChain securityFilterChain(HttpSecurity http, ActorRepository actors,
             @Value("${guitar-mentor.security.enabled:true}") boolean enabled) throws Exception {
