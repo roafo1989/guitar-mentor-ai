@@ -72,7 +72,7 @@ export const diagnosticService = {
   },
   currentTask(learnerId: string, sessionId: string) {
     return apiRequest(baseUrl(learnerId) + '/' + encodeURIComponent(sessionId) +
-      '/tasks', undefined, (v): v is DiagnosticTask | null => v === null || validTask(v), true);
+      '/tasks', undefined, validTask, true);
   },
   assignTask(learnerId: string, sessionId: string, exerciseCode: string) {
     return apiRequest(baseUrl(learnerId) + '/' + encodeURIComponent(sessionId) + '/tasks',
