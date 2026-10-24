@@ -133,14 +133,22 @@ public class LocalCredentialService {
         String fallback=encoder.encode("not-a-real-credential-value");
         if(found.isEmpty() || !encoder.matches(password,found.map(Credential::hash).orElse(fallback)))
             throw new SecurityException("INVALID_CREDENTIALS");
-        return found.get().id;
+        var credential=found.get();
+        if(encoder.upgradeEncoding(credential.hash)) {
+            jdbc.sql("""
+                UPDATE local_credentials SET password_hash=:newHash,changed_at=now()
+                WHERE account_id=:id AND password_hash=:oldHash
+                """).param("newHash",encoder.encode(password))
+                .param("id",credential.id).param("oldHash",credential.hash).update();
+        }
+        return credential.id;
     }
     @Transactional
     public void requestReset(String emailInput) {
         String email;
         try { email=InvitationService.email(emailInput); }
         catch(IllegalArgumentException ex) { return; }
-        var id=jdbc.sql("SELECT account_id FROM local_credentials WHERE email_normalized=:email")
+        var id=jdbc.sql("SELECT c.account_id FROM local_credentials c JOIN accounts a ON a.id=c.account_id WHERE c.email_normalized=:email AND a.status='ACTIVE'")
             .param("email",email).query(UUID.class).optional();
         if(id.isEmpty()) return;
         String token=newToken();
