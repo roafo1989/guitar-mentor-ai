@@ -1,6 +1,7 @@
 package ai.guitarmentor.application.diagnostic;
 
 import ai.guitarmentor.domain.diagnostic.DiagnosticStatus;
+import ai.guitarmentor.application.exercise.ExercisePublicationPolicy;
 import ai.guitarmentor.domain.learner.PreferenceRating;
 import ai.guitarmentor.domain.onboarding.GoalCode;
 import ai.guitarmentor.infrastructure.persistence.DiagnosticSessionRepository;
@@ -81,6 +82,7 @@ public class DiagnosticRecommendationService {
         var candidates = exercises
                 .findByInstrumentCodeAndTechniqueCodeAndCurrentTrueOrderByCode(
                         profile.getInstrumentCode(), profile.getTechniqueCode()).stream()
+                .filter(ExercisePublicationPolicy::eligible)
                 .filter(e -> e.getRecommendedPracticeMinutes() != null
                         && safeAndAvailable(e.getScoreResource())
                         && safeAndAvailable(e.getEventsResource()))
