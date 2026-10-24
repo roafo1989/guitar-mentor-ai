@@ -584,6 +584,8 @@
       "password": "This PDF is password protected and cannot be shown here.",
       "corrupt": "The PDF is damaged or unsupported.",
       "render": "Could not render this PDF page. You can open the original separately."
-    }
+    },
+    "page": "Page number",
+    "pageRange": "Enter a page between 1 and {count}."
   }
 }
