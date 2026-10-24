@@ -1,0 +1,168 @@
+import test from 'node:test';
+import assert from 'node:assert/strict';
+import { readFile } from 'node:fs/promises';
+import { parse, compileScript } from 'vue/compiler-sfc';
+import ts from 'typescript';
+import { createRenderer, h, nextTick } from 'vue';
+import { createI18n } from 'vue-i18n';
+
+const moduleUrl = code => 'data:text/javascript,' + encodeURIComponent(code);
+const blank = moduleUrl("export default { render() { return null; } };");
+const service = moduleUrl(`export const attemptService = {
+  capabilities: (...args) => globalThis.__qaAttempt.capabilities(...args),
+  page: (...args) => globalThis.__qaAttempt.page(...args),
+  detail: (...args) => globalThis.__qaAttempt.detail(...args),
+  upload: (...args) => globalThis.__qaAttempt.upload(...args)
+};
+export class AttemptHttpError extends Error {}`);
+const learningService = moduleUrl(`export class LearningHttpError extends Error {}
+export const learningService = {
+  state: (...args) => globalThis.__qaLearning.state(...args),
+  decisions: (...args) => globalThis.__qaLearning.decisions(...args),
+  evidence: (...args) => globalThis.__qaLearning.evidence(...args),
+  assessments: (...args) => globalThis.__qaLearning.assessments(...args),
+  decide: (...args) => globalThis.__qaLearning.decide(...args)
+};`);
+const components = new Map();
+async function component(filename) {
+  if (components.has(filename)) return components.get(filename);
+  const source = await readFile(new URL('../src/entities/attempt/' + filename, import.meta.url), 'utf8');
+  const { descriptor, errors } = parse(source, { filename });
+  assert.deepEqual(errors, []);
+  const script = compileScript(descriptor, { id: filename, inlineTemplate: false });
+  const js = ts.transpileModule(script.content, {
+    compilerOptions: { target: ts.ScriptTarget.ES2022, module: ts.ModuleKind.ESNext }
+  }).outputText;
+  const mapped = js.replace(/from (['"])(.*?)\1/g, (_full, _quote, name) => {
+    const value = name === 'vue' ? import.meta.resolve('vue') :
+      name === 'vue-i18n' ? import.meta.resolve('vue-i18n') :
+      name.endsWith('attempt.service') ? service :
+      name.endsWith('learning.service') ? learningService :
+      name.endsWith('.vue') ? blank : null;
+    if (!value) throw Error('Unmocked dependency ' + name);
+    return 'from ' + JSON.stringify(value);
+  });
+  const target = (await import(moduleUrl(mapped))).default;
+  target.render = () => h('section');
+  components.set(filename, target);
+  return target;
+}
+function renderer() {
+  const node = tag => ({ tag, parent: null, children: [] });
+  return createRenderer({
+    createElement: node, createText: () => node('#text'),
+    createComment: () => node('#comment'), setText() {}, setElementText() {},
+    patchProp() {}, parentNode: n => n.parent, nextSibling: () => null,
+    insert(n, p) { n.parent = p; p.children.push(n); },
+    remove(n) { if (n.parent) n.parent.children = n.parent.children.filter(x => x !== n); }
+  });
+}
+async function mount(filename, props) {
+  const view = await component(filename);
+  const app = renderer().createApp(view, props);
+  app.use(createI18n({ legacy: false, locale: 'en', messages: { en: {} } }));
+  app.mount({ tag: 'root', children: [] });
+  await nextTick();
+  return { app, state: app._instance.setupState };
+}
+function deferred() {
+  let resolve, reject;
+  const promise = new Promise((a, b) => { resolve = a; reject = b; });
+  return { promise, resolve, reject };
+}
+async function flush() {
+  for (let i = 0; i < 12; i++) { await Promise.resolve(); await nextTick(); }
+}
+
+
+const attempt = n => ({
+  id: 'id-' + n, number: n, status: 'PROCESSED', submittedAt: '2026-10-24T00:00:00Z',
+  format: 'wav', bytes: 42, comment: null, mediaState: 'AVAILABLE',
+  assessmentAvailable: n === 2, processingErrorCode: null
+});
+function historyFixture(options = {}) {
+  const calls = [];
+  const all = Array.from({ length: 45 }, (_, i) => attempt(45 - i));
+  globalThis.__qaAttempt = {
+    capabilities: async () => ({ enabled: true, maxBytes: 10000000, formats: ['wav'] }),
+    page: async (_learner, _session, _task, cursor) => {
+      calls.push(cursor);
+      if (options.failCursor === cursor && cursor !== undefined) throw Error('offline');
+      const rows = all.filter(item => cursor === undefined || item.number < cursor).slice(0, 20);
+      return { items: rows, hasMore: all.some(a => a.number < (rows.at(-1)?.number ?? 0)),
+        nextBeforeNumber: rows.at(-1)?.number ?? null };
+    },
+    detail: async (_l, _s, _t, id) => {
+      if (options.missingId === id) throw Error('404');
+      return all.find(a => a.id === id);
+    },
+    upload: async () => attempt(46)
+  };
+  return calls;
+}
+test('CORE-U1: 45 items navigate 20/20/5 without unbounded list API', async () => {
+  const calls = historyFixture();
+  const { app, state } = await mount('SubmissionPanel.vue',
+    { learnerId: 'l', sessionId: 's', taskId: 't' });
+  try {
+    await flush();
+    assert.equal(state.attempts.length, 20);
+    assert.deepEqual(state.attempts.map(a => a.number), Array.from({ length: 20 }, (_, i) => 45-i));
+    await state.navigate(26, 'older'); await flush();
+    assert.equal(state.attempts.length, 20);
+    await state.navigate(6, 'older'); await flush();
+    assert.deepEqual(state.attempts.map(a => a.number), [5,4,3,2,1]);
+    await state.navigate(26, 'newer'); await flush();
+    assert.equal(state.attempts[0].number, 25);
+    await state.navigate(undefined, 'latest'); await flush();
+    assert.equal(state.attempts[0].number, 45);
+    assert.deepEqual(calls, [undefined,26,6,26,undefined]);
+  } finally { app.unmount(); delete globalThis.__qaAttempt; }
+});
+test('CORE-U2: failed older page retains previous rows/cursor and reports stale', async () => {
+  historyFixture({ failCursor: 26 });
+  const { app, state } = await mount('SubmissionPanel.vue',
+    { learnerId: 'l', sessionId: 's', taskId: 't' });
+  try {
+    await flush();
+    await state.navigate(26, 'older'); await flush();
+    assert.equal(state.attempts[0].number, 45);
+    assert.equal(state.pageCursor, undefined);
+    assert.equal(state.historyStale, true);
+    assert.ok(state.historyError);
+  } finally { app.unmount(); delete globalThis.__qaAttempt; }
+});
+test('CORE-U3: selection survives page change and details are bounded', async () => {
+  historyFixture();
+  const { app, state } = await mount('SubmissionPanel.vue',
+    { learnerId: 'l', sessionId: 's', taskId: 't' });
+  try {
+    await flush();
+    state.selectedId = 'id-2';
+    await flush();
+    assert.equal(state.pinned.some(a => a.id === 'id-2'), true);
+    await state.navigate(26, 'older'); await flush();
+    assert.equal(state.selectedId, 'id-2');
+    assert.ok(state.displayAttempts.length <= 22);
+  } finally { app.unmount(); delete globalThis.__qaAttempt; }
+});
+test('CORE-U4: unavailable selected detail prevents completion, never changes selection', async () => {
+  historyFixture({ missingId: 'old-id' });
+  globalThis.__qaLearning = {
+    state: async () => ({ taskId: 't', taskState: 'ACTIVE', version: 2,
+      availableActions: ['COMPLETE'], latestAttemptId: 'id-45', assessmentState: 'NO_ASSESSMENT' }),
+    assessments: async () => ({ items: [], nextCursor: null }),
+    decisions: async () => ({ items: [], nextCursor: null }),
+    evidence: async () => ({ items: [], nextCursor: null }),
+    decide: async () => ({})
+  };
+  const { app, state } = await mount('LearningResultsPanel.vue',
+    { learnerId: 'l', sessionId: 's', taskId: 't', attempts: [attempt(45)], draftBusy: false });
+  try {
+    await flush();
+    await state.chooseAttempt('old-id'); await flush();
+    assert.equal(state.selected, 'old-id');
+    assert.equal(state.canDecide, false);
+    assert.ok(state.detailError);
+  } finally { app.unmount(); delete globalThis.__qaLearning; delete globalThis.__qaAttempt; }
+});
