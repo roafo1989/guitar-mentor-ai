@@ -38,6 +38,13 @@ function openHeaderMetronome(event: MouseEvent): void {
   openMetronome(event.currentTarget as HTMLElement);
 }
 
+watch(() => auth.actor?.accountId, (current, previous) => {
+  if (!secureUi || current === previous) return;
+  // Mic/tuner/metronome state may outlive routed components otherwise.
+  closeMetronome();
+  tunerOpen.value = false;
+});
+
 watch(() => route.fullPath, () => {
   // Route changes never carry audio tools into a different form or exercise.
   metronomeUi.sourceExercise = null;
