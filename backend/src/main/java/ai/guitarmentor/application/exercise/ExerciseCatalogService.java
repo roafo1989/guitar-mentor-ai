@@ -54,6 +54,8 @@ public class ExerciseCatalogService {
     public byte[] resource(String code, boolean score) throws IOException {
         Exercise exercise = exercises.findByCodeAndCurrentTrue(code)
                 .orElseThrow(() -> new EntityNotFoundException("Exercise not found"));
+        if (!ExercisePublicationPolicy.eligible(exercise))
+            throw new EntityNotFoundException("Exercise not found");
         // Only trusted resource paths stored by migration, never client-supplied paths.
         var path = score ? exercise.getScoreResource() : exercise.getEventsResource();
         if (!path.startsWith("exercises/") || path.contains("..")) {
