@@ -29,6 +29,10 @@ class ApiRouteOwnershipInventoryTest {
         // Authenticated CurrentActor + current password, never client-selected account.
         "/api/v1/local-auth/change",
         "/api/v1/local-auth/methods",
+        // Each link route requires a current actor, fresh method proof and CSRF.
+        "/api/v1/local-auth/link/google/start",
+        "/api/v1/local-auth/link/password/start",
+        "/api/v1/local-auth/link/password/verify",
         "/api/v1/system/ping"
     );
     @Autowired
