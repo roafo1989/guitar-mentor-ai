@@ -55,11 +55,15 @@ public class SecurityConfiguration {
             .oauth2Login(login -> login
                 .successHandler((req, res, auth) -> {
                     if (!(auth.getPrincipal() instanceof
-                            org.springframework.security.oauth2.core.oidc.user.OidcUser oidc)
-                            || actors.findActive(oidc.getIssuer().toString(), oidc.getSubject()).isEmpty()) {
+                            org.springframework.security.oauth2.core.oidc.user.OidcUser oidc)) {
                         req.getSession().invalidate();
                         org.springframework.security.core.context.SecurityContextHolder.clearContext();
                         res.sendRedirect("/?auth=denied");
+                        return;
+                    }
+                    // An OIDC-authenticated but unadmitted user can only use invitation activation.
+                    if (actors.findActive(oidc.getIssuer().toString(), oidc.getSubject()).isEmpty()) {
+                        res.sendRedirect("/?auth=invitation");
                         return;
                     }
                     res.sendRedirect("/");
