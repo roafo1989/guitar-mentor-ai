@@ -288,3 +288,13 @@ test('#150 desktop score toolbar shares the same grid row with notes/description
  assert.match(preview,/\.studio-preview :deep\(\.score-reader > div:not\(\.score-toolbar\)\) \{[^}]*grid-column:1 \/ -1/);
  assert.match(preview,/@media\(max-width:780px\)/);
 });
+
+test('#150 description tab renders goal and instructions without a nested disclosure', async () => {
+ const preview=await readFile(new URL('../src/entities/diagnostic/ExercisePreview.vue',import.meta.url),'utf8');
+ assert.match(preview,/<section class="exercise-learning"/);
+ assert.match(preview,/class="studio-description-heading"/);
+ assert.doesNotMatch(preview,/<summary v-if="assigned && lightMinimal">/);
+ assert.doesNotMatch(preview,/:is="assigned && lightMinimal \? 'details' : 'section'"/);
+ assert.match(preview,/diagnostic\.metadata\.goal/);
+ assert.match(preview,/diagnostic\.metadata\.instructions/);
+});
