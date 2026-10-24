@@ -101,7 +101,7 @@ onBeforeUnmount(() => { unsubscribeMetronome?.(); closeMetronome(); });
           </svg>
           <span v-if="metronomeStatus === 'running'" class="metronome-running-dot" aria-hidden="true"></span>
         </button>
-        <button v-if="auth.actor" type="button" @click="logout(() => learnerStore.clearLocalSelection())">Выйти / Logout</button>
+        <button v-if="auth.actor" type="button" @click="logout(() => learnerStore.clearLocalSelection())">{{ t('auth.signOut') }}</button>
         <label class="language-picker">
           <span class="sr-only">{{ t('app.language') }}</span>
           <select v-model="locale" aria-label="Language">
