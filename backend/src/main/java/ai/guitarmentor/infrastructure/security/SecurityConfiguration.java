@@ -107,6 +107,9 @@ public class SecurityConfiguration {
                         res.sendRedirect("/?auth=invitation");
                         return;
                     }
+                    var current = actors.findActive(oidc.getIssuer().toString(), oidc.getSubject()).orElseThrow();
+                    req.getSession(true).setAttribute("guitarMentorAccessVersion",
+                        actors.localVersion(current.accountId()).orElseThrow());
                     res.sendRedirect("/");
                 })
                 .failureHandler((req, res, ex) -> res.sendRedirect("/?auth=failed")));
