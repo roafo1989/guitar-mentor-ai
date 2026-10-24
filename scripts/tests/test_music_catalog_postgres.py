@@ -45,7 +45,7 @@ with psycopg.connect(DSN) as conn:
 print("V27 DDL executed on disposable PostgreSQL")
 
 data = fixture()
-data[2][0]["raw_title"] = "Test\\x00name"
+data[2][0]["raw_title"] = "Test" + chr(0) + "name"
 mod.verify(data)
 mod.apply(data,ACCOUNT,DSN)
 mod.apply(data,ACCOUNT,DSN)
