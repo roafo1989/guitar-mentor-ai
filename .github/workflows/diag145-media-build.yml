@@ -47,8 +47,8 @@ jobs:
         run: |
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-          git add backend/src/main/resources/exercises/GM-DIAG-PULSE-3-8-01/preview_v010.pdf
-          git add backend/src/main/resources/exercises/GM-DIAG-PULSE-3-8-01/preview_v010.mp3
+          git add -f backend/src/main/resources/exercises/GM-DIAG-PULSE-3-8-01/preview_v010.pdf
+          git add -f backend/src/main/resources/exercises/GM-DIAG-PULSE-3-8-01/preview_v010.mp3
           if ! git diff --cached --quiet; then
             git commit -m "build(#145): version-pinned MP3 and staff/TAB review assets"
             git push origin HEAD:feature/145-short-diagnostic-probes
