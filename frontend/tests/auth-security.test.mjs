@@ -165,3 +165,34 @@ test('single HTTPS origin keeps email action URLs on guitar-mentor', async () =>
   assert.match(launcher, /GUITAR_MENTOR_PUBLIC_ORIGIN = 'https:\/\/guitar-mentor'/);
   assert.doesNotMatch(launcher, /VITE_GUITAR_MENTOR_UNIFIED_LOCAL = 'true'/);
 });
+
+test('OAuth handoff ticket stripped before Vue Router and never exposed to login inputs', async () => {
+  const moduleSource = await readFile(new URL('../src/core/auth/oauth-bridge-ticket.ts', import.meta.url), 'utf8');
+  const js = ts.transpileModule(moduleSource, {
+    compilerOptions: { target: ts.ScriptTarget.ES2022, module: ts.ModuleKind.ESNext },
+  }).outputText;
+  const raw = 'b'.repeat(64);
+  let href = 'https://guitar-mentor/#oauthBridge=' + raw;
+  const prev = globalThis.window;
+  globalThis.window = {
+    location: { get href() { return href; } },
+    history: { state: { position: 0 }, replaceState(_state, _name, path) {
+      href = new URL(path, 'https://guitar-mentor').href;
+    }},
+  };
+  try {
+    const bridge = await import('data:text/javascript,' + encodeURIComponent(js));
+    bridge.captureOAuthBridgeTicket();
+    assert.equal(href, 'https://guitar-mentor/');
+    assert.equal(bridge.takeOAuthBridgeTicket(), raw);
+    assert.equal(bridge.takeOAuthBridgeTicket(), null);
+  } finally { globalThis.window = prev; }
+  const router = await readFile(new URL('../src/router/index.ts', import.meta.url), 'utf8');
+  assert.ok(router.indexOf('captureOAuthBridgeTicket();') < router.indexOf('createWebHistory()'));
+  const gate = await readFile(new URL('../src/core/auth/AuthGate.vue', import.meta.url), 'utf8');
+  assert.match(gate, /takeOAuthBridgeTicket\(\)/);
+  assert.match(gate, /\/api\/v1\/oauth-bridge\/consume/);
+  const auth = await readFile(new URL('../src/core/auth/auth.ts', import.meta.url), 'utf8');
+  assert.match(auth, /\/api\/v1\/oauth-bridge\/start/);
+  assert.match(auth, /http:\\\/\\\/localhost:5173/);
+});
