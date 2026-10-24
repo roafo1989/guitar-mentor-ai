@@ -232,8 +232,10 @@ onBeforeUnmount(() => {
       <span class="studio-wave-timer">{{ state === 'recording' ? timeLabel : '00:00' }} / 02:00</span>
     </div>
     <div v-if="supported || !compact" class="microphone-controls">
-      <button v-if="state === 'idle'" type="button" class="recorder-button"
-        :disabled="disabled" :aria-label="compact ? t('attempt.startRecording') : undefined" @click="start"><span v-if="compact" class="studio-record-dot" aria-hidden="true"></span>{{ compact ? '' : t('attempt.startRecording') }}</button>
+      <button v-if="state === 'idle' && compact" type="button" class="recorder-button"
+        :disabled="disabled" :aria-label="t('attempt.startRecording')" @click="start"><span class="studio-record-dot" aria-hidden="true"></span></button>
+      <button v-else-if="state === 'idle'" type="button" class="recorder-button"
+        :disabled="disabled" @click="start">{{ t('attempt.startRecording') }}</button>
       <span v-else-if="state === 'requesting'" class="hint" role="status">
         {{ t('attempt.requestingMic') }}
       </span>
@@ -241,8 +243,10 @@ onBeforeUnmount(() => {
         <span class="recording-timer" role="timer" :aria-label="t('attempt.recordingTimer')">
           {{ timeLabel }} / 02:00
         </span>
-        <button type="button" class="recorder-button"
-          :disabled="state !== 'recording'" :aria-label="compact ? t('attempt.stopRecording') : undefined" @click="stop"><span v-if="compact" class="studio-stop-square" aria-hidden="true"></span>{{ compact ? '' : t('attempt.stopRecording') }}</button>
+        <button v-if="compact" type="button" class="recorder-button"
+          :disabled="state !== 'recording'" :aria-label="t('attempt.stopRecording')" @click="stop"><span class="studio-stop-square" aria-hidden="true"></span></button>
+        <button v-else type="button" class="recorder-button"
+          :disabled="state !== 'recording'" @click="stop">{{ t('attempt.stopRecording') }}</button>
         <button type="button" class="recorder-button secondary-button" :class="{ 'studio-cancel-button': compact }"
           :disabled="state !== 'recording'" @click="cancel">{{ t('attempt.cancelRecording') }}</button>
       </template>
