@@ -359,8 +359,8 @@ onBeforeUnmount(() => {
 <template>
   <section class="homework-panel" aria-labelledby="homework-heading">
     <div class="homework-heading">
-      <h3 id="homework-heading">{{ t('attempt.title') }}</h3>
-      <p class="hint">{{ t('attempt.subtitle') }}</p>
+      <h3 id="homework-heading"><span v-if="lightMinimal" aria-hidden="true">♩ </span>{{ t('attempt.title') }}</h3>
+      <p v-if="!lightMinimal" class="hint">{{ t('attempt.subtitle') }}</p>
     </div>
     <div v-if="loading" class="hint">{{ t('attempt.loading') }}</div>
     <template v-else>
@@ -403,7 +403,7 @@ onBeforeUnmount(() => {
             {{ t('attempt.discardRecording') }}
           </button>
         </div>
-        <label for="attempt-comment">{{ t('attempt.commentLabel') }}</label>
+        <label for="attempt-comment" :class="{ 'studio-secondary-label': lightMinimal }">{{ t('attempt.commentLabel') }}</label>
         <textarea id="attempt-comment" v-model="comment" rows="3" maxlength="2000"
           :disabled="uploading"
           :placeholder="t('attempt.commentPlaceholder')" />
@@ -416,6 +416,7 @@ onBeforeUnmount(() => {
       </form>
       <p v-if="notice" role="status" class="saved-status">{{ notice }}</p>
       <p v-if="error" role="alert" class="error">{{ error }}</p>
+      <div v-if="lightMinimal" class="studio-results-divider"></div>
       <LearningResultsPanel :learner-id="learnerId" :session-id="sessionId" :task-id="taskId"
          :attempts="displayAttempts" :selected-id="selectedId" :latest-id="latestId"
         :draft-busy="draftBusy" :load-attempt-detail="fetchDetail" @selected-id="selectedId = $event" @latest-id="latestId = $event" @decision-busy="decisionBusy = $event" @terminal-state="learningTerminal = $event" />
@@ -459,4 +460,18 @@ onBeforeUnmount(() => {
 .recording-file-option summary:focus-visible {outline:3px solid #28776d;outline-offset:2px}
 .recording-file-option input[type=file] {display:block;margin:10px 0;max-width:100%}
 .recording-primary :deep(.microphone-recorder) {min-width:0;max-width:100%}
+
+.homework-panel:has(.recording-primary) .homework-heading {display:flex;align-items:center;justify-content:space-between;border-bottom:1px solid #eef1ef;padding-bottom:10px;margin-bottom:12px}
+.homework-panel:has(.recording-primary) .homework-heading h3 {font-size:16px!important;margin:0;font-weight:700}
+.homework-panel:has(.recording-primary) .homework-form {display:flex;flex-direction:column;gap:12px}
+.homework-panel:has(.recording-primary) .recording-primary {padding:0;background:transparent;border:0;margin:0}
+.homework-panel:has(.recording-primary) .recording-primary h4 {display:none}
+.homework-panel:has(.recording-primary) .recorded-preview {border:1px solid #dbe8df;border-radius:12px;background:#f4f9f6;padding:12px;display:grid;gap:10px}
+.homework-panel:has(.recording-primary) .recorded-preview audio {width:100%;max-width:100%}
+.homework-panel:has(.recording-primary) .form-actions {display:flex;margin:0;gap:8px}
+.homework-panel:has(.recording-primary) .form-actions button {flex:1;min-height:42px;border-radius:10px}
+.homework-panel:has(.recording-primary) .studio-secondary-label {font-size:12px;color:#52645d;margin:2px 0 0}
+.homework-panel:has(.recording-primary) textarea {border:1px solid #dbe5df;border-radius:10px;min-height:68px}
+.homework-panel:has(.recording-primary) .recording-file-option {margin:0;padding:2px 0;border-bottom:1px solid #eef2ef}
+.homework-panel:has(.recording-primary) .studio-results-divider {border-top:1px solid #edf1ed;margin:18px 0 12px}
 </style>
