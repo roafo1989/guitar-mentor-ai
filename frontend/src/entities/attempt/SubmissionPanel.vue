@@ -405,7 +405,7 @@ onBeforeUnmount(() => {
         </div>
         <label for="attempt-comment">{{ t('attempt.commentLabel') }}</label>
         <textarea id="attempt-comment" v-model="comment" rows="3" maxlength="2000"
-          :disabled="!capabilities?.enabled || uploading"
+          :disabled="uploading"
           :placeholder="t('attempt.commentPlaceholder')" />
         <div class="form-actions">
           <button type="submit" class="action-button"
