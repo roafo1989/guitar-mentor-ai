@@ -73,6 +73,65 @@ class InvitationServicePostgresTest {
     }
 
     @Test
+    void expiredInvitationIsRejectedWithoutCreatingAccount() {
+        String token=service.issue("expired@example.com",null,false);
+        jdbc.sql("UPDATE invitations SET expires_at=:past WHERE token_hash=:hash")
+            .param("past",java.sql.Timestamp.from(Instant.now().minusSeconds(60)))
+            .param("hash",InvitationService.digest(token)).update();
+        assertThrows(SecurityException.class,()->service.activate(token,
+            user("expired-user","expired@example.com",true)));
+        assertEquals(0L,jdbc.sql("""
+            SELECT count(*) FROM account_identities
+            WHERE issuer=:issuer AND subject='expired-user'
+            """).param("issuer",InvitationService.GOOGLE_ISSUER).query(Long.class).single());
+    }
+
+    @Test
+    void revokedAndAcceptedInvitationsCannotBeRevokedAgain() {
+        String token=service.issue("revoked-again@example.com",null,false);
+        UUID invite=jdbc.sql("SELECT id FROM invitations WHERE token_hash=:hash")
+            .param("hash",InvitationService.digest(token)).query(UUID.class).single();
+        service.revoke(invite);
+        assertThrows(IllegalArgumentException.class,()->service.revoke(invite));
+        assertThrows(SecurityException.class,()->service.activate(token,
+            user("revoked-again","revoked-again@example.com",true)));
+    }
+
+    @Test
+    void aGoogleIdentityAlreadyBoundCannotRedeemAnotherInvitation() {
+        String original=service.issue("first@example.com",null,false);
+        service.activate(original,user("same-google-sub","first@example.com",true));
+        String duplicate=service.issue("second@example.com",null,false);
+        assertThrows(SecurityException.class,()->service.activate(duplicate,
+            user("same-google-sub","second@example.com",true)));
+        assertEquals("PENDING",jdbc.sql("SELECT status FROM invitations WHERE token_hash=:hash")
+            .param("hash",InvitationService.digest(duplicate)).query(String.class).single());
+    }
+
+    @Test
+    void invitationWithoutValidTokenNeverCreatesAccount() {
+        String token=service.issue("invalid@example.com",null,false);
+        assertThrows(SecurityException.class,()->service.activate("wrong",
+            user("invalid-google-sub","invalid@example.com",true)));
+        assertThrows(SecurityException.class,()->service.activate(null,
+            user("invalid-google-sub","invalid@example.com",true)));
+        assertEquals("PENDING",jdbc.sql("SELECT status FROM invitations WHERE token_hash=:hash")
+            .param("hash",InvitationService.digest(token)).query(String.class).single());
+    }
+
+    @Test
+    void acceptedInvitationCreatesExactlyOneIdentityAndLearnerBinding() {
+        String token=service.issue("unique@example.com",null,false);
+        UUID account=service.activate(token,user("unique-sub","unique@example.com",true));
+        assertEquals(1L,jdbc.sql("SELECT count(*) FROM account_identities WHERE account_id=:id")
+            .param("id",account).query(Long.class).single());
+        assertEquals("ACCEPTED",jdbc.sql("SELECT status FROM invitations WHERE token_hash=:hash")
+            .param("hash",InvitationService.digest(token)).query(String.class).single());
+        assertThrows(SecurityException.class,()->service.activate(token,
+            user("another-sub","unique@example.com",true)));
+    }
+
+    @Test
     void ownerBootstrapIsOneTimeAndNoGenericDisableAllowed() {
         String token=service.issue("owner@example.com",null,true);
         UUID account=service.activate(token,user("owner-sub","owner@example.com",true));
