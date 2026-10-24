@@ -3,13 +3,15 @@
 export type ApiFailureKind = 'NETWORK' | 'HTTP' | 'INVALID_RESPONSE';
 
 export class ApiFailure extends Error {
-  constructor(
-    readonly kind: ApiFailureKind,
-    readonly status: number | null = null,
-    readonly code: string | null = null,
-  ) {
+  readonly kind: ApiFailureKind;
+  readonly status: number | null;
+  readonly code: string | null;
+  constructor(kind: ApiFailureKind, status: number | null = null, code: string | null = null) {
     super(kind === 'HTTP' ? 'HTTP_' + status : kind);
     this.name = 'ApiFailure';
+    this.kind = kind;
+    this.status = status;
+    this.code = code;
   }
 }
 
