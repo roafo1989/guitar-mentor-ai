@@ -4,13 +4,13 @@
 
 ## Единый origin
 
-Браузер открывает **http://localhost:5173**, Vite слушает только 127.0.0.1, Spring Boot — 127.0.0.1:8080. Только профиль `local-unified`, применённый вместе с `secure,local-auth`, допускает ссылку подтверждения/восстановления с http://localhost:5173; в остальных режимах обязательно HTTPS.
+Рабочий адрес браузера — **https://guitar-mentor** (короткий локальный HTTPS alias). Caddy слушает только 127.0.0.1:443, Vite — 127.0.0.1:5173, Spring Boot — 127.0.0.1:8080. В `local-unified` ссылки подтверждения/восстановления ведут на https://guitar-mentor; cookies Secure/HttpOnly. `http://localhost:5173` используется **только** для временного технического callback Google и не является рабочим URL приложения.
 
 В Google Cloud Console → Clients → Web application укажите **Authorized redirect URI**:
 `http://localhost:5173/login/oauth2/code/guitar-mentor`.
 В Testing включите тестируемую учётную запись в Test users. Google сам обеспечивает свои MFA-факторы. OAuth client ID и secret остаются на рабочей станции.
 
-Не используйте `https://guitar-mentor` для этого сценария (Google redirect и browser session cookie используют другой origin). Не запускайте `local-smtp-qa` или `local-google` вместе с `local-unified`. HTTPS Caddy для прочих режимов можно оставить отдельно; не открывайте его наружу.
+Не запускайте `local-smtp-qa` или `local-google` вместе с `local-unified`. Требуются ранее настроенные hosts и доверенный локальный HTTPS-сертификат Caddy. Скрипт запускает Caddy при необходимости. Не открывайте ни один порт наружу.
 
 ## Настройка реальной SMTP-доставки
 
@@ -34,7 +34,7 @@ pwsh -File .\scripts\local-auth-unified.ps1 -Setup
 pwsh -File .\scripts\local-auth-unified.ps1
 ```
 
-Скрипт запускает два отдельных окна pwsh и передаёт секреты **только через переменные окружения дочерним процессам**. Убеждайтесь в запуске Spring Boot и Vite. Откройте **http://localhost:5173**. Адрес `https://guitar-mentor` в этом режиме не использовать.
+Скрипт запускает системные окна Windows PowerShell для Spring Boot и Vite. При необходимости отдельно запускается Caddy **до расшифровки секретов**, не получая Google/SMTP/DB credentials. Секреты передаются дочерним процессам Java и Vite только через окружение. Откройте **https://guitar-mentor**; localhost нужен исключительно как временный Google callback.
 
 Скрипт устанавливает `SPRING_PROFILES_ACTIVE=secure,local-auth,local-unified`, `VITE_GUITAR_MENTOR_AUTH_REQUIRED=true`, email origin и SMTP. Сервер при неверном loopback/bind, выключенной защите, недостающем Google или обязательном SMTP STARTTLS прерывает запуск. Пароли не выводятся в консоль.
 
@@ -59,16 +59,16 @@ CI проверяет локальную конфигурацию/правила
 
 Наличие юридического лица не требуется для написания и запуска приложения; требования конкретного регистратора и провайдера нужно проверить при регистрации. Не публикуйте домашний адрес в письмах и не вводите вымышленные реквизиты.
 
-1. Приобретите обычный домен, например `guitarmentorai.com` **только после проверки свободного имени, прав на название и цены продления**. Для почты подходит и другой собственный домен. Домен не делает приложение публичным: website по-прежнему работает на localhost.
-2. В Resend → Domains добавьте приобретённый домен. Скопируйте **именно выданные Resend** записи SPF/DKIM (и MX/return-path, если показаны) в DNS регистратора; не придумывайте записи самостоятельно. Настройте DMARC по инструкции провайдера. Дождитесь статуса Verified для sending.
+1. Владелец зарегистрировал **guitar-mentor.ru** через Timeweb; почтовый домен подтверждён Resend (Verified). Домен для SMTP не делает локальную разработку публичной: интерфейс пока остаётся на `https://guitar-mentor`.
+2. В Timeweb уже добавлены TXT DKIM `resend._domainkey` и CNAME `rsend`, `send`; Resend подтвердил домен. Для защиты почты дополнительно рекомендуется DMARC согласно рекомендациям провайдера, без удаления существующих записей.
 3. В Resend → API Keys создайте ключ только с разрешением Sending. Храните его как пароль SMTP в локальном хранилище DPAPI, не в Git.
 4. В `pwsh -File .\\scripts\\local-auth-unified.ps1 -Setup` введите:
    - SMTP host: `smtp.resend.com`
    - SMTP port: `587` (STARTTLS; существующий launcher намеренно не использует SMTPS 465)
    - SMTP user: `resend`
    - SMTP credential: Resend API key (ввести скрыто, не присылать в чат)
-   - From: `no-reply@<ваш-подтверждённый-домен>`
-5. Запустите локальное приложение и проверьте реальное письмо подтверждения и восстановления на собственный адрес.
+   - From: `no-reply@guitar-mentor.ru`
+5. Первое настоящее письмо восстановления через Resend ранее доставлено (PASS в первоначальном объединённом режиме). После перехода на единственный HTTPS alias проверить корректность HTTPS-ссылки отдельно.
 
 Resend Free, по официальной странице на октябрь 2026: 3 000 писем в месяц, максимум 100 в сутки, 3 домена, поддержка SMTP. Покупка домена оплачивается отдельно. Официальные ссылки: https://resend.com/pricing , https://resend.com/docs/send-with-smtp , https://resend.com/domains .
 
