@@ -343,7 +343,12 @@
     "recordingPanelTitle": "Performance recording",
     "listenShort": "Listen",
     "pausePlayback": "Pause",
-    "submitShort": "Send"
+    "submitShort": "Send",
+    "inputModeLabel": "Audio input",
+    "recordTab": "Record with microphone",
+    "fileTab": "Upload file",
+    "chooseFile": "Choose audio file",
+    "removeAttachment": "Remove attachment"
   },
   "evidence": {
     "heading": "My performances",
