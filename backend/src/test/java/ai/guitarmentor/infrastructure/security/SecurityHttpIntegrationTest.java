@@ -8,6 +8,8 @@ import static org.springframework.security.test.web.servlet.request.SecurityMock
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.head;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.put;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.delete;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.*;
 
 import java.util.Optional;
@@ -94,6 +96,28 @@ class SecurityHttpIntegrationTest {
         mvc.perform(post("/logout").with(principal)).andExpect(status().isForbidden());
         mvc.perform(post("/logout").with(principal).with(csrf()))
             .andExpect(status().isNoContent());
+    }
+
+    @Test
+    void ownedActorCannotAccessOtherLearnerNestedMediaOrMutations() throws Exception {
+        activeA();
+        var principal = oidcLogin().idToken(t -> t
+            .claim("iss", "https://issuer.example").subject("user-a"));
+        String scope = "/api/v1/learners/" + learnerB;
+        String nested = scope + "/diagnostic-sessions/" + UUID.randomUUID()
+            + "/tasks/" + UUID.randomUUID() + "/attempts";
+        mvc.perform(get(nested).with(principal))
+            .andExpect(status().isNotFound());
+        mvc.perform(head(nested).with(principal))
+            .andExpect(status().isNotFound());
+        mvc.perform(get(nested + "/" + UUID.randomUUID() + "/media").with(principal))
+            .andExpect(status().isNotFound());
+        mvc.perform(post(nested).with(principal).with(csrf()))
+            .andExpect(status().isNotFound());
+        mvc.perform(put(scope).with(principal).with(csrf()))
+            .andExpect(status().isNotFound());
+        mvc.perform(delete(nested + "/" + UUID.randomUUID()).with(principal).with(csrf()))
+            .andExpect(status().isNotFound());
     }
 
     @Test
