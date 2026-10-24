@@ -1,6 +1,6 @@
 # CATALOG-01 — личная библиотека готовых PDF/Guitar Pro
 
-Версия1.0 · 24.10.2026 · **Full-анализ P0 подготовлен к оценке**, автор — СА; независимое review не проводилось. БТ0.18/BT-021/022 → ТЗ0.25/US-011/#155 → FT-011-01…05/#160–164; EPIC-004/#154. Решения ниже — конкретизация минимального объёма по последнему прямому приоритету владельца. Оценки/разработка/QA не выполнялись.
+Версия1.1 · 24.10.2026 · **Full-анализ P0 завершён, задачи оценены и выбраны в последовательную разработку**, автор — СА; независимое review не проводилось. БТ0.18/BT-021/022 → ТЗ0.26/US-011/#155 → FT-011-01…05/#160–164; EPIC-004/#154. Решения ниже — конкретизация минимального объёма по последнему прямому приоритету владельца. Рабочая оценка P0 —42ч; кодирование и QA не выполнялись. [Оценки и условия старта](../project/CATALOG-READINESS-2026-10-24.md).
 
 ## 1. Ценность, факты и границы
 
@@ -108,8 +108,18 @@ Busy/progress/error/no permission/offline/disabled/stale edit/expired auth/delet
 
 Rollback trigger: утечка, потеря bytes, quota overrun, recovery deletesREADY. Ответственный разработчик/оператор: выключитьlibrary.enabled и UI feature, остановить worker/uploads, сохранить БД+library root как согласованную пару, откатить приложение; additive schema оставить. Не выполнять down migration/массовое удаление. Сверить старые упражнения/попытки/security, убедиться что originals лежат на месте; restore только из реально существующей копии с согласованной политикой, без обещания восстановить вручную удалённый оригинал. #40 backup/runbook дополнить scope библиотеки при её включении: политика медиа попыток не исключает автоматически persisted library originals из стратегии восстановления.
 
-Порядок: #160 → #161 → #162 → #163 → #164. #163 может готовить UI mocks после frozen DTO, завершение послеAPI; #164 не подменяет developer tests. Анализ готов к **оценке**, часовые поля не назначены, к коду ещё нужна команда по процессу. Самопроверка артефактов не является независимым review; никаких runtime PASS. По сравнению с текущим приложением не меняются назначенные упражнения и их immutable версии.
+Порядок: #160 → #161 → #162 → #163 → #164. #163 может готовить UI mocks после frozen DTO, завершение послеAPI; #164 не подменяет developer tests. Анализ и оценка завершены по поручению владельца: #160 —8ч, #161 —12ч, #162 —8ч, #163 —8ч, #164 —6ч. Выбрана последовательная разработка, первая свободная задача #160. Само кодирование не начато. Самопроверка артефактов не является независимым review; никаких runtime PASS. По сравнению с текущим приложением не меняются назначенные упражнения и их immutable версии.
 
-## 8. Источники
+## 8. Уточнения готовности v1.1
+
+**Replay при заполненной квоте:** сначала проверить `(actor,key)` до нового reserve. Для SUCCEEDED ограниченно прочитать/прохешировать тело в transient staging, не создавая новый permanent quota charge/reservation; это не новая загрузка. Global/account concurrency и20MiB transport caps сохраняются. Сравнить fingerprint и вернуть существующую карточку200 либо409 mismatch; удалённый результат410. Transient replay staging имеет lease/cleanup и никогда не переходит в READY. Новый key с тем же содержимым считается отдельным пользовательским upload и проходит квоту. Если response потерян послеDBcommit, fullaccount не превращает правильный retry в ошибку квоты. В тестах проверить fullquota+replay+concurrentdelete.
+
+**Конкурентное чтение и delete:** новая выдача авторизуется по актуальному READY состоянию. Ранее начатый HTTPstream и локальную скачанную копию отозвать нельзя; после markDELETING новые GET/HEAD404. Worker учитывает активный file handle/ошибки ОС и делает bounded retry, не снимаетquota до actualabsence. UI удаления требует ясного подтверждения, не обещает корзину/undo.
+
+**Курсор и идемпотентность:** HMAC cursor secret не включать в repository/defaults; invalid secret config failstartup при enabled. Expiry cursor60min, idempotencyrecord24h — разные окна. Номер новой Flyway-миграции определяется по актуальному main/predecessor на старте; ни фиксированный V20, ни staging DB из другого чата не предполагаются.
+
+**Приёмочный набор:** к TC-LIB-04/12 (replay/quota) добавить fullquota replay, wrongpayload replay и delete/replay race; к TC-LIB-16 — in-flight download vs delete. Бинарныеоригиналы остаются unchanged/private. Это уточнение существующих AC-LIB, не новыеFT и не runtimePASS.
+
+## 9. Источники
 
 БТ0.17 разделы12–13 + прямой приоритет владельца24.10 (БТ0.18); mainSHA и файлы перечислены выше. [OWASP File Upload](https://cheatsheetseries.owasp.org/cheatsheets/File_Upload_Cheat_Sheet.html) — bounded upload/safe storage/auth; [Guitar Pro features](https://www.guitar-pro.com/c/14-guitar-pro-features) и [TuxGuitar formats](https://www.tuxguitar.app/files/devel/desktop/help/file_formats.html) — уточнение расширений семейства, не доказательство нашего конвертера.

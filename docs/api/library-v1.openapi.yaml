@@ -1,8 +1,8 @@
 openapi: 3.0.3
 info:
   title: Guitar Mentor AI private library P0
-  version: 1.0.0
-  description: Analysis contract, not running API. CATALOG-01/BT0.18/TZ0.25; all runtime
+  version: 1.1.0
+  description: Analysis contract, not running API. CATALOG-01/BT0.18/TZ0.26; all runtime
     tests NOT_RUN.
 servers:
 - url: /

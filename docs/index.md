@@ -1,5 +1,7 @@
 # Guitar Mentor AI — документация
 
+**[Передача16 задач каталога к разработке: оценки, порядок и блокировки](project/CATALOG-READINESS-2026-10-24.md)** — P0первый,12задач оценены96ч,4pipeline ждутresearch; кодирование не начато.
+
 **[Пользовательская библиотека и подготовка материалов — EPIC004/#154](project/CATALOG-ROADMAP-2026-10-24.md)**. Первый шаг: [личная загрузка готовых PDF/Guitar Pro](specifications/CATALOG-01-private-library.md), #155/#160–164; далее общий каталог, конвертация, интернет-поиск и аудио.
 
 **[AUTH-02/#141: email, логин и пароль, единый UI авторизации](specifications/AUTH-02-email-password.md)** — новый объём эпика37/стори61; Анализ/В очереди, Full, без оценки.
@@ -44,7 +46,7 @@
 - [Бизнес-требования 0.18](requirements/business-requirements.md) — два блока интервью, выбор репертуара и уверенная игра наизусть; ТЗ ещё не синхронизировано с BT-017/018
 - [Бизнес-анализ и варианты](https://github.com/roafo1989/guitar-mentor-ai/blob/main/docs/requirements/discovery/business-analysis-2026-10-20.md) — v0.3, уточнение по двум блокам ответов 21.10.2026
 - [Интервью заказчика](https://github.com/roafo1989/guitar-mentor-ai/blob/main/docs/requirements/discovery/customer-interview-2026-10-20.md) — v0.3, ответы BA-Q01–05/BA-Q21–24; следующий блок — занятие, запись и отзыв
-- [Техническое задание 0.25](requirements/technical-specification.md) — 14 действующих US / 54 FT, НФТ/SEC и открытые вопросы
+- [Техническое задание 0.26](requirements/technical-specification.md) — 14 действующих US / 54 FT, НФТ/SEC и открытые вопросы
 - [Системная спецификация 0.6](specifications/system-specification.md) — текущие API/данные и целевой остаток
 - [MVP Scope & Acceptance 1.1](project/mvp-scope-v1.md)
 - [Roadmap 1.1](project/roadmap-mvp-v1.md) — исходные оценки исторические, не текущий остаток

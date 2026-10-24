@@ -1,0 +1,22 @@
+sequenceDiagram
+    actor Owner as Владелец
+    participant API as API
+    participant DB as PostgreSQL
+    actor Reader as Читатель
+    Owner->>API: Publish revision, assetRights, If-Match, key
+    API->>DB: Lock material, validate ownership and READY assets
+    alt Current revision and rights valid
+        API->>DB: Atomic snapshot, asset references, audit
+        API-->>Owner: 201 publication
+        Reader->>API: Catalog detail and content
+        API->>DB: Check active account and PUBLISHED snapshot
+        API-->>Reader: Metadata and protected bytes
+        Owner->>API: Withdraw with publication If-Match
+        API->>DB: Atomic WITHDRAWN and audit
+        API-->>Owner: 200 WITHDRAWN
+        Reader->>API: New content request using old URL
+        API->>DB: Check current publication state
+        API-->>Reader: 404
+    else Conflict or missing rights
+        API-->>Owner: 400, 409 or 412 without publication
+    end
