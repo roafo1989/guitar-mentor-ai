@@ -4,6 +4,7 @@ import MicrophoneRecorder from './MicrophoneRecorder.vue';
 import LearningResultsPanel from './LearningResultsPanel.vue';
 import { openExerciseMetronome, metronomeUi } from '../metronome/metronome-ui';
 import { metronome } from '../../shared/audio/metronome';
+import type { TaskLearningView } from './learning.service';
 import type { Exercise } from '../../shared/model/diagnostic.model';
 import { useI18n } from 'vue-i18n';
 import { AttemptHttpError, attemptService } from './attempt.service';
@@ -16,8 +17,9 @@ const props = defineProps<{
   exercise?: Exercise;
   samplePlaying?: boolean;
 }>();
-const emit = defineEmits<{ 'draft-state': [state: { busy: boolean; dirty: boolean }]; 'capture-state': [state: { contextKey: string; active: boolean }]; 'preview-play': [] }>();
-const { t } = useI18n();
+const emit = defineEmits<{ 'draft-state': [state: { busy: boolean; dirty: boolean }]; 'capture-state': [state: { contextKey: string; active: boolean }]; 'preview-play': []; 'learning-state': [value: { learnerId: string; sessionId: string; taskId: string; taskState: TaskLearningView['taskState'] | null; fresh: boolean }] }>();
+const { t, locale } = useI18n();
+const formatDate = (value: string) => { const d = new Date(value); return Number.isFinite(d.getTime()) ? new Intl.DateTimeFormat(locale.value.startsWith('ru') ? 'ru-RU' : 'en-US', {dateStyle:'medium', timeStyle:'short'}).format(d) : '—'; };
 const lightMinimal = import.meta.env?.VITE_GUITAR_MENTOR_LIGHT_MINIMAL === 'true';
 const metronomeError = ref(false);
 const metronomeBpm = ref(props.exercise?.bpm ?? 100);
@@ -615,7 +617,7 @@ onBeforeUnmount(() => {
     <div :class="{ 'studio-result-card': lightMinimal }">
       <LearningResultsPanel :learner-id="learnerId" :session-id="sessionId" :task-id="taskId"
          :attempts="displayAttempts" :selected-id="selectedId" :latest-id="latestId"
-        :draft-busy="draftBusy" :load-attempt-detail="fetchDetail" @selected-id="selectedId = $event" @latest-id="latestId = $event" @decision-busy="decisionBusy = $event" @terminal-state="learningTerminal = $event" />
+        :draft-busy="draftBusy" :load-attempt-detail="fetchDetail" @selected-id="selectedId = $event" @latest-id="latestId = $event" @decision-busy="decisionBusy = $event" @terminal-state="learningTerminal = $event" @learning-state="emit('learning-state', $event)" />
       <details class="homework-history">
         <summary>{{ t('attempt.historyDetails') }}</summary>
         <p v-if="historyError" role="alert" class="error">{{ historyError }} <button type="button" :disabled="pageBusy" @click="requestRefresh()">{{ t('learning.retry') }}</button></p>
@@ -624,7 +626,7 @@ onBeforeUnmount(() => {
         <article v-for="item in attempts" :key="item.id" class="attempt-card">
           <div class="attempt-card-title">
             <strong>{{ t('attempt.attempt') }} №{{ item.number }}</strong>
-            <span class="hint">{{ new Date(item.submittedAt).toLocaleString() }}</span>
+            <span class="hint">{{ formatDate(item.submittedAt) }}</span>
           </div>
           <p class="hint">{{ item.format.toUpperCase() }} · {{ fileSize(item.bytes) }}</p>
           <p v-if="item.comment">{{ item.comment }}</p>

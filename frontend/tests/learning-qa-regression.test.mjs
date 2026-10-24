@@ -40,6 +40,7 @@ async function component(filename) {
       name === 'vue-i18n' ? import.meta.resolve('vue-i18n') :
       name.endsWith('attempt.service') ? service :
       name.endsWith('learning.service') ? learningService :
+      name.endsWith('learning-presentation') ? import.meta.resolve('../src/entities/attempt/learning-presentation.ts') :
       name.endsWith('metronome-ui') ? metronomeUi :
       name.endsWith('/audio/metronome') ? audioMetronome :
       name.endsWith('.vue') ? blank : null;
@@ -258,4 +259,91 @@ test('evidence pagination failure is local and releases its spinner', async () =
     assert.ok(state.evidenceError);
     assert.equal(state.error, '');
   } finally { app.unmount(); delete globalThis.__qaLearning; }
+});
+
+test('#152 selected older attempt never inherits latest assessment', async () => {
+ const latest = {id:'latest',number:2,status:'PROCESSED'};
+ const older = {id:'older',number:1,status:'PROCESSED'};
+ const seen = [];
+ globalThis.__qaLearning={
+  state:async()=>({taskId:'task',taskState:'ACTIVE',version:3,availableActions:['COMPLETE'],
+    latestAttemptId:'latest',assessmentState:'AVAILABLE',latestAssessmentId:'grade-latest',
+    latestDecision:null,nextStepAvailability:'NOT_IMPLEMENTED'}),
+  decisions:async()=>({items:[],nextCursor:null}),evidence:async()=>({items:[],nextCursor:null}),
+  assessments:async(_l,_s,_t,id)=>{seen.push(id);return {items:id==='latest'?[{id:'grade-latest',attemptId:'latest',recommendation:'PASS'}]:[],nextCursor:null};},
+  decide:async()=>({})
+ };
+ const {app,state}=await mount('LearningResultsPanel.vue',{learnerId:'learner',sessionId:'session',taskId:'task',
+  attempts:[latest,older],draftBusy:false});
+ try {
+  await flush();
+  assert.equal(state.latestAssessment?.id,'grade-latest');
+  await state.chooseAttempt('older');
+  await flush();
+  assert.equal(state.latestAssessment,null);
+  assert.equal(state.missingAssessment,true);
+  assert.equal(state.assessmentFresh,true);
+  assert.equal(state.canDecide,true,'absence of musical grade is not an agent veto when backend allows completion');
+  assert.ok(seen.includes('older'));
+ } finally {app.unmount();delete globalThis.__qaLearning;}
+});
+
+test('#152 failed selected assessment GET is not NO_ASSESSMENT or executable decision', async () => {
+ globalThis.__qaLearning={
+  state:async()=>({taskId:'task',taskState:'ACTIVE',version:0,availableActions:['COMPLETE'],
+    latestAttemptId:'attempt',assessmentState:'AVAILABLE',latestAssessmentId:'other',
+    latestDecision:null,nextStepAvailability:'NOT_IMPLEMENTED'}),
+  decisions:async()=>({items:[],nextCursor:null}),evidence:async()=>({items:[],nextCursor:null}),
+  assessments:async()=>{throw Error('offline');},decide:async()=>{throw Error('must not send');}
+ };
+ const {app,state}=await mount('LearningResultsPanel.vue',{learnerId:'learner',sessionId:'session',taskId:'task',
+  attempts:[{id:'attempt',status:'PROCESSED'}],draftBusy:false});
+ try {
+  await flush();
+  assert.equal(state.assessmentFresh,false);
+  assert.equal(state.missingAssessment,false,'failed fetch is not an authoritative empty list');
+  assert.ok(state.assessmentError);
+  assert.equal(state.canDecide,false);
+ } finally {app.unmount();delete globalThis.__qaLearning;}
+});
+
+test('#152 unknown task state cannot make terminal or enable action', async () => {
+ globalThis.__qaLearning={
+  state:async()=>({taskId:'task',taskState:'PENDING_MYSTERY',version:0,availableActions:['COMPLETE'],
+    latestAttemptId:'attempt',assessmentState:'NO_ASSESSMENT',latestAssessmentId:null,
+    latestDecision:null,nextStepAvailability:'NOT_IMPLEMENTED'}),
+  decisions:async()=>({items:[],nextCursor:null}),evidence:async()=>({items:[],nextCursor:null}),
+  assessments:async()=>({items:[],nextCursor:null}),decide:async()=>{}
+ };
+ const {app,state}=await mount('LearningResultsPanel.vue',{learnerId:'learner',sessionId:'session',taskId:'task',
+  attempts:[{id:'attempt',status:'PROCESSED'}],draftBusy:false});
+ try {
+  await flush();
+  assert.equal(state.stateFresh,false);
+  assert.equal(state.terminal,false);
+  assert.equal(state.canDecide,false);
+  assert.ok(state.error);
+ } finally {app.unmount();delete globalThis.__qaLearning;}
+});
+
+test('#152 successful decision followed by refresh releases sending state', async () => {
+ let done=false;
+ globalThis.__qaLearning={
+  state:async()=>({taskId:'task',taskState:done?'COMPLETED_BY_LEARNER':'ACTIVE',version:done?1:0,
+    availableActions:done?[]:['CONTINUE_PRACTICING'],latestAttemptId:'attempt',assessmentState:'NO_ASSESSMENT',
+    latestAssessmentId:null,latestDecision:null,nextStepAvailability:'NOT_IMPLEMENTED'}),
+  decisions:async()=>({items:[],nextCursor:null}),evidence:async()=>({items:[],nextCursor:null}),
+  assessments:async()=>({items:[],nextCursor:null}),decide:async()=>{done=true;}
+ };
+ const {app,state}=await mount('LearningResultsPanel.vue',{learnerId:'learner',sessionId:'session',taskId:'task',
+  attempts:[{id:'attempt',status:'PROCESSED'}],draftBusy:false});
+ try {
+  await flush();
+  await state.decide('CONTINUE_PRACTICING');
+  await flush();
+  assert.equal(state.sending,false);
+  assert.equal(state.pending,null);
+  assert.equal(state.state.taskState,'COMPLETED_BY_LEARNER');
+  assert.equal(state.canDecide,false);
+ } finally {app.unmount();delete globalThis.__qaLearning;}
 });

@@ -8,6 +8,7 @@ import { diagnosticService } from './diagnostic.service';
 import ExercisePreview from './ExercisePreview.vue';
 import { closeMetronome } from '../metronome/metronome-ui';
 import SubmissionPanel from '../attempt/SubmissionPanel.vue';
+import type { TaskLearningView } from '../attempt/learning.service';
 import DiagnosticEvidencePanel from './DiagnosticEvidencePanel.vue';
 import { intakeNavigationAction, permitIntakeNavigation, shouldWarnBeforeUnload } from './intake-navigation';
 import type { DiagnosticSession, DiagnosticTask, Exercise, DiagnosticRecommendation } from '../../shared/model/diagnostic.model';
@@ -37,6 +38,19 @@ const intakeBusy = ref(false);
 const intakeDraft = ref(false);
 const submissionBusy = ref(false);
 const submissionDraft = ref(false);
+const learningBanner = ref<{ taskState: TaskLearningView['taskState'] | null; fresh: boolean } | null>(null);
+function onLearningState(value: { learnerId: string; sessionId: string; taskId: string; taskState: TaskLearningView['taskState'] | null; fresh: boolean }): void {
+  if (value.learnerId !== learnerStore.learner?.id || value.sessionId !== session.value?.id || value.taskId !== task.value?.id) return;
+  learningBanner.value = { taskState: value.taskState, fresh: value.fresh };
+}
+const learningBannerKey = computed(() => {
+  const value = learningBanner.value;
+  if (!value?.fresh) return 'diagnostic.studio.statusUnavailable';
+  if (value.taskState === 'ACTIVE') return 'diagnostic.studio.inProgress';
+  if (value.taskState === 'COMPLETED_PASSED') return 'diagnostic.studio.completedAssessment';
+  if (value.taskState === 'COMPLETED_BY_LEARNER') return 'diagnostic.studio.completedLearner';
+  return 'diagnostic.studio.statusUnavailable';
+});
 function onSubmissionDraft(value: { busy: boolean; dirty: boolean }): void {
   submissionBusy.value = value.busy;
   submissionDraft.value = value.dirty;
@@ -89,8 +103,8 @@ function guardSamplePlay(event: Event): void {
   if (captureActive.value) { (event.target as HTMLAudioElement).pause(); return; }
   samplePlaying.value = true;
 }
-watch(() => [task.value?.id, task.value?.exercise.code, task.value?.exercise.version, learnerStore.learner?.id], () => {
-  pauseSample(); captureActive.value = false; sampleUnavailable.value = false;
+watch(() => [task.value?.id, task.value?.exercise.code, task.value?.exercise.version, learnerStore.learner?.id, session.value?.id], () => {
+  pauseSample(); captureActive.value = false; sampleUnavailable.value = false; learningBanner.value = null;
 });
 onBeforeUnmount(pauseSample);
 
@@ -469,7 +483,7 @@ async function assign(exerciseCode: string): Promise<void> {
               </div>
               <span v-else class="studio-audio-unavailable">{{ t('diagnostic.metadata.audioUnavailable') }}</span>
             </div>
-            <span class="studio-assignment-status">{{ t('diagnostic.studio.inProgress') }}</span>
+            <span class="studio-assignment-status" role="status">{{ t(learningBannerKey) }}</span>
           </div>
         </div>
         <div class="studio-columns">
@@ -479,7 +493,7 @@ async function assign(exerciseCode: string): Promise<void> {
           <aside class="studio-sidebar" :aria-label="t('diagnostic.workspace.recording')">
             <SubmissionPanel v-if="learnerStore.learner"
               :learner-id="learnerStore.learner.id"
-              :session-id="session.id" :task-id="task.id" :exercise="task.exercise" :sample-playing="samplePlaying" @draft-state="onSubmissionDraft" @capture-state="onCaptureState" @preview-play="pauseSample" />
+              :session-id="session.id" :task-id="task.id" :exercise="task.exercise" :sample-playing="samplePlaying" @draft-state="onSubmissionDraft" @capture-state="onCaptureState" @preview-play="pauseSample" @learning-state="onLearningState" />
           </aside>
         </div>
         <details class="studio-extra">
@@ -508,7 +522,7 @@ async function assign(exerciseCode: string): Promise<void> {
           <section class="lesson-submission" :aria-label="t('diagnostic.workspace.recording')">
             <SubmissionPanel v-if="learnerStore.learner"
               :learner-id="learnerStore.learner.id"
-              :session-id="session.id" :task-id="task.id" @draft-state="onSubmissionDraft" />
+              :session-id="session.id" :task-id="task.id" @draft-state="onSubmissionDraft" @learning-state="onLearningState" />
           </section>
         </div>
       </template>

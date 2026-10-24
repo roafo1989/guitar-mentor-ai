@@ -224,7 +224,10 @@
       "tabsLabel": "Lesson materials",
       "scoreTab": "Notes and TAB",
       "audioTab": "Audio example",
-      "descriptionTab": "Description"
+      "descriptionTab": "Description",
+      "completedAssessment": "Completed based on assessment",
+      "completedLearner": "Completed by your choice",
+      "statusUnavailable": "Status unavailable"
     }
   },
   "home": {
@@ -571,7 +574,18 @@
     "uploadClosed": "Assignment completed. New attempts cannot be uploaded; history and feedback remain available.",
     "historyDetails": "Decision and assessment history",
     "assessmentDetails": "Assessment details",
-    "attemptUnavailable": "Attempt unavailable. Refresh history."
+    "attemptUnavailable": "Attempt unavailable. Refresh history.",
+    "unavailable": "Status unavailable. Refresh results.",
+    "stale": "Could not refresh results. Previously loaded data is shown; decisions are unavailable until refreshed.",
+    "latestAttempt": "Latest submission",
+    "selectedIsLatest": "selected",
+    "differentSelected": "a different attempt is selected",
+    "unknownRecommendation": "Recommendation unavailable",
+    "sourceHuman": "Human review",
+    "sourceValidated": "Validated measurement",
+    "sourceUnknown": "Assessment source unknown",
+    "criterionAssessed": "Criterion assessed",
+    "criterionUncertain": "Not enough evidence for criterion"
   },
   "apiErrors": {
     "network": "Could not connect to the app. Check your connection and try again.",
