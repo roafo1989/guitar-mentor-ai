@@ -73,3 +73,9 @@ CI проверяет локальную конфигурацию/правила
 Resend Free, по официальной странице на октябрь 2026: 3 000 писем в месяц, максимум 100 в сутки, 3 домена, поддержка SMTP. Покупка домена оплачивается отдельно. Официальные ссылки: https://resend.com/pricing , https://resend.com/docs/send-with-smtp , https://resend.com/domains .
 
 **Контроль:** домен и отправитель принадлежат вам; SMTP-ключ и OAuth Client Secret не записаны в конфигурацию Git. Ни выдачу домена, ни реальные письма нельзя считать готовыми до проверки владельцем.
+
+## Исправление ошибки Google redirect_uri_mismatch (UAT 24.10.2026)
+
+В первом combined UAT Google сообщил, что приложение передало `http://127.0.0.1:5173/login/oauth2/code/guitar-mentor`, хотя в Google Cloud разрешён `http://localhost:5173/login/oauth2/code/guitar-mentor`. Это разные URI. Причина: Vite proxy направляет вызов на backend 127.0.0.1, Spring OAuth по умолчанию формирует callback из proxy Host.
+
+Исправлено на уровне `application-local-unified.yml`: `spring.security.oauth2.client.registration.guitar-mentor.redirect-uri=http://localhost:5173/login/oauth2/code/{registrationId}`. Startup guard требует ровно это значение. Google Cloud OAuth Web client Authorized redirect URI должен быть **http://localhost:5173/login/oauth2/code/guitar-mentor**. Перезапустить backend после обновления Git. Не добавлять 127.0.0.1 callback вместо исправления, не менять значения токенов/SMTP и не менять DNS.
