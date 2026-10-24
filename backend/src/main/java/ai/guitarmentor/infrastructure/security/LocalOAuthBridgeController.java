@@ -66,12 +66,15 @@ public class LocalOAuthBridgeController {
         var session = request.getSession(false);
         if (session == null) return ResponseEntity.status(403).build();
         try {
-            var oidc = bridge.consume(body.ticket(), session.getId());
+            var handoff = bridge.consume(body.ticket(), session.getId());
+            var oidc = handoff.principal();
             CurrentActor actor;
 
             // Explicit account linking was authorized by local password re-entry
             // on this original HTTPS session; never link by email coincidence.
             Object linkAccount = session.getAttribute("guitarMentorLinkGoogleAccount");
+            if (handoff.linking() != (linkAccount != null))
+                throw new SecurityException("GOOGLE_LINK_INTENT_MISMATCH");
             if (linkAccount != null) {
                 Object pinned = session.getAttribute("guitarMentorLinkGoogleVersion");
                 Object started = session.getAttribute("guitarMentorLinkGoogleStarted");
