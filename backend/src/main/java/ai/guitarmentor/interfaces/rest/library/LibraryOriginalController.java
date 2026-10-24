@@ -166,8 +166,9 @@ public final class LibraryOriginalController {
     @PostMapping(consumes=MediaType.MULTIPART_FORM_DATA_VALUE)
     public ResponseEntity<?> upload(HttpServletRequest request,
             @RequestHeader(value="Idempotency-Key",required=false) String idempotency,
-            @RequestPart("metadata") Metadata metadata,
+            @RequestPart("metadata") Map<String,Object> metadata,
             @RequestPart("files") List<MultipartFile> files) {
+        Metadata parsed=parseMetadata(metadata);
         UUID owner=actor(request);
         rate("account:"+owner,10);
         rate("source:"+request.getRemoteAddr(),30);
@@ -175,9 +176,30 @@ public final class LibraryOriginalController {
         if(!actorGate.tryAcquire()) throw new Failure(409,"LIBRARY_UPLOAD_IN_PROGRESS");
         try {
             if(!GLOBAL_UPLOADS.tryAcquire()) throw new Failure(429,"LIBRARY_RATE_LIMITED");
-            try {return performUpload(request,idempotency,metadata,files);}
+            try {return performUpload(request,idempotency,parsed,files);}
             finally {GLOBAL_UPLOADS.release();}
         } finally {actorGate.release();}
+    }
+
+    /** Direct-call compatibility for service tests; HTTP always uses strict JSON map validation. */
+    ResponseEntity<?> upload(HttpServletRequest request,String key,Metadata metadata,
+            List<MultipartFile> files) {
+        if(metadata==null) throw new Failure(400,"LIBRARY_INVALID_METADATA");
+        Map<String,Object> values=new java.util.HashMap<>();
+        values.put("title",metadata.title());values.put("type",metadata.type());
+        if(metadata.author()!=null) values.put("author",metadata.author());
+        return upload(request,key,values,files);
+    }
+
+    private static Metadata parseMetadata(Map<String,Object> values) {
+        if(values==null || !values.keySet().containsAll(Set.of("title","type"))
+                || !Set.of("title","type","author").containsAll(values.keySet()))
+            throw new Failure(400,"LIBRARY_INVALID_METADATA");
+        if(!(values.get("title") instanceof String title)
+                || !(values.get("type") instanceof String type)
+                || values.get("author")!=null && !(values.get("author") instanceof String))
+            throw new Failure(400,"LIBRARY_INVALID_METADATA");
+        return new Metadata(title,type,(String)values.get("author"));
     }
 
     private ResponseEntity<?> performUpload(HttpServletRequest request,
