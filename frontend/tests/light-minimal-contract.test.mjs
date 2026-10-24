@@ -19,7 +19,9 @@ test('#148 theme is opt-in and scoped to the shell', async () => {
 
 test('#148 navigation discloses real routes and remains keyboard-operable', async () => {
   const [app, router] = await Promise.all([file('../src/App.vue'), file('../src/router/index.ts')]);
-  for (const path of ['/', '/profile', '/onboarding', '/diagnostics']) {
+  assert.match(app, /<RouterLink to="\/" class="brand"/, 'brand remains Home link');
+  assert.doesNotMatch(app, /to="\/" @click="closeMenu\(\)"/, 'Home is not duplicated in header navigation');
+  for (const path of ['/profile', '/onboarding', '/diagnostics']) {
     assert.ok(router.includes("path: '" + path + "'"), 'real router path: ' + path);
     assert.ok(app.includes('to="' + path + '"'), 'navigable header route: ' + path);
   }
