@@ -19,6 +19,11 @@ import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.condition.EnabledIfEnvironmentVariable;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
+import org.springframework.boot.test.context.TestConfiguration;
+import org.springframework.context.annotation.Bean;
+import org.springframework.context.annotation.Import;
+import org.springframework.beans.factory.config.BeanPostProcessor;
+import java.util.List;
 import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.mock.web.MockMultipartFile;
 import org.springframework.test.context.DynamicPropertyRegistry;
@@ -36,7 +41,16 @@ import org.springframework.transaction.support.TransactionTemplate;
         "guitar-mentor.submissions.poll-delay-ms=999999"
 })
 @EnabledIfEnvironmentVariable(named = "GUITAR_MENTOR_TEST_POSTGRES", matches = "true")
+@Import(SubmissionAttemptPostgresIntegrationTest.SqlProbeConfiguration.class)
 class SubmissionAttemptPostgresIntegrationTest {
+    @TestConfiguration(proxyBeanMethods = false)
+    static class SqlProbeConfiguration {
+        @Bean
+        static BeanPostProcessor attemptSqlProbe() {
+            return new AttemptSqlProbe();
+        }
+    }
+
     private static final Path MEDIA_ROOT = Path.of("target", "d30-postgres-integration-files")
             .toAbsolutePath().normalize();
     private static final UUID EXERCISE_ID =
@@ -369,6 +383,51 @@ class SubmissionAttemptPostgresIntegrationTest {
         assertEquals(1L, fileCount());
         assertTrue(Files.isRegularFile(MEDIA_ROOT.resolve(key)));
     }
+    @Test
+    void boundedSqlStatementsDoNotGrowWithPageSize() {
+        Instant now = Instant.now();
+        jdbc.update("""
+            INSERT INTO submission_attempts
+              (id,diagnostic_task_id,request_id,attempt_number,submitted_at,status,
+               media_key,media_format,size_bytes)
+            SELECT gen_random_uuid(), ?, gen_random_uuid(), n, ?, 'UPLOADED',
+                   gen_random_uuid()::text || '.wav', 'wav', 12
+            FROM generate_series(1,51) AS n
+            """, taskId, java.sql.Timestamp.from(now));
+
+        // Warm the JPA/session infrastructure outside capture, then measure
+        // actual JDBC prepareStatement calls in the synchronous service read.
+        service.verifyOwnership(learnerId,sessionId,taskId);
+        for (int limit : new int[]{1,20,50}) {
+            var sql = AttemptSqlProbe.capture(() -> {
+                var page = service.page(learnerId,sessionId,taskId,limit,null);
+                assertEquals(limit,page.items().size());
+                assertTrue(page.hasMore());
+            });
+            assertEquals(1, countStatements(sql,"from submission_attempts"),
+                    "Exactly one bounded attempt SELECT at limit " + limit + ": " + sql);
+            assertEquals(1, countStatements(sql,"from attempt_assessments"),
+                    "Exactly one batch assessment SELECT at limit " + limit + ": " + sql);
+            assertEquals(0, countStatements(sql,"count("),
+                    "Page must not execute COUNT at limit " + limit + ": " + sql);
+            assertTrue(sql.stream().anyMatch(statement -> statement.contains("limit")
+                            || statement.contains("fetch first")),
+                    "Attempts SELECT must contain a SQL row bound: " + sql);
+        }
+        var empty = AttemptSqlProbe.capture(() ->
+                assertTrue(service.page(learnerId,sessionId,taskId,20,1).items().isEmpty()));
+        assertEquals(1,countStatements(empty,"from submission_attempts"));
+        assertEquals(0,countStatements(empty,"from attempt_assessments"));
+        var capabilities = AttemptSqlProbe.capture(() ->
+                service.verifyOwnership(learnerId,sessionId,taskId));
+        assertEquals(0,countStatements(capabilities,"from submission_attempts"));
+        assertEquals(0,countStatements(capabilities,"from attempt_assessments"));
+    }
+
+    private static long countStatements(List<String> statements,String needle) {
+        return statements.stream().filter(sql -> sql.contains(needle)).count();
+    }
+
     @Test
     void historyPagesStayStableWhenNewerAttemptArrives() {
         Instant created = Instant.now();
