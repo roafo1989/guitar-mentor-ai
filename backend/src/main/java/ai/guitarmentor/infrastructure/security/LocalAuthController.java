@@ -85,6 +85,13 @@ public class LocalAuthController {
         try {service.reset(req.token(),req.password());return ResponseEntity.ok(Map.of("code","PASSWORD_RESET"));}
         catch(IllegalArgumentException|SecurityException ex) {return bad("TOKEN_INVALID");}
     }
+    @GetMapping("/methods")
+    ResponseEntity<Map<String,Boolean>> methods(HttpServletRequest http) {
+        var actor=(CurrentActor) http.getAttribute("guitarMentorActor");
+        if(actor == null) return ResponseEntity.status(401).build();
+        return ResponseEntity.ok(Map.of("passwordEnabled",actors.hasLocalCredential(actor.accountId())));
+    }
+
     @PostMapping("/change")
     ResponseEntity<Map<String,String>> change(@RequestBody Change req,HttpServletRequest http) {
         limit(http,"change");
