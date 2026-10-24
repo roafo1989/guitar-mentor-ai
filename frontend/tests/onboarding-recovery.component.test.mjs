@@ -137,3 +137,100 @@ test('CORE-E failed background GET prevents PUT; recovery GET enables form witho
     delete globalThis.__background127;
   }
 });
+
+test('P1: edited draft after failed GET cannot overwrite existing background on Retry', async () => {
+  const oldWindow = globalThis.window;
+  const learner = reactive({ learner: { id: 'learner-one' }, error: null, restore: async () => {} });
+  const calls = [];
+  let fail = true;
+  globalThis.__learner127 = learner;
+  globalThis.__background127 = {
+    get: async () => { calls.push('GET'); if (fail) throw new Error('offline'); return background('preserved server notes'); },
+    save: async () => { calls.push('PUT'); return background('lost'); },
+  };
+  globalThis.window = { localStorage: { getItem: () => 'learner-one' } };
+  let app;
+  try {
+    const View = await getComponent();
+    const root = { tag: 'root', children: [], parent: null };
+    app = renderer().createApp({ render: () => h(View) });
+    app.use(createI18n({ legacy: false, locale: 'en', messages: { en: {
+      home: { retry: 'Retry' }, onboarding: { next: 'Next', save: 'Save', loadServerBackground: 'Load server' },
+    } } }));
+    app.mount(root);
+    await settle();
+    let nodes = flatten(root);
+    const form = nodes.find(n => n.tag === 'form');
+    assert.ok(form?.props.onInput, 'edit tracking on form');
+    form.props.onInput({ target: {} });
+    fail = false;
+    const retry = nodes.find(n => n.tag === 'button' && String(n.text).includes('Retry'));
+    retry.props.onClick();
+    await settle();
+    nodes = flatten(root);
+    const next = nodes.find(n => n.tag === 'button' && String(n.text).includes('Next'));
+    next.props.onClick();
+    await settle();
+    nodes = flatten(root);
+    const save = nodes.find(n => n.tag === 'button' && String(n.text).includes('Save'));
+    assert.equal(save?.props.disabled, true, 'saved background and local draft must be reconciled');
+    nodes.find(n => n.tag === 'form').props.onSubmit({ preventDefault() {} });
+    await settle();
+    assert.deepEqual(calls, ['GET', 'GET'], 'no silent overwrite');
+    const accept = nodes.find(n => n.tag === 'button' && String(n.text).includes('Load server'));
+    assert.ok(accept?.props.onClick, 'user gets an explicit conflict-resolution action');
+    accept.props.onClick();
+    await settle();
+    nodes = flatten(root);
+    const unlocked = nodes.find(n => n.tag === 'button' && String(n.text).includes('Save'));
+    assert.equal(unlocked?.props.disabled, false, 'explicit loading unlocks PUT');
+  } finally {
+    app?.unmount(); globalThis.window = oldWindow;
+    delete globalThis.__learner127; delete globalThis.__background127;
+  }
+});
+
+test('P1: late PUT for learner A cannot replace background or saved badge for learner B', async () => {
+  const oldWindow = globalThis.window;
+  const learner = reactive({ learner: { id: 'learner-A' }, error: null, restore: async () => {} });
+  const calls = [];
+  let resolveSave;
+  const pending = new Promise(resolve => { resolveSave = resolve; });
+  globalThis.__learner127 = learner;
+  globalThis.__background127 = {
+    get: async id => { calls.push(['GET', id]); return background('notes ' + id); },
+    save: async id => { calls.push(['PUT', id]); return pending; },
+  };
+  globalThis.window = { localStorage: { getItem: () => 'learner-A' } };
+  let app;
+  try {
+    const View = await getComponent();
+    const root = { tag: 'root', children: [], parent: null };
+    app = renderer().createApp({ render: () => h(View) });
+    app.use(createI18n({ legacy: false, locale: 'en', messages: { en: {
+      onboarding: { next: 'Next', save: 'Save', saved: 'Saved' },
+    } } }));
+    app.mount(root);
+    await settle();
+    let nodes = flatten(root);
+    nodes.find(n => n.tag === 'button' && String(n.text).includes('Next')).props.onClick();
+    await settle();
+    nodes = flatten(root);
+    assert.equal(nodes.find(n => n.tag === 'button' && String(n.text).includes('Save')).props.disabled, false);
+    nodes.find(n => n.tag === 'form').props.onSubmit({ preventDefault() {} });
+    await settle();
+    assert.ok(calls.some(([method,id]) => method === 'PUT' && id === 'learner-A'));
+    learner.learner = { id: 'learner-B' };
+    await settle();
+    resolveSave(background('OLD A RESULT'));
+    await settle();
+    nodes = flatten(root);
+    const text = nodes.map(n => String(n.text ?? '')).join(' ');
+    assert.ok(!text.includes('Saved'), 'old PUT cannot announce success for new learner');
+    assert.ok(calls.some(([method,id]) => method === 'GET' && id === 'learner-B'));
+    assert.equal(nodes.some(n => String(n.value ?? '') === 'OLD A RESULT'), false);
+  } finally {
+    app?.unmount(); globalThis.window = oldWindow;
+    delete globalThis.__learner127; delete globalThis.__background127;
+  }
+});
