@@ -1,8 +1,8 @@
 <script setup lang="ts">
 import { onMounted } from 'vue';
 import { useI18n } from 'vue-i18n';
-import { auth, login, refreshActor } from './auth';
-const localPrototype = import.meta.env.DEV && import.meta.env.VITE_GUITAR_MENTOR_AUTH_REQUIRED !== 'true';
+import { auth, login, refreshActor, secureUi } from './auth';
+const localPrototype = !secureUi;
 const { t } = useI18n();
 onMounted(() => { if (!localPrototype) void refreshActor(); });
 </script>
