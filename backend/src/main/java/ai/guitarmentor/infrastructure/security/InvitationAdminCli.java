@@ -27,8 +27,6 @@ public class InvitationAdminCli implements ApplicationRunner {
             case "invite", "bootstrap-owner" -> {
                 String email=env.getRequiredProperty("guitar-mentor.invitation-admin.email");
                 String learner=env.getProperty("guitar-mentor.invitation-admin.learner");
-                if (action.equals("bootstrap-owner") && learner!=null)
-                    throw new IllegalArgumentException("Bootstrap OWNER cannot automatically claim local learner");
                 String token=service.issue(email,learner==null?null:UUID.fromString(learner),
                         action.equals("bootstrap-owner"));
                 // This is a secret shown exactly once to the local operator. Do not save stdout logs.
