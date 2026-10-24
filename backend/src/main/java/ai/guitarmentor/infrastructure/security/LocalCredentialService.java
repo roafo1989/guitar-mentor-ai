@@ -136,7 +136,7 @@ public class LocalCredentialService {
                 rs.getObject("id",UUID.class),rs.getObject("invitation_id",UUID.class),
                 rs.getString("email_normalized"),rs.getString("login_normalized"),
                 rs.getString("password_hash"),rs.getObject("learner_id",UUID.class),
-                rs.getString("role")==null?"LEARNER":rs.getString("role")))).optional();
+                rs.getString("role")==null?"LEARNER":rs.getString("role"))).optional();
         if (pending.isEmpty()) throw new SecurityException("INVALID_TOKEN");
         var p=pending.get();
         if ("OWNER".equals(p.role) && jdbc.sql("SELECT count(*) FROM accounts WHERE role='OWNER' AND status='ACTIVE'").query(Long.class).single()>0)
