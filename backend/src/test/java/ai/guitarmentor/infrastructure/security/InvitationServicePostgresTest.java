@@ -58,6 +58,21 @@ class InvitationServicePostgresTest {
     }
 
     @Test
+    void explicitlyNamedLegacyLearnerIsClaimedWithoutChangingProfileHistory() {
+        UUID existing = UUID.randomUUID();
+        jdbc.sql("INSERT INTO learners(id,display_name,created_at) VALUES (:id,'Original learner',:created)")
+            .param("id",existing).param("created",java.sql.Timestamp.from(Instant.now())).update();
+        String token = service.issue("legacy-owner@example.com",existing,true);
+        UUID account = service.activate(token,user("legacy-owner","legacy-owner@example.com",true));
+        UUID mapped = jdbc.sql("SELECT learner_id FROM accounts WHERE id=:id")
+            .param("id",account).query(UUID.class).single();
+        assertEquals(existing,mapped);
+        assertEquals("Original learner",jdbc.sql("SELECT display_name FROM learners WHERE id=:id")
+            .param("id",existing).query(String.class).single());
+        assertThrows(IllegalArgumentException.class, () -> service.issue("second@example.com",existing,false));
+    }
+
+    @Test
     void ownerBootstrapIsOneTimeAndNoGenericDisableAllowed() {
         String token=service.issue("owner@example.com",null,true);
         UUID account=service.activate(token,user("owner-sub","owner@example.com",true));
