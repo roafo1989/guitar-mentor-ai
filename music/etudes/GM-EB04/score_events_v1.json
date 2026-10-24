@@ -40,7 +40,8 @@
     "instrumentCheck": "NOT_RUN",
     "pdf": "OUT_OF_SCOPE_ISSUE_82",
     "mp3": "OUT_OF_SCOPE_ISSUE_82",
-    "poc": "NOT_IMPLEMENTED"
+    "poc": "NOT_IMPLEMENTED",
+    "scoreFormat": "MusicXML 4.0; octave-transposing treble + six-line TAB"
   },
   "measures": [
     {
@@ -881,9 +882,9 @@
           "length": 1.5,
           "notes": [
             {
-              "string": 1,
+              "string": 2,
               "fret": 1,
-              "pitch": 65
+              "pitch": 60
             }
           ],
           "velocity": 90,
