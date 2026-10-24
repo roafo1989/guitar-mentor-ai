@@ -182,6 +182,59 @@ public class LocalCredentialService {
         jdbc.sql("UPDATE local_password_tokens SET consumed_at=now() WHERE account_id=:id AND consumed_at IS NULL")
             .param("id",account).update();
     }
+
+    /** A verified Google session may request a second method, subject to fresh reauthentication. */
+    @Transactional
+    public void beginLink(UUID accountId,String address,String login,String password) {
+        String email=InvitationService.email(address);
+        String username=loginName(login);
+        validPassword(password);
+        long admissible=jdbc.sql("""
+            SELECT count(*) FROM accounts a
+            WHERE a.id=:id AND a.status='ACTIVE'
+              AND NOT EXISTS (SELECT 1 FROM local_credentials c WHERE c.account_id=a.id)
+            """).param("id",accountId).query(Long.class).single();
+        if(admissible!=1) throw new SecurityException("LINK_REJECTED");
+        jdbc.sql("DELETE FROM pending_local_links WHERE account_id=:id OR expires_at<=now()")
+            .param("id",accountId).update();
+        long duplicate=jdbc.sql("""
+            SELECT (SELECT count(*) FROM local_credentials WHERE email_normalized=:email OR login_normalized=:login)
+             + (SELECT count(*) FROM pending_local_registrations WHERE email_normalized=:email OR login_normalized=:login)
+             + (SELECT count(*) FROM pending_local_links WHERE email_normalized=:email OR login_normalized=:login)
+            """).param("email",email).param("login",username).query(Long.class).single();
+        if(duplicate!=0) throw new SecurityException("LINK_REJECTED");
+        String token=newToken();
+        jdbc.sql("""
+            INSERT INTO pending_local_links(id,account_id,email_normalized,login_normalized,password_hash,verification_hash,expires_at)
+            VALUES (:id,:account,:email,:login,:password,:token,:expiry)
+            """).param("id",UUID.randomUUID()).param("account",accountId)
+            .param("email",email).param("login",username)
+            .param("password",encoder.encode(password))
+            .param("token",InvitationService.digest(token))
+            .param("expiry",java.sql.Timestamp.from(Instant.now().plus(30,ChronoUnit.MINUTES))).update();
+        send(email,"Confirm Guitar Mentor password link",token,"link");
+    }
+    /** Confirmation must occur while signed in to the SAME Account that initiated linking. */
+    @Transactional
+    public void verifyLink(UUID accountId,String token) {
+        if(token==null || !token.matches("[a-f0-9]{64}")) throw new SecurityException("LINK_REJECTED");
+        var pending=jdbc.sql("""
+            SELECT email_normalized,login_normalized,password_hash
+            FROM pending_local_links WHERE account_id=:id AND verification_hash=:hash
+             AND expires_at>now() FOR UPDATE
+            """).param("id",accountId).param("hash",InvitationService.digest(token))
+            .query((rs,i)->new PendingLink(rs.getString("email_normalized"),
+                rs.getString("login_normalized"),rs.getString("password_hash"))).optional();
+        if(pending.isEmpty()) throw new SecurityException("LINK_REJECTED");
+        var row=pending.get();
+        jdbc.sql("""
+            INSERT INTO local_credentials(account_id,email_normalized,login_normalized,password_hash,email_verified_at)
+            VALUES (:id,:email,:login,:password,now())
+            """).param("id",accountId).param("email",row.email)
+            .param("login",row.login).param("password",row.password).update();
+        jdbc.sql("DELETE FROM pending_local_links WHERE account_id=:id").param("id",accountId).update();
+    }
+    private record PendingLink(String email,String login,String password) {}
     private record Invitation(UUID id,String email) {}
     private record Pending(UUID id,UUID invitation,String email,String login,String hash,UUID learner,String role) {}
     private record Credential(UUID id,String hash) {}
