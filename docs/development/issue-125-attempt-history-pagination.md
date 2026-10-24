@@ -14,7 +14,7 @@ Prefix: `/api/v1/learners/{learnerId}/diagnostic-sessions/{sessionId}/tasks/{tas
 
 ## Implementation and verification
 
-A dedicated repository keyset query uses the existing V7 index; `LIMIT limit+1` is applied via Spring Data `Pageable` returning `List`, avoiding a generated count query. A single bounded `SELECT DISTINCT attempt_id ... IN (...)` builds assessment flags, including any revision. Empty pages skip assessment lookup. The full legacy history shares the batch mapping but is not capped; it is retained solely for backward compatibility and should be retired after #126 transitions the frontend.
+A dedicated repository keyset query uses the existing V7 index; `LIMIT limit+1` is applied via Spring Data `Pageable` returning `List`, avoiding a generated count query. A single bounded `SELECT DISTINCT attempt_id ... IN (...)` builds assessment flags for paginated views (up to 50 IDs), including any revision. Empty pages skip assessment lookup. The legacy full-array response is still uncapped, but assessment lookups are split into batches of up to 500 UUID parameters per statement to avoid oversized PostgreSQL bind lists; the legacy path may therefore issue multiple assessment queries. It should be retired after #126 transitions the frontend.
 
 Tests include PostgreSQL cursor sequence (45→20/20/5), a newer insertion between pages, empty/limit 50, ownership/detail and unchanged legacy results; controller unit tests exercise invalid/repeated/overflow parameters, safe 404/500 and capabilities. PostgreSQL tests run only with `GUITAR_MENTOR_TEST_POSTGRES=true` and a configured disposable database; do not count skipped integration tests as a pass.
 
@@ -31,7 +31,7 @@ No database migration, config flag, or additional dependency is required. New fr
 
 ## Instrumented SQL budget — 24 October 2026
 
-Production code unchanged. Added `backend/src/test/java/ai/guitarmentor/application/attempt/AttemptSqlProbe.java` and the `boundedSqlStatementsDoNotGrowWithPageSize` PostgreSQL integration test; probe is imported into that test's Spring context only. SQL statements are counted across JPA + JdbcTemplate, not merely inferred from source or mocked repository calls. The test is thread-scoped to avoid background worker interference.
+Production code unchanged. Added `backend/src/test/java/ai/guitarmentor/application/attempt/AttemptSqlProbe.java` and the `boundedSqlStatementsDoNotGrowWithPageSize` PostgreSQL integration test; probe is imported into that test's Spring context only. The test records JDBC `prepareStatement` on the test thread across JPA + JdbcTemplate, rather than merely inspecting source or mocked repository calls. The counts are specific to attempts/assessments; they **exclude fixed task/learner authorization queries**, do not measure worker-thread statements or network latency, and do not prove the PostgreSQL query planner selected a particular index. These are useful N+1 safeguards, not a global two-query response guarantee.
 
 - `0 rows`: 1 attempt query, 0 assessment queries.
 - `limit=1,20,50` with 51 real rows: 1 bounded attempt query, 1 assessment batch query, 0 COUNT queries for each limit.
@@ -40,3 +40,11 @@ Production code unchanged. Added `backend/src/test/java/ai/guitarmentor/applicat
 - [Vue CI #40066343759](https://github.com/roafo1989/guitar-mentor-ai/actions/runs/40066343759): **SUCCESS**.
 
 **Remaining gate:** external independent code review and owner acceptance/merge. Self-review is not independent APPROVE. 
+
+## Code review corrections — 24 October 2026
+
+- **P1 legacy binding ceiling:** `LearningRepository.assessedAttemptIds` now chunks the historical full-array lookup into groups of at most 500 bind values, preserving the full legacy response and assessment flags. The new limited `GET /page` still runs one assessment batch. PostgreSQL regression with 1001 attempts verifies the complete ordered history, assessed flags at both ends, 3 assessment queries (500+500+1), each <=500 bind values, and one batch for a 20-item page.
+- **P2 safe HTTP 500:** `SubmissionAttemptPagingControllerTest.mvcTransportNeverLeaksReadFailuresOnPageOrDetail` runs both routes through Spring `MockMvc` with injected service exceptions carrying sensitive paths. Checks HTTP status 500, exact `{\"code\":\"ATTEMPT_READ_FAILED\"}` and `Cache-Control: no-store` without information leakage. This tests Spring MVC handler routing and response serialization, not a real JDBC outage; HTTP 200/400/404 live PostgreSQL smoke remains separate.
+- **P3 measurement scope:** clarified above. Actual planner/index selection would require a separate `EXPLAIN` test; not proven by the statement-count probe.
+
+Code review follow-up should be performed on the updated commit and CI evidence; no merge/close before acceptance.
