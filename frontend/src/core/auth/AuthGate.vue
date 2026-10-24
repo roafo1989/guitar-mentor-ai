@@ -18,6 +18,7 @@ const error = ref('');
 const success = ref('');
 const verificationToken = ref('');
 const tokenFromLink = ref(false);
+const emailActionInProgress = ref(false);
 const identifierInput = ref<HTMLInputElement | null>(null);
 const tokenPattern = /^[a-f0-9]{64}$/;
 function clearTokenLikeIdentifier(): void {
@@ -31,6 +32,7 @@ function setMode(next: Mode) {
   password.value = ''; confirmPassword.value = '';
   if (next !== 'verify' && next !== 'reset') {
     verificationToken.value = ''; tokenFromLink.value = false;
+    emailActionInProgress.value = false;
   }
 }
 async function request(path: string, body: object): Promise<boolean> {
@@ -111,6 +113,7 @@ function consumeAuthFragment(): void {
   captureEmailActionLink();
   const link = takeEmailActionLink();
   if (!link) return;
+  emailActionInProgress.value = true;
   if (!link.token || !tokenPattern.test(link.token)) {
     verificationToken.value = '';
     tokenFromLink.value = false;
@@ -136,8 +139,8 @@ onMounted(() => {
 onBeforeUnmount(() => window.removeEventListener('hashchange', consumeAuthFragment));
 </script>
 <template>
-  <slot v-if="localPrototype || (auth.ready && auth.actor && !(mode === 'reset' && tokenFromLink))" />
-  <main v-else-if="auth.ready || (mode === 'reset' && tokenFromLink)" class="main-content auth-page" aria-live="polite">
+  <slot v-if="localPrototype || (auth.ready && auth.actor && !emailActionInProgress)" />
+  <main v-else-if="auth.ready || emailActionInProgress" class="main-content auth-page" aria-live="polite">
     <section class="auth-panel">
       <h1>{{ auth.expired ? t('auth.expired') : t('auth.welcome') }}</h1>
       <p>{{ label('Создайте аккаунт или войдите в Guitar Mentor AI.', 'Create an account or sign in to Guitar Mentor AI.') }}</p>
