@@ -87,6 +87,21 @@ class InvitationServicePostgresTest {
     }
 
     @Test
+    void expiredPendingInvitationCanBeReissuedForSameEmail() {
+        String oldToken = service.issue("renew@example.com", null, false);
+        jdbc.sql("UPDATE invitations SET expires_at=:past WHERE token_hash=:hash")
+            .param("past", java.sql.Timestamp.from(Instant.now().minusSeconds(60)))
+            .param("hash", InvitationService.digest(oldToken)).update();
+        String newToken = service.issue("renew@example.com", null, false);
+        assertNotEquals(oldToken, newToken);
+        assertEquals("REVOKED", jdbc.sql("SELECT status FROM invitations WHERE token_hash=:hash")
+            .param("hash", InvitationService.digest(oldToken)).query(String.class).single());
+        assertThrows(SecurityException.class, () -> service.activate(oldToken,
+            user("old-sub", "renew@example.com", true)));
+        assertNotNull(service.activate(newToken, user("new-sub", "renew@example.com", true)));
+    }
+
+    @Test
     void revokedAndAcceptedInvitationsCannotBeRevokedAgain() {
         String token=service.issue("revoked-again@example.com",null,false);
         UUID invite=jdbc.sql("SELECT id FROM invitations WHERE token_hash=:hash")
