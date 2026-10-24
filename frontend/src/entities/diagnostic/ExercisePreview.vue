@@ -151,8 +151,8 @@ onBeforeUnmount(() => pdfOpenController?.abort());
     <details :key="mediaIdentity" class="exercise-pdf-details" :open="pdfOpen"
       @toggle="onPdfToggle">
       <summary>{{ t('diagnostic.viewNotes') }}</summary>
-      <p v-if="checking" class="hint" role="status">{{ t('diagnostic.checkingMedia') }}</p>
-      <p v-else-if="pdfLoading" class="hint" role="status">{{ t('diagnostic.checkingMedia') }}</p>
+      <!-- Explicit PDF verification must not wait for unrelated initial audio HEAD. -->
+      <p v-if="pdfLoading || (checking && !pdfOpen)" class="hint" role="status">{{ t('diagnostic.checkingMedia') }}</p>
       <template v-else-if="pdfExists && exercise.previewPdfUrl">
         <div v-if="pdfOpen && pdfReady" class="score-frame-wrapper">
           <iframe :title="t('diagnostic.pdfTitle')" class="score-frame"
