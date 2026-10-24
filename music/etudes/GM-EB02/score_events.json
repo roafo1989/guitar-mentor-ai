@@ -35,7 +35,7 @@
       "beat": 1,
       "voice": 1,
       "note": "C4",
-      "string": 3,
+      "string": 2,
       "fret": 1,
       "durationQuarter": 1,
       "finger": "p"
@@ -75,7 +75,7 @@
       "beat": 1,
       "voice": 1,
       "note": "D4",
-      "string": 3,
+      "string": 2,
       "fret": 3,
       "durationQuarter": 1,
       "finger": "p"
@@ -155,7 +155,7 @@
       "beat": 1,
       "voice": 1,
       "note": "D4",
-      "string": 3,
+      "string": 2,
       "fret": 3,
       "durationQuarter": 1,
       "finger": "p"
@@ -195,7 +195,7 @@
       "beat": 1,
       "voice": 1,
       "note": "C4",
-      "string": 3,
+      "string": 2,
       "fret": 1,
       "durationQuarter": 1,
       "finger": "p"
@@ -235,7 +235,7 @@
       "beat": 1,
       "voice": 1,
       "note": "B3",
-      "string": 3,
+      "string": 2,
       "fret": 0,
       "durationQuarter": 1,
       "finger": "p"
@@ -245,7 +245,7 @@
       "beat": 2,
       "voice": 1,
       "note": "D4",
-      "string": 3,
+      "string": 2,
       "fret": 3,
       "durationQuarter": 1,
       "finger": "i"
@@ -285,7 +285,7 @@
       "beat": 2,
       "voice": 1,
       "note": "C4",
-      "string": 3,
+      "string": 2,
       "fret": 1,
       "durationQuarter": 1,
       "finger": "i"
@@ -325,7 +325,7 @@
       "beat": 2,
       "voice": 1,
       "note": "D4",
-      "string": 3,
+      "string": 2,
       "fret": 3,
       "durationQuarter": 1,
       "finger": "i"
