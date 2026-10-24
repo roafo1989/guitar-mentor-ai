@@ -16,7 +16,6 @@ const { t } = useI18n();
 const lightMinimal = import.meta.env?.VITE_GUITAR_MENTOR_LIGHT_MINIMAL === 'true';
 const inputMode = ref<'record' | 'file'>('record');
 const sourceKind = ref<'record' | 'file' | null>(null);
-const fileChooser = ref<HTMLInputElement | null>(null);
 const canSwitchInput = computed(() => !recordingActive.value && !uploading.value);
 function changeInputMode(next: 'record' | 'file'): void {
   if (!canSwitchInput.value || inputMode.value === next) return;
@@ -592,4 +591,36 @@ onBeforeUnmount(() => {
 
 .homework-panel:has(.recording-primary) .studio-discard-button {align-self:flex-start;border:0;background:transparent;color:#526e64;text-decoration:underline;font-size:12px;min-height:34px;cursor:pointer}
 .homework-panel:has(.recording-primary) .studio-discard-button:focus-visible {outline:2px solid #28776d}
+
+/* #150: two real independent card surfaces, with a single shared form/state. */
+.studio-workspace-panel {display:flex;flex-direction:column;gap:16px!important;border:0!important;padding:0!important;background:transparent!important;box-shadow:none!important}
+.studio-record-card,.studio-result-card {background:#fff;border:1px solid #e0e7e4;border-radius:16px;padding:18px;box-shadow:0 5px 24px #16233108;min-width:0}
+.studio-workspace-panel .studio-result-card :deep(.homework-history) {margin:0}
+.studio-workspace-panel .studio-result-card :deep(.action-button.secondary-button) {background:#f6f9f7;color:#28574a;border:1px solid #dbe6df}
+.studio-workspace-panel .studio-result-card :deep(details > summary) {cursor:pointer;display:flex;align-items:center;min-height:44px;padding:8px 2px;border-radius:8px}
+.studio-workspace-panel .studio-result-card :deep(details > summary:hover) {background:#f4f8f5}
+.studio-workspace-panel .studio-result-card :deep(details > summary:focus-visible) {outline:3px solid #28776d;outline-offset:2px}
+.recording-mode-tabs {display:grid;grid-template-columns:1fr 1fr;padding:4px;border-radius:12px;background:#f4f7f5;gap:4px}
+.recording-mode-tabs button {min-height:44px;min-width:0;padding:9px 5px;display:inline-flex;align-items:center;justify-content:center;gap:7px;border:0;border-radius:9px;background:transparent;color:#54645f;font:inherit;font-size:12px;font-weight:600;cursor:pointer}
+.recording-mode-tabs button[aria-selected=true] {background:#fff;color:#246a56;box-shadow:0 1px 4px #16233118}
+.recording-mode-tabs button:disabled {opacity:.6;cursor:not-allowed}
+.recording-mode-tabs button:focus-visible {outline:3px solid #28776d;outline-offset:2px}
+.input-mode-hidden {display:none!important}
+.studio-workspace-panel .recording-file-option {border:0;margin:0;padding:4px 0 0}
+.studio-file-input {position:absolute;width:1px;height:1px;opacity:0;overflow:hidden;clip-path:inset(50%)}
+.studio-file-picker {cursor:pointer;min-height:84px;border:1px dashed #94b9a6;border-radius:12px;background:#f7faf8;display:flex;align-items:center;justify-content:center;gap:10px;color:#276c54;padding:12px;text-align:center}
+.studio-file-input:focus-visible + .studio-file-picker {outline:3px solid #28776d;outline-offset:2px}
+.studio-file-input:disabled + .studio-file-picker {cursor:not-allowed;opacity:.45}
+.studio-record-card .studio-selected-file {display:flex;align-items:center;justify-content:space-between;gap:10px;padding:10px 12px;background:#f5f9f6;border:1px solid #e1eae3;border-radius:10px;min-width:0}
+.studio-attachment-info {min-width:0;display:flex;flex-direction:column;gap:3px;overflow-wrap:anywhere}
+.studio-attachment-info strong {font-size:12px}
+.studio-attachment-info small {font-size:11px;color:#6d7d76}
+.studio-workspace-panel .studio-discard-button {min-height:44px;display:inline-flex;align-items:center;justify-content:center;gap:5px;align-self:auto;flex:none;padding:8px 10px;border:1px solid #dce6e0;border-radius:9px;background:#fff;color:#566c64;font-size:12px;text-decoration:none;cursor:pointer}
+.studio-file-submit {min-height:44px;border:0;border-radius:10px;background:#28776d;color:white;font-weight:650;cursor:pointer}
+.studio-file-submit:disabled {opacity:.45;cursor:not-allowed}
+.studio-result-card > details.homework-history > summary {min-height:44px;padding:10px 8px;cursor:pointer;border-radius:9px}
+.studio-result-card > details.homework-history > summary:hover {background:#f4f8f5}
+.studio-result-card > details.homework-history > summary:focus-visible {outline:3px solid #28776d}
+.studio-record-card .recording-primary {margin:0}
+@media(max-width:430px) {.studio-record-card,.studio-result-card {padding:13px}.studio-record-card .studio-selected-file {flex-wrap:wrap}}
 </style>
