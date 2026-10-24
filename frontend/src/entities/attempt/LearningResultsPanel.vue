@@ -13,6 +13,7 @@ const props = defineProps<{
 }>();
 const emit = defineEmits<{ 'decision-busy': [value: boolean]; 'terminal-state': [value: boolean]; 'selected-id': [id: string]; 'latest-id': [id: string] }>();
 const { t } = useI18n();
+const lightMinimal = import.meta.env?.VITE_GUITAR_MENTOR_LIGHT_MINIMAL === 'true';
 const state = ref<TaskLearningView | null>(null);
 const assessments = ref<AssessmentView[]>([]);
 const decisions = ref<DecisionView[]>([]);
@@ -250,12 +251,18 @@ onBeforeUnmount(() => { ++generation; ++detailSequence; pending.value = null; })
 
 <template>
   <section class="homework-history" aria-labelledby="learning-title">
-    <h3 id="learning-title">{{ t('learning.title') }}</h3>
+    <div :class="{ 'studio-learning-heading': lightMinimal }">
+      <h3 id="learning-title">{{ t('learning.title') }}</h3>
+      <button type="button" class="action-button secondary-button" :class="{ 'studio-refresh-button': lightMinimal }"
+        :disabled="loading || sending" @click="refresh">
+        <svg v-if="lightMinimal" width="16" height="16" viewBox="0 0 24 24" fill="none"
+          stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+          <path d="M20 7v5h-5M4 17v-5h5"/><path d="M6 9a7 7 0 0 1 12-2l2 5M4 12l2 5a7 7 0 0 0 12-2"/>
+        </svg>{{ t('learning.refresh') }}
+      </button>
+    </div>
     <p v-if="loading" role="status">{{ t('learning.loading') }}</p>
-    <p v-if="error" class="error" role="alert">{{ error }}</p>
-    <button type="button" class="action-button secondary-button" :disabled="loading || sending" @click="refresh">
-      {{ t('learning.refresh') }}
-    </button>
+    <p v-if="error" :class="lightMinimal ? 'studio-learning-info' : 'error'" role="alert">{{ error }}</p>
     <template v-if="state">
       <p role="status">{{ t('learning.state.' + state.taskState) }}</p>
       <p v-if="terminal" class="hint">{{ t('learning.nextUnavailable') }}</p>
@@ -341,3 +348,11 @@ onBeforeUnmount(() => { ++generation; ++detailSequence; pending.value = null; })
     </template>
   </section>
 </template>
+
+<style scoped>
+.studio-learning-heading {display:flex;align-items:center;justify-content:space-between;gap:8px;margin:0 0 12px}
+.studio-learning-heading h3 {font-size:17px;line-height:1.35;margin:0}
+.studio-learning-heading .studio-refresh-button {min-height:36px;display:inline-flex;align-items:center;gap:5px;padding:6px 9px;border:1px solid #dbe5df;background:#f7faf8;border-radius:8px;color:#426b58;white-space:nowrap;font-size:12px;min-width:0}
+.studio-learning-info {padding:12px;border-radius:10px;color:#56665e;background:#f3f7f4;border:1px solid #e4ece5;font-size:13px;line-height:1.5}
+@media(max-width:360px){.studio-learning-heading {flex-wrap:wrap}}
+</style>
