@@ -197,7 +197,7 @@ onBeforeUnmount(() => pdfOpenController?.abort());
         <a :href="exercise.scoreUrl" download>{{ t('diagnostic.downloadScore') }}</a>
       </p>
     </details>
-    <div class="metronome-exercise-tool">
+    <div v-if="!assigned || !lightMinimal" class="metronome-exercise-tool">
       <button type="button" class="recorder-button metronome-exercise-launch"
         :title="t('metronome.openExercise')" @click="launchMetronome">
         {{ t('metronome.openExercise') }} · {{ exercise.bpm }} BPM · {{ exercise.meter }}
