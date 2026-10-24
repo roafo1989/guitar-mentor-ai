@@ -44,6 +44,11 @@ public class ExerciseVersionResourceService {
     @Transactional(readOnly = true)
     public ClassPathResource locate(String code, String version, Kind kind) {
         var exercise = find(code, version);
+        if ("DIAGNOSTIC_PROBE".equals(exercise.getContentKind())
+                && !ExercisePublicationPolicy.eligible(exercise)) {
+            throw failure(HttpStatus.NOT_FOUND, "EXERCISE_RESOURCE_NOT_FOUND",
+                    "Exercise resource not found");
+        }
         String path = switch (kind) {
             case SCORE -> exercise.getScoreResource();
             case EVENTS -> exercise.getEventsResource();
