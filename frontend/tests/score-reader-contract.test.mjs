@@ -328,7 +328,7 @@ test('#150 exercise metronome lives between recording and result without duplica
  assert.ok(submission.indexOf('class="studio-metronome-card"') < submission.indexOf('studio-result-card'));
  assert.match(submission,/openExerciseMetronome\(/);
  assert.match(submission,/metronomeBpm\.value, exercise\.meter, exercise\.tempoUnit, false/);
- assert.match(diagnostic,/:exercise="task\.exercise" @draft-state="onSubmissionDraft"/);
+ assert.match(diagnostic,/:exercise="task\.exercise" :sample-playing="samplePlaying" @draft-state="onSubmissionDraft"/);
 });
 
 test('#150 inline metronome controls BPM without opening settings', async () => {
