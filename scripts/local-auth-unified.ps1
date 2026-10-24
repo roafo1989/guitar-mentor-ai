@@ -87,9 +87,32 @@ foreach ($port in 8080,5173) {
         throw "Port $port is already in use. Stop old backend/frontend before restarting."
     }
 }
-$ps = (Get-Command pwsh -ErrorAction Stop).Source
-$backendCommand = "Set-Location -LiteralPath '$backend'; & '.\mvnw.cmd' spring-boot:run"
-$frontendCommand = "Set-Location -LiteralPath '$frontend'; npm run dev"
+# VS Code and Store-installed PowerShell may inherit a stale/partial PATH.
+# Refresh executable search paths from Windows user/machine configuration without
+# printing or persisting the secrets held in this launcher process.
+$machinePath = [Environment]::GetEnvironmentVariable('Path', 'Machine')
+$userPath = [Environment]::GetEnvironmentVariable('Path', 'User')
+$extraPaths = @(
+    (Join-Path $env:WINDIR 'System32\\WindowsPowerShell\\v1.0'),
+    (Join-Path $env:ProgramFiles 'nodejs')
+)
+$segments = @($env:Path, $machinePath, $userPath) + $extraPaths
+$env:Path = ($segments | Where-Object { -not [string]::IsNullOrWhiteSpace($_) }) -join ';'
+
+$missing = @()
+foreach ($tool in @('powershell.exe', 'java.exe', 'npm.cmd', 'pwsh.exe')) {
+    if (-not (Get-Command $tool -ErrorAction SilentlyContinue)) { $missing += $tool }
+}
+if ($missing.Count -gt 0) {
+    throw "Missing command(s): $($missing -join ', '). Check installation and Windows PATH. Reopen VS Code after installing Java/Node.js."
+}
+
+$ps = (Get-Command pwsh.exe -ErrorAction Stop).Source
+$npm = (Get-Command npm.cmd -ErrorAction Stop).Source
+# Use cmd.exe only to launch native Maven/npm wrappers (on Windows these are .cmd).
+# All protected environment values are inherited, never interpolated into command arguments.
+$backendCommand = "Set-Location -LiteralPath '$backend'; & '.\\mvnw.cmd' spring-boot:run"
+$frontendCommand = "Set-Location -LiteralPath '$frontend'; & '$npm' run dev"
 Start-Process -FilePath $ps -ArgumentList @('-NoExit', '-Command', $backendCommand)
 Start-Process -FilePath $ps -ArgumentList @('-NoExit', '-Command', $frontendCommand)
 Write-Host 'Started private backend and Vite terminals. Open http://localhost:5173.'
