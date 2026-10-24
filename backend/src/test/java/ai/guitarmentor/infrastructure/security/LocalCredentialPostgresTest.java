@@ -129,7 +129,7 @@ class LocalCredentialPostgresTest {
         verify(sender,atLeastOnce()).send(captor.capture());
         var text=captor.getAllValues().getLast().getText();
         assertNotNull(text);
-        assertTrue(text.contains("\\nIf you did not request this, ignore this message."),
+        assertTrue(text.contains("\nIf you did not request this, ignore this message."),
             "Verification and reset emails must contain a real line break");
         var match=TOKEN.matcher(text);
         assertTrue(match.find());
