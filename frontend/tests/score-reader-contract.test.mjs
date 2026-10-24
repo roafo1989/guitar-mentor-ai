@@ -152,3 +152,23 @@ test('#148/#149 regression: unified local launcher retains accepted Light Minima
  assert.match(launcher,/\$env:VITE_GUITAR_MENTOR_LIGHT_MINIMAL = 'true'/);
  assert.match(launcher,/\$env:VITE_GUITAR_MENTOR_AUTH_REQUIRED = 'true'/);
 });
+
+
+test('#150 microphone recording is available independently of upload capability', async () => {
+  const submission = await readFile(new URL('../src/entities/attempt/SubmissionPanel.vue', import.meta.url), 'utf8');
+  const recorder = await readFile(new URL('../src/entities/attempt/MicrophoneRecorder.vue', import.meta.url), 'utf8');
+  const uses = [...submission.matchAll(/<MicrophoneRecorder\b[^>]*:[d]isabled="([^"]+)"/g)];
+  assert.equal(uses.length, 2, 'both feature-flag branches mount the same recording contract');
+  for (const match of uses) {
+    assert.doesNotMatch(match[1], /capabilities\??\.enabled/, 'local recording must not be gated on server upload');
+    assert.match(match[1], /learningTerminal/);
+    assert.match(match[1], /uploading/);
+  }
+  assert.match(submission, /!capabilities\.value\?\.enabled/, 'server submission must remain upload-gated');
+  assert.match(recorder, /navigator\.mediaDevices\.getUserMedia/);
+  assert.match(recorder, /emit\('recorded', new File/);
+  for (const lang of ['ru','en']) {
+    const dict = JSON.parse(await readFile(new URL('../src/i18n/'+lang+'.json', import.meta.url), 'utf8'));
+    assert.ok(dict.attempt.localRecordingAvailable);
+  }
+});
