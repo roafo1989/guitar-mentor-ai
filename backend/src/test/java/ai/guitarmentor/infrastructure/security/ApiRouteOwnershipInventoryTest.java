@@ -26,6 +26,9 @@ class ApiRouteOwnershipInventoryTest {
         "/api/v1/local-auth/login",
         "/api/v1/local-auth/request-reset",
         "/api/v1/local-auth/reset",
+        // Desktop-only OAuth handoff: Origin+CSRF, nonce, original session binding, one use.
+        "/api/v1/oauth-bridge/start",
+        "/api/v1/oauth-bridge/consume",
         // Authenticated CurrentActor + current password, never client-selected account.
         "/api/v1/local-auth/change",
         "/api/v1/local-auth/methods",

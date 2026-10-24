@@ -24,6 +24,17 @@ public class LocalCredentialService {
     // Precomputed once: do not allocate a new Argon2 hash for every login attempt.
     private final String dummyPasswordHash = encoder.encode("not-a-real-credential-value");
     private final SecureRandom random = new SecureRandom();
+    @Value("${guitar-mentor.security.local-http:false}")
+    private boolean localHttp;
+    @Value("${server.address:127.0.0.1}")
+    private String serverBind = "127.0.0.1";
+    private static boolean loopback(String bind) {
+        return "127.0.0.1".equals(bind) || "::1".equals(bind) || "localhost".equals(bind);
+    }
+    static boolean allowedMailOrigin(String origin, boolean localHttp, String bind) {
+        return origin != null && (origin.matches("https://[^/\\s?#]+(?::[0-9]+)?")
+                || (localHttp && loopback(bind) && "http://localhost:5173".equals(origin)));
+    }
     private final String publicOrigin;
     private final String from;
     public LocalCredentialService(JdbcClient jdbc, org.springframework.beans.factory.ObjectProvider<JavaMailSender> mail,
@@ -45,7 +56,7 @@ public class LocalCredentialService {
         return HexFormat.of().formatHex(bytes);
     }
     private void send(String destination, String subject, String token, String action) {
-        if (!publicOrigin.matches("https://[^/\\s?#]+(?::[0-9]+)?")
+        if (!allowedMailOrigin(publicOrigin, localHttp, serverBind)
             || from.isBlank()) throw new IllegalStateException("MAIL_NOT_CONFIGURED");
         SimpleMailMessage message = new SimpleMailMessage();
         message.setTo(destination); message.setFrom(from); message.setSubject(subject);

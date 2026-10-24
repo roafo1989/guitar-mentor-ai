@@ -79,7 +79,28 @@ export async function refreshActor(): Promise<void> {
 }
 
 export function login(): void {
-  window.location.assign('/oauth2/authorization/guitar-mentor');
+  if (import.meta.env?.VITE_GUITAR_MENTOR_OAUTH_BRIDGE !== 'true') {
+    window.location.assign('/oauth2/authorization/guitar-mentor');
+    return;
+  }
+  // Browser stays on the short HTTPS alias outside the Google authentication
+  // exchange; the server binds its localhost callback to this HTTPS session.
+  void (async () => {
+    const response = await fetch('/api/v1/oauth-bridge/start', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: '{}',
+      credentials: 'same-origin',
+    });
+    if (!response.ok) throw new Error('OAUTH_BRIDGE_START_FAILED');
+    const body = await response.json() as { beginUrl: string };
+    if (!/^http:\/\/localhost:5173\/oauth-bridge\/begin\?nonce=[a-f0-9]{64}$/.test(body.beginUrl)) {
+      throw new Error('UNEXPECTED_OAUTH_BRIDGE_URL');
+    }
+    window.location.assign(body.beginUrl);
+  })().catch(() => {
+    window.location.assign('/?auth=bridge_start_failed');
+  });
 }
 
 export async function logout(onLogout: () => void): Promise<void> {
