@@ -136,8 +136,7 @@ public class SubmissionAttemptController {
 
     @ExceptionHandler(jakarta.persistence.EntityNotFoundException.class)
     public ResponseEntity<Map<String,String>> missingTask() {
-        return ResponseEntity.status(org.springframework.http.HttpStatus.NOT_FOUND)
-                .body(Map.of("code","RESOURCE_NOT_FOUND"));
+        return safeError(HttpStatus.NOT_FOUND, "RESOURCE_NOT_FOUND");
     }
 
     @PostMapping(consumes = "multipart/form-data")
