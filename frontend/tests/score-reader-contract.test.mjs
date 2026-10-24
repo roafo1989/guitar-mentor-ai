@@ -203,7 +203,7 @@ test('#150 design acceptance: assigned preview has real audio, capture waveform 
  assert.match(microphone,/class="studio-live-wave"/);
  assert.match(microphone,/meterLevel/);
  assert.match(microphone,/v-if="supported \|\| !compact" class="microphone-controls"/);
- assert.match(submission,/class="studio-results-divider"/);
+ assert.match(submission,/studio-result-card/);
  assert.match(reader,/v-if="!fitWidth"/);
  assert.match(reader,/justify-content:flex-end/);
 });
@@ -251,5 +251,31 @@ test('#150 approved microphone row has mic icon, compact controls and valid disa
  for (const lang of ['ru','en']){
   const j=JSON.parse(await readFile(new URL('../src/i18n/'+lang+'.json',import.meta.url),'utf8'));
   assert.ok(j.attempt.listenShort && j.attempt.submitShort && j.attempt.pausePlayback);
+ }
+});
+
+test('#150 selected input tabs and two result cards preserve one shared upload owner',async()=>{
+ const view=await readFile(new URL('../src/entities/attempt/SubmissionPanel.vue',import.meta.url),'utf8');
+ const reader=await readFile(new URL('../src/entities/diagnostic/ExercisePreview.vue',import.meta.url),'utf8');
+ assert.match(view,/class="recording-mode-tabs" role="tablist"/);
+ assert.match(view,/role="tabpanel"/);
+ assert.match(view,/changeInputMode/);
+ assert.match(view,/inputModeKeys/);
+ assert.match(view,/!canSwitchInput/);
+ assert.match(view,/sourceKind.value = 'record'/);
+ assert.match(view,/sourceKind.value = 'file'/);
+ assert.match(view,/class="studio-file-picker"/);
+ assert.match(view,/class="studio-selected-file"/);
+ assert.match(view,/class="studio-discard-button"/);
+ assert.match(view,/studio-record-card/);
+ assert.match(view,/studio-result-card/);
+ assert.equal((view.match(/<LearningResultsPanel /g)||[]).length,1);
+ assert.match(reader,/studioTab === 'score'/);
+ assert.match(reader,/studioTab === 'description'/);
+ assert.match(reader,/viewBox="0 0 24 24"/);
+ for(const lang of ['ru','en']) {
+   const j=JSON.parse(await readFile(new URL('../src/i18n/'+lang+'.json',import.meta.url),'utf8'));
+   for(const key of ['recordTab','fileTab','chooseFile','removeAttachment'])
+    assert.ok(j.attempt[key]);
  }
 });
