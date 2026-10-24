@@ -168,8 +168,8 @@ public final class LibraryOriginalController {
             @RequestHeader(value="Idempotency-Key",required=false) String idempotency,
             @RequestPart("metadata") Map<String,Object> metadata,
             @RequestPart("files") List<MultipartFile> files) {
-        Metadata parsed=parseMetadata(metadata);
         UUID owner=actor(request);
+        Metadata parsed=parseMetadata(metadata);
         rate("account:"+owner,10);
         rate("source:"+request.getRemoteAddr(),30);
         var actorGate=ACTOR_UPLOADS.computeIfAbsent(owner,id->new java.util.concurrent.Semaphore(1,true));
