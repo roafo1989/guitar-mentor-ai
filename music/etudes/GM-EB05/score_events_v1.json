@@ -1,0 +1,1258 @@
+{
+  "metadata": {
+    "id": "GM-EB05",
+    "version": "1.0.1",
+    "title": "Midnight Train Blues",
+    "source": "ORIGINAL",
+    "license": "CC BY 4.0",
+    "status": "PENDING_MUSICAL_REVIEW",
+    "instrument": "ACOUSTIC_GUITAR",
+    "technique": "FINGERSTYLE",
+    "meter": "4/4",
+    "bpm": 88,
+    "bars": 12,
+    "tuning": "E A D G B E",
+    "learningGoal": "Independent alternating quarter-note thumb bass with syncopated melodic phrases, rests and a resolved blues ending",
+    "practiceInstructions": "Standard tuning; right hand p for bass, i/m/a for melody; no pick or percussion. Start at 60 BPM, count 1-and-2-and-3-and-4-and, then grow to 88 BPM. Hold the 12th-bar E melody for four beats over the bass.",
+    "successCriteria": [
+      "Four even quarter-note bass attacks in each bar",
+      "Treble syncopations and intentional rests preserved",
+      "Harmonic transition C#7–F#m7–B7–E7 played cleanly",
+      "Final sustained E over E7 bass at bar 12"
+    ],
+    "review": {
+      "guitarPlayability": "PENDING_OWNER",
+      "ownerListening": "PENDING_OWNER"
+    },
+    "media": {
+      "audio": "NOT_RENDERED",
+      "pdf": "NOT_RENDERED"
+    }
+  },
+  "measures": [
+    {
+      "bar": 1,
+      "chord": "E7",
+      "label": "Independent thumb and syncopated melody",
+      "bass": [
+        {
+          "beat": 0,
+          "length": 1,
+          "notes": [
+            {
+              "string": 6,
+              "fret": 0
+            }
+          ],
+          "velocity": 83,
+          "technique": "thumb"
+        },
+        {
+          "beat": 1,
+          "length": 1,
+          "notes": [
+            {
+              "string": 5,
+              "fret": 2
+            }
+          ],
+          "velocity": 74,
+          "technique": "thumb"
+        },
+        {
+          "beat": 2,
+          "length": 1,
+          "notes": [
+            {
+              "string": 6,
+              "fret": 0
+            }
+          ],
+          "velocity": 83,
+          "technique": "thumb"
+        },
+        {
+          "beat": 3,
+          "length": 1,
+          "notes": [
+            {
+              "string": 5,
+              "fret": 2
+            }
+          ],
+          "velocity": 74,
+          "technique": "thumb"
+        }
+      ],
+      "upper": [
+        {
+          "beat": 0.5,
+          "length": 0.5,
+          "notes": [
+            {
+              "string": 2,
+              "fret": 3
+            }
+          ],
+          "velocity": 86,
+          "technique": "pluck"
+        },
+        {
+          "beat": 1.5,
+          "length": 0.5,
+          "notes": [
+            {
+              "string": 1,
+              "fret": 0
+            }
+          ],
+          "velocity": 86,
+          "technique": "pluck"
+        },
+        {
+          "beat": 2.5,
+          "length": 0.5,
+          "notes": [
+            {
+              "string": 1,
+              "fret": 3
+            }
+          ],
+          "velocity": 86,
+          "technique": "pluck"
+        },
+        {
+          "beat": 3,
+          "length": 1,
+          "notes": [
+            {
+              "string": 1,
+              "fret": 4
+            }
+          ],
+          "velocity": 86,
+          "technique": "pluck"
+        }
+      ]
+    },
+    {
+      "bar": 2,
+      "chord": "E7",
+      "label": "Independent thumb and syncopated melody",
+      "bass": [
+        {
+          "beat": 0,
+          "length": 1,
+          "notes": [
+            {
+              "string": 6,
+              "fret": 0
+            }
+          ],
+          "velocity": 83,
+          "technique": "thumb"
+        },
+        {
+          "beat": 1,
+          "length": 1,
+          "notes": [
+            {
+              "string": 5,
+              "fret": 2
+            }
+          ],
+          "velocity": 74,
+          "technique": "thumb"
+        },
+        {
+          "beat": 2,
+          "length": 1,
+          "notes": [
+            {
+              "string": 6,
+              "fret": 0
+            }
+          ],
+          "velocity": 83,
+          "technique": "thumb"
+        },
+        {
+          "beat": 3,
+          "length": 1,
+          "notes": [
+            {
+              "string": 5,
+              "fret": 2
+            }
+          ],
+          "velocity": 74,
+          "technique": "thumb"
+        }
+      ],
+      "upper": [
+        {
+          "beat": 0,
+          "length": 1,
+          "notes": [
+            {
+              "string": 2,
+              "fret": 3
+            }
+          ],
+          "velocity": 86,
+          "technique": "pluck"
+        },
+        {
+          "beat": 1.5,
+          "length": 0.5,
+          "notes": [
+            {
+              "string": 1,
+              "fret": 0
+            }
+          ],
+          "velocity": 86,
+          "technique": "pluck"
+        },
+        {
+          "beat": 2,
+          "length": 1,
+          "notes": [
+            {
+              "string": 2,
+              "fret": 3
+            }
+          ],
+          "velocity": 86,
+          "technique": "pluck"
+        },
+        {
+          "beat": 3.5,
+          "length": 0.5,
+          "notes": [
+            {
+              "string": 1,
+              "fret": 0
+            }
+          ],
+          "velocity": 86,
+          "technique": "pluck"
+        }
+      ]
+    },
+    {
+      "bar": 3,
+      "chord": "A7",
+      "label": "Independent thumb and syncopated melody",
+      "bass": [
+        {
+          "beat": 0,
+          "length": 1,
+          "notes": [
+            {
+              "string": 5,
+              "fret": 0
+            }
+          ],
+          "velocity": 83,
+          "technique": "thumb"
+        },
+        {
+          "beat": 1,
+          "length": 1,
+          "notes": [
+            {
+              "string": 4,
+              "fret": 2
+            }
+          ],
+          "velocity": 74,
+          "technique": "thumb"
+        },
+        {
+          "beat": 2,
+          "length": 1,
+          "notes": [
+            {
+              "string": 5,
+              "fret": 0
+            }
+          ],
+          "velocity": 83,
+          "technique": "thumb"
+        },
+        {
+          "beat": 3,
+          "length": 1,
+          "notes": [
+            {
+              "string": 4,
+              "fret": 2
+            }
+          ],
+          "velocity": 74,
+          "technique": "thumb"
+        }
+      ],
+      "upper": [
+        {
+          "beat": 0.5,
+          "length": 0.5,
+          "notes": [
+            {
+              "string": 2,
+              "fret": 2
+            }
+          ],
+          "velocity": 86,
+          "technique": "pluck"
+        },
+        {
+          "beat": 1,
+          "length": 0.5,
+          "notes": [
+            {
+              "string": 1,
+              "fret": 0
+            }
+          ],
+          "velocity": 86,
+          "technique": "pluck"
+        },
+        {
+          "beat": 2,
+          "length": 1,
+          "notes": [
+            {
+              "string": 1,
+              "fret": 3
+            }
+          ],
+          "velocity": 86,
+          "technique": "pluck"
+        },
+        {
+          "beat": 3.5,
+          "length": 0.5,
+          "notes": [
+            {
+              "string": 2,
+              "fret": 2
+            }
+          ],
+          "velocity": 86,
+          "technique": "pluck"
+        }
+      ]
+    },
+    {
+      "bar": 4,
+      "chord": "E7",
+      "label": "Independent thumb and syncopated melody",
+      "bass": [
+        {
+          "beat": 0,
+          "length": 1,
+          "notes": [
+            {
+              "string": 6,
+              "fret": 0
+            }
+          ],
+          "velocity": 83,
+          "technique": "thumb"
+        },
+        {
+          "beat": 1,
+          "length": 1,
+          "notes": [
+            {
+              "string": 5,
+              "fret": 2
+            }
+          ],
+          "velocity": 74,
+          "technique": "thumb"
+        },
+        {
+          "beat": 2,
+          "length": 1,
+          "notes": [
+            {
+              "string": 6,
+              "fret": 0
+            }
+          ],
+          "velocity": 83,
+          "technique": "thumb"
+        },
+        {
+          "beat": 3,
+          "length": 1,
+          "notes": [
+            {
+              "string": 5,
+              "fret": 2
+            }
+          ],
+          "velocity": 74,
+          "technique": "thumb"
+        }
+      ],
+      "upper": [
+        {
+          "beat": 0,
+          "length": 1,
+          "notes": [
+            {
+              "string": 1,
+              "fret": 0
+            }
+          ],
+          "velocity": 86,
+          "technique": "pluck"
+        },
+        {
+          "beat": 1.5,
+          "length": 0.5,
+          "notes": [
+            {
+              "string": 1,
+              "fret": 3
+            }
+          ],
+          "velocity": 86,
+          "technique": "pluck"
+        },
+        {
+          "beat": 2,
+          "length": 1,
+          "notes": [
+            {
+              "string": 1,
+              "fret": 4
+            }
+          ],
+          "velocity": 86,
+          "technique": "pluck"
+        },
+        {
+          "beat": 3,
+          "length": 1,
+          "notes": [
+            {
+              "string": 1,
+              "fret": 0
+            }
+          ],
+          "velocity": 86,
+          "technique": "pluck"
+        }
+      ]
+    },
+    {
+      "bar": 5,
+      "chord": "A7",
+      "label": "Independent thumb and syncopated melody",
+      "bass": [
+        {
+          "beat": 0,
+          "length": 1,
+          "notes": [
+            {
+              "string": 5,
+              "fret": 0
+            }
+          ],
+          "velocity": 83,
+          "technique": "thumb"
+        },
+        {
+          "beat": 1,
+          "length": 1,
+          "notes": [
+            {
+              "string": 4,
+              "fret": 2
+            }
+          ],
+          "velocity": 74,
+          "technique": "thumb"
+        },
+        {
+          "beat": 2,
+          "length": 1,
+          "notes": [
+            {
+              "string": 5,
+              "fret": 0
+            }
+          ],
+          "velocity": 83,
+          "technique": "thumb"
+        },
+        {
+          "beat": 3,
+          "length": 1,
+          "notes": [
+            {
+              "string": 4,
+              "fret": 2
+            }
+          ],
+          "velocity": 74,
+          "technique": "thumb"
+        }
+      ],
+      "upper": [
+        {
+          "beat": 0.5,
+          "length": 0.5,
+          "notes": [
+            {
+              "string": 2,
+              "fret": 2
+            }
+          ],
+          "velocity": 86,
+          "technique": "pluck"
+        },
+        {
+          "beat": 1.5,
+          "length": 0.5,
+          "notes": [
+            {
+              "string": 1,
+              "fret": 3
+            }
+          ],
+          "velocity": 86,
+          "technique": "pluck"
+        },
+        {
+          "beat": 2.5,
+          "length": 0.5,
+          "notes": [
+            {
+              "string": 1,
+              "fret": 0
+            }
+          ],
+          "velocity": 86,
+          "technique": "pluck"
+        },
+        {
+          "beat": 3,
+          "length": 1,
+          "notes": [
+            {
+              "string": 2,
+              "fret": 2
+            }
+          ],
+          "velocity": 86,
+          "technique": "pluck"
+        }
+      ]
+    },
+    {
+      "bar": 6,
+      "chord": "A7",
+      "label": "Independent thumb and syncopated melody",
+      "bass": [
+        {
+          "beat": 0,
+          "length": 1,
+          "notes": [
+            {
+              "string": 5,
+              "fret": 0
+            }
+          ],
+          "velocity": 83,
+          "technique": "thumb"
+        },
+        {
+          "beat": 1,
+          "length": 1,
+          "notes": [
+            {
+              "string": 4,
+              "fret": 2
+            }
+          ],
+          "velocity": 74,
+          "technique": "thumb"
+        },
+        {
+          "beat": 2,
+          "length": 1,
+          "notes": [
+            {
+              "string": 5,
+              "fret": 0
+            }
+          ],
+          "velocity": 83,
+          "technique": "thumb"
+        },
+        {
+          "beat": 3,
+          "length": 1,
+          "notes": [
+            {
+              "string": 4,
+              "fret": 2
+            }
+          ],
+          "velocity": 74,
+          "technique": "thumb"
+        }
+      ],
+      "upper": [
+        {
+          "beat": 0,
+          "length": 0.5,
+          "notes": [
+            {
+              "string": 2,
+              "fret": 2
+            }
+          ],
+          "velocity": 86,
+          "technique": "pluck"
+        },
+        {
+          "beat": 1,
+          "length": 0.5,
+          "notes": [
+            {
+              "string": 1,
+              "fret": 0
+            }
+          ],
+          "velocity": 86,
+          "technique": "pluck"
+        },
+        {
+          "beat": 2,
+          "length": 1,
+          "notes": [
+            {
+              "string": 1,
+              "fret": 3
+            }
+          ],
+          "velocity": 86,
+          "technique": "pluck"
+        },
+        {
+          "beat": 3.5,
+          "length": 0.5,
+          "notes": [
+            {
+              "string": 1,
+              "fret": 0
+            }
+          ],
+          "velocity": 86,
+          "technique": "pluck"
+        }
+      ]
+    },
+    {
+      "bar": 7,
+      "chord": "E7",
+      "label": "Independent thumb and syncopated melody",
+      "bass": [
+        {
+          "beat": 0,
+          "length": 1,
+          "notes": [
+            {
+              "string": 6,
+              "fret": 0
+            }
+          ],
+          "velocity": 83,
+          "technique": "thumb"
+        },
+        {
+          "beat": 1,
+          "length": 1,
+          "notes": [
+            {
+              "string": 5,
+              "fret": 2
+            }
+          ],
+          "velocity": 74,
+          "technique": "thumb"
+        },
+        {
+          "beat": 2,
+          "length": 1,
+          "notes": [
+            {
+              "string": 6,
+              "fret": 0
+            }
+          ],
+          "velocity": 83,
+          "technique": "thumb"
+        },
+        {
+          "beat": 3,
+          "length": 1,
+          "notes": [
+            {
+              "string": 5,
+              "fret": 2
+            }
+          ],
+          "velocity": 74,
+          "technique": "thumb"
+        }
+      ],
+      "upper": [
+        {
+          "beat": 0.5,
+          "length": 0.5,
+          "notes": [
+            {
+              "string": 1,
+              "fret": 0
+            }
+          ],
+          "velocity": 86,
+          "technique": "pluck"
+        },
+        {
+          "beat": 1,
+          "length": 0.5,
+          "notes": [
+            {
+              "string": 1,
+              "fret": 3
+            }
+          ],
+          "velocity": 86,
+          "technique": "pluck"
+        },
+        {
+          "beat": 2.5,
+          "length": 0.5,
+          "notes": [
+            {
+              "string": 2,
+              "fret": 3
+            }
+          ],
+          "velocity": 86,
+          "technique": "pluck"
+        },
+        {
+          "beat": 3,
+          "length": 1,
+          "notes": [
+            {
+              "string": 1,
+              "fret": 0
+            }
+          ],
+          "velocity": 86,
+          "technique": "pluck"
+        }
+      ]
+    },
+    {
+      "bar": 8,
+      "chord": "C#7",
+      "label": "Independent thumb and syncopated melody",
+      "bass": [
+        {
+          "beat": 0,
+          "length": 1,
+          "notes": [
+            {
+              "string": 5,
+              "fret": 4
+            }
+          ],
+          "velocity": 83,
+          "technique": "thumb"
+        },
+        {
+          "beat": 1,
+          "length": 1,
+          "notes": [
+            {
+              "string": 6,
+              "fret": 4
+            }
+          ],
+          "velocity": 74,
+          "technique": "thumb"
+        },
+        {
+          "beat": 2,
+          "length": 1,
+          "notes": [
+            {
+              "string": 5,
+              "fret": 4
+            }
+          ],
+          "velocity": 83,
+          "technique": "thumb"
+        },
+        {
+          "beat": 3,
+          "length": 1,
+          "notes": [
+            {
+              "string": 6,
+              "fret": 4
+            }
+          ],
+          "velocity": 74,
+          "technique": "thumb"
+        }
+      ],
+      "upper": [
+        {
+          "beat": 0,
+          "length": 1,
+          "notes": [
+            {
+              "string": 2,
+              "fret": 2
+            }
+          ],
+          "velocity": 86,
+          "technique": "pluck"
+        },
+        {
+          "beat": 1.5,
+          "length": 0.5,
+          "notes": [
+            {
+              "string": 1,
+              "fret": 1
+            }
+          ],
+          "velocity": 86,
+          "technique": "pluck"
+        },
+        {
+          "beat": 2.5,
+          "length": 0.5,
+          "notes": [
+            {
+              "string": 2,
+              "fret": 2
+            }
+          ],
+          "velocity": 86,
+          "technique": "pluck"
+        },
+        {
+          "beat": 3,
+          "length": 1,
+          "notes": [
+            {
+              "string": 1,
+              "fret": 1
+            }
+          ],
+          "velocity": 86,
+          "technique": "pluck"
+        }
+      ]
+    },
+    {
+      "bar": 9,
+      "chord": "F#m7",
+      "label": "Independent thumb and syncopated melody",
+      "bass": [
+        {
+          "beat": 0,
+          "length": 1,
+          "notes": [
+            {
+              "string": 6,
+              "fret": 2
+            }
+          ],
+          "velocity": 83,
+          "technique": "thumb"
+        },
+        {
+          "beat": 1,
+          "length": 1,
+          "notes": [
+            {
+              "string": 5,
+              "fret": 4
+            }
+          ],
+          "velocity": 74,
+          "technique": "thumb"
+        },
+        {
+          "beat": 2,
+          "length": 1,
+          "notes": [
+            {
+              "string": 6,
+              "fret": 2
+            }
+          ],
+          "velocity": 83,
+          "technique": "thumb"
+        },
+        {
+          "beat": 3,
+          "length": 1,
+          "notes": [
+            {
+              "string": 5,
+              "fret": 4
+            }
+          ],
+          "velocity": 74,
+          "technique": "thumb"
+        }
+      ],
+      "upper": [
+        {
+          "beat": 0.5,
+          "length": 0.5,
+          "notes": [
+            {
+              "string": 1,
+              "fret": 2
+            }
+          ],
+          "velocity": 86,
+          "technique": "pluck"
+        },
+        {
+          "beat": 1,
+          "length": 1,
+          "notes": [
+            {
+              "string": 2,
+              "fret": 2
+            }
+          ],
+          "velocity": 86,
+          "technique": "pluck"
+        },
+        {
+          "beat": 2.5,
+          "length": 0.5,
+          "notes": [
+            {
+              "string": 1,
+              "fret": 0
+            }
+          ],
+          "velocity": 86,
+          "technique": "pluck"
+        },
+        {
+          "beat": 3,
+          "length": 1,
+          "notes": [
+            {
+              "string": 1,
+              "fret": 2
+            }
+          ],
+          "velocity": 86,
+          "technique": "pluck"
+        }
+      ]
+    },
+    {
+      "bar": 10,
+      "chord": "B7",
+      "label": "Independent thumb and syncopated melody",
+      "bass": [
+        {
+          "beat": 0,
+          "length": 1,
+          "notes": [
+            {
+              "string": 5,
+              "fret": 2
+            }
+          ],
+          "velocity": 83,
+          "technique": "thumb"
+        },
+        {
+          "beat": 1,
+          "length": 1,
+          "notes": [
+            {
+              "string": 6,
+              "fret": 2
+            }
+          ],
+          "velocity": 74,
+          "technique": "thumb"
+        },
+        {
+          "beat": 2,
+          "length": 1,
+          "notes": [
+            {
+              "string": 5,
+              "fret": 2
+            }
+          ],
+          "velocity": 83,
+          "technique": "thumb"
+        },
+        {
+          "beat": 3,
+          "length": 1,
+          "notes": [
+            {
+              "string": 6,
+              "fret": 2
+            }
+          ],
+          "velocity": 74,
+          "technique": "thumb"
+        }
+      ],
+      "upper": [
+        {
+          "beat": 0,
+          "length": 0.5,
+          "notes": [
+            {
+              "string": 2,
+              "fret": 0
+            }
+          ],
+          "velocity": 86,
+          "technique": "pluck"
+        },
+        {
+          "beat": 1,
+          "length": 0.5,
+          "notes": [
+            {
+              "string": 1,
+              "fret": 2
+            }
+          ],
+          "velocity": 86,
+          "technique": "pluck"
+        },
+        {
+          "beat": 2,
+          "length": 1,
+          "notes": [
+            {
+              "string": 2,
+              "fret": 4
+            }
+          ],
+          "velocity": 86,
+          "technique": "pluck"
+        },
+        {
+          "beat": 3.5,
+          "length": 0.5,
+          "notes": [
+            {
+              "string": 1,
+              "fret": 2
+            }
+          ],
+          "velocity": 86,
+          "technique": "pluck"
+        }
+      ]
+    },
+    {
+      "bar": 11,
+      "chord": "E7",
+      "label": "Independent thumb and syncopated melody",
+      "bass": [
+        {
+          "beat": 0,
+          "length": 1,
+          "notes": [
+            {
+              "string": 6,
+              "fret": 0
+            }
+          ],
+          "velocity": 83,
+          "technique": "thumb"
+        },
+        {
+          "beat": 1,
+          "length": 1,
+          "notes": [
+            {
+              "string": 5,
+              "fret": 2
+            }
+          ],
+          "velocity": 74,
+          "technique": "thumb"
+        },
+        {
+          "beat": 2,
+          "length": 1,
+          "notes": [
+            {
+              "string": 6,
+              "fret": 0
+            }
+          ],
+          "velocity": 83,
+          "technique": "thumb"
+        },
+        {
+          "beat": 3,
+          "length": 1,
+          "notes": [
+            {
+              "string": 5,
+              "fret": 2
+            }
+          ],
+          "velocity": 74,
+          "technique": "thumb"
+        }
+      ],
+      "upper": [
+        {
+          "beat": 0.5,
+          "length": 0.5,
+          "notes": [
+            {
+              "string": 1,
+              "fret": 3
+            }
+          ],
+          "velocity": 86,
+          "technique": "pluck"
+        },
+        {
+          "beat": 1,
+          "length": 0.5,
+          "notes": [
+            {
+              "string": 1,
+              "fret": 4
+            }
+          ],
+          "velocity": 86,
+          "technique": "pluck"
+        },
+        {
+          "beat": 2,
+          "length": 1,
+          "notes": [
+            {
+              "string": 1,
+              "fret": 0
+            }
+          ],
+          "velocity": 86,
+          "technique": "pluck"
+        },
+        {
+          "beat": 3,
+          "length": 1,
+          "notes": [
+            {
+              "string": 2,
+              "fret": 3
+            }
+          ],
+          "velocity": 86,
+          "technique": "pluck"
+        }
+      ]
+    },
+    {
+      "bar": 12,
+      "chord": "E7",
+      "label": "Cadence: E7",
+      "bass": [
+        {
+          "beat": 0,
+          "length": 1,
+          "notes": [
+            {
+              "string": 6,
+              "fret": 0
+            }
+          ],
+          "velocity": 83,
+          "technique": "thumb"
+        },
+        {
+          "beat": 1,
+          "length": 1,
+          "notes": [
+            {
+              "string": 5,
+              "fret": 2
+            }
+          ],
+          "velocity": 74,
+          "technique": "thumb"
+        },
+        {
+          "beat": 2,
+          "length": 1,
+          "notes": [
+            {
+              "string": 6,
+              "fret": 0
+            }
+          ],
+          "velocity": 83,
+          "technique": "thumb"
+        },
+        {
+          "beat": 3,
+          "length": 1,
+          "notes": [
+            {
+              "string": 5,
+              "fret": 2
+            }
+          ],
+          "velocity": 74,
+          "technique": "thumb"
+        }
+      ],
+      "upper": [
+        {
+          "beat": 0,
+          "length": 4,
+          "notes": [
+            {
+              "string": 1,
+              "fret": 0
+            }
+          ],
+          "velocity": 86,
+          "technique": "pluck"
+        }
+      ]
+    }
+  ]
+}

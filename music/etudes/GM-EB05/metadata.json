@@ -1,0 +1,30 @@
+{
+  "id": "GM-EB05",
+  "version": "1.0.1",
+  "title": "Midnight Train Blues",
+  "source": "ORIGINAL",
+  "license": "CC BY 4.0",
+  "status": "PENDING_MUSICAL_REVIEW",
+  "instrument": "ACOUSTIC_GUITAR",
+  "technique": "FINGERSTYLE",
+  "meter": "4/4",
+  "bpm": 88,
+  "bars": 12,
+  "tuning": "E A D G B E",
+  "learningGoal": "Independent alternating quarter-note thumb bass with syncopated melodic phrases, rests and a resolved blues ending",
+  "practiceInstructions": "Standard tuning; right hand p for bass, i/m/a for melody; no pick or percussion. Start at 60 BPM, count 1-and-2-and-3-and-4-and, then grow to 88 BPM. Hold the 12th-bar E melody for four beats over the bass.",
+  "successCriteria": [
+    "Four even quarter-note bass attacks in each bar",
+    "Treble syncopations and intentional rests preserved",
+    "Harmonic transition C#7–F#m7–B7–E7 played cleanly",
+    "Final sustained E over E7 bass at bar 12"
+  ],
+  "review": {
+    "guitarPlayability": "PENDING_OWNER",
+    "ownerListening": "PENDING_OWNER"
+  },
+  "media": {
+    "audio": "NOT_RENDERED",
+    "pdf": "NOT_RENDERED"
+  }
+}
