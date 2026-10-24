@@ -1,0 +1,504 @@
+{
+  "code": "GM-EB03",
+  "version": "1.0.0",
+  "meter": "4/4",
+  "bpm": 76,
+  "tuning": [
+    "E4",
+    "B3",
+    "G3",
+    "D3",
+    "A2",
+    "E2"
+  ],
+  "measures": [
+    {
+      "number": 1,
+      "chord": "C",
+      "events": [
+        {
+          "string": 3,
+          "fret": 0,
+          "voice": 1,
+          "duration": 1,
+          "beat": 1,
+          "pitch": {
+            "step": "G",
+            "alter": 0,
+            "octave": 3
+          }
+        },
+        {
+          "string": 2,
+          "fret": 1,
+          "voice": 1,
+          "duration": 1,
+          "beat": 2,
+          "pitch": {
+            "step": "C",
+            "alter": 0,
+            "octave": 4
+          }
+        },
+        {
+          "string": 1,
+          "fret": 0,
+          "voice": 1,
+          "duration": 1,
+          "beat": 3,
+          "pitch": {
+            "step": "E",
+            "alter": 0,
+            "octave": 4
+          }
+        },
+        {
+          "string": 5,
+          "fret": 3,
+          "voice": 2,
+          "duration": 4,
+          "beat": 1,
+          "pitch": {
+            "step": "C",
+            "alter": 0,
+            "octave": 3
+          }
+        }
+      ],
+      "rests": [
+        {
+          "voice": 1,
+          "beat": 4,
+          "duration": 1
+        }
+      ]
+    },
+    {
+      "number": 2,
+      "chord": "Am",
+      "events": [
+        {
+          "string": 3,
+          "fret": 2,
+          "voice": 1,
+          "duration": 1,
+          "beat": 1,
+          "pitch": {
+            "step": "A",
+            "alter": 0,
+            "octave": 3
+          }
+        },
+        {
+          "string": 2,
+          "fret": 1,
+          "voice": 1,
+          "duration": 1,
+          "beat": 2,
+          "pitch": {
+            "step": "C",
+            "alter": 0,
+            "octave": 4
+          }
+        },
+        {
+          "string": 1,
+          "fret": 0,
+          "voice": 1,
+          "duration": 1,
+          "beat": 3,
+          "pitch": {
+            "step": "E",
+            "alter": 0,
+            "octave": 4
+          }
+        },
+        {
+          "string": 5,
+          "fret": 0,
+          "voice": 2,
+          "duration": 4,
+          "beat": 1,
+          "pitch": {
+            "step": "A",
+            "alter": 0,
+            "octave": 2
+          }
+        }
+      ],
+      "rests": [
+        {
+          "voice": 1,
+          "beat": 4,
+          "duration": 1
+        }
+      ]
+    },
+    {
+      "number": 3,
+      "chord": "Fmaj7",
+      "events": [
+        {
+          "string": 3,
+          "fret": 2,
+          "voice": 1,
+          "duration": 1,
+          "beat": 1,
+          "pitch": {
+            "step": "A",
+            "alter": 0,
+            "octave": 3
+          }
+        },
+        {
+          "string": 2,
+          "fret": 0,
+          "voice": 1,
+          "duration": 1,
+          "beat": 2,
+          "pitch": {
+            "step": "B",
+            "alter": 0,
+            "octave": 3
+          }
+        },
+        {
+          "string": 1,
+          "fret": 0,
+          "voice": 1,
+          "duration": 1,
+          "beat": 3,
+          "pitch": {
+            "step": "E",
+            "alter": 0,
+            "octave": 4
+          }
+        },
+        {
+          "string": 4,
+          "fret": 1,
+          "voice": 2,
+          "duration": 4,
+          "beat": 1,
+          "pitch": {
+            "step": "D",
+            "alter": 1,
+            "octave": 3
+          }
+        }
+      ],
+      "rests": [
+        {
+          "voice": 1,
+          "beat": 4,
+          "duration": 1
+        }
+      ]
+    },
+    {
+      "number": 4,
+      "chord": "G",
+      "events": [
+        {
+          "string": 3,
+          "fret": 0,
+          "voice": 1,
+          "duration": 1,
+          "beat": 1,
+          "pitch": {
+            "step": "G",
+            "alter": 0,
+            "octave": 3
+          }
+        },
+        {
+          "string": 2,
+          "fret": 3,
+          "voice": 1,
+          "duration": 1,
+          "beat": 2,
+          "pitch": {
+            "step": "D",
+            "alter": 0,
+            "octave": 4
+          }
+        },
+        {
+          "string": 1,
+          "fret": 0,
+          "voice": 1,
+          "duration": 1,
+          "beat": 3,
+          "pitch": {
+            "step": "E",
+            "alter": 0,
+            "octave": 4
+          }
+        },
+        {
+          "string": 6,
+          "fret": 3,
+          "voice": 2,
+          "duration": 4,
+          "beat": 1,
+          "pitch": {
+            "step": "G",
+            "alter": 0,
+            "octave": 2
+          }
+        }
+      ],
+      "rests": [
+        {
+          "voice": 1,
+          "beat": 4,
+          "duration": 1
+        }
+      ]
+    },
+    {
+      "number": 5,
+      "chord": "C",
+      "events": [
+        {
+          "string": 3,
+          "fret": 0,
+          "voice": 1,
+          "duration": 1,
+          "beat": 1,
+          "pitch": {
+            "step": "G",
+            "alter": 0,
+            "octave": 3
+          }
+        },
+        {
+          "string": 2,
+          "fret": 1,
+          "voice": 1,
+          "duration": 1,
+          "beat": 2,
+          "pitch": {
+            "step": "C",
+            "alter": 0,
+            "octave": 4
+          }
+        },
+        {
+          "string": 1,
+          "fret": 0,
+          "voice": 1,
+          "duration": 1,
+          "beat": 3,
+          "pitch": {
+            "step": "E",
+            "alter": 0,
+            "octave": 4
+          }
+        },
+        {
+          "string": 5,
+          "fret": 3,
+          "voice": 2,
+          "duration": 4,
+          "beat": 1,
+          "pitch": {
+            "step": "C",
+            "alter": 0,
+            "octave": 3
+          }
+        }
+      ],
+      "rests": [
+        {
+          "voice": 1,
+          "beat": 4,
+          "duration": 1
+        }
+      ]
+    },
+    {
+      "number": 6,
+      "chord": "Em",
+      "events": [
+        {
+          "string": 3,
+          "fret": 2,
+          "voice": 1,
+          "duration": 1,
+          "beat": 1,
+          "pitch": {
+            "step": "A",
+            "alter": 0,
+            "octave": 3
+          }
+        },
+        {
+          "string": 2,
+          "fret": 0,
+          "voice": 1,
+          "duration": 1,
+          "beat": 2,
+          "pitch": {
+            "step": "B",
+            "alter": 0,
+            "octave": 3
+          }
+        },
+        {
+          "string": 1,
+          "fret": 0,
+          "voice": 1,
+          "duration": 1,
+          "beat": 3,
+          "pitch": {
+            "step": "E",
+            "alter": 0,
+            "octave": 4
+          }
+        },
+        {
+          "string": 6,
+          "fret": 0,
+          "voice": 2,
+          "duration": 4,
+          "beat": 1,
+          "pitch": {
+            "step": "E",
+            "alter": 0,
+            "octave": 2
+          }
+        }
+      ],
+      "rests": [
+        {
+          "voice": 1,
+          "beat": 4,
+          "duration": 1
+        }
+      ]
+    },
+    {
+      "number": 7,
+      "chord": "Fmaj7",
+      "events": [
+        {
+          "string": 3,
+          "fret": 2,
+          "voice": 1,
+          "duration": 1,
+          "beat": 1,
+          "pitch": {
+            "step": "A",
+            "alter": 0,
+            "octave": 3
+          }
+        },
+        {
+          "string": 2,
+          "fret": 0,
+          "voice": 1,
+          "duration": 1,
+          "beat": 2,
+          "pitch": {
+            "step": "B",
+            "alter": 0,
+            "octave": 3
+          }
+        },
+        {
+          "string": 1,
+          "fret": 0,
+          "voice": 1,
+          "duration": 1,
+          "beat": 3,
+          "pitch": {
+            "step": "E",
+            "alter": 0,
+            "octave": 4
+          }
+        },
+        {
+          "string": 4,
+          "fret": 1,
+          "voice": 2,
+          "duration": 4,
+          "beat": 1,
+          "pitch": {
+            "step": "D",
+            "alter": 1,
+            "octave": 3
+          }
+        }
+      ],
+      "rests": [
+        {
+          "voice": 1,
+          "beat": 4,
+          "duration": 1
+        }
+      ]
+    },
+    {
+      "number": 8,
+      "chord": "G",
+      "events": [
+        {
+          "string": 3,
+          "fret": 0,
+          "voice": 1,
+          "duration": 1,
+          "beat": 1,
+          "pitch": {
+            "step": "G",
+            "alter": 0,
+            "octave": 3
+          }
+        },
+        {
+          "string": 2,
+          "fret": 3,
+          "voice": 1,
+          "duration": 1,
+          "beat": 2,
+          "pitch": {
+            "step": "D",
+            "alter": 0,
+            "octave": 4
+          }
+        },
+        {
+          "string": 1,
+          "fret": 3,
+          "voice": 1,
+          "duration": 1,
+          "beat": 3,
+          "pitch": {
+            "step": "G",
+            "alter": 0,
+            "octave": 4
+          }
+        },
+        {
+          "string": 6,
+          "fret": 3,
+          "voice": 2,
+          "duration": 4,
+          "beat": 1,
+          "pitch": {
+            "step": "G",
+            "alter": 0,
+            "octave": 2
+          }
+        }
+      ],
+      "rests": [
+        {
+          "voice": 1,
+          "beat": 4,
+          "duration": 1
+        }
+      ]
+    }
+  ]
+}
