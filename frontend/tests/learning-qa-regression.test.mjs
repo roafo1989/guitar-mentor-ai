@@ -23,7 +23,8 @@ export const learningService = {
   assessments: (...args) => globalThis.__qaLearning.assessments(...args),
   decide: (...args) => globalThis.__qaLearning.decide(...args)
 };`);
-const metronomeUi = moduleUrl('export const openExerciseMetronome = () => true;');
+const metronomeUi = moduleUrl('export const openExerciseMetronome = () => true; export const metronomeUi = {sourceExercise:null};');
+const audioMetronome = moduleUrl('export const metronome = {getState:()=>({status:"ready"}),subscribe:(fn)=>{fn({status:"ready"});return ()=>{};},stop:()=>{},setBpm:()=>true,start:async()=>true};');
 const components = new Map();
 async function component(filename) {
   if (components.has(filename)) return components.get(filename);
@@ -40,6 +41,7 @@ async function component(filename) {
       name.endsWith('attempt.service') ? service :
       name.endsWith('learning.service') ? learningService :
       name.endsWith('metronome-ui') ? metronomeUi :
+      name.endsWith('/audio/metronome') ? audioMetronome :
       name.endsWith('.vue') ? blank : null;
     if (!value) throw Error('Unmocked dependency ' + name);
     return 'from ' + JSON.stringify(value);
