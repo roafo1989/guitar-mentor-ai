@@ -260,4 +260,27 @@ class LibraryOriginalPostgresTest {
         }
     }
 
+    @Test void oneToFiveFilesCreateOneCardAndSixthIsRejected() throws Exception {
+        UUID owner=account();
+        var controller=controller();
+        List<MockMultipartFile> files=new java.util.ArrayList<>();
+        for(int i=0;i<5;i++) files.add(new MockMultipartFile(
+            "files","etude"+i+".gp","application/octet-stream",new byte[]{(byte)(i+1)}));
+        var created=controller.upload(actor(owner),UUID.randomUUID().toString(),
+            new LibraryOriginalController.Metadata("Multi","COMPOSITION",null),
+            new java.util.ArrayList<org.springframework.web.multipart.MultipartFile>(files));
+        assertEquals(201,created.getStatusCode().value());
+        var card=(LibraryMaterialController.MaterialView)created.getBody();
+        assertNotNull(card);
+        assertEquals(5,card.files().size());
+        assertEquals(5L,jdbc.sql("SELECT charged_files FROM library_account_usage WHERE account_id=:owner")
+            .param("owner",owner).query(Long.class).single());
+        files.add(new MockMultipartFile("files","extra.gp","application/octet-stream",new byte[]{6}));
+        assertEquals("LIBRARY_INVALID_FILES",assertThrows(RuntimeException.class,
+            ()->controller.upload(actor(owner),UUID.randomUUID().toString(),
+                new LibraryOriginalController.Metadata("Too many","ETUDE",null),
+                new java.util.ArrayList<org.springframework.web.multipart.MultipartFile>(files)))
+            .getMessage());
+    }
+
 }
