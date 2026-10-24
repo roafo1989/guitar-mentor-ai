@@ -26,6 +26,12 @@ export interface SubmissionAttempt {
   mediaDeletedAt?: string | null;
 
 }
+export interface AttemptPage {
+  items: SubmissionAttempt[];
+  nextBeforeNumber: number | null;
+  hasMore: boolean;
+}
+
 export interface UploadCapabilities {
   enabled: boolean;
   maxBytes: number;
@@ -57,6 +63,16 @@ export const attemptService = {
   async list(learnerId: string, sessionId: string, taskId: string) {
     const res = await fetch(url(learnerId, sessionId, taskId));
     return parse<SubmissionAttempt[]>(res);
+  },
+  async page(learnerId: string, sessionId: string, taskId: string, beforeNumber?: number) {
+    const params = new URLSearchParams({ limit: '20' });
+    if (beforeNumber !== undefined) params.set('beforeNumber', String(beforeNumber));
+    const res = await fetch(url(learnerId, sessionId, taskId) + '/page?' + params, { cache: 'no-store' });
+    return parse<AttemptPage>(res);
+  },
+  async detail(learnerId: string, sessionId: string, taskId: string, id: string) {
+    const res = await fetch(url(learnerId, sessionId, taskId) + '/' + encodeURIComponent(id), { cache: 'no-store' });
+    return parse<SubmissionAttempt>(res);
   },
   async upload(learnerId: string, sessionId: string, taskId: string,
     file: File, comment: string, requestId: string) {
