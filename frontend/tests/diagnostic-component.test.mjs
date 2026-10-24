@@ -220,3 +220,52 @@ test('CORE-E: failed session GET keeps selected key and never offers new POST; r
     delete globalThis.__testLearner;
   }
 });
+
+test('P2: learner restore failure renders Retry rather than misleading Create Profile', async () => {
+  const oldWindow = globalThis.window;
+  const values = new Map([['guitar-mentor.learnerId','learner']]);
+  globalThis.window = {
+    localStorage: { getItem: key => values.get(key) ?? null, removeItem() {}, setItem() {} },
+    addEventListener() {}, removeEventListener() {},
+  };
+  let restoreCalls = 0;
+  globalThis.__testLearner = {
+    learner: null,
+    error: null,
+    restore: async () => {
+      ++restoreCalls;
+      globalThis.__testLearner.error = new Error('offline');
+    },
+  };
+  let app;
+  try {
+    const DiagnosticView = await compileRealView();
+    const router = createRouter({
+      history: createMemoryHistory(),
+      routes: [{ path: '/diagnostics', component: DiagnosticView }],
+    });
+    await router.push('/diagnostics');
+    await router.isReady();
+    const root = { tag: 'root', children: [], parent: null };
+    app = headlessRenderer().createApp({ render: () => h(RouterView) });
+    app.use(createI18n({ legacy: false, locale: 'en', messages: { en: {
+      home: { retry: 'Retry' }, diagnostic: { needProfile: 'Create Profile' },
+      apiErrors: { http: 'Request failed' },
+    } } }));
+    app.use(router);
+    app.mount(root);
+    for(let i=0;i<15;i++) { await Promise.resolve(); await nextTick(); }
+    const flatten = n => [n,...(n.children??[]).flatMap(flatten)];
+    const nodes = flatten(root);
+    const rendered = nodes.map(n => n.text??'').join(' ');
+    assert.ok(rendered.includes('Request failed'));
+    assert.ok(!rendered.includes('Create Profile'));
+    const retry = nodes.find(n => n.tag==='button' && String(n.text).includes('Retry'));
+    assert.ok(retry?.props.onClick);
+    retry.props.onClick();
+    for(let i=0;i<15;i++) { await Promise.resolve(); await nextTick(); }
+    assert.equal(restoreCalls,2, 'only read restore repeated');
+  } finally {
+    app?.unmount(); globalThis.window=oldWindow; delete globalThis.__testLearner;
+  }
+});
