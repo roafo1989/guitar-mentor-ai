@@ -223,4 +223,19 @@ class LibraryOriginalPostgresTest {
             .param("owner",owner).query(Long.class).single());
     }
 
+    @Test void failedIdempotencyAttemptReturnsSavedTerminalReason() throws Exception {
+        UUID owner=account(), key=UUID.randomUUID();
+        jdbc.sql("""
+            INSERT INTO library_upload_operations
+              (id,owner_account_id,idempotency_key,state,terminal_code,expires_at)
+            VALUES(:id,:owner,:key,'FAILED','LIBRARY_UPLOAD_INTERRUPTED',now()+interval '24 hours')
+            """).param("id",UUID.randomUUID()).param("owner",owner).param("key",key).update();
+        var controller=controller();
+        assertEquals("LIBRARY_UPLOAD_INTERRUPTED",assertThrows(RuntimeException.class,
+            ()->controller.upload(actor(owner),key.toString(),
+                new LibraryOriginalController.Metadata("Retry","ETUDE",null),
+                List.of(pdf("%PDF-1.7\\ntest".getBytes(java.nio.charset.StandardCharsets.UTF_8)))))
+            .getMessage());
+    }
+
 }
