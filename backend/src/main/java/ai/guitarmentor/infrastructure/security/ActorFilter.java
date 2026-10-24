@@ -9,11 +9,9 @@ import java.util.UUID;
 import org.springframework.security.core.Authentication;
 import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.security.oauth2.core.oidc.user.OidcUser;
-import org.springframework.stereotype.Component;
 import org.springframework.web.filter.OncePerRequestFilter;
 
 /** BOLA guard: all learner-scoped routes are checked before reaching controllers or media. */
-@Component
 public class ActorFilter extends OncePerRequestFilter {
     private final ActorRepository repository;
 
