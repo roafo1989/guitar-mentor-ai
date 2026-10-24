@@ -60,4 +60,17 @@ class LibraryOriginalControllerTest {
                 new LibraryOriginalController.Metadata("","ETUDE",null),
                 List.of(html))).getMessage());
     }
+    @Test void invalidPdfDoesNotLeakStoredBytes() throws Exception {
+        var controller=controller(true);
+        var fakePdf=new MockMultipartFile("files","fake.pdf","application/pdf",
+            "not a pdf".getBytes(StandardCharsets.UTF_8));
+        assertEquals("LIBRARY_INVALID_PDF",assertThrows(RuntimeException.class,
+            ()->controller.upload(request(),UUID.randomUUID().toString(),
+                new LibraryOriginalController.Metadata("Title","ETUDE",null),
+                List.of(fakePdf))).getMessage());
+        try(var files=java.nio.file.Files.list(temp.resolve("library"))) {
+            assertEquals(0,files.count());
+        }
+    }
+
 }
