@@ -109,3 +109,38 @@ test('#150 owner regression: centered lesson and Start never silently drops save
    assert.ok(dictionary.diagnostic.startRecoveryHint);
  }
 });
+
+
+test('#150 accepted layout contract: actual assignment banner, full-width score and single recording panel',async()=>{
+ const diagnostic=await readFile(new URL('../src/entities/diagnostic/DiagnosticView.vue',import.meta.url),'utf8');
+ const preview=await readFile(new URL('../src/entities/diagnostic/ExercisePreview.vue',import.meta.url),'utf8');
+ const submission=await readFile(new URL('../src/entities/attempt/SubmissionPanel.vue',import.meta.url),'utf8');
+ const microphone=await readFile(new URL('../src/entities/attempt/MicrophoneRecorder.vue',import.meta.url),'utf8');
+ assert.match(diagnostic,/studio-titlebar/);
+ assert.match(diagnostic,/studio-assignment-description/);
+ assert.match(diagnostic,/studio-columns/);
+ assert.match(diagnostic,/studio-score/);
+ assert.match(diagnostic,/studio-sidebar/);
+ assert.match(diagnostic,/grid-template-columns:minmax\(0,1fr\) minmax\(340px,500px\)/);
+ assert.match(diagnostic,/profile-page\.diagnostic-workspace--light/);
+ assert.match(diagnostic,/max-width:none;width:min\(calc\(100% - 64px\),1560px\)/);
+ assert.match(diagnostic,/session\?\.status === 'TASK_ASSIGNED' && task && !lightMinimal/);
+ assert.match(diagnostic,/session\?\.status === 'TASK_ASSIGNED' && task && lightMinimal/);
+ assert.equal((diagnostic.match(/<SubmissionPanel/g)||[]).length,2,'one submission component per exclusive branch');
+ assert.match(preview,/role="tablist"/);
+ assert.match(preview,/studioTab === 'score'/);
+ assert.match(preview,/studioTab === 'audio'/);
+ assert.match(preview,/studioTab === 'description'/);
+ assert.match(preview,/onStudioTabKeydown/);
+ assert.match(preview,/if \(props\.assigned && lightMinimal\) pdfOpen\.value = true/);
+ assert.match(submission,/class="recording-primary"/);
+ assert.match(submission,/class="recording-file-option"/);
+ assert.match(microphone,/compact\?: boolean/);
+ assert.match(microphone,/class="compact-recording-info"/);
+ for(const lang of ['ru','en']){
+  const json=JSON.parse(await readFile(new URL('../src/i18n/'+lang+'.json',import.meta.url),'utf8'));
+  for(const key of ['currentTitle','subtitle','assigned','scoreTab','audioTab','descriptionTab'])
+   assert.ok(json.diagnostic.studio[key],lang+':'+key);
+  assert.ok(json.attempt.microphoneInstructions);
+ }
+});
