@@ -50,7 +50,7 @@
 <note><pitch><step>A</step><octave>3</octave></pitch><duration>1</duration><voice>2</voice><type>eighth</type><stem>down</stem><notations><technical><string>3</string><fret>2</fret></technical></notations></note>
 </measure>
 <measure number="4">
-<harmony><root><root-step>G</root-step></root><kind>major</kind></harmony>
+<harmony><root><root-step>G</root-step></root><kind>dominant</kind></harmony>
 <note><pitch><step>G</step><octave>4</octave></pitch><duration>2</duration><voice>1</voice><type>quarter</type><stem>up</stem><notations><technical><string>1</string><fret>3</fret></technical></notations></note>
 <note><pitch><step>F</step><octave>4</octave></pitch><duration>2</duration><voice>1</voice><type>quarter</type><stem>up</stem><notations><technical><string>1</string><fret>1</fret></technical></notations></note>
 <note><pitch><step>G</step><octave>4</octave></pitch><duration>4</duration><voice>1</voice><type>half</type><stem>up</stem><notations><technical><string>1</string><fret>3</fret></technical></notations></note>
