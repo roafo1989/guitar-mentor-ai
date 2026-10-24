@@ -82,4 +82,28 @@ class LibraryOriginalPostgresTest {
                 new LibraryOriginalController.Metadata("Different","ETUDE",null),
                 List.of(pdf(bytes)))).getMessage());
     }
+    @Test void opaqueGuitarProUnchangedAndHeadHasNoBody() throws Exception {
+        UUID owner=account();
+        var controller=controller();
+        byte[] original=new byte[]{0,1,2,3,4,(byte)255,0,17};
+        var file=new MockMultipartFile("files","etude.gp5","application/octet-stream",original);
+        var response=controller.upload(actor(owner),UUID.randomUUID().toString(),
+            new LibraryOriginalController.Metadata("GP Etude","ETUDE",null),List.of(file));
+        assertEquals(201,response.getStatusCode().value());
+        var card=(LibraryMaterialController.MaterialView)response.getBody();
+        assertNotNull(card);
+        assertEquals("GP5",card.files().getFirst().format());
+        assertEquals("ORIGINAL_UNVERIFIED",card.files().getFirst().validationStatus());
+        var get=controller.content(actor(owner),card.id(),card.files().getFirst().id());
+        assertArrayEquals(original,Files.readAllBytes(((FileSystemResource)get.getBody()).getFile().toPath()));
+        var headRequest=actor(owner);
+        headRequest.setMethod("HEAD");
+        var head=controller.content(headRequest,card.id(),card.files().getFirst().id());
+        assertEquals(200,head.getStatusCode().value());
+        assertNull(head.getBody());
+        assertEquals(original.length,head.getHeaders().getContentLength());
+        assertEquals("nosniff",head.getHeaders().getFirst("X-Content-Type-Options"));
+        assertEquals("no-store",head.getHeaders().getCacheControl());
+    }
+
 }
