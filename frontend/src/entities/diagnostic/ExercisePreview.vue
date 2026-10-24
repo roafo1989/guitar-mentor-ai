@@ -141,8 +141,8 @@ onBeforeUnmount(() => pdfOpenController?.abort());
       <h4>{{ assigned ? t('diagnostic.assignedMediaHeading') : t('diagnostic.previewHeading') }}</h4>
       <span class="hint">{{ assigned ? t('diagnostic.assignedMediaHint') : t('diagnostic.previewBeforeAssign') }}</span>
     </div>
-    <component  :is="assigned && lightMinimal ? 'details' : 'section'" class="exercise-learning" :class="{ 'studio-tab-hidden': assigned && lightMinimal && studioTab !== 'description' }" :aria-label="t('diagnostic.metadata.heading')">
-      <summary v-if="assigned && lightMinimal">{{ t('diagnostic.metadata.heading') }}</summary>
+    <section class="exercise-learning" :class="{ 'studio-tab-hidden': assigned && lightMinimal && studioTab !== 'description' }" :aria-label="t('diagnostic.metadata.heading')">
+      <h4 v-if="assigned && lightMinimal" class="studio-description-heading">{{ t('diagnostic.metadata.heading') }}</h4>
       <p class="exercise-version">{{ isProbe ? t('diagnostic.probeLabel') : t('diagnostic.repertoireLabel') }} · {{ t('diagnostic.metadata.version') }}: {{ exercise.code }}@{{ exercise.version }}</p>
       <h5>{{ t('diagnostic.metadata.goal') }}</h5>
       <p>{{ goal || t('diagnostic.metadata.unknown') }}</p>
@@ -163,7 +163,7 @@ onBeforeUnmount(() => pdfOpenController?.abort());
         <div><dt>{{ t('diagnostic.metadata.author') }}</dt><dd>{{ exercise.author?.trim() || t('diagnostic.metadata.unknown') }}</dd></div>
         <div><dt>{{ t('diagnostic.metadata.license') }}</dt><dd>{{ exercise.license?.trim() || t('diagnostic.metadata.unknown') }}</dd></div>
       </dl>
-    </component>
+    </section>
     <div class="metronome-exercise-tool" :class="{ 'studio-tab-hidden': assigned && lightMinimal && studioTab !== 'description' }">
       <button type="button" class="recorder-button metronome-exercise-launch"
         :title="t('metronome.openExercise')" @click="launchMetronome">
@@ -236,6 +236,7 @@ details.exercise-learning > summary:focus-visible {outline:3px solid #28776d;out
 .studio-preview :deep(.score-canvas-frame) {height:min(78vh,1000px)}
 .studio-preview .exercise-preview-audio {border:1px solid #e1e9e4;border-radius:12px;background:#f8fbfa;padding:18px}
 .studio-preview .exercise-learning {border:1px solid #e1e9e4;border-radius:12px;padding:16px}
+.studio-description-heading {margin:0 0 14px;color:#205f57;font-size:15px;font-weight:700}
 @media(max-width:780px) {
  .studio-preview {grid-template-columns:minmax(0,1fr)}
  .studio-tabs {grid-column:1;grid-row:1;width:max-content;max-width:100%;flex-wrap:wrap}
