@@ -236,8 +236,11 @@ jobs:
           detail = json.load(open("qa119-detail.json"))
           assigned = json.load(open("qa119-assigned.json"))["exercise"]
           current = json.load(open("qa119-current.json"))["exercise"]
-          assert len(catalog) == 1, catalog
-          for exercise in (catalog[0], detail, assigned, current):
+          assert len(catalog) == 2, catalog
+          legacy = next(e for e in catalog if e['code'] == 'GM-EB01')
+          probe = next(e for e in catalog if e['code'] == 'GM-DIAG-PULSE-3-8-01')
+          assert probe['version'] == '0.1.0' and probe['tempoUnit'] == 'eighth'
+          for exercise in (legacy, detail, assigned, current):
               assert exercise["code"] == "GM-EB01" and exercise["version"] == "0.8B"
               assert exercise["learningGoal"] is None
               assert exercise["practiceInstructions"] is None
