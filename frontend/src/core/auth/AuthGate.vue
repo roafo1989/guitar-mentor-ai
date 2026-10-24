@@ -57,7 +57,7 @@ async function register() {
   })) {
     password.value = ''; confirmPassword.value = '';
     setMode('verify');
-    success.value = label('Отправлено письмо с подтверждением.', 'Verification email sent.');
+    success.value = label('Если данные доступны для регистрации, письмо с подтверждением отправлено.', 'If registration can proceed, a verification email has been sent.');
   }
 }
 async function verify() {
