@@ -220,7 +220,11 @@
       "subtitle": "Practice with score, tablature and performance recording.",
       "assigned": "Assigned exercise",
       "inProgress": "In progress",
-      "details": "Exercise details"
+      "details": "Exercise details",
+      "tabsLabel": "Lesson materials",
+      "scoreTab": "Notes and TAB",
+      "audioTab": "Audio example",
+      "descriptionTab": "Description"
     }
   },
   "home": {
