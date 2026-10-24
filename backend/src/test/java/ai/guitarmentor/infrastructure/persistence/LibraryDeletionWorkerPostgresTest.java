@@ -1,6 +1,9 @@
 package ai.guitarmentor.infrastructure.persistence;
 
 import java.io.IOException;
+import java.io.ByteArrayInputStream;
+import java.nio.file.Path;
+import org.junit.jupiter.api.io.TempDir;
 import java.util.UUID;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.condition.EnabledIfEnvironmentVariable;
@@ -20,6 +23,7 @@ class LibraryDeletionWorkerPostgresTest {
     @Autowired JdbcClient jdbc;
     @Autowired TransactionTemplate transactions;
     @Autowired LibraryMaterialRepository materials;
+    @TempDir Path temp;
 
     private UUID create(UUID materialId,String key) {
         UUID owner=UUID.randomUUID();
@@ -67,6 +71,23 @@ class LibraryDeletionWorkerPostgresTest {
         assertEquals(0L,((Number)usage.get("charged_files")).longValue());
         assertEquals("DELETING",materials.findIncludingDeleting(owner,id).orElseThrow().state());
         assertEquals(0,worker.processBatch(10)); // no duplicate release
+    }
+
+    @Test void actualPrivateObjectIsPhysicallyRemoved() throws IOException {
+        var store=new LibraryObjectStore(temp.resolve("library").toString(),
+            temp.resolve("attempts").toString(),temp.resolve("scores").toString());
+        byte[] bytes=new byte[123];
+        System.arraycopy("%PDF-".getBytes(java.nio.charset.StandardCharsets.US_ASCII),
+            0,bytes,0,5);
+        var stored=store.put(new ByteArrayInputStream(bytes),1024);
+        UUID id=UUID.randomUUID();
+        UUID owner=create(id,stored.key());
+        assertEquals(1,materials.markDeleting(owner,id,1));
+        materials.queueDeletion(id);
+        assertEquals(1,new LibraryDeletionWorker(jdbc,transactions,store,true).processBatch(10));
+        assertThrows(IOException.class,()->store.file(stored.key()));
+        assertEquals(0,count("library_assets",id));
+        assertEquals(0,count("library_deletion_jobs",id));
     }
 
     @Test void diskFailurePreservesQuotaAssetsAndSchedulesRetry() throws IOException {
