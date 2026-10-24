@@ -28,6 +28,7 @@ class ApiRouteOwnershipInventoryTest {
         "/api/v1/local-auth/reset",
         // Authenticated CurrentActor + current password, never client-selected account.
         "/api/v1/local-auth/change",
+        "/api/v1/local-auth/methods",
         "/api/v1/system/ping"
     );
     @Autowired
