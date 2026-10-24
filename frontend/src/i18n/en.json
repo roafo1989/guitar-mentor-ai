@@ -8,6 +8,14 @@
     "diagnostics": "Assessment",
     "home": "Home"
   },
+  "auth": {
+    "signIn": "Sign in",
+    "signOut": "Sign out",
+    "expired": "Session expired",
+    "welcome": "Sign in to Guitar Mentor AI",
+    "invited": "Access is available to invited users only",
+    "loading": "Checking sign-in…"
+  },
   "form": {
     "title": "Let's meet your student",
     "description": "Choose your instrument and the styles you like.",
