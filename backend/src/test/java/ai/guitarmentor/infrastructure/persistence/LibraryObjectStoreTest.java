@@ -44,4 +44,17 @@ class LibraryObjectStoreTest {
             temp.resolve("attempts/library").toString(),
             temp.resolve("attempts").toString(),temp.resolve("scores").toString()));
     }
+    @Test void rejectsSymlinkedParentWhenSupported() throws Exception {
+        Path real=Files.createDirectory(temp.resolve("real"));
+        Path alias=temp.resolve("alias");
+        try {Files.createSymbolicLink(alias,real);}
+        catch(UnsupportedOperationException | java.nio.file.FileSystemException | SecurityException e) {
+            org.junit.jupiter.api.Assumptions.assumeTrue(false,"Symlinks unavailable in this CI filesystem");
+            return;
+        }
+        assertThrows(IllegalStateException.class,()->new LibraryObjectStore(
+            alias.resolve("library").toString(),
+            temp.resolve("attempts").toString(),temp.resolve("scores").toString()));
+    }
+
 }
