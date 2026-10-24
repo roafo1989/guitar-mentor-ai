@@ -38,6 +38,8 @@ class ApiRouteOwnershipInventoryTest {
                     continue; // ActorFilter enforces learnerId ownership; root POST is disabled.
                 if (path.startsWith("/api/v1/exercises/") || path.equals("/api/v1/exercises"))
                     continue; // Curated shared exercise catalog, never user-upload media.
+                if (path.equals("/api/v1/library/materials") || path.startsWith("/api/v1/library/materials/"))
+                    continue; // Reviewed: controller scopes every query/update/delete by CurrentActor.accountId.
                 if (SHARED_API.contains(path)) continue;
                 unclassified.add(method.getBeanType().getSimpleName() + " " + path);
             }
