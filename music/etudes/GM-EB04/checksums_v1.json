@@ -3,7 +3,7 @@
   "version": "1.0.0",
   "algorithm": "SHA-256",
   "sha256": {
-    "two_paths_v1.musicxml": "c86ad6e3ecca90aac82ba95a5043d4909becd08c6ea1cb57a5e1d4a6d9122a41",
+    "two_paths_v1.musicxml": "a6502da1aa6bde84cf01a20414c28da2c13f69416b4f60ff9b87c7df4efce281",
     "score_events_v1.json": "4bd2d35fdee1608ec551ec088f503f1c413e9f6f4981a4948389f58a72bf5694",
     "metadata_v1.json": "af205aafb692bbddb6bb3dee942c6381feaab6917726f7911b03ce7e1721258f"
   }
