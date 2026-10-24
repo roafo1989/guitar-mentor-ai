@@ -3,7 +3,6 @@ package ai.guitarmentor.interfaces.rest.library;
 import ai.guitarmentor.infrastructure.persistence.LibraryMaterialRepository;
 import ai.guitarmentor.infrastructure.persistence.LibraryMaterialRepository.Material;
 import ai.guitarmentor.infrastructure.security.CurrentActor;
-import com.fasterxml.jackson.databind.JsonNode;
 import jakarta.servlet.http.HttpServletRequest;
 import java.nio.charset.StandardCharsets;
 import java.time.OffsetDateTime;
@@ -34,6 +33,8 @@ public class LibraryMaterialController {
         this.repository=repository;
         this.cursorSecret=secret.getBytes(StandardCharsets.UTF_8);
         this.enabled=enabled;
+        if(enabled && this.cursorSecret.length<32)
+            throw new IllegalStateException("Library cursor secret must be at least 32 bytes");
     }
 
     private UUID owner(HttpServletRequest request) {
@@ -108,19 +109,18 @@ public class LibraryMaterialController {
     @Transactional
     public ResponseEntity<MaterialView> edit(HttpServletRequest request,@PathVariable UUID id,
             @RequestHeader(value="If-Match",required=false) String ifMatch,
-            @RequestBody JsonNode patch) {
+            @RequestBody Map<String,Object> patch) {
         UUID account=owner(request);
         long revision=parseRevision(ifMatch);
-        if(patch==null || !patch.isObject() || patch.size()==0 || patch.size()>3)
+        if(patch==null || patch.isEmpty() || patch.size()>3)
             throw new ApiError(400,"LIBRARY_INVALID_METADATA");
-        var fields=patch.fieldNames();
-        while(fields.hasNext()) if(!Set.of("title","type","author").contains(fields.next()))
+        if(!Set.of("title","type","author").containsAll(patch.keySet()))
             throw new ApiError(400,"LIBRARY_INVALID_METADATA");
         Material old=repository.find(account,id)
                 .orElseThrow(()->new ApiError(404,"LIBRARY_MATERIAL_NOT_FOUND"));
-        String title=patch.has("title") ? text(patch.get("title"),false) : old.title();
-        String type=patch.has("type") ? text(patch.get("type"),false) : old.type();
-        String author=patch.has("author") ? text(patch.get("author"),true) : old.author();
+        String title=patch.containsKey("title") ? text(patch.get("title"),false) : old.title();
+        String type=patch.containsKey("type") ? text(patch.get("type"),false) : old.type();
+        String author=patch.containsKey("author") ? text(patch.get("author"),true) : old.author();
         if(title==null || title.isBlank() || title.length()>150
                 || !Set.of("EXERCISE","ETUDE","COMPOSITION","OTHER").contains(type)
                 || author!=null&&author.length()>150)
@@ -130,10 +130,11 @@ public class LibraryMaterialController {
         return get(request,id);
     }
 
-    private String text(JsonNode node,boolean nullable) {
-        if(node.isNull() && nullable) return null;
-        if(!node.isTextual()) throw new ApiError(400,"LIBRARY_INVALID_METADATA");
-        String value=node.asText().strip();
+    private String text(Object node,boolean nullable) {
+        if(node==null && nullable) return null;
+        if(!(node instanceof String valueRaw))
+            throw new ApiError(400,"LIBRARY_INVALID_METADATA");
+        String value=valueRaw.strip();
         return nullable&&value.isEmpty()?null:value;
     }
 
