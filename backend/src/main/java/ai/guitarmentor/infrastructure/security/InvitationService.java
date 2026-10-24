@@ -17,6 +17,7 @@ import org.springframework.transaction.annotation.Transactional;
 @Service
 public class InvitationService {
     public static final String GOOGLE_ISSUER = "https://accounts.google.com";
+    public static final String ADMISSION_ISSUER = "urn:guitar-mentor:invitation:multi-method:v1";
     private final JdbcClient jdbc;
     private final SecureRandom random = new SecureRandom();
 
@@ -50,7 +51,7 @@ public class InvitationService {
             UPDATE invitations SET status='REVOKED'
             WHERE issuer=:issuer AND email_normalized=:email
               AND status='PENDING' AND expires_at <= now()
-            """).param("issuer", GOOGLE_ISSUER).param("email", normalized).update();
+            """).param("issuer", ADMISSION_ISSUER).param("email", normalized).update();
         if (existingLearner != null) {
             long used = jdbc.sql("SELECT count(*) FROM accounts WHERE learner_id=:id")
                 .param("id",existingLearner).query(Long.class).single();
@@ -66,7 +67,7 @@ public class InvitationService {
             VALUES (:id,:hash,:issuer,:email,:learner,:role,'PENDING',:expiry)
             """)
             .param("id",UUID.randomUUID()).param("hash",digest(token))
-            .param("issuer",GOOGLE_ISSUER).param("email",normalized)
+            .param("issuer",ADMISSION_ISSUER).param("email",normalized)
             .param("learner",existingLearner).param("role",owner?"OWNER":"LEARNER").param("expiry",java.sql.Timestamp.from(Instant.now().plus(7,ChronoUnit.DAYS)))
             .update();
         return token;
@@ -93,7 +94,8 @@ public class InvitationService {
         if (invitations.size()!=1) throw new SecurityException("INVITATION_INVALID");
         var invite=invitations.getFirst();
         if (!"PENDING".equals(invite.status()) || !invite.expires().isAfter(Instant.now())
-                || !invite.email().equals(verifiedEmail) || !invite.issuer().equals(identity.getIssuer().toString()))
+                || !invite.email().equals(verifiedEmail)
+                || !(GOOGLE_ISSUER.equals(invite.issuer()) || ADMISSION_ISSUER.equals(invite.issuer())))
             throw new SecurityException("INVITATION_INVALID");
         long already = jdbc.sql("SELECT count(*) FROM account_identities WHERE issuer=:iss AND subject=:sub")
             .param("iss",GOOGLE_ISSUER).param("sub",identity.getSubject())
