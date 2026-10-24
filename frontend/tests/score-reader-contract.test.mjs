@@ -191,3 +191,19 @@ test('#150 secure unified local environment explicitly enables authenticated upl
     assert.match(copy.disabledHelp, /отключен|disabled/i);
   }
 });
+
+test('#150 design acceptance: assigned preview has real audio, capture waveform and compact score controls', async () => {
+ const diagnostic=await readFile(new URL('../src/entities/diagnostic/DiagnosticView.vue',import.meta.url),'utf8');
+ const microphone=await readFile(new URL('../src/entities/attempt/MicrophoneRecorder.vue',import.meta.url),'utf8');
+ const submission=await readFile(new URL('../src/entities/attempt/SubmissionPanel.vue',import.meta.url),'utf8');
+ const reader=await readFile(new URL('../src/shared/score/ScoreReader.vue',import.meta.url),'utf8');
+ assert.match(diagnostic,/class="studio-audio-example"/);
+ assert.match(diagnostic,/:src="task\.exercise\.previewAudioUrl"/);
+ assert.match(diagnostic,/preload="none" controls/);
+ assert.match(microphone,/class="studio-live-wave"/);
+ assert.match(microphone,/meterLevel/);
+ assert.match(microphone,/v-if="supported" class="microphone-controls"/);
+ assert.match(submission,/class="studio-results-divider"/);
+ assert.match(reader,/v-if="!fitWidth"/);
+ assert.match(reader,/justify-content:flex-end/);
+});
