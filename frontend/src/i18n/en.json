@@ -213,7 +213,15 @@
     "assignedTaskLoading": "Loading the assigned task…",
     "assignedTaskMissing": "This session says a task is assigned, but the task was not found. The data is inconsistent; retry or report the issue.",
     "assignedTaskUnavailable": "Could not retrieve the assigned task. Retry without changing your saved work.",
-    "startRecoveryHint": "A saved diagnostic session was found. We tried to restore it; if it no longer exists, press Start diagnostics again."
+    "startRecoveryHint": "A saved diagnostic session was found. We tried to restore it; if it no longer exists, press Start diagnostics again.",
+    "studio": {
+      "overline": "PERSONAL STUDIO",
+      "currentTitle": "Current practice",
+      "subtitle": "Practice with score, tablature and performance recording.",
+      "assigned": "Assigned exercise",
+      "inProgress": "In progress",
+      "details": "Exercise details"
+    }
   },
   "home": {
     "welcome": "Your space for music",
