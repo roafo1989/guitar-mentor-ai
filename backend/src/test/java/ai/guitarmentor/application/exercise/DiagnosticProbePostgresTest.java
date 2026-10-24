@@ -56,11 +56,10 @@ class DiagnosticProbePostgresTest {
     @org.springframework.transaction.annotation.Transactional
     void reviewerApprovedVersionWouldExposeItsOwnPlayableMediaWithoutLegacyRegression()
             throws Exception {
-        var draft = exercises.findByCodeAndVersion("GM-DIAG-PULSE-3-8-01", "0.1.0")
-                .orElseThrow();
+        var draftId = java.util.UUID.fromString("58430000-0000-4000-8000-000000001451");
         // This transaction rolls back: not a publication operation.
         jdbc.update("UPDATE exercises SET is_current=true,license='ORIGINAL_OWNED',"
-                + " review_status='APPROVED' WHERE id=?", draft.getId());
+                + " review_status='APPROVED' WHERE id=?", draftId);
         var version = catalog.findVersion("GM-DIAG-PULSE-3-8-01", "0.1.0");
         assertEquals("DIAGNOSTIC_PROBE", version.contentKind());
         assertEquals("eighth", version.tempoUnit());
