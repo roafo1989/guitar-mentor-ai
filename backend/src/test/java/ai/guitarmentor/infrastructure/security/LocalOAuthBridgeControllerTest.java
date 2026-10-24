@@ -46,7 +46,7 @@ class LocalOAuthBridgeControllerTest {
         var req = request();
         String oldId = req.getSession(true).getId();
         var oidc = mock(OidcUser.class);
-        when(oidc.getIssuer()).thenReturn(URI.create("https://accounts.google.com"));
+        when(oidc.getIssuer()).thenReturn(URI.create("https://accounts.google.com").toURL());
         when(oidc.getSubject()).thenReturn("google-user-sub");
         UUID account = UUID.randomUUID();
         when(actors.findActive("https://accounts.google.com", "google-user-sub"))
