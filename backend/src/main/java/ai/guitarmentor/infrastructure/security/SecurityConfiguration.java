@@ -55,6 +55,31 @@ public class SecurityConfiguration {
         };
     }
 
+    /** Fail closed before accepting requests when the private combined launcher is misconfigured. */
+    @Bean
+    org.springframework.boot.ApplicationRunner guardUnifiedLocalAuth(
+            org.springframework.core.env.Environment env) {
+        return args -> {
+            if (!env.getProperty("guitar-mentor.local-auth.unified-local",Boolean.class,false))
+                return;
+            String bind = env.getProperty("server.address","");
+            String origin = env.getProperty("guitar-mentor.local-auth.public-origin","");
+            String client = env.getProperty("spring.security.oauth2.client.registration.guitar-mentor.client-id","");
+            String clientSecret = env.getProperty("spring.security.oauth2.client.registration.guitar-mentor.client-secret","");
+            String smtp = env.getProperty("spring.mail.host","");
+            String from = env.getProperty("guitar-mentor.local-auth.mail-from","");
+            boolean secureAuth = env.getProperty("guitar-mentor.security.enabled",Boolean.class,false);
+            boolean localHttp = env.getProperty("guitar-mentor.security.local-http",Boolean.class,false);
+            boolean smtpAuth = env.getProperty("spring.mail.properties.mail.smtp.auth",Boolean.class,false);
+            boolean smtpTls = env.getProperty("spring.mail.properties.mail.smtp.starttls.required",Boolean.class,false);
+            if (!"127.0.0.1".equals(bind) || !"http://localhost:5173".equals(origin)
+                    || !secureAuth || !localHttp || client.isBlank() || clientSecret.isBlank()
+                    || smtp.isBlank() || from.isBlank() || !smtpAuth || !smtpTls) {
+                throw new IllegalStateException("Unified local auth needs loopback, Google OAuth, SMTP STARTTLS and a verified sender");
+            }
+        };
+    }
+
     @Bean
     SecurityFilterChain securityFilterChain(HttpSecurity http, ActorRepository actors, GoogleLinkService googleLinks,
             InvitationService invitations,
