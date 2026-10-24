@@ -27,3 +27,9 @@ Manual owner checks in Chrome/Edge, preferably 1440, 1180, 768 and 360px plus 20
 7. Rebuild with flag disabled and confirm the legacy header returns; no backend or saved state should change.
 
 Record actual browser/OS/viewport, PASS/FAIL and any screenshots in #148. A visual sign-off belongs to the project owner; a successful unit/CI run is not proof of microphone behavior, keyboard usability, pixel contrast or Google OAuth.
+
+## Instrument icon assets — owner's visual selection (2026-10-24)
+
+The owner uploaded transparent PNG source files `free-icon-tuner-8031641.png` and `free-icon-metronome-3564896 (1).png`. Their silhouettes were converted to small local vector paths (no external URLs or runtime tracking) and are included as `frontend/public/icons/tuner-flaticon.svg` and `frontend/public/icons/metronome-flaticon.svg`. Light Minimal uses these; legacy remains unchanged.
+
+The Flaticon source credit links in the application's footer point to icon IDs 8031641 and 3564896. Note the tuner upload says **8031641**, while the previously suggested URL said **8031645**. The supplied file, rather than the earlier differing URL, is the visual source of truth. Free Flaticon assets normally require creator attribution, and creator identity could not be independently verified here. **Before a public release, verify actual uploader's icon credits and license details and replace generic Flaticon links with the required author-credit links or obtain a paid license.**
