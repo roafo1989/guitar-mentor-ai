@@ -112,7 +112,7 @@ onMounted(restoreProfile);
         <img class="home-instrument-mark" src="/favicon.png" alt="" aria-hidden="true" width="72" height="72" />
         <div>
           <p class="home-instrument-label">{{ t('instruments.ACOUSTIC_GUITAR') }}</p>
-          <p class="home-instrument-style">{{ t('instruments.FINGERSTYLE') }}</p>
+          <p v-if="!lightMinimal" class="home-instrument-style">{{ t('instruments.FINGERSTYLE') }}</p>
           <p class="home-instrument-note">{{ t('home.pace') }}</p>
         </div>
       </aside>
