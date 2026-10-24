@@ -1,0 +1,29 @@
+{
+  "id": "GM-EB05",
+  "version": "1.0.0",
+  "title": "Midnight Train Blues",
+  "source": "ORIGINAL",
+  "license": "CC BY 4.0",
+  "status": "PENDING_MUSICAL_REVIEW",
+  "instrument": "ACOUSTIC_GUITAR",
+  "technique": "FINGERSTYLE",
+  "meter": "4/4",
+  "bpm": 88,
+  "bars": 12,
+  "tuning": "E A D G B E",
+  "learningGoal": "Independent thumb pulse and syncopated treble blues phrases",
+  "practiceInstructions": "Play with fingers p-i-m-a; begin at 60 BPM, keep bass steady and let melodic rests breathe; no pick or percussion.",
+  "successCriteria": [
+    "Stable quarter-note bass pulse",
+    "Treble entries accurately placed on offbeats",
+    "Clear E7 resolution at bar 12"
+  ],
+  "review": {
+    "guitarPlayability": "PENDING",
+    "ownerListening": "PENDING"
+  },
+  "media": {
+    "audio": "NOT_RENDERED",
+    "pdf": "NOT_RENDERED"
+  }
+}
