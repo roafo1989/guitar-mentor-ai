@@ -34,7 +34,12 @@ async function getComponent() {
   return component;
 }
 function renderer() {
-  const node = (tag, text = '') => ({ tag, text, children: [], parent: null, props: {} });
+  const node = (tag, text = '') => ({
+    tag, tagName: String(tag).toUpperCase(), text, children: [], parent: null, props: {},
+    value: '', checked: false, multiple: false, selectedIndex: -1,
+    addEventListener() {}, removeEventListener() {}, dispatchEvent() {},
+    get options() { return this.children.filter(child => child.tag === 'option'); },
+  });
   const remove = n => {
     const children = n.parent?.children;
     if (children) { const index = children.indexOf(n); if (index >= 0) children.splice(index, 1); }
