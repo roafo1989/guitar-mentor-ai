@@ -27,11 +27,17 @@ public class LibraryMaterialRepository {
     }
 
     public List<Material> page(UUID owner, OffsetDateTime beforeTime, UUID beforeId, int limit) {
+        if (beforeTime == null) {
+            return jdbc.sql("""
+                SELECT id,title,material_type,description,status,revision,created_at,updated_at
+                FROM library_materials WHERE owner_account_id=:owner AND status='READY'
+                ORDER BY created_at DESC,id DESC LIMIT :limit
+                """).param("owner",owner).param("limit",limit).query(MAPPER).list();
+        }
         return jdbc.sql("""
             SELECT id,title,material_type,description,status,revision,created_at,updated_at
-            FROM library_materials
-            WHERE owner_account_id=:owner AND status='READY'
-              AND (:beforeTime IS NULL OR (created_at,id)<(:beforeTime,:beforeId))
+            FROM library_materials WHERE owner_account_id=:owner AND status='READY'
+              AND (created_at,id)<(:beforeTime,:beforeId)
             ORDER BY created_at DESC,id DESC LIMIT :limit
             """).param("owner",owner).param("beforeTime",beforeTime)
                 .param("beforeId",beforeId).param("limit",limit).query(MAPPER).list();
