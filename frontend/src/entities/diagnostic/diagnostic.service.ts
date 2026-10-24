@@ -14,6 +14,10 @@ function validExercise(value: unknown): value is Exercise {
   return ['code','version','title','styleCode','difficulty','meter','author','license',
     'reviewStatus','description','scoreUrl','eventsUrl'].every(key => isString(value[key]))
     && isNumber(value.bpm) && isNumber(value.measures) && isStringArray(value.skillCodes)
+    && (value.contentKind == null || ['DIAGNOSTIC_PROBE', 'LEARNING_REPERTOIRE'].includes(String(value.contentKind)))
+    && (value.tempoUnit == null || ['quarter', 'eighth', 'dotted-quarter'].includes(String(value.tempoUnit)))
+    && (value.durationTargetSeconds == null || (isNumber(value.durationTargetSeconds)
+      && value.durationTargetSeconds >= 5 && value.durationTargetSeconds <= 600))
     && (value.previewAudioUrl == null || isString(value.previewAudioUrl))
     && (value.previewPdfUrl == null || isString(value.previewPdfUrl));
 }

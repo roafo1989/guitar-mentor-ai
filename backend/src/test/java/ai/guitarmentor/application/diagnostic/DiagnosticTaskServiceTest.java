@@ -68,6 +68,9 @@ class DiagnosticTaskServiceTest {
         when(sessions.findLockedById(session.getId())).thenReturn(Optional.of(session));
         when(learners.findById(learner.getId())).thenReturn(Optional.of(learner));
         when(exercises.findByCodeAndCurrentTrue("GM-EB01")).thenReturn(Optional.of(exercise));
+        when(exercise.getContentKind()).thenReturn("LEARNING_REPERTOIRE");
+        when(exercise.getLicense()).thenReturn("CC BY 4.0");
+        when(exercise.getReviewStatus()).thenReturn("ACCEPTED_FOR_MVP_PROTOTYPE");
         when(exercise.getInstrumentCode()).thenReturn("ACOUSTIC_GUITAR");
         when(exercise.getTechniqueCode()).thenReturn("FINGERSTYLE");
         when(exercise.getCode()).thenReturn("GM-EB01");
@@ -104,6 +107,9 @@ class DiagnosticTaskServiceTest {
         when(sessions.findLockedById(session.getId())).thenReturn(Optional.of(session));
         when(learners.findById(learner.getId())).thenReturn(Optional.of(learner));
         when(exercises.findByCodeAndCurrentTrue("GM-EB01")).thenReturn(Optional.of(exercise));
+        when(exercise.getContentKind()).thenReturn("LEARNING_REPERTOIRE");
+        when(exercise.getLicense()).thenReturn("CC BY 4.0");
+        when(exercise.getReviewStatus()).thenReturn("ACCEPTED_FOR_MVP_PROTOTYPE");
         when(exercise.getInstrumentCode()).thenReturn("ACOUSTIC_GUITAR");
         when(exercise.getTechniqueCode()).thenReturn("PICK");
         assertThrows(IllegalStateException.class,

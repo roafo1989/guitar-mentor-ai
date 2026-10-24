@@ -199,7 +199,17 @@
       "audioUnavailable": "Audio preview for this version is unavailable.",
       "pdfUnavailable": "PDF for this version is unavailable. Use the source score if available.",
       "pdfViewerFallback": "If the embedded viewer fails to load, open the PDF separately or use MusicXML."
-    }
+    },
+    "probeLabel": "Diagnostic probe",
+    "repertoireLabel": "Learning repertoire",
+    "probeDuration": "Playing duration",
+    "seconds": "sec",
+    "probesHeading": "Short diagnostic probes",
+    "probesHint": "Short, targeted skill checks. Learning a complete composition is not required.",
+    "noProbes": "No approved probes have been published yet. You can select learning music or submit a familiar performance.",
+    "chooseProbe": "Choose probe",
+    "repertoireHeading": "Learning repertoire",
+    "repertoireHint": "Complete works are offered as options, not a compulsory entrance exam."
   },
   "home": {
     "welcome": "Your space for music",

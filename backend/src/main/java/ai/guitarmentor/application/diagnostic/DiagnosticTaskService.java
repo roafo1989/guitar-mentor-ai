@@ -1,6 +1,7 @@
 package ai.guitarmentor.application.diagnostic;
 
 import ai.guitarmentor.application.exercise.ExerciseViewAssembler;
+import ai.guitarmentor.application.exercise.ExercisePublicationPolicy;
 import ai.guitarmentor.domain.diagnostic.DiagnosticSession;
 import ai.guitarmentor.domain.diagnostic.DiagnosticStatus;
 import ai.guitarmentor.domain.diagnostic.DiagnosticTask;
@@ -59,6 +60,8 @@ public class DiagnosticTaskService {
         }
         var exercise = exercises.findByCodeAndCurrentTrue(exerciseCode)
                 .orElseThrow(() -> new EntityNotFoundException("Exercise not found"));
+        if (!ExercisePublicationPolicy.eligible(exercise))
+            throw new EntityNotFoundException("Exercise not found");
         if (!exercise.getInstrumentCode().equals(session.getInstrumentProfile().getInstrumentCode())
                 || !exercise.getTechniqueCode().equals(session.getInstrumentProfile().getTechniqueCode())) {
             throw new IllegalStateException("Exercise is not suitable for this instrument and technique");
