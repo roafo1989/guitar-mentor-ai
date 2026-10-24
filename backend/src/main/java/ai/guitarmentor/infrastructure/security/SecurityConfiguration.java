@@ -32,6 +32,29 @@ public class SecurityConfiguration {
         };
     }
 
+    /**
+     * Explicit QA profile is only safe with a loopback backend and loopback SMTP.
+     * Fail startup if environment variables override the profile for network access.
+     */
+    @Bean
+    org.springframework.boot.ApplicationRunner restrictLocalMailQa(
+            @Value("${guitar-mentor.local-auth.qa-mail-capture:false}") boolean qa,
+            @Value("${server.address:127.0.0.1}") String bind,
+            @Value("${spring.mail.host:}") String smtpHost,
+            @Value("${spring.mail.port:0}") int smtpPort,
+            @Value("${guitar-mentor.local-auth.public-origin:}") String origin,
+            @Value("${guitar-mentor.security.enabled:true}") boolean securityEnabled,
+            @Value("${guitar-mentor.security.local-http:false}") boolean localHttp) {
+        return args -> {
+            if (qa && (!("127.0.0.1".equals(bind) || "::1".equals(bind))
+                    || !("127.0.0.1".equals(smtpHost) || "localhost".equals(smtpHost))
+                    || smtpPort != 1025 || !"https://guitar-mentor".equals(origin)
+                    || !securityEnabled || localHttp)) {
+                throw new IllegalStateException("QA SMTP capture must run on loopback with HTTPS, authentication and local port 1025");
+            }
+        };
+    }
+
     @Bean
     SecurityFilterChain securityFilterChain(HttpSecurity http, ActorRepository actors, GoogleLinkService googleLinks,
             InvitationService invitations,
