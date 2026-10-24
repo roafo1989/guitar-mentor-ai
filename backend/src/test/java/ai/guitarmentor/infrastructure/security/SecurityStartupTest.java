@@ -23,4 +23,22 @@ class SecurityStartupTest {
                     configuration.rejectInsecureNonLoopback(false, address).run(null));
         }
     }
+
+    @Test
+    void smtpCaptureQaAcceptsOnlyProtectedLoopbackSettings() {
+        assertDoesNotThrow(() -> configuration.restrictLocalMailQa(true,
+                "127.0.0.1","127.0.0.1",1025,"https://guitar-mentor",true,false).run(null));
+        assertThrows(IllegalStateException.class, () ->
+                configuration.restrictLocalMailQa(true,
+                    "0.0.0.0","127.0.0.1",1025,"https://guitar-mentor",true,false).run(null));
+        assertThrows(IllegalStateException.class, () ->
+                configuration.restrictLocalMailQa(true,
+                    "127.0.0.1","smtp.example.com",587,"https://guitar-mentor",true,false).run(null));
+        assertThrows(IllegalStateException.class, () ->
+                configuration.restrictLocalMailQa(true,
+                    "127.0.0.1","127.0.0.1",1025,"http://guitar-mentor",true,false).run(null));
+        assertThrows(IllegalStateException.class, () ->
+                configuration.restrictLocalMailQa(true,
+                    "127.0.0.1","127.0.0.1",1025,"https://guitar-mentor",false,false).run(null));
+    }
 }
