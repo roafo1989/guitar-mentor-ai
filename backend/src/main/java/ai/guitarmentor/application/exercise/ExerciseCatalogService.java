@@ -38,10 +38,16 @@ public class ExerciseCatalogService {
 
     @Transactional(readOnly = true)
     public ExerciseView findVersion(String code, String version) {
-        return assembler.one(exercises.findByCodeAndVersion(code, version)
+        var exercise = exercises.findByCodeAndVersion(code, version)
                 .orElseThrow(() -> new ai.guitarmentor.application.exercise.ExerciseReferenceException(
                         org.springframework.http.HttpStatus.NOT_FOUND,
-                        "EXERCISE_NOT_FOUND", "Exercise not found")));
+                        "EXERCISE_NOT_FOUND", "Exercise not found"));
+        if ("DIAGNOSTIC_PROBE".equals(exercise.getContentKind())
+                && !ExercisePublicationPolicy.eligible(exercise))
+            throw new ai.guitarmentor.application.exercise.ExerciseReferenceException(
+                    org.springframework.http.HttpStatus.NOT_FOUND,
+                    "EXERCISE_NOT_FOUND", "Exercise not found");
+        return assembler.one(exercise);
     }
 
     @Transactional(readOnly = true)
