@@ -40,7 +40,7 @@ public class LocalAuthController {
         try {
             if(req.password()==null || !req.password().equals(req.confirmPassword()))
                 return bad("INVALID_INPUT");
-            service.register(req.invitation(),req.email(),req.login(),req.password());
+            service.registerPublic(req.email(),req.login(),req.password());
             return ResponseEntity.accepted().body(Map.of("code","VERIFY_EMAIL"));
         } catch (IllegalArgumentException|SecurityException|org.springframework.dao.DataIntegrityViolationException ex) {
             return bad("REGISTRATION_REJECTED");
@@ -173,7 +173,7 @@ public class LocalAuthController {
         return ResponseEntity.badRequest().body(Map.of("code",code));
     }
     static class RateLimited extends RuntimeException {}
-    public record Register(String invitation,String email,String login,String password,String confirmPassword) {}
+    public record Register(String email,String login,String password,String confirmPassword) {}
     public record Token(String token) {}
     public record Login(String identifier,String password) {}
     public record Email(String email) {}
