@@ -51,4 +51,10 @@ public class LibraryMaterialRepository {
             """).param("owner",owner).param("id",id).param("revision",revision)
                 .param("title",title).param("type",type).param("description",description).update();
     }
+    public int delete(UUID owner, UUID id, long revision) {
+        return jdbc.sql("""
+            DELETE FROM library_materials
+            WHERE owner_account_id=:owner AND id=:id AND revision=:revision AND status='READY'
+            """).param("owner",owner).param("id",id).param("revision",revision).update();
+    }
 }
