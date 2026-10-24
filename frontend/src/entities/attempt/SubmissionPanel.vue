@@ -364,14 +364,17 @@ onBeforeUnmount(() => {
     </div>
     <div v-if="loading" class="hint">{{ t('attempt.loading') }}</div>
     <template v-else>
-      <p v-if="!capabilities?.enabled" class="hint">
+      <p v-if="!capabilities?.enabled" class="hint" role="status">
         {{ t('attempt.disabledHelp') }}
+      </p>
+      <p v-if="!capabilities?.enabled && lightMinimal" class="hint">
+        {{ t('attempt.localRecordingAvailable') }}
       </p>
       <p v-if="learningTerminal" class="hint" role="status">{{ t('learning.uploadClosed') }}</p>
       <form class="homework-form" @submit.prevent="submit">
         <div v-if="lightMinimal" class="recording-primary">
           <h4>{{ t('attempt.microphoneTitle') }}</h4>
-          <MicrophoneRecorder :compact="lightMinimal" :disabled="learningTerminal || !capabilities?.enabled || uploading"
+          <MicrophoneRecorder :compact="lightMinimal" :disabled="learningTerminal || uploading"
           :max-bytes="capabilities?.maxBytes ?? 20971520"
           @recorded="onRecorded" @active="onRecordingActive" />
         </div>
@@ -387,7 +390,7 @@ onBeforeUnmount(() => {
         <input id="attempt-file" ref="fileInput" type="file" accept=".mp3,.wav,.ogg,.webm,.m4a,audio/*"
           :disabled="learningTerminal || !capabilities?.enabled || uploading || recordingActive" @change="selectFile" />
         <p class="hint">{{ t('attempt.fileLimits') }}</p>
-          <MicrophoneRecorder :compact="lightMinimal" :disabled="learningTerminal || !capabilities?.enabled || uploading"
+          <MicrophoneRecorder :compact="lightMinimal" :disabled="learningTerminal || uploading"
           :max-bytes="capabilities?.maxBytes ?? 20971520"
           @recorded="onRecorded" @active="onRecordingActive" />
         </template>
