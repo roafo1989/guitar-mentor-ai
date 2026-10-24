@@ -26,7 +26,7 @@ test('#148 navigation discloses real routes and remains keyboard-operable', asyn
   assert.doesNotMatch(app, /to="\/library"/);
   assert.match(app, /:aria-expanded="menuOpen"/);
   assert.match(app, /:aria-controls="menuId"/);
-  assert.match(app, /event\.key === 'Escape'/);
+  assert.match(app, /event\.key (?:===|!==) 'Escape'/);
   assert.match(app, /closeMenu\(true\)/);
   assert.match(app, /@click="closeMenu\(\)"/);
   assert.match(app, /stopMetronomeForAudioCapture\(\)/);
