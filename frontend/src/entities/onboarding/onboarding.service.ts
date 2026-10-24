@@ -16,7 +16,7 @@ function validBackground(value: unknown): value is LearningBackground {
 }
 function call(learnerId: string, instrumentCode: string, options?: RequestInit): Promise<LearningBackground | null> {
   return apiRequest(url(learnerId, instrumentCode), options,
-    (value): value is LearningBackground | null => value === null || validBackground(value), true);
+    validBackground, true);
 }
 export const onboardingService = {
   get(learnerId: string, instrumentCode: string) {
