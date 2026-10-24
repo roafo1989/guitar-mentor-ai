@@ -52,8 +52,7 @@ export function openExerciseMetronome(
   if (numerator < 1 || numerator > 16) return false;
   const status = metronome.getState().status;
   // Reopening a minimized window for the *same* piece must not reset playback.
-  if ((status === 'running' || status === 'starting') &&
-      metronomeUi.sourceExercise === source) {
+  if (metronomeUi.sourceExercise === source) {
     if (showOverlay) openMetronome(trigger);
     return true;
   }
