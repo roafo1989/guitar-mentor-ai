@@ -21,6 +21,7 @@ const pageCursor = ref<number | undefined>(undefined);
 const cursorStack = ref<(number | undefined)[]>([]);
 const hasMore = ref(false);
 const historyStale = ref(false);
+const historyNotice = ref('');
 const historyError = ref('');
 const pageBusy = ref(false);
 const displayAttempts = computed(() => {
@@ -127,6 +128,7 @@ function resetForContext(): void {
   hasMore.value = false;
   historyError.value = '';
   historyStale.value = false;
+  historyNotice.value = '';
   capabilities.value = null;
   loading.value = true;
   error.value = '';
@@ -179,6 +181,7 @@ async function readPage(cursor: number | null | undefined = pageCursor.value, ke
   const { learnerId, sessionId, taskId } = props;
   // Polling is also busy: never display actionable navigation that silently no-ops.
   pageBusy.value = true;
+  if (!keepBusy) historyNotice.value = '';
   try {
     const page: AttemptPage = await attemptService.page(learnerId, sessionId, taskId, cursor ?? undefined);
     if (!currentContext(generation) || serial !== requestSerial) return false;
@@ -187,6 +190,7 @@ async function readPage(cursor: number | null | undefined = pageCursor.value, ke
     hasMore.value = page.hasMore;
     historyError.value = '';
     historyStale.value = false;
+    if (!keepBusy) historyNotice.value = t('attempt.historyUpdated');
     // The page and pinned details form one bounded poll cycle.
     await refreshPinned(generation, serial);
     return true;
@@ -400,6 +404,7 @@ onBeforeUnmount(() => {
         <summary>{{ t('attempt.historyDetails') }}</summary>
         <p v-if="historyError" role="alert" class="error">{{ historyError }} <button type="button" :disabled="pageBusy" @click="requestRefresh()">{{ t('learning.retry') }}</button></p>
         <p v-if="historyStale" role="status" class="hint">{{ t('attempt.historyStale') }}</p>
+        <p v-if="historyNotice && !historyError" role="status" class="hint">{{ historyNotice }}</p>
         <p v-if="!attempts.length" class="hint">{{ t('attempt.noAttempts') }}</p>
         <article v-for="item in attempts" :key="item.id" class="attempt-card">
           <div class="attempt-card-title">
@@ -415,7 +420,8 @@ onBeforeUnmount(() => {
           <p v-if="item.mediaState === 'DELETED'" class="hint">{{ t('attempt.mediaDeleted') }}</p>
           <p v-else-if="item.mediaState === 'DELETE_PENDING'" class="hint">{{ t('attempt.mediaPending') }}</p>
         </article>
-        <nav class="form-actions" :aria-label="t('attempt.history')">
+        <p v-if="!hasMore && !cursorStack.length && !pageBusy" class="hint">{{ t('attempt.onlyPage') }}</p>
+        <nav class="form-actions attempt-history-navigation" :aria-label="t('attempt.history')">
           <button type="button" class="secondary-button" :disabled="pageBusy || !cursorStack.length" @click="navigate(cursorStack[cursorStack.length - 1], 'newer')">{{ t('attempt.newer') }}</button>
           <button type="button" class="secondary-button" :disabled="pageBusy || !hasMore" @click="navigate(attempts[attempts.length - 1]?.number, 'older')">{{ t('attempt.older') }}</button>
           <button type="button" class="secondary-button" :disabled="pageBusy" @click="navigate(undefined, 'latest')">{{ t('attempt.latest') }}</button>
