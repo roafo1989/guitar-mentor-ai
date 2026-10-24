@@ -620,3 +620,58 @@ test('#150 real setup state: audio tabs retain draft/comment and lock while capt
     assert.equal(state.comment, 'My practice notes', 'removing attachment does not erase comment');
   } finally { app.unmount(); }
 });
+
+test('#151 microphone permission/cancel keeps existing attachment, comment and retry key', async () => {
+  historyFixture();
+  const { app, state } = await mount('SubmissionPanel.vue',
+    { learnerId: 'l', sessionId: 's', taskId: 't' });
+  try {
+    await flush();
+    const previous = new File(['existing'], 'existing.wav', { type: 'audio/wav' });
+    state.file = previous;
+    state.comment = 'retain my notes';
+    await flush();
+    const key = state.requestId;
+    state.onRecordingActive(true);
+    assert.equal(state.recordingActive, true);
+    assert.equal(state.file, previous);
+    assert.equal(state.comment, 'retain my notes');
+    assert.equal(state.requestId, key);
+    state.onRecordingActive(false);
+    assert.equal(state.file, previous);
+    assert.equal(state.requestId, key);
+  } finally { app.unmount(); delete globalThis.__qaAttempt; }
+});
+
+test('#151 uncertain POST keeps payload key; edited comment creates a new intent', async () => {
+  historyFixture();
+  const uploads = [];
+  globalThis.__qaAttempt.upload = async (_l, _s, _t, file, comment, requestId) => {
+    uploads.push({ file, comment, requestId });
+    throw new Error('network timeout');
+  };
+  const { app, state } = await mount('SubmissionPanel.vue',
+    { learnerId: 'l', sessionId: 's', taskId: 't' });
+  try {
+    await flush();
+    const attachment = new File(['audio'], 'take.wav', { type: 'audio/wav' });
+    state.file = attachment;
+    state.comment = 'first';
+    await flush();
+    await state.submit();
+    await flush();
+    assert.equal(state.file, attachment);
+    assert.equal(state.comment, 'first');
+    const originalKey = uploads[0].requestId;
+    await state.submit();
+    assert.equal(uploads[1].requestId, originalKey);
+    assert.equal(uploads[1].comment, 'first');
+    state.comment = 'revised';
+    await flush();
+    assert.notEqual(state.requestId, originalKey);
+    await state.submit();
+    assert.equal(uploads[2].requestId, state.requestId);
+    assert.equal(uploads[2].comment, 'revised');
+    assert.equal(uploads[2].file, attachment);
+  } finally { app.unmount(); delete globalThis.__qaAttempt; }
+});

@@ -74,6 +74,26 @@ const recommendation = ref<DiagnosticRecommendation | null>(null);
 const recommendationBusy = ref(false);
 const recommendationError = ref('');
 const task = ref<DiagnosticTask | null>(null);
+const assignedAudio = ref<HTMLAudioElement | null>(null);
+const captureActive = ref(false);
+const sampleUnavailable = ref(false);
+const samplePlaying = ref(false);
+const currentCaptureKey = computed(() => JSON.stringify([learnerStore.learner?.id, session.value?.id, task.value?.id]));
+function onCaptureState(state: { contextKey: string; active: boolean }): void {
+  if (state.contextKey !== currentCaptureKey.value) return;
+  captureActive.value = state.active;
+  if (state.active) assignedAudio.value?.pause();
+}
+function pauseSample(): void { assignedAudio.value?.pause(); samplePlaying.value = false; }
+function guardSamplePlay(event: Event): void {
+  if (captureActive.value) { (event.target as HTMLAudioElement).pause(); return; }
+  samplePlaying.value = true;
+}
+watch(() => [task.value?.id, task.value?.exercise.code, task.value?.exercise.version, learnerStore.learner?.id], () => {
+  pauseSample(); captureActive.value = false; sampleUnavailable.value = false;
+});
+onBeforeUnmount(pauseSample);
+
 watch(() => task.value?.exercise.coverUrl, () => {
   customArtworkFailed.value = false;
   fallbackArtworkFailed.value = false;
@@ -441,9 +461,11 @@ async function assign(exerciseCode: string): Promise<void> {
             <div class="studio-assignment-actions">
               <div v-if="task.exercise.previewAudioUrl" class="studio-audio-example">
                 <span class="studio-audio-label">{{ t('diagnostic.listenExample') }}</span>
-                <audio :key="task.exercise.code + '@' + task.exercise.version"
-                  :src="task.exercise.previewAudioUrl" preload="none" controls
-                  :aria-label="t('diagnostic.listenExample')" />
+                <audio v-if="!sampleUnavailable" ref="assignedAudio" :key="task.exercise.code + '@' + task.exercise.version"
+                  :src="task.exercise.previewAudioUrl" preload="none" controls :style="captureActive ? { pointerEvents: 'none', opacity: '.5' } : {}"
+                  :aria-disabled="captureActive" :tabindex="captureActive ? -1 : 0"
+                  :aria-label="t('diagnostic.listenExample')" @play="guardSamplePlay" @pause="samplePlaying = false" @ended="samplePlaying = false" @error="sampleUnavailable = true; samplePlaying = false" />
+                <span v-else role="status">{{ t('diagnostic.metadata.audioUnavailable') }} <button type="button" @click="sampleUnavailable = false">{{ t('home.retry') }}</button></span>
               </div>
               <span v-else class="studio-audio-unavailable">{{ t('diagnostic.metadata.audioUnavailable') }}</span>
             </div>
@@ -457,7 +479,7 @@ async function assign(exerciseCode: string): Promise<void> {
           <aside class="studio-sidebar" :aria-label="t('diagnostic.workspace.recording')">
             <SubmissionPanel v-if="learnerStore.learner"
               :learner-id="learnerStore.learner.id"
-              :session-id="session.id" :task-id="task.id" :exercise="task.exercise" @draft-state="onSubmissionDraft" />
+              :session-id="session.id" :task-id="task.id" :exercise="task.exercise" :sample-playing="samplePlaying" @draft-state="onSubmissionDraft" @capture-state="onCaptureState" @preview-play="pauseSample" />
           </aside>
         </div>
         <details class="studio-extra">
