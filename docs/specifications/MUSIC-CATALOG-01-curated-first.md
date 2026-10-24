@@ -63,3 +63,20 @@ These are conceptual publication states, not a demand to replace existing databa
 
 ## 6. Decision record
 Three GM-EB02 variants passed structural checks but were explicitly musically rejected by the product owner. The owner then chose to prefer existing, appealing compositions when legally usable; generation of new etudes becomes a fallback, not the default. This supersedes earlier conflicting original-only mandates for content selection but does not itself implement changes in code, contracts, catalog entries or project board fields.
+
+## 7. Diagnostic probes versus optional full repertoire (2026-10-24 owner feedback)
+
+The owner auditioned a real-guitar performance of Carulli Waltz Op.241 no.1, found the composition helpful/good, but noted that ~71 seconds is too long for a single first diagnostic probe and the piece cannot be universally required since musical taste differs. This feedback means *useful repertoire candidate*, **not** approval for compulsory instruction, automatic assignment, production distribution, or publication of a new edition.
+
+- `DIAGNOSTIC_PROBE`: a deliberately small, skill-specific task assessing pulse, meter grouping, articulation or hand independence without unnecessary artistic/repertoire demands. A **provisional UX target** is 15–30 seconds per probe; validate with actual students and adapt to skill and evidence quality. Never misrepresent this range as an owner-approved strict limit.
+- `LEARNING_REPERTOIRE`: a complete, engaging piece appropriate to an individual student; the application presents curated choices or personalized recommendations, not a single mandatory style for everyone. A full piece can be used for diagnostic evidence **if the learner already knows it or expressly elects to submit it**, not because the agent insists on a specific work.
+- Diagnostics remain adaptive: first accept one or more known pieces with permitted score/TAB uploads; add only the shortest extra probes necessary to close clear evidence gaps. Keep musical preference separate from skill attainment.
+- Diagnostic excerpts derived from existing repertoire need rights review for the excerpt/arrangement/recording/edition just as complete works do; time trimming does not itself confer permission.
+- For any listening-based review link, supply directly playable browser audio (e.g., authorized MP3) and a functioning notation+TAB view. MIDI requiring a separately installed SF2, dead URLs, and editions with missing TAB are not finished review packages.
+
+### Acceptance additions
+- **AC-MUS-07:** learner is not obliged to perform a fixed full composition for the initial skill check; probes are short, adaptable and focused on measurable evidence.
+- **AC-MUS-08:** complete repertoire pieces remain optional; the learner can select suitable alternatives or submit familiar music, subject to technical/legal availability.
+- **AC-MUS-09:** real browsing/playback and notes+TAB access have been tested before a review package is offered; failures are recorded and repaired before acceptance.
+
+These categories are conceptual domain distinctions pending backend/API design; do not introduce a breaking enum or change legacy assignments without an explicit migration and tests.
