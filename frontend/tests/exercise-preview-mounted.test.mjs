@@ -263,3 +263,41 @@ test('opening PDF during initial HEAD allows retry and stale initial failure can
     globalThis.fetch = saved;
   }
 });
+
+test('successful explicit PDF HEAD renders iframe while both initial HEAD checks remain pending', async () => {
+  const saved = globalThis.fetch;
+  const requests = [];
+  globalThis.fetch = (url, options) => {
+    const item = { url, signal: options.signal, ...deferred() };
+    requests.push(item);
+    return item.promise;
+  };
+  const screen = view();
+  let app;
+  try {
+    const Preview = await component();
+    app = screen.renderer.createApp({ render: () => h(Preview, { exercise: exercise('v1') }) });
+    app.mount(screen.root);
+    assert.equal(requests.length, 2, 'initial audio and PDF checks started');
+    const details = screen.find('details');
+    details.props.onToggle({ target: { open: true } });
+    assert.equal(requests.length, 3, 'opening makes independent PDF request');
+    requests[2].resolve({ ok: true });
+    await flush();
+    assert.equal(requests[0].signal.aborted, false, 'initial audio check remains pending');
+    assert.equal(requests[1].signal.aborted, false, 'initial PDF check remains pending');
+    assert.equal(screen.find('iframe')?.props.src, '/pdf/v1#view=FitH&toolbar=1',
+      'PDF is visible without settling either initial HEAD request');
+    assert.ok(screen.find('a', n => n.props.href === '/score/v1'), 'source score is still available');
+    assert.equal(screen.text().includes('diagnostic.metadata.pdfUnavailable'), false);
+
+    // Late initial failure does not clear a successful explicitly opened PDF.
+    requests[0].resolve({ ok: false });
+    requests[1].resolve({ ok: false });
+    await flush();
+    assert.equal(screen.find('iframe')?.props.src, '/pdf/v1#view=FitH&toolbar=1');
+  } finally {
+    app?.unmount();
+    globalThis.fetch = saved;
+  }
+});
