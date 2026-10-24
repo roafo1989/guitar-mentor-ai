@@ -14,6 +14,8 @@ from xml.etree import ElementTree as ET
 
 from reportlab.lib.pagesizes import A4
 from reportlab.pdfgen import canvas
+from reportlab.pdfbase import pdfmetrics
+from reportlab.pdfbase.ttfonts import TTFont
 
 ROOT = Path(__file__).resolve().parents[2]
 ASSETS = ROOT / "backend/src/main/resources/exercises/GM-DIAG-PULSE-3-8-01"
@@ -51,6 +53,7 @@ def assert_source():
 def draw_score():
     doc = canvas.Canvas(str(PDF), pagesize=A4, pageCompression=1)
     w, h = A4
+    pdfmetrics.registerFont(TTFont("GuitarClef", "/usr/share/fonts/truetype/freefont/FreeSerif.ttf"))
     doc.setFont("Helvetica-Bold", 17)
     doc.drawString(48, h-57, "Triple-meter pulse (3/8) — technical probe")
     doc.setFont("Helvetica", 9)
@@ -79,6 +82,9 @@ def draw_score():
             end=start+width
             doc.line(start,bottom,end if j==3 else start,bottom) if False else None
             if j==0: doc.line(start,bottom,start,top)
+            if j==0:
+                doc.setFont("GuitarClef", 43)
+                doc.drawString(x0-38, bottom-12, "\uD834\uDD1E")
             doc.line(end,bottom,end,top)
             doc.line(end,tab_top-45,end,tab_top)
             if j==0: doc.line(start,tab_top-45,start,tab_top)
