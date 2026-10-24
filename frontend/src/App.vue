@@ -11,7 +11,7 @@ import { metronome, type MetronomeStatus } from './shared/audio/metronome';
 import { useLearnerStore } from './stores/learner.store';
 
 const { locale, t } = useI18n();
-const localPrototype = import.meta.env.DEV && import.meta.env.VITE_GUITAR_MENTOR_AUTH_REQUIRED !== 'true';
+const localPrototype = import.meta.env?.DEV === true && import.meta.env?.VITE_GUITAR_MENTOR_AUTH_REQUIRED !== 'true';
 // All routed pages restore the selected learner on mount; this header reacts to Pinia changes.
 const learnerStore = useLearnerStore();
 const route = useRoute();
