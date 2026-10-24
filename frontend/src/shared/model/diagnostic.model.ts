@@ -17,6 +17,9 @@ export interface Exercise {
   bpm: number;
   measures: number;
   meter: string;
+  contentKind?: 'DIAGNOSTIC_PROBE' | 'LEARNING_REPERTOIRE';
+  tempoUnit?: 'quarter' | 'eighth' | 'dotted-quarter';
+  durationTargetSeconds?: number | null;
   author: string;
   license: string;
   reviewStatus: string;

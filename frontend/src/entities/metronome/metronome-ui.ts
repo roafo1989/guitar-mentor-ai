@@ -42,6 +42,7 @@ export function openMetronome(trigger: HTMLElement): void {
 /** Apply the exercise's real meter, rather than retaining an unrelated header preset. */
 export function openExerciseMetronome(
   trigger: HTMLElement, source: string, bpm: number, meter: string,
+  tempoUnit?: 'quarter' | 'eighth' | 'dotted-quarter',
 ): boolean {
   const parsed = /^([0-9]{1,2})\/(2|4|8|16)$/.exec(meter.trim());
   if (!parsed || !Number.isInteger(bpm) || bpm < 20 || bpm > 240) return false;
@@ -59,7 +60,9 @@ export function openExerciseMetronome(
   // clock with the wrong accents/measure length.
   if (status === 'running' || status === 'starting') metronome.stop();
   const previous = metronome.getConfig();
+  if (tempoUnit && !['quarter', 'eighth', 'dotted-quarter'].includes(tempoUnit)) return false;
   const requested = meterConfig(numerator, denominator, bpm);
+  if (tempoUnit) requested.tempoUnit = tempoUnit;
   requested.masterVolumePercent = previous.masterVolumePercent;
   requested.accentVolumes = { ...previous.accentVolumes };
   requested.subdivisionVolumePercent = previous.subdivisionVolumePercent;

@@ -23,21 +23,31 @@ public class ExerciseCatalogService {
     @Transactional(readOnly = true)
     public List<ExerciseView> available(String instrumentCode, String techniqueCode) {
         return assembler.many(exercises.findByInstrumentCodeAndTechniqueCodeAndCurrentTrueOrderByCode(
-                instrumentCode, techniqueCode));
+                instrumentCode, techniqueCode).stream()
+                .filter(ExercisePublicationPolicy::eligible).toList());
     }
 
     @Transactional(readOnly = true)
     public ExerciseView find(String code) {
-        return assembler.one(exercises.findByCodeAndCurrentTrue(code)
-                .orElseThrow(() -> new EntityNotFoundException("Exercise not found")));
+        var exercise = exercises.findByCodeAndCurrentTrue(code)
+                .orElseThrow(() -> new EntityNotFoundException("Exercise not found"));
+        if (!ExercisePublicationPolicy.eligible(exercise))
+            throw new EntityNotFoundException("Exercise not found");
+        return assembler.one(exercise);
     }
 
     @Transactional(readOnly = true)
     public ExerciseView findVersion(String code, String version) {
-        return assembler.one(exercises.findByCodeAndVersion(code, version)
+        var exercise = exercises.findByCodeAndVersion(code, version)
                 .orElseThrow(() -> new ai.guitarmentor.application.exercise.ExerciseReferenceException(
                         org.springframework.http.HttpStatus.NOT_FOUND,
-                        "EXERCISE_NOT_FOUND", "Exercise not found")));
+                        "EXERCISE_NOT_FOUND", "Exercise not found"));
+        if ("DIAGNOSTIC_PROBE".equals(exercise.getContentKind())
+                && !ExercisePublicationPolicy.eligible(exercise))
+            throw new ai.guitarmentor.application.exercise.ExerciseReferenceException(
+                    org.springframework.http.HttpStatus.NOT_FOUND,
+                    "EXERCISE_NOT_FOUND", "Exercise not found");
+        return assembler.one(exercise);
     }
 
     @Transactional(readOnly = true)
