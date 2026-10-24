@@ -11,6 +11,15 @@ public class ActorRepository {
 
     public ActorRepository(JdbcClient jdbc) { this.jdbc = jdbc; }
 
+    public boolean hasGoogleIdentity(UUID accountId) {
+        return jdbc.sql("""
+            SELECT count(*) FROM account_identities
+            WHERE account_id=:id AND issuer=:issuer
+            """).param("id", accountId)
+            .param("issuer", InvitationService.GOOGLE_ISSUER)
+            .query(Long.class).single() > 0;
+    }
+
     public boolean hasLocalCredential(UUID accountId) {
         return jdbc.sql("SELECT count(*) FROM local_credentials WHERE account_id=:id")
             .param("id", accountId).query(Long.class).single() > 0;
