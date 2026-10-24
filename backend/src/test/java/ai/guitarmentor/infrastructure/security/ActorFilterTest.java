@@ -85,7 +85,7 @@ class ActorFilterTest {
         var response = new MockHttpServletResponse();
         filter.doFilter(request, response, new MockFilterChain());
         assertEquals(401, response.getStatus());
-        assertEquals("{\\"code\\":\\"SESSION_EXPIRED\\"}", response.getContentAsString());
+        assertEquals("{\"code\":\"SESSION_EXPIRED\"}", response.getContentAsString());
         verify(session).invalidate();
     }
 
