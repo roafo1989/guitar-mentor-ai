@@ -117,7 +117,8 @@ onBeforeUnmount(() => pdfOpenController?.abort());
       <h4>{{ assigned ? t('diagnostic.assignedMediaHeading') : t('diagnostic.previewHeading') }}</h4>
       <span class="hint">{{ assigned ? t('diagnostic.assignedMediaHint') : t('diagnostic.previewBeforeAssign') }}</span>
     </div>
-    <section class="exercise-learning" :aria-label="t('diagnostic.metadata.heading')">
+    <component :is="assigned && lightMinimal ? 'details' : 'section'" class="exercise-learning" :aria-label="t('diagnostic.metadata.heading')">
+      <summary v-if="assigned && lightMinimal">{{ t('diagnostic.metadata.heading') }}</summary>
       <p class="exercise-version">{{ isProbe ? t('diagnostic.probeLabel') : t('diagnostic.repertoireLabel') }} · {{ t('diagnostic.metadata.version') }}: {{ exercise.code }}@{{ exercise.version }}</p>
       <h5>{{ t('diagnostic.metadata.goal') }}</h5>
       <p>{{ goal || t('diagnostic.metadata.unknown') }}</p>
@@ -138,7 +139,7 @@ onBeforeUnmount(() => pdfOpenController?.abort());
         <div><dt>{{ t('diagnostic.metadata.author') }}</dt><dd>{{ exercise.author?.trim() || t('diagnostic.metadata.unknown') }}</dd></div>
         <div><dt>{{ t('diagnostic.metadata.license') }}</dt><dd>{{ exercise.license?.trim() || t('diagnostic.metadata.unknown') }}</dd></div>
       </dl>
-    </section>
+    </component>
     <div class="metronome-exercise-tool">
       <button type="button" class="recorder-button metronome-exercise-launch"
         :title="t('metronome.openExercise')" @click="launchMetronome">
@@ -185,6 +186,9 @@ onBeforeUnmount(() => pdfOpenController?.abort());
 
 <style scoped>
 .exercise-learning { min-width: 0; margin: 1rem 0; overflow-wrap: anywhere; }
+details.exercise-learning {border:1px solid #dce5e4;border-radius:10px;padding:8px 14px;background:#f8fbfa}
+details.exercise-learning > summary {min-height:44px;display:flex;align-items:center;font-weight:650;cursor:pointer;color:#205f57}
+details.exercise-learning > summary:focus-visible {outline:3px solid #28776d;outline-offset:3px}
 .exercise-learning h5 { margin: .85rem 0 .3rem; font-size: 1rem; }
 .exercise-learning p { margin: .35rem 0; }
 .exercise-learning ul { padding-left: 1.5rem; }
