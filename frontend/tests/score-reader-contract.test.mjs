@@ -183,7 +183,7 @@ test('#150 secure unified local environment explicitly enables authenticated upl
   assert.match(launcher, /\$env:GUITAR_MENTOR_ENABLE_UPLOADS = 'true'/);
   const submission = await readFile(new URL('../src/entities/attempt/SubmissionPanel.vue', import.meta.url), 'utf8');
   assert.match(submission, /id="attempt-comment"[^>]*v-model="comment"/);
-  assert.match(submission, /:disabled="uploading \\|\\| recordingActive"\\s*:placeholder="t\('attempt.commentPlaceholder'\)"/);
+  assert.match(submission, /:disabled="uploading \|\| recordingActive"\s*:placeholder="t\('attempt.commentPlaceholder'\)"/);
   assert.match(submission, /!capabilities\.value\?\.enabled/);
   for (const lang of ['ru','en']) {
     const copy = JSON.parse(await readFile(new URL('../src/i18n/'+lang+'.json', import.meta.url),'utf8')).attempt;
