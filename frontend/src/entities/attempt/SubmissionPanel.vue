@@ -404,7 +404,6 @@ onBeforeUnmount(() => {
         <summary>{{ t('attempt.historyDetails') }}</summary>
         <p v-if="historyError" role="alert" class="error">{{ historyError }} <button type="button" :disabled="pageBusy" @click="requestRefresh()">{{ t('learning.retry') }}</button></p>
         <p v-if="historyStale" role="status" class="hint">{{ t('attempt.historyStale') }}</p>
-        <p v-if="historyNotice && !historyError" role="status" class="hint">{{ historyNotice }}</p>
         <p v-if="!attempts.length" class="hint">{{ t('attempt.noAttempts') }}</p>
         <article v-for="item in attempts" :key="item.id" class="attempt-card">
           <div class="attempt-card-title">
@@ -427,6 +426,7 @@ onBeforeUnmount(() => {
           <button type="button" class="secondary-button" :disabled="pageBusy" @click="navigate(undefined, 'latest')">{{ t('attempt.latest') }}</button>
           <button type="button" class="secondary-button" :disabled="pageBusy" @click="readPage()">{{ t('attempt.refresh') }}</button>
         </nav>
+        <p v-if="historyNotice && !historyError" role="status" class="hint">{{ historyNotice }}</p>
       </details>
     </template>
   </section>
