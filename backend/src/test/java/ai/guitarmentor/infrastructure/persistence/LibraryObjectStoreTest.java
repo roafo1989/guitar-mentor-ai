@@ -57,4 +57,16 @@ class LibraryObjectStoreTest {
             temp.resolve("attempts").toString(),temp.resolve("scores").toString()));
     }
 
+    @Test void posixObjectsAndDirectoryAreOwnerOnly() throws Exception {
+        var store=store();
+        Path directory=temp.resolve("library");
+        org.junit.jupiter.api.Assumptions.assumeTrue(
+            Files.getFileStore(directory).supportsFileAttributeView("posix"));
+        var object=store.put(new ByteArrayInputStream(new byte[]{1,2,3}),10);
+        assertEquals("rwx------",java.nio.file.attribute.PosixFilePermissions.toString(
+            Files.getPosixFilePermissions(directory)));
+        assertEquals("rw-------",java.nio.file.attribute.PosixFilePermissions.toString(
+            Files.getPosixFilePermissions(store.file(object.key()))));
+    }
+
 }
