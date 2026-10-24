@@ -28,6 +28,12 @@ server:
         same-site: lax
 
 guitar-mentor:
+  library:
+    # Opt-in only after a protected private storage root and stable HMAC secret are configured.
+    enabled: ${GUITAR_MENTOR_LIBRARY_ENABLED:false}
+    storage-path: ${GUITAR_MENTOR_LIBRARY_STORAGE_PATH:./.local-media/library}
+    cursor-secret: ${GUITAR_MENTOR_LIBRARY_CURSOR_SECRET:}
+    reconcile-delay-ms: ${GUITAR_MENTOR_LIBRARY_RECONCILE_MS:600000}
   security:
     enabled: ${GUITAR_MENTOR_SECURITY_ENABLED:true}
   submissions:
