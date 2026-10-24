@@ -109,7 +109,7 @@ def apply(data, account_id, dsn):
                     updates=", ".join(f"{col}=EXCLUDED.{col}" for col in columns if col not in (["owner_account_id"]+keys))
                     cur.execute(
                         f"INSERT INTO {table} ({', '.join(columns)}) "
-                        f"SELECT {', '.join(columns)} FROM {staging} "
+                        f"SELECT {', '.join(columns)} FROM {staging} WHERE true "
                         f"ON CONFLICT (owner_account_id, {', '.join(keys)}) DO UPDATE SET {updates}"
                     )
                     print(f"Upserted {len(data[i])} rows into {table}")
