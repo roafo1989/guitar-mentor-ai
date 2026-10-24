@@ -43,7 +43,7 @@ export function openMetronome(trigger: HTMLElement): void {
 export function openExerciseMetronome(
   trigger: HTMLElement, source: string, bpm: number, meter: string,
 ): boolean {
-  const parsed = /^(\\d{1,2})\\/(2|4|8|16)$/.exec(meter.trim());
+  const parsed = /^([0-9]{1,2})\/(2|4|8|16)$/.exec(meter.trim());
   if (!parsed || !Number.isInteger(bpm) || bpm < 20 || bpm > 240) return false;
   const numerator = Number(parsed[1]);
   const denominator = Number(parsed[2]) as 2 | 4 | 8 | 16;
