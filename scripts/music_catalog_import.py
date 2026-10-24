@@ -100,7 +100,7 @@ def apply(data, account_id, dsn):
                     with cur.copy(f"COPY {staging} ({', '.join(columns)}) FROM STDIN") as copy:
                         for row in data[i]:
                             values=[account_id]+[
-                                (row[source] if row[source] != "" else None)
+                                row[source]
                                 for _,source in mapping
                             ]
                             if table=="music_catalog_source_files":
