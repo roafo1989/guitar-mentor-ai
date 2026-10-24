@@ -69,9 +69,24 @@ if (-not $caddyListening) {
         throw 'Caddy HTTPS server not running. Install Caddy in C:\Tools\Caddy or start it manually.'
     }
     if (-not (Test-Path -LiteralPath $caddyConfig)) { throw 'Missing local Caddyfile.' }
-    Start-Process -FilePath $caddyExe -WorkingDirectory $projectRoot -ArgumentList @(
-        'run', '--config', ('"' + $caddyConfig + '"'), '--adapter', 'caddyfile'
-    )
+    # Explicitly mask any credentials inherited from a parent shell before
+    # spawning Caddy; restore the original environment immediately afterward.
+    $hiddenVariables = @('GUITAR_MENTOR_OIDC_CLIENT_SECRET', 'GUITAR_MENTOR_SMTP_PASSWORD',
+        'SPRING_DATASOURCE_PASSWORD', 'GUITAR_MENTOR_REVIEW_TOKEN')
+    $saved = @{}
+    try {
+        foreach ($name in $hiddenVariables) {
+            $saved[$name] = [Environment]::GetEnvironmentVariable($name, 'Process')
+            [Environment]::SetEnvironmentVariable($name, $null, 'Process')
+        }
+        Start-Process -FilePath $caddyExe -WorkingDirectory $projectRoot -ArgumentList @(
+            'run', '--config', ('"' + $caddyConfig + '"'), '--adapter', 'caddyfile'
+        )
+    } finally {
+        foreach ($name in $hiddenVariables) {
+            [Environment]::SetEnvironmentVariable($name, $saved[$name], 'Process')
+        }
+    }
     Write-Host 'Started local Caddy HTTPS proxy for https://guitar-mentor.'
 }
 $conf = Get-Content -LiteralPath $settingsPath -Raw | ConvertFrom-Json
