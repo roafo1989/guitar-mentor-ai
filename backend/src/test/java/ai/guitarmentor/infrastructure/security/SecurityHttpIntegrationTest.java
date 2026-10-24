@@ -175,6 +175,32 @@ class SecurityHttpIntegrationTest {
             .andExpect(status().isForbidden());
     }
 
+    @Test
+    void libraryRequiresAuthenticationAndCsrfBeforeMultipartParsing() throws Exception {
+        String endpoint="/api/v1/library/materials";
+        mvc.perform(get(endpoint)).andExpect(status().isUnauthorized());
+        mvc.perform(get(endpoint+"/"+UUID.randomUUID()+"/files/"+UUID.randomUUID()+"/content"))
+            .andExpect(status().isUnauthorized());
+        activeA();
+        var principal=oidcLogin().idToken(t -> t.claim("iss","https://issuer.example").subject("user-a"));
+        var metadata=new org.springframework.mock.web.MockMultipartFile(
+            "metadata","","application/json",
+            "{\"title\":\"Etude\",\"type\":\"ETUDE\"}".getBytes(java.nio.charset.StandardCharsets.UTF_8));
+        var file=new org.springframework.mock.web.MockMultipartFile(
+            "files","etude.gp","application/octet-stream",new byte[]{1,2});
+        mvc.perform(org.springframework.test.web.servlet.request.MockMvcRequestBuilders
+                .multipart(endpoint).file(metadata).file(file).with(principal)
+                .sessionAttr("guitarMentorAccessVersion",0L)
+                .header("Idempotency-Key",UUID.randomUUID().toString()))
+            .andExpect(status().isForbidden());
+        mvc.perform(org.springframework.test.web.servlet.request.MockMvcRequestBuilders
+                .multipart(endpoint).file(metadata).file(file).with(principal).with(csrf())
+                .sessionAttr("guitarMentorAccessVersion",0L)
+                .header("Idempotency-Key",UUID.randomUUID().toString()))
+            .andExpect(status().isServiceUnavailable())
+            .andExpect(jsonPath("$.code").value("LIBRARY_DISABLED"));
+    }
+
     private void activeA() {
         when(actors.findActive("https://issuer.example", "user-a"))
             .thenReturn(Optional.of(new CurrentActor(UUID.randomUUID(), learnerA, "LEARNER")));
