@@ -384,6 +384,49 @@ class SubmissionAttemptPostgresIntegrationTest {
         assertTrue(Files.isRegularFile(MEDIA_ROOT.resolve(key)));
     }
     @Test
+    void legacyHistoryUsesBoundedAssessmentBatchesWithoutTruncation() {
+        Instant now = Instant.now();
+        jdbc.update("""
+            INSERT INTO submission_attempts
+              (id,diagnostic_task_id,request_id,attempt_number,submitted_at,status,
+               media_key,media_format,size_bytes)
+            SELECT gen_random_uuid(), ?, gen_random_uuid(), n, ?, 'UPLOADED',
+                   gen_random_uuid()::text || '.wav', 'wav', 12
+            FROM generate_series(1,1001) AS n
+            """, taskId, java.sql.Timestamp.from(now));
+        // Mark both ends of the history, across different 500-ID batches.
+        for (int n : new int[]{1,1001}) {
+            UUID attemptId = jdbc.queryForObject(
+                "SELECT id FROM submission_attempts WHERE diagnostic_task_id=? AND attempt_number=?",
+                UUID.class, taskId, n);
+            jdbc.update("""
+                INSERT INTO attempt_assessments
+                  (id,task_id,attempt_id,revision,source_operation_id,input_fingerprint,
+                   method_id,method_version,source_kind,recommendation,created_at)
+                VALUES (?,?,?,?,?,?,'manual','1','HUMAN_REVIEW','REVISE',?)
+                """, UUID.randomUUID(),taskId,attemptId,1,UUID.randomUUID(),
+                "f".repeat(64),java.sql.Timestamp.from(now));
+        }
+        var assessedSql = AttemptSqlProbe.capture(() -> {
+            var all = service.list(learnerId,sessionId,taskId);
+            assertEquals(1001,all.size(), "Legacy GET must not truncate history");
+            assertEquals(1001,all.get(0).number());
+            assertEquals(1,all.get(1000).number());
+            assertTrue(all.get(0).assessmentAvailable());
+            assertTrue(all.get(1000).assessmentAvailable());
+            assertFalse(all.get(1).assessmentAvailable());
+        });
+        var batches = assessedSql.stream()
+                .filter(sql -> sql.contains("from attempt_assessments")).toList();
+        assertEquals(3,batches.size(), "1001 rows require 500+500+1 assessments lookups");
+        assertTrue(batches.stream().allMatch(sql -> sql.chars().filter(c -> c == '?').count() <= 500));
+        var pageSql = AttemptSqlProbe.capture(() ->
+            assertEquals(20,service.page(learnerId,sessionId,taskId,20,null).items().size()));
+        assertEquals(1,countStatements(pageSql,"from attempt_assessments"),
+                "Paginated route must keep single batch");
+    }
+
+    @Test
     void boundedSqlStatementsDoNotGrowWithPageSize() {
         Instant now = Instant.now();
         jdbc.update("""
