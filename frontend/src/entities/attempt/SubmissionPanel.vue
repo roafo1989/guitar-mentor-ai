@@ -79,6 +79,7 @@ watch([uploading, recordingActive, decisionBusy, file, comment], () => {
 let polling: ReturnType<typeof setInterval> | undefined;
 let historyRequestInFlight = false;
 let requestSerial = 0;
+let pinSerial = 0;
 let contextGeneration = 0;
 let mounted = true;
 function currentContext(generation: number): boolean {
@@ -87,6 +88,8 @@ function currentContext(generation: number): boolean {
 function resetForContext(): void {
   ++contextGeneration;
   ++requestSerial;
+  ++pinSerial;
+  historyRequestInFlight = false;
   attempts.value = [];
   pinned.value = [];
   selectedId.value = '';
@@ -162,16 +165,19 @@ async function readPage(cursor = pageCursor.value, keepBusy = false): Promise<bo
     }
     return false;
   } finally {
-    historyRequestInFlight = false;
-    if (currentContext(generation) && serial === requestSerial) pageBusy.value = false;
+    if (currentContext(generation) && serial === requestSerial) {
+      historyRequestInFlight = false;
+      pageBusy.value = false;
+    }
   }
 }
 async function refreshPinned(generation: number, serial: number) {
+  const pin = ++pinSerial;
   const ids = [...new Set([selectedId.value, latestId.value].filter(Boolean))]
     .filter(id => !attempts.value.some(a => a.id === id)).slice(0, 2);
   const { learnerId, sessionId, taskId } = props;
   const results = await Promise.allSettled(ids.map(id => attemptService.detail(learnerId, sessionId, taskId, id)));
-  if (!currentContext(generation) || serial !== requestSerial) return;
+  if (!currentContext(generation) || serial !== requestSerial || pin !== pinSerial) return;
   pinned.value = results.flatMap(result => result.status === 'fulfilled' ? [result.value] : []);
 }
 async function navigate(cursor: number | undefined, direction: 'older' | 'newer' | 'latest') {
