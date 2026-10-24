@@ -157,15 +157,22 @@ function sendPending() {
 const iframeDocument = computed(() => {
   const key = nonce.value;
   const javascript = `
-    let port, pdf, rendering, nextRender, workerUrl, rendererUrl;
+    let port, pdf, rendering, renderBusy=false, nextRender, workerUrl, rendererUrl;
     const nonce = ${JSON.stringify(key)};
     const holder = document.getElementById('page');
     const send = (type, extra={}) => port?.postMessage({type,nonce,...extra});
     async function draw(request) {
       if (!pdf) return;
-      if (rendering) { nextRender = request; rendering.cancel(); return; }
+      if (renderBusy) {
+        nextRender = request;
+        rendering?.cancel();
+        return;
+      }
+      renderBusy = true;
+      let deadline;
       try {
         const p = await pdf.getPage(request.page);
+        if (nextRender) return;
         const basic = p.getViewport({scale:1});
         const scale = request.fitWidth
           ? Math.max(.05,(holder.clientWidth - 20) / basic.width)
@@ -182,12 +189,16 @@ const iframeDocument = computed(() => {
         rendering = p.render({canvasContext:ctx,viewport:view});
         await Promise.race([
           rendering.promise,
-          new Promise((_, reject)=>setTimeout(()=>reject(Error('RENDER_TIMEOUT')),10000))
+          new Promise((_, reject)=>{ deadline=setTimeout(()=>reject(Error('RENDER_TIMEOUT')),10000); })
         ]);
-        send('rendered',{page:request.page});
-      } catch(e) { if (e?.name !== 'RenderingCancelledException') send('failure',{reason:'render'}); }
-      finally {
+        if (!nextRender) send('rendered',{page:request.page});
+      } catch(e) {
+        rendering?.cancel();
+        if (e?.name !== 'RenderingCancelledException' && !nextRender) send('failure',{reason:'render'});
+      } finally {
+        if (deadline) clearTimeout(deadline);
         rendering = null;
+        renderBusy = false;
         if (nextRender) {const latest=nextRender;nextRender=null;await draw(latest);}
       }
     }
