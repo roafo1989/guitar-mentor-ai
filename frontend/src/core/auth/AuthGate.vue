@@ -44,12 +44,7 @@ function setMode(next: Mode) {
   if (next !== 'verify' && next !== 'reset') {
     verificationToken.value = ''; tokenFromLink.value = false;
   }
-  // A taller register form must begin below the sticky header, not inherit
-  // the scroll position from the shorter login form.
-  void nextTick(() => {
-    heading.value?.focus({ preventScroll: true });
-    window.scrollTo(0, 0);
-  });
+  void nextTick(() => heading.value?.focus());
 }
 async function request(path: string, body: object): Promise<boolean> {
   if (busy.value) return false;
@@ -67,7 +62,7 @@ async function request(path: string, body: object): Promise<boolean> {
         mode.value = 'expired-link';
         verificationToken.value = ''; tokenFromLink.value = false;
         emailActionInProgress.value = true;
-        void nextTick(() => heading.value?.focus({ preventScroll: true }));
+          void nextTick(() => heading.value?.focus());
         return false;
       }
       error.value = response.status === 429
@@ -164,7 +159,7 @@ function consumeAuthFragment(): void {
     verificationToken.value = ''; tokenFromLink.value = false;
     password.value = ''; confirmPassword.value = '';
     error.value = ''; success.value = '';
-    void nextTick(() => heading.value?.focus({ preventScroll: true }));
+      void nextTick(() => heading.value?.focus());
     return;
   }
   verificationToken.value = link.token;
@@ -176,7 +171,7 @@ function consumeAuthFragment(): void {
   error.value = '';
   success.value = '';
   mode.value = link.action;
-  void nextTick(() => heading.value?.focus({ preventScroll: true }));
+    void nextTick(() => heading.value?.focus());
 }
 function handleGoogle(): void {
   if (busy.value || oauthPending.value || !mounted) return;
