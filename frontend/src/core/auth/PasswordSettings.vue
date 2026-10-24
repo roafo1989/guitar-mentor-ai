@@ -22,11 +22,12 @@ const notice = ref('');
 const verificationPending = ref(false);
 onMounted(async () => {
   const url = new URL(window.location.href);
-  if (url.searchParams.get('authAction') === 'link') {
-    const value = url.searchParams.get('token');
+  const fragment = new URLSearchParams(url.hash.slice(1));
+  if (fragment.get('authAction') === 'link') {
+    const value = fragment.get('token');
     if (value && /^[a-f0-9]{64}$/.test(value)) token.value = value;
-    url.searchParams.delete('token'); url.searchParams.delete('authAction');
-    window.history.replaceState(null, '', url.pathname + url.search + url.hash);
+    fragment.delete('token'); fragment.delete('authAction');
+    window.history.replaceState(null, '', url.pathname + url.search + (fragment.toString() ? '#' + fragment : ''));
   }
   try {
     const response = await fetch('/api/v1/local-auth/methods');
