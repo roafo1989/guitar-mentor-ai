@@ -238,4 +238,26 @@ class LibraryOriginalPostgresTest {
             .getMessage());
     }
 
+    @Test void everySupportedGuitarProExtensionRemainsOpaqueAndByteIdentical() throws Exception {
+        UUID owner=account();
+        var controller=controller();
+        byte[] bytes=new byte[]{0,99,(byte)255,1,2};
+        for(String extension:List.of("gtp","gp3","gp4","gp5","gpx","gp")) {
+            var original=new MockMultipartFile("files","song."+extension,
+                "application/octet-stream",bytes);
+            var response=controller.upload(actor(owner),UUID.randomUUID().toString(),
+                new LibraryOriginalController.Metadata("Guitar Pro","ETUDE",null),
+                List.of(original));
+            assertEquals(201,response.getStatusCode().value(),extension);
+            var material=(LibraryMaterialController.MaterialView)response.getBody();
+            assertNotNull(material);
+            var asset=material.files().getFirst();
+            assertEquals(extension.toUpperCase(java.util.Locale.ROOT),asset.format());
+            assertEquals("ORIGINAL_UNVERIFIED",asset.validationStatus());
+            var download=controller.content(actor(owner),material.id(),asset.id());
+            assertArrayEquals(bytes,Files.readAllBytes(
+                ((FileSystemResource)download.getBody()).getFile().toPath()),extension);
+        }
+    }
+
 }
