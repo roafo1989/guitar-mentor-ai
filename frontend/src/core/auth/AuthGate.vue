@@ -43,7 +43,6 @@ function setMode(next: Mode) {
   password.value = ''; confirmPassword.value = ''; showPassword.value = false; showConfirm.value = false; manualCode.value = false;
   if (next !== 'verify' && next !== 'reset') {
     verificationToken.value = ''; tokenFromLink.value = false;
-    emailActionInProgress.value = false;
   }
   void nextTick(() => heading.value?.focus());
 }
