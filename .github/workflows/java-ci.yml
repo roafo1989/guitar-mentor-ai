@@ -200,6 +200,20 @@ jobs:
                 "http://localhost:8080/api/v1/exercises/GM-EB01/versions/0.8B")" = 200
               echo "Exact-version HTTP parser rejection matrix: OK"
               echo "Exact-version HTTP contract smoke: OK"
+              # #182: published probe resources are version-pinned and playable.
+              probe_base="http://localhost:8080/api/v1/exercises/GM-DIAG-PULSE-3-8-01/versions/0.1.0"
+              probe_detail=$(curl --fail --silent --show-error "$probe_base")
+              printf '%s' "$probe_detail" | python3 -c 'import json,sys; a=json.load(sys.stdin); assert a["meter"]=="3/8" and a["bpm"]==100 and a["tempoUnit"]=="eighth" and a["contentKind"]=="DIAGNOSTIC_PROBE" and a["reviewStatus"]=="APPROVED" and a["version"]=="0.1.0"'
+              for kind in pdf audio; do
+                if [ "$kind" = pdf ]; then expected=application/pdf; else expected=audio/mpeg; fi
+                curl --fail --silent --show-error "$probe_base/preview/$kind" -o "probe-$kind"
+                curl --fail --silent --show-error --head "$probe_base/preview/$kind" -o "probe-$kind-headers"
+                grep -qi "content-type: $expected" "probe-$kind-headers"
+                test "$(wc -c < "probe-$kind")" -gt 3000
+              done
+              head -c 4 probe-pdf | grep -q '%PDF'
+              echo "Approved 3/8 probe versioned PDF/MP3 HTTP smoke: OK"
+
               assigned=$(curl --fail --silent --show-error -X POST \
                 "http://localhost:8080/api/v1/learners/$learner_id/diagnostic-sessions/$session_id/tasks" \
                 -H 'Content-Type: application/json' --data '{"exerciseCode":"GM-EB01"}')
