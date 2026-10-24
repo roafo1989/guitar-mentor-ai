@@ -5,8 +5,11 @@ import { i18n } from './core/i18n';
 import { router } from './router';
 import './assets/main.css';
 import { installAuthenticatedFetch } from './core/auth/auth';
+import { captureEmailActionLink } from './core/auth/auth-link';
 import { useLearnerStore } from './stores/learner.store';
 
+// Remove sensitive email token from URL before router installation can snapshot it.
+captureEmailActionLink();
 const app = createApp(App);
 app.use(createPinia());
 installAuthenticatedFetch(() => useLearnerStore().clearLocalSelection());
