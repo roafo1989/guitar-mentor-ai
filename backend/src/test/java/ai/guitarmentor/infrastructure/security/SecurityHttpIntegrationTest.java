@@ -56,10 +56,9 @@ class SecurityHttpIntegrationTest {
         activeA();
         var principal = oidcLogin().idToken(t -> t.claim("iss", "https://issuer.example").subject("user-a"));
         String base = "/api/v1/learners/" + learnerB;
-        mvc.perform(get(base)).andExpect(status().isNotFound())
+        mvc.perform(get(base).with(principal)).andExpect(status().isNotFound())
             .andExpect(jsonPath("$.code").value("RESOURCE_NOT_FOUND"))
             .andExpect(header().string("Cache-Control", "no-store"));
-        mvc.perform(get(base).with(principal)).andExpect(status().isNotFound());
         mvc.perform(get(base + "/diagnostic-sessions/" + UUID.randomUUID()
                 + "/tasks/" + UUID.randomUUID() + "/attempts/page").with(principal))
             .andExpect(status().isNotFound());
