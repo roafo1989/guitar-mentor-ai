@@ -221,7 +221,7 @@ test('AUTH-03 protects post-submit state and preserves honest generic email resp
   assert.doesNotMatch(gate, /resend-verification|local-auth\/resend/);
   assert.match(gate, /window\.history\.replaceState/);
   assert.match(gate, /'bridge_start_failed'/);
-  assert.match(gate, /emailActionInProgress.value = false/);
+  assert.match(gate, /emailActionInProgress.value = next === 'verify' \\|\\| next === 'reset' \\|\\| next === 'expired-link'/);
 });
 
 test('AUTH-03 deploys exact approved versioned assets instead of legacy favicon', async () => {
