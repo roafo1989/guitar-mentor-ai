@@ -75,9 +75,9 @@ class SubmissionAttemptPagingControllerTest {
             var response = mvc.perform(get(uri))
                     .andExpect(status().isInternalServerError())
                     .andExpect(header().string("Cache-Control", org.hamcrest.Matchers.containsString("no-store")))
-                    .andExpect(content().json("{\\"code\\":\\"ATTEMPT_READ_FAILED\\"}"))
+                    .andExpect(content().json("{\"code\":\"ATTEMPT_READ_FAILED\"}"))
                     .andReturn().getResponse();
-            assertEquals("{\\"code\\":\\"ATTEMPT_READ_FAILED\\"}",response.getContentAsString());
+            assertEquals("{\"code\":\"ATTEMPT_READ_FAILED\"}",response.getContentAsString());
             assertFalse(response.getContentAsString().contains("media"));
         }
     }
