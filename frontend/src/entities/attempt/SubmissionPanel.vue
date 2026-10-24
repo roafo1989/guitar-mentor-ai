@@ -82,11 +82,13 @@ function inputModeKeys(event: KeyboardEvent): void {
 }
 function removeDraft(): void {
   if (uploading.value || recordingActive.value) return;
+  lastSubmitted = null;
   file.value = null;
   sourceKind.value = null;
   clearRecordedPreview();
   if (fileInput.value) fileInput.value.value = '';
   requestId.value = crypto.randomUUID();
+  lastSubmitted = null;
   notice.value = '';
   error.value = '';
 }
@@ -143,11 +145,21 @@ function onRecorded(recording: File) {
   sourceKind.value = 'record';
   recordedPreview.value = URL.createObjectURL(recording);
   requestId.value = crypto.randomUUID();
+  lastSubmitted = null;
   notice.value = '';
   error.value = '';
 }
 const comment = ref('');
 const requestId = ref(crypto.randomUUID());
+// An idempotency key belongs to exactly one immutable upload payload.
+// Retrying without edits preserves it; editing after an attempt rotates it.
+let lastSubmitted: { file: File; comment: string; requestId: string } | null = null;
+watch(comment, value => {
+  if (lastSubmitted && !uploading.value && value !== lastSubmitted.comment) {
+    requestId.value = crypto.randomUUID();
+    lastSubmitted = null;
+  }
+});
 const loading = ref(true);
 const uploading = ref(false);
 const recordingActive = ref(false);
@@ -227,6 +239,7 @@ function resetForContext(): void {
   clearRecordedPreview();
   comment.value = '';
   requestId.value = crypto.randomUUID();
+  lastSubmitted = null;
   recordingActive.value = false;
   uploading.value = false;
   void refresh();
@@ -380,6 +393,7 @@ function selectFile(event: Event) {
   sourceKind.value = 'file';
   recordedPreview.value = URL.createObjectURL(chosen);
   requestId.value = crypto.randomUUID();
+  lastSubmitted = null;
   error.value = '';
   notice.value = '';
 }
@@ -414,6 +428,7 @@ async function submit() {
   const generation = contextGeneration;
   const { learnerId, sessionId, taskId } = props;
   const snapshot = { chosen, comment: comment.value, requestId: requestId.value };
+  lastSubmitted = { file: snapshot.chosen, comment: snapshot.comment, requestId: snapshot.requestId };
   uploading.value = true;
   error.value = '';
   notice.value = '';
@@ -428,6 +443,7 @@ async function submit() {
     if (fileInput.value) fileInput.value.value = '';
     comment.value = '';
     requestId.value = crypto.randomUUID();
+    lastSubmitted = null;
     notice.value = t('attempt.uploaded');
     await navigate(undefined, 'latest');
   } catch (cause) {
