@@ -1,5 +1,6 @@
 # Private Windows workstation only. Combine: secure,local-auth,local-unified.
-# Same localhost origin for Google OAuth callbacks and mail verification/reset links.
+# Short HTTPS alias stays the only application origin; Google OAuth callback
+# still requires a separate allowed localhost URI until secure handoff exists.
 # NEVER use this profile for public deployment, tunnels or other machines.
 server:
   address: 127.0.0.1
@@ -7,15 +8,15 @@ server:
     session:
       cookie:
         http-only: true
-        secure: false
+        secure: true
         same-site: lax
 guitar-mentor:
   security:
     enabled: true
-    local-http: true
+    local-http: false
   local-auth:
     unified-local: true
-    public-origin: http://localhost:5173
+    public-origin: https://guitar-mentor
 
 # Vite proxies to 127.0.0.1:8080 while the browser uses localhost:5173.
 # Do not derive OAuth redirect_uri from the proxy Host header (127.0.0.1).
