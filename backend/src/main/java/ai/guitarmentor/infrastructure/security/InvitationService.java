@@ -62,7 +62,7 @@ public class InvitationService {
             """)
             .param("id",UUID.randomUUID()).param("hash",digest(token))
             .param("issuer",GOOGLE_ISSUER).param("email",normalized)
-            .param("learner",existingLearner).param("role",owner?"OWNER":"LEARNER").param("expiry",Instant.now().plus(7,ChronoUnit.DAYS))
+            .param("learner",existingLearner).param("role",owner?"OWNER":"LEARNER").param("expiry",java.sql.Timestamp.from(Instant.now().plus(7,ChronoUnit.DAYS)))
             .update();
         return token;
     }
@@ -105,7 +105,7 @@ public class InvitationService {
             if (name==null || name.isBlank()) name=verifiedEmail.substring(0,verifiedEmail.indexOf('@'));
             if (name.length()>100) name=name.substring(0,100);
             jdbc.sql("INSERT INTO learners(id,display_name,created_at) VALUES (:id,:name,:created)")
-                .param("id",learner).param("name",name).param("created",Instant.now()).update();
+                .param("id",learner).param("name",name).param("created",java.sql.Timestamp.from(Instant.now())).update();
         }
         UUID account=UUID.randomUUID();
         jdbc.sql("INSERT INTO accounts(id,learner_id,role,status) VALUES (:id,:learner,:role,'ACTIVE')")
@@ -115,7 +115,7 @@ public class InvitationService {
         jdbc.sql("""
            UPDATE invitations SET status='ACCEPTED',accepted_at=:now,accepted_account_id=:account
            WHERE id=:id
-           """).param("now",Instant.now()).param("account",account).param("id",invite.id()).update();
+           """).param("now",java.sql.Timestamp.from(Instant.now())).param("account",account).param("id",invite.id()).update();
         return account;
     }
 
