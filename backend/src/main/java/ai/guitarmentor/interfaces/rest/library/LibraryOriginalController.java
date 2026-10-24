@@ -127,11 +127,28 @@ public final class LibraryOriginalController {
         });
     }
 
+    private static final java.util.concurrent.Semaphore GLOBAL_UPLOADS =
+        new java.util.concurrent.Semaphore(4,true);
+    private static final java.util.concurrent.ConcurrentHashMap<UUID,java.util.concurrent.Semaphore>
+        ACTOR_UPLOADS=new java.util.concurrent.ConcurrentHashMap<>();
+
     @PostMapping(consumes=MediaType.MULTIPART_FORM_DATA_VALUE)
     public ResponseEntity<?> upload(HttpServletRequest request,
             @RequestHeader(value="Idempotency-Key",required=false) String idempotency,
             @RequestPart("metadata") Metadata metadata,
             @RequestPart("files") List<MultipartFile> files) {
+        UUID owner=actor(request);
+        var actorGate=ACTOR_UPLOADS.computeIfAbsent(owner,id->new java.util.concurrent.Semaphore(1,true));
+        if(!actorGate.tryAcquire()) throw new Failure(409,"LIBRARY_UPLOAD_IN_PROGRESS");
+        try {
+            if(!GLOBAL_UPLOADS.tryAcquire()) throw new Failure(429,"LIBRARY_RATE_LIMITED");
+            try {return performUpload(request,idempotency,metadata,files);}
+            finally {GLOBAL_UPLOADS.release();}
+        } finally {actorGate.release();}
+    }
+
+    private ResponseEntity<?> performUpload(HttpServletRequest request,
+            String idempotency, Metadata metadata, List<MultipartFile> files) {
         UUID owner=actor(request);
         UUID key;
         try {key=UUID.fromString(idempotency);} catch(Exception e) {
