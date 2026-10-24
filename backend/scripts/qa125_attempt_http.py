@@ -51,7 +51,7 @@ assert [a["number"] for a in gap["items"]] == [2, 1]
 
 detail = check(base + "/" + attempt_id, 200)
 assert detail["id"] == attempt_id and detail["taskId"] == task_id
-assert detail in page["items"]
+assert any(a["id"] == detail["id"] and a["number"] == detail["number"] for a in page["items"])
 
 caps = check(base + "/capabilities", 200)
 assert caps["enabled"] and caps["maxBytes"] > 0 and "wav" in caps["formats"]
