@@ -29,7 +29,7 @@ server:
 
 guitar-mentor:
   security:
-    enabled: ${GUITAR_MENTOR_SECURITY_ENABLED:false}
+    enabled: ${GUITAR_MENTOR_SECURITY_ENABLED:true}
   submissions:
     # Explicit opt-in for local, non-personal test recordings only.
     enabled: ${GUITAR_MENTOR_ENABLE_UPLOADS:false}
