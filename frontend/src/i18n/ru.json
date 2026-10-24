@@ -337,7 +337,8 @@
     "onlyPage": "Все попытки находятся на одной странице.",
     "historyUpdated": "История попыток обновлена.",
     "microphoneTitle": "Запись с микрофона",
-    "uploadAlternative": "Или загрузить готовый аудиофайл"
+    "uploadAlternative": "Или загрузить готовый аудиофайл",
+    "microphoneInstructions": "О записи и использовании микрофона"
   },
   "evidence": {
     "heading": "Мои исполнения",
