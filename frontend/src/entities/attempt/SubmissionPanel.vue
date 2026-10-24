@@ -13,6 +13,7 @@ const props = defineProps<{
 }>();
 const emit = defineEmits<{ 'draft-state': [state: { busy: boolean; dirty: boolean }] }>();
 const { t } = useI18n();
+const lightMinimal = import.meta.env?.VITE_GUITAR_MENTOR_LIGHT_MINIMAL === 'true';
 const attempts = ref<SubmissionAttempt[]>([]);
 const pinned = ref<SubmissionAttempt[]>([]);
 const selectedId = ref('');
@@ -368,13 +369,28 @@ onBeforeUnmount(() => {
       </p>
       <p v-if="learningTerminal" class="hint" role="status">{{ t('learning.uploadClosed') }}</p>
       <form class="homework-form" @submit.prevent="submit">
-        <label for="attempt-file">{{ t('attempt.fileLabel') }}</label>
+        <div v-if="lightMinimal" class="recording-primary">
+          <h4>{{ t('attempt.microphoneTitle') }}</h4>
+          <MicrophoneRecorder :disabled="learningTerminal || !capabilities?.enabled || uploading"
+          :max-bytes="capabilities?.maxBytes ?? 20971520"
+          @recorded="onRecorded" @active="onRecordingActive" />
+        </div>
+        <details v-if="lightMinimal" class="recording-file-option">
+          <summary>{{ t('attempt.uploadAlternative') }}</summary>
+          <label for="attempt-file">{{ t('attempt.fileLabel') }}</label>
         <input id="attempt-file" ref="fileInput" type="file" accept=".mp3,.wav,.ogg,.webm,.m4a,audio/*"
           :disabled="learningTerminal || !capabilities?.enabled || uploading || recordingActive" @change="selectFile" />
         <p class="hint">{{ t('attempt.fileLimits') }}</p>
-        <MicrophoneRecorder :disabled="learningTerminal || !capabilities?.enabled || uploading"
+        </details>
+        <template v-if="!lightMinimal">
+          <label for="attempt-file">{{ t('attempt.fileLabel') }}</label>
+        <input id="attempt-file" ref="fileInput" type="file" accept=".mp3,.wav,.ogg,.webm,.m4a,audio/*"
+          :disabled="learningTerminal || !capabilities?.enabled || uploading || recordingActive" @change="selectFile" />
+        <p class="hint">{{ t('attempt.fileLimits') }}</p>
+          <MicrophoneRecorder :disabled="learningTerminal || !capabilities?.enabled || uploading"
           :max-bytes="capabilities?.maxBytes ?? 20971520"
           @recorded="onRecorded" @active="onRecordingActive" />
+        </template>
         <div v-if="recordedPreview && file" class="recorded-preview">
           <strong>{{ t('attempt.recordingReady') }} ({{ fileSize(file.size) }})</strong>
           <audio :src="recordedPreview" controls preload="metadata"
