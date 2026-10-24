@@ -552,7 +552,7 @@ async function assign(exerciseCode: string): Promise<void> {
 .studio-assignment-description span {color:#56666a;font-size:13px;overflow-wrap:anywhere}
 .studio-assignment-description small {font-size:13px;color:#28776d}
 .studio-assignment-status {margin-left:auto;flex:none;padding:6px 10px;color:#226851;background:#e6f3e9;border-radius:999px;font-size:12px;font-weight:650}
-.studio-columns {display:grid;grid-template-columns:minmax(0,1fr) 340px;align-items:start;gap:16px}
+.studio-columns {display:grid;grid-template-columns:minmax(0,1fr) minmax(340px,500px);align-items:start;gap:16px}
 .studio-score,.studio-sidebar {min-width:0}
 .studio-score {padding:18px;background:#fff;border:1px solid #e0e7e4;border-radius:16px;box-shadow:0 5px 24px #16233108}
 .studio-sidebar :deep(.homework-panel) {margin:0;padding:18px;border:1px solid #e0e7e4;border-radius:16px;background:#fff;box-shadow:0 5px 24px #16233108}
