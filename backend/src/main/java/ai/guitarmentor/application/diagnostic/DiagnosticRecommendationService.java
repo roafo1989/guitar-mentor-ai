@@ -112,6 +112,9 @@ public class DiagnosticRecommendationService {
                 .findByInstrumentCodeAndTechniqueCodeAndCurrentTrueOrderByCode(
                         profile.getInstrumentCode(), profile.getTechniqueCode()).stream()
                 .filter(ExercisePublicationPolicy::eligible)
+                // The standard learning-repertoire ranking must never reinsert a
+                // diagnostic probe after the evidence-driven probe decision above.
+                .filter(e -> "LEARNING_REPERTOIRE".equals(e.getContentKind()))
                 .filter(e -> e.getRecommendedPracticeMinutes() != null
                         && safeAndAvailable(e.getScoreResource())
                         && safeAndAvailable(e.getEventsResource()))
