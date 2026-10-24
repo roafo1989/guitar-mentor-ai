@@ -34,3 +34,22 @@ test('#148 navigation discloses real routes and remains keyboard-operable', asyn
   assert.match(app, /stopMetronomeForAudioCapture\(\)/);
   assert.match(app, /await logout\(/);
 });
+
+
+test('#148 uploaded instrument artworks are local and accessible',async()=>{
+ const [app,tuner,metro] = await Promise.all([
+   file('../src/App.vue'),
+   file('../public/icons/tuner-flaticon.svg'),
+   file('../public/icons/metronome-flaticon.svg'),
+ ]);
+ assert.match(app,/src="\/icons\/tuner-flaticon\.svg"/);
+ assert.match(app,/src="\/icons\/metronome-flaticon\.svg"/);
+ assert.match(app,/class="header-icon-image"/);
+ assert.match(app,/:aria-label="t\('tuner\.open'\)"/);
+ assert.match(app,/:aria-label="metronomeStatus === 'running'/);
+ for(const asset of [tuner,metro]) {
+   assert.match(asset,/^<svg /);
+   assert.match(asset,/viewBox="0 0 512 512"/);
+   assert.doesNotMatch(asset,/<script|<foreignObject|<image/);
+ }
+});
