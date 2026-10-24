@@ -84,7 +84,7 @@ def draw_score():
             if j==0: doc.line(start,bottom,start,top)
             if j==0:
                 doc.setFont("GuitarClef", 43)
-                doc.drawString(x0-38, bottom-12, "\uD834\uDD1E")
+                doc.drawString(x0-38, bottom-12, "\U0001D11E")
             doc.line(end,bottom,end,top)
             doc.line(end,tab_top-45,end,tab_top)
             if j==0: doc.line(start,tab_top-45,start,tab_top)
