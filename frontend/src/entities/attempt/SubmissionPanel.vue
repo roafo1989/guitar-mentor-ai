@@ -80,6 +80,18 @@ let polling: ReturnType<typeof setInterval> | undefined;
 let historyRequestInFlight = false;
 let requestSerial = 0;
 let pinSerial = 0;
+let detailBusy = 0;
+const detailCache = new Map<string, Promise<SubmissionAttempt>>();
+function fetchDetail(id: string): Promise<SubmissionAttempt> {
+  const existing = detailCache.get(id);
+  if (existing) return existing;
+  const { learnerId, sessionId, taskId } = props;
+  ++detailBusy;
+  const request = attemptService.detail(learnerId, sessionId, taskId, id)
+    .finally(() => { --detailBusy; });
+  detailCache.set(id, request);
+  return request;
+}
 let pendingLatest = false;
 let pendingRefresh = false;
 let contextGeneration = 0;
@@ -91,6 +103,8 @@ function resetForContext(): void {
   ++contextGeneration;
   ++requestSerial;
   ++pinSerial;
+  detailCache.clear();
+  detailBusy = 0;
   historyRequestInFlight = false;
   pendingLatest = false;
   pendingRefresh = false;
@@ -151,6 +165,7 @@ async function readPage(cursor: number | null | undefined = pageCursor.value, ke
   if (historyRequestInFlight) return false;
   historyRequestInFlight = true;
   const serial = ++requestSerial, generation = contextGeneration;
+  detailCache.clear();
   const { learnerId, sessionId, taskId } = props;
   if (!keepBusy) pageBusy.value = true;
   try {
@@ -161,8 +176,8 @@ async function readPage(cursor: number | null | undefined = pageCursor.value, ke
     hasMore.value = page.hasMore;
     historyError.value = '';
     historyStale.value = false;
-    // Never couple page navigation to potentially slow pinned-detail reads.
-    void refreshPinned(generation, serial);
+    // The page and pinned details form one bounded poll cycle.
+    await refreshPinned(generation, serial);
     return true;
   } catch {
     if (currentContext(generation) && serial === requestSerial) {
@@ -188,10 +203,14 @@ async function refreshPinned(generation: number, serial: number) {
   const pin = ++pinSerial;
   const ids = [...new Set([selectedId.value, latestId.value].filter(Boolean))]
     .filter(id => !attempts.value.some(a => a.id === id)).slice(0, 2);
-  const { learnerId, sessionId, taskId } = props;
-  const results = await Promise.allSettled(ids.map(id => attemptService.detail(learnerId, sessionId, taskId, id)));
+  const results = await Promise.allSettled(ids.map(id => fetchDetail(id)));
   if (!currentContext(generation) || serial !== requestSerial || pin !== pinSerial) return;
-  pinned.value = results.flatMap(result => result.status === 'fulfilled' ? [result.value] : []);
+  // Keep the last displayed DTO when a detail GET fails; freshness is guarded by the child.
+  const previous = new Map(pinned.value.map(item => [item.id, item]));
+  pinned.value = ids.flatMap((id, index) => {
+    const result = results[index];
+    return result.status === 'fulfilled' ? [result.value] : previous.has(id) ? [previous.get(id)!] : [];
+  });
 }
 async function navigate(cursor: number | undefined, direction: 'older' | 'newer' | 'latest') {
   if (historyRequestInFlight) {
@@ -365,7 +384,7 @@ onBeforeUnmount(() => {
       <p v-if="error" role="alert" class="error">{{ error }}</p>
       <LearningResultsPanel :learner-id="learnerId" :session-id="sessionId" :task-id="taskId"
          :attempts="displayAttempts" :selected-id="selectedId" :latest-id="latestId"
-        :draft-busy="draftBusy" @selected-id="selectedId = $event" @latest-id="latestId = $event" @decision-busy="decisionBusy = $event" @terminal-state="learningTerminal = $event" />
+        :draft-busy="draftBusy" :load-attempt-detail="fetchDetail" @selected-id="selectedId = $event" @latest-id="latestId = $event" @decision-busy="decisionBusy = $event" @terminal-state="learningTerminal = $event" />
       <details class="homework-history">
         <summary>{{ t('attempt.historyDetails') }}</summary>
         <p v-if="historyError" role="alert" class="error">{{ historyError }} <button type="button" :disabled="pageBusy" @click="requestRefresh()">{{ t('learning.retry') }}</button></p>
