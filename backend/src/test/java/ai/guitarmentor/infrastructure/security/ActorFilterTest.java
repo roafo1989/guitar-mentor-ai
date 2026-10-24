@@ -59,7 +59,7 @@ class ActorFilterTest {
         var token = new OidcIdToken("id-token", Instant.now().minusSeconds(30),
                 Instant.now().plusSeconds(300), Map.of("iss", "https://idp.example",
                         "sub", "sub-A"));
-        var principal = new DefaultOidcUser(List.of(), token);
+        var principal = new DefaultOidcUser(List.of(new org.springframework.security.core.authority.SimpleGrantedAuthority("ROLE_USER")), token);
         SecurityContextHolder.getContext().setAuthentication(
                 new UsernamePasswordAuthenticationToken(principal, "n/a",
                         principal.getAuthorities()));
