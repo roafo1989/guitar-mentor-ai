@@ -242,3 +242,84 @@ test('CORE-U7: unavailable selected page DTO never bypasses detail GET', async (
     assert.ok(state.detailError);
   } finally { app.unmount(); delete globalThis.__qaLearning; delete globalThis.__qaAttempt; }
 });
+
+test('CORE-U8: hidden tab suppresses processing poll, visible resumes a single read', async () => {
+  const previous = globalThis.document;
+  const callbacks = new Map();
+  globalThis.document = {
+    hidden: true,
+    addEventListener: (name, callback) => callbacks.set(name, callback),
+    removeEventListener: name => callbacks.delete(name)
+  };
+  const calls = historyFixture();
+  const original = globalThis.__qaAttempt.page;
+  globalThis.__qaAttempt.page = async (...args) => {
+    const page = await original(...args);
+    return { ...page, items: page.items.map((item, i) =>
+      i === 0 ? { ...item, status: 'PROCESSING' } : item) };
+  };
+  const { app, state } = await mount('SubmissionPanel.vue',
+    { learnerId: 'l', sessionId: 's', taskId: 't' });
+  try {
+    await flush();
+    const initial = calls.length;
+    await state.pollHistory();
+    assert.equal(calls.length, initial);
+    globalThis.document.hidden = false;
+    callbacks.get('visibilitychange')();
+    await flush();
+    assert.equal(calls.length, initial + 1);
+  } finally {
+    app.unmount();
+    globalThis.document = previous;
+    delete globalThis.__qaAttempt;
+  }
+});
+test('CORE-U9: pending decision preserves selected id, reason and idempotency across attempts changes', async () => {
+  historyFixture();
+  const stalled = deferred();
+  let calls = 0;
+  globalThis.__qaLearning = {
+    state: async () => ({ taskId: 't', taskState: 'ACTIVE', version: 2,
+      availableActions: ['CONTINUE_PRACTICING'], latestAttemptId: 'id-45',
+      assessmentState: 'NO_ASSESSMENT' }),
+    assessments: async () => ({ items: [], nextCursor: null }),
+    decisions: async () => ({ items: [], nextCursor: null }),
+    evidence: async () => ({ items: [], nextCursor: null }),
+    decide: async () => { calls++; return stalled.promise; }
+  };
+  const { app, state } = await mount('LearningResultsPanel.vue',
+    { learnerId: 'l', sessionId: 's', taskId: 't', attempts: [attempt(45)],
+      selectedId: 'id-45', latestId: 'id-45', draftBusy: false });
+  try {
+    await flush();
+    assert.equal(state.canDecide, true);
+    state.reason = 'keep practicing';
+    const sending = state.decide('CONTINUE_PRACTICING');
+    await flush();
+    assert.ok(state.pending);
+    const originalRequestId = state.pending.requestId;
+    await state.chooseAttempt('id-44');
+    assert.equal(state.selected, 'id-45');
+    assert.equal(state.reason, 'keep practicing');
+    assert.equal(state.pending.requestId, originalRequestId);
+    stalled.resolve({});
+    await sending;
+    await flush();
+    assert.equal(calls, 1);
+  } finally { app.unmount(); delete globalThis.__qaLearning; delete globalThis.__qaAttempt; }
+});
+test('CORE-U10: template retains keyboard-native history controls and accessible error regions', async () => {
+  const source = await readFile(new URL('../src/entities/attempt/SubmissionPanel.vue', import.meta.url), 'utf8');
+  const learning = await readFile(new URL('../src/entities/attempt/LearningResultsPanel.vue', import.meta.url), 'utf8');
+  const { descriptor, errors } = parse(source, { filename: 'SubmissionPanel.vue' });
+  assert.deepEqual(errors, []);
+  assert.match(descriptor.template.content, /<nav class="form-actions" :aria-label="t\('attempt.history'\)">/);
+  for (const action of ['older', 'newer', 'latest', 'refresh']) {
+    assert.match(descriptor.template.content, new RegExp('type="button"[^>]*' + action + ".*?</button>"));
+  }
+  assert.match(descriptor.template.content, /role="alert"/);
+  assert.match(descriptor.template.content, /role="status"/);
+  assert.match(learning, /<select id="learning-attempt"/);
+  assert.match(learning, /<label for="learning-attempt"/);
+});
