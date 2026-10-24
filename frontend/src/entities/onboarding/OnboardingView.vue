@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { computed, onBeforeUnmount, onMounted, ref } from 'vue';
+import { computed, onBeforeUnmount, onMounted, ref, watch } from 'vue';
 import { apiFailureKey, asApiFailure, type ApiFailure } from '../../shared/api-failure';
 import { useI18n } from 'vue-i18n';
 import { useLearnerStore } from '../../stores/learner.store';
@@ -26,10 +26,39 @@ const error = ref<ApiFailure | null>(null);
 const localValidation = ref(false);
 const failedRead = ref(false);
 const edited = ref(false);
+const loadedFor = ref<string | null>(null);
+const readResolved = ref(false);
+const formContext = ref<string | null>(null);
+const maySave = computed(() => !!learnerStore.learner && !saving.value && !loading.value && !failedRead.value && readResolved.value && loadedFor.value === learnerStore.learner.id);
+function resetForm(): void {
+  step.value = 1;
+  experienceLevel.value = 'BEGINNER';
+  yearsPlaying.value = 0;
+  skills.value = [];
+  knownPiecesText.value = '';
+  goals.value = ['FINGERSTYLE'];
+  practiceMinutes.value = 40;
+  sessionsPerWeek.value = 3;
+  notes.value = '';
+  edited.value = false;
+  readResolved.value = false;
+  loadedFor.value = null;
+  failedRead.value = false;
+  error.value = null;
+  localValidation.value = false;
+  saved.value = false;
+}
 const errorMessage = computed(() => localValidation.value ? t('onboarding.invalidPieces') : error.value ? t(apiFailureKey(error.value)) : '');
 let loadGeneration = 0;
 let active = true;
 onBeforeUnmount(() => { active = false; ++loadGeneration; });
+watch(() => learnerStore.learner?.id ?? null, (next, previous) => {
+  if (next === previous) return;
+  ++loadGeneration;
+  resetForm();
+  formContext.value = next;
+  if (next && active) void loadBackground();
+});
 const saved = ref(false);
 const experienceLevel = ref<ExperienceLevel>('BEGINNER');
 const yearsPlaying = ref(0);
@@ -64,8 +93,13 @@ async function loadBackground(): Promise<void> {
     const id = learnerStore.learner?.id;
     if (!id) return;
     const background = await onboardingService.get(id, 'ACOUSTIC_GUITAR');
-    if (active && seq === loadGeneration && learnerStore.learner?.id === id
-      && learnerAtStart === id && background && !edited.value) apply(background);
+    if (active && seq === loadGeneration && learnerStore.learner?.id === id && learnerAtStart === id) {
+      // A GET never overwrites a locally edited form. Even a successful 204
+      // resolves the load gate, so a new background can be saved explicitly.
+      if (background && !edited.value) apply(background);
+      loadedFor.value = id;
+      readResolved.value = true;
+    }
   } catch (cause) {
     if (active && seq === loadGeneration && !(cause instanceof Error && cause.name === 'AbortError'))
       { error.value = asApiFailure(cause); failedRead.value = true; }
@@ -73,7 +107,7 @@ async function loadBackground(): Promise<void> {
     if (active && seq === loadGeneration) loading.value = false;
   }
 }
-onMounted(() => { void loadBackground(); });
+onMounted(() => { formContext.value = learnerStore.learner?.id ?? null; void loadBackground(); });
 
 function parseKnownPieces(): KnownPiece[] {
   return knownPiecesText.value.split(/\r?\n/).map(line => line.trim())
@@ -86,7 +120,7 @@ function parseKnownPieces(): KnownPiece[] {
 }
 
 async function save(): Promise<void> {
-  if (!learnerStore.learner || saving.value) return;
+  if (!maySave.value || !learnerStore.learner) return;
   saved.value = false;
   failedRead.value = false;
   error.value = null;
@@ -213,7 +247,7 @@ async function save(): Promise<void> {
           <button type="button" class="action-button secondary-button" @click="step = 1">
             ← {{ t('onboarding.back') }}
           </button>
-          <button type="submit" :disabled="saving">
+          <button type="submit" :disabled="!maySave">
             {{ saving ? t('form.saving') : t('onboarding.save') }}
           </button>
         </div>
