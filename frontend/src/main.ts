@@ -3,6 +3,7 @@ import { createApp } from 'vue';
 import App from './App.vue';
 import { i18n } from './core/i18n';
 import { router } from './router';
+import './assets/design-tokens.css';
 import './assets/main.css';
 import './assets/light-minimal.css';
 import { installAuthenticatedFetch } from './core/auth/auth';
