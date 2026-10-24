@@ -153,8 +153,12 @@ public class LocalCredentialService {
             VALUES (:id,:email,:login,:hash,now())
             """).param("id",account).param("email",p.email).param("login",p.login).param("hash",p.hash).update();
         if (p.invitation != null) {
-            jdbc.sql("UPDATE invitations SET status='ACCEPTED',accepted_at=now(),accepted_account_id=:account WHERE id=:id")
-                .param("account",account).param("id",p.invitation).update();
+            // Preserve atomic legacy invite revocation semantics under concurrent verify/revoke.
+            int accepted = jdbc.sql("""
+                UPDATE invitations SET status='ACCEPTED',accepted_at=now(),accepted_account_id=:account
+                WHERE id=:id AND status='PENDING' AND expires_at>now()
+                """).param("account",account).param("id",p.invitation).update();
+            if (accepted != 1) throw new SecurityException("INVALID_TOKEN");
         }
         jdbc.sql("DELETE FROM pending_local_registrations WHERE id=:id").param("id",p.id).update();
     }
