@@ -106,4 +106,45 @@ class LibraryOriginalPostgresTest {
         assertEquals("no-store",head.getHeaders().getCacheControl());
     }
 
+    @Test void staleReservationAndOnlyUnreferencedOriginalAreRecovered() throws Exception {
+        UUID owner=account();
+        var store=new LibraryObjectStore(root.resolve("library").toString(),
+            root.resolve("attempts").toString(),root.resolve("scores").toString());
+        var orphan=store.put(new java.io.ByteArrayInputStream(new byte[]{1,2,3}),100);
+        var protectedObject=store.put(new java.io.ByteArrayInputStream(new byte[]{4,5,6}),100);
+        Files.setLastModifiedTime(store.file(orphan.key()),
+            java.nio.file.attribute.FileTime.from(java.time.Instant.now().minusSeconds(7200)));
+        Files.setLastModifiedTime(store.file(protectedObject.key()),
+            java.nio.file.attribute.FileTime.from(java.time.Instant.now().minusSeconds(7200)));
+        UUID material=UUID.randomUUID();
+        jdbc.sql("""
+            INSERT INTO library_materials(id,owner_account_id,title,material_type,state)
+            VALUES(:id,:owner,'Protected','ETUDE','READY')
+            """).param("id",material).param("owner",owner).update();
+        jdbc.sql("""
+            INSERT INTO library_assets(id,material_id,object_key,original_name,format,byte_size,sha256)
+            VALUES(:id,:material,:key,'file.gp','GP',:size,:sha)
+            """).param("id",UUID.randomUUID()).param("material",material)
+            .param("key",protectedObject.key()).param("size",protectedObject.length())
+            .param("sha",protectedObject.sha256()).update();
+        jdbc.sql("""
+            INSERT INTO library_account_usage(account_id,reserved_bytes,reserved_files)
+            VALUES(:owner,100,1)
+            """).param("owner",owner).update();
+        UUID operation=UUID.randomUUID();
+        jdbc.sql("""
+            INSERT INTO library_upload_operations
+                (id,owner_account_id,idempotency_key,state,reserved_bytes,reserved_files,expires_at,updated_at)
+            VALUES(:id,:owner,:key,'RECEIVING',100,1,now()+interval '24 hours',now()-interval '2 hours')
+            """).param("id",operation).param("owner",owner).param("key",UUID.randomUUID()).update();
+        new ai.guitarmentor.infrastructure.persistence.LibraryOrphanRecovery(
+            store,jdbc,transactions,true).reconcile();
+        assertEquals(0L,jdbc.sql("SELECT reserved_bytes FROM library_account_usage WHERE account_id=:owner")
+            .param("owner",owner).query(Long.class).single());
+        assertEquals("FAILED",jdbc.sql("SELECT state FROM library_upload_operations WHERE id=:id")
+            .param("id",operation).query(String.class).single());
+        assertFalse(Files.exists(root.resolve("library").resolve(orphan.key())));
+        assertTrue(Files.exists(store.file(protectedObject.key())));
+    }
+
 }
