@@ -41,11 +41,13 @@ window.fetch=(async (input:RequestInfo | URL) => {
   return reply({code:'UNEXPECTED_RESPONSE'},404);
 }) as typeof fetch;
 
+const qaI18n=createI18n({legacy:false,locale:'en',messages:{en,ru:(await import('../src/i18n/ru.json')).default}});
 createApp(SubmissionPanel,{learnerId:'l',sessionId:'s',taskId:'t'})
- .use(createI18n({legacy:false,locale:'en',messages:{en}}))
+ .use(qaI18n)
  .mount('#qa-root');
 declare global {interface Window {__qa126Ready?:boolean; __qa126Requests?:Record<string,number>}}
 window.__qa126Requests=counts;
+window.__qa126SetLocale=(locale:string)=>{qaI18n.global.locale.value=locale as 'en'|'ru';};
 nextTick().then(async()=>{
   for(let i=0;i<120;i++){
     if(document.querySelector('.homework-history nav button') && document.getElementById('learning-attempt')) {
