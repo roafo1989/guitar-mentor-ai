@@ -16,3 +16,14 @@ guitar-mentor:
   local-auth:
     unified-local: true
     public-origin: http://localhost:5173
+
+# Vite proxies to 127.0.0.1:8080 while the browser uses localhost:5173.
+# Do not derive OAuth redirect_uri from the proxy Host header (127.0.0.1).
+# Google requires an exact match with the registered Web OAuth redirect URI.
+spring:
+  security:
+    oauth2:
+      client:
+        registration:
+          guitar-mentor:
+            redirect-uri: "http://localhost:5173/login/oauth2/code/{registrationId}"
