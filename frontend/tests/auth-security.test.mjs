@@ -17,6 +17,7 @@ function response(status, body = null) {
 async function fixture() {
   const calls = [];
   const previousWindow = globalThis.window;
+  const previousFetch = globalThis.fetch;
   globalThis.window = {
     location: { origin: 'https://app.example' },
     fetch: async (url, options = {}) => {
@@ -36,7 +37,8 @@ async function fixture() {
   };
   const mod = await import(authModuleUrl + '#fixture-' + Math.random());
   mod.installAuthenticatedFetch(() => { mod.auth.expired = true; });
-  return { mod, calls, restore: () => { globalThis.window = previousWindow; } };
+  globalThis.fetch = globalThis.window.fetch;
+  return { mod, calls, restore: () => { globalThis.window = previousWindow; globalThis.fetch = previousFetch; } };
 }
 test('unsafe multipart API request uses server CSRF and never rewrites Content-Type', async () => {
   const { calls, restore } = await fixture();
