@@ -24,8 +24,10 @@ public final class LibraryObjectStore {
             @Value("${guitar-mentor.submissions.storage-path:./.local-media/attempts}") String attempts,
             @Value("${guitar-mentor.submissions.score-storage-path:./.local-media/scores}") String scores) {
         root = Path.of(storagePath).toAbsolutePath().normalize();
+        rejectSymlinkComponents(root);
         for (String other : new String[]{attempts,scores}) {
             Path excluded = Path.of(other).toAbsolutePath().normalize();
+            rejectSymlinkComponents(excluded);
             if (root.startsWith(excluded) || excluded.startsWith(root))
                 throw new IllegalStateException("Library root must be separate from diagnostic media");
         }
@@ -33,11 +35,20 @@ public final class LibraryObjectStore {
             if (Files.exists(root,LinkOption.NOFOLLOW_LINKS) && Files.isSymbolicLink(root))
                 throw new IllegalStateException("Library root must not be a symlink");
             Files.createDirectories(root);
+            rejectSymlinkComponents(root);
             if (!Files.isDirectory(root,LinkOption.NOFOLLOW_LINKS))
                 throw new IllegalStateException("Invalid library root");
         } catch (IOException e) { throw new IllegalStateException("Library storage unavailable",e); }
     }
     /** Write bounded bytes to staging without using the user's filename as a path. */
+    private static void rejectSymlinkComponents(Path path) {
+        Path part = path.getRoot();
+        for (Path name : path) {
+            part = part.resolve(name);
+            if (Files.isSymbolicLink(part))
+                throw new IllegalStateException("Library storage path cannot contain symlinks");
+        }
+    }
     public Stored put(InputStream input, long maximum) throws IOException {
         String key = UUID.randomUUID().toString();
         Path staging = safe(".staging-" + key);
@@ -98,7 +109,10 @@ public final class LibraryObjectStore {
         if (!key.matches("[a-f0-9-]{36}")) throw new IOException("Invalid object key");
         return safe(key);
     }
-    private Path safe(String key) {return root.resolve(key).normalize();}
+    private Path safe(String key) {
+        rejectSymlinkComponents(root);
+        return root.resolve(key).normalize();
+    }
     public static final class FileTooLarge extends IOException {}
     public static final class EmptyFile extends IOException {}
 }
