@@ -13,8 +13,8 @@
 - `score_events.json` records observed pitches in sounding octave, strings, frets and beat durations.
 
 ## Acceptance gate
-- Flyway V21 deliberately sets `is_current=false`, `RIGHTS_PENDING`, `PENDING_PEDAGOGICAL_REVIEW`; no audio or PDF resources are registered. It must not be assigned, recommended or published.
-- Prototype PDF/MP3 and a local generator were prepared for the owner in the conversation but **are not production repository media**, so the app does not advertise preview URLs that it cannot serve.
-- Before publishing, verify PDF against MUS-NOTATION-01 reference (five-line staff + six-line TAB, four bars per row), reconcile audible count-in and onset timing, review guitar playability and correct `tempoUnit`, record suitable rights/attribution, and test browser playback.
+- Flyway V21 deliberately sets `is_current=false`, `RIGHTS_PENDING`, `PENDING_PEDAGOGICAL_REVIEW`. Versioned `preview_v010.mp3` and `preview_v010.pdf` are bundled for review **but guarded by the publication policy**. Draft assets cannot be fetched through public/versioned endpoints, and the material cannot be assigned or recommended.
+- The checked-in generator `scripts/diag145/generate_media.py` builds PDF and MP3 from the same JSON events; the two generated assets are now version-pinned inside application resources. They remain unavailable in the public learner interface until explicit approval.
+- Before publishing, confirm PDF against MUS-NOTATION-01 reference (five-line staff + six-line TAB, four bars per row), reconcile audible count-in and onset timing, review guitar playability and correct `tempoUnit`, record suitable rights/attribution, and test browser playback.
 - Even if approved, a diagnostic probe is **optional and gap-driven**; never automatically infer a skill failure from an untried time signature or a student's musical taste.
 - For the complete adaptive-selection engine, see #145 and GM-DIAG-01. Green CI on the data layer alone does not demonstrate audio performance assessment.
