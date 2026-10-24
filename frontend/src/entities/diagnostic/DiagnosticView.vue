@@ -313,8 +313,9 @@ async function assign(exerciseCode: string): Promise<void> {
 </template>
 
 <style scoped>
-.lesson-workspace { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1.15fr); gap: 24px; align-items: start; margin-top: 24px; }
-.lesson-materials, .lesson-submission { min-width: 0; }
+.lesson-workspace { display: grid; grid-template-columns: minmax(0, 1fr); gap: 24px; align-items: start; margin-top: 24px; }
+.lesson-materials, .lesson-submission { min-width: 0; width: 100%; }
+.lesson-materials :deep(.exercise-preview), .lesson-materials :deep(.score-frame-wrapper) { width: 100%; min-width: 0; box-sizing: border-box; }
 .lesson-materials { border: 1px solid #dce5e2; border-radius: 14px; padding: 20px; background: #f8fbfa; }
 .lesson-materials h3 { margin-top: 0; }
 .lesson-submission :deep(.homework-panel) { margin-top: 0; }
