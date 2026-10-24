@@ -138,6 +138,8 @@ function consumeAuthFragment(): void {
   captureEmailActionLink();
   const link = takeEmailActionLink();
   if (!link) return;
+  // Navigation to an email action invalidates any response from the previous form.
+  requestEpoch.value++; busy.value = false;
   emailActionInProgress.value = true;
   if (!link.token || !tokenPattern.test(link.token)) {
     verificationToken.value = '';
