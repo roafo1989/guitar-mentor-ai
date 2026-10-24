@@ -33,7 +33,7 @@ public class LibraryOrphanRecovery {
             // Release abandoned quota reservations before scavenging physical objects.
             for(var stale:jdbc.sql("""
                 SELECT id,owner_account_id FROM library_upload_operations
-                WHERE state='RECEIVING' AND COALESCE(last_lease_at,updated_at) < now()-interval '60 minutes'
+                WHERE state IN ('RECEIVING','COMMITTING') AND COALESCE(last_lease_at,updated_at) < now()-interval '60 minutes'
                 ORDER BY updated_at LIMIT 100
                 """).query().listOfRows()) {
                 java.util.UUID operation=(java.util.UUID)stale.get("id");
@@ -48,7 +48,7 @@ public class LibraryOrphanRecovery {
                         """).param("id",operation).query().listOfRows();
                     if(rows.isEmpty()) return;
                     var row=rows.getFirst();
-                    if(!"RECEIVING".equals(row.get("state"))) return;
+                    if(!java.util.Set.of("RECEIVING","COMMITTING").contains(row.get("state"))) return;
                     jdbc.sql("""
                         UPDATE library_account_usage
                         SET reserved_bytes=reserved_bytes-:bytes,reserved_files=reserved_files-:files,
@@ -74,7 +74,7 @@ public class LibraryOrphanRecovery {
                       EXISTS (SELECT 1 FROM library_assets WHERE object_key=:key)
                       OR EXISTS (
                         SELECT 1 FROM library_upload_operations
-                        WHERE state='RECEIVING'
+                        WHERE state IN ('RECEIVING','COMMITTING')
                           AND COALESCE(last_lease_at,updated_at)>now()-interval '60 minutes'
                           AND COALESCE(manifest->'keys','[]'::jsonb)
                               @> jsonb_build_array(CAST(:key AS text))
