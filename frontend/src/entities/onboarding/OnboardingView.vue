@@ -24,6 +24,7 @@ const loading = ref(true);
 const saving = ref(false);
 const error = ref<ApiFailure | null>(null);
 const localValidation = ref(false);
+const failedRead = ref(false);
 const errorMessage = computed(() => localValidation.value ? t('onboarding.invalidPieces') : error.value ? t(apiFailureKey(error.value)) : '');
 let loadGeneration = 0;
 let active = true;
@@ -54,6 +55,7 @@ async function loadBackground(): Promise<void> {
   const seq = ++loadGeneration;
   const learnerAtStart = learnerStore.learner?.id ?? window.localStorage.getItem('guitar-mentor.learnerId');
   loading.value = true;
+  failedRead.value = false;
   error.value = null;
   try {
     if (!learnerStore.learner) await learnerStore.restore();
@@ -65,7 +67,7 @@ async function loadBackground(): Promise<void> {
       && learnerAtStart === id && background) apply(background);
   } catch (cause) {
     if (active && seq === loadGeneration && !(cause instanceof Error && cause.name === 'AbortError'))
-      error.value = asApiFailure(cause);
+      { error.value = asApiFailure(cause); failedRead.value = true; }
   } finally {
     if (active && seq === loadGeneration) loading.value = false;
   }
@@ -85,6 +87,7 @@ function parseKnownPieces(): KnownPiece[] {
 async function save(): Promise<void> {
   if (!learnerStore.learner || saving.value) return;
   saved.value = false;
+  failedRead.value = false;
   error.value = null;
   localValidation.value = false;
   const pieces = parseKnownPieces();
@@ -128,11 +131,11 @@ async function save(): Promise<void> {
     <div class="notice" role="note">{{ t('form.notice') }}</div>
 
     <div v-if="loading" class="panel">{{ t('onboarding.loading') }}</div>
-    <div v-if="!loading && error && !learnerStore.learner" class="panel" role="alert">
+    <div v-else-if="error && !learnerStore.learner" class="panel" role="alert">
       <p>{{ errorMessage }}</p>
       <button type="button" class="action-button" @click="loadBackground">{{ t('home.retry') }}</button>
     </div>
-    <div v-else-if="!learnerStore.learner && !error" class="panel">
+    <div v-else-if="!learnerStore.learner" class="panel">
       <p>{{ t('onboarding.needProfile') }}</p>
       <RouterLink to="/profile">{{ t('app.profile') }}</RouterLink>
     </div>
@@ -215,7 +218,7 @@ async function save(): Promise<void> {
         </div>
       </template>
       <p v-if="error || localValidation" class="error" role="alert">{{ errorMessage }}</p>
-      <button v-if="error && !saving" type="button" class="text-button" @click="loadBackground">{{ t('home.retry') }}</button>
+      <button v-if="failedRead && error && !saving" type="button" class="text-button" @click="loadBackground">{{ t('home.retry') }}</button>
       <p v-if="saved" class="success" role="status">{{ t('onboarding.saved') }}</p>
       <div class="form-actions"><RouterLink to="/profile">{{ t('onboarding.profileBack') }}</RouterLink><RouterLink to="/diagnostics">{{ t('diagnostic.nextFromOnboarding') }} →</RouterLink></div>
     </form>
