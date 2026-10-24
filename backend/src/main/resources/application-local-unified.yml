@@ -1,0 +1,17 @@
+# Private Windows workstation only. Combine: secure,local-auth,local-unified.
+# Same localhost origin for Google OAuth callbacks and mail verification/reset links.
+# NEVER use this profile for public deployment, tunnels or other machines.
+server:
+  address: 127.0.0.1
+  servlet:
+    session:
+      cookie:
+        http-only: true
+        secure: false
+        same-site: lax
+guitar-mentor:
+  security:
+    enabled: true
+    local-http: true
+  local-auth:
+    public-origin: http://localhost:5173
