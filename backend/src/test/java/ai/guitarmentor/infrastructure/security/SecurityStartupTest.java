@@ -50,6 +50,8 @@ class SecurityStartupTest {
             .withProperty("guitar-mentor.security.local-http","true")
             .withProperty("spring.security.oauth2.client.registration.guitar-mentor.client-id","example-client")
             .withProperty("spring.security.oauth2.client.registration.guitar-mentor.client-secret","example-secret")
+            .withProperty("spring.security.oauth2.client.registration.guitar-mentor.redirect-uri",
+                "http://localhost:5173/login/oauth2/code/{registrationId}")
             .withProperty("spring.mail.host","smtp.example.test")
             .withProperty("guitar-mentor.local-auth.mail-from","sender@example.test")
             .withProperty("spring.mail.properties.mail.smtp.auth","true")
@@ -65,6 +67,8 @@ class SecurityStartupTest {
             {"guitar-mentor.security.enabled","false"},
             {"guitar-mentor.security.local-http","false"},
             {"spring.security.oauth2.client.registration.guitar-mentor.client-secret",""},
+            {"spring.security.oauth2.client.registration.guitar-mentor.redirect-uri",
+                "http://127.0.0.1:5173/login/oauth2/code/{registrationId}"},
             {"spring.mail.host",""},
             {"guitar-mentor.local-auth.mail-from",""},
             {"spring.mail.properties.mail.smtp.auth","false"},
