@@ -119,7 +119,18 @@ try {
   process.stdout.write(JSON.stringify({status:'PASS',viewport360:compact,keyboard,zoom200:{...zoom,pageScale:scale},reflow200:reflow},null,2)+'\n');
 } finally {
   socket?.close();
-  browser?.kill('SIGTERM');
+  if (browser && browser.exitCode === null) {
+    const exited = new Promise(resolve => browser.once('exit', resolve));
+    browser.kill('SIGTERM');
+    await Promise.race([exited, new Promise(resolve => setTimeout(resolve, 2000))]);
+  }
   await server.close();
-  await rm(dir,{recursive:true,force:true});
+  // Chromium can flush its profile briefly after the CDP socket closes.
+  for (let attempt = 0; attempt < 4; attempt++) {
+    try { await rm(dir,{recursive:true,force:true,maxRetries:3,retryDelay:100}); break; }
+    catch (error) {
+      if (attempt === 3) throw error;
+      await new Promise(resolve=>setTimeout(resolve,250));
+    }
+  }
 }
