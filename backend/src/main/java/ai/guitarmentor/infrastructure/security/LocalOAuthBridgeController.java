@@ -42,7 +42,8 @@ public class LocalOAuthBridgeController {
         if (!"https://guitar-mentor".equals(request.getHeader("Origin")))
             return ResponseEntity.status(403).build();
         var session = request.getSession(true);
-        String nonce = bridge.begin(session.getId());
+        String nonce = bridge.begin(session.getId(),
+                session.getAttribute("guitarMentorLinkGoogleAccount") != null);
         return ResponseEntity.ok().header(HttpHeaders.CACHE_CONTROL, "no-store")
                 .body(Map.of("beginUrl", "http://localhost:5173/oauth-bridge/begin?nonce=" + nonce));
     }
@@ -66,7 +67,7 @@ public class LocalOAuthBridgeController {
         if (session == null) return ResponseEntity.status(403).build();
         try {
             var oidc = bridge.consume(body.ticket(), session.getId());
-            var actor = actors.findActive(oidc.getIssuer().toString(), oidc.getSubject()).orElseThrow();
+            CurrentActor actor;
 
             // Explicit account linking was authorized by local password re-entry
             // on this original HTTPS session; never link by email coincidence.
@@ -83,6 +84,8 @@ public class LocalOAuthBridgeController {
                 googleLinks.attachVerifiedGoogle(accountId, version, oidc);
                 actor = actors.findActive(oidc.getIssuer().toString(), oidc.getSubject()).orElseThrow();
                 if (!actor.accountId().equals(accountId)) throw new SecurityException("GOOGLE_LINK_REJECTED");
+            } else {
+                actor = actors.findActive(oidc.getIssuer().toString(), oidc.getSubject()).orElseThrow();
             }
 
             var accessVersion = actors.localVersion(actor.accountId()).orElseThrow();
