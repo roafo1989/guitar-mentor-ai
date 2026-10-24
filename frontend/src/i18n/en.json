@@ -9,15 +9,15 @@
     "home": "Home"
   },
   "auth": {
-    "invitationCode": "Invitation code",
-    "activate": "Activate invitation",
-    "invalidInvitation": "Invalid invitation or Google sign-in required",
     "signIn": "Sign in",
     "signOut": "Sign out",
     "expired": "Session expired",
     "welcome": "Sign in to Guitar Mentor AI",
     "invited": "Access is available to invited users only",
-    "loading": "Checking sign-in…"
+    "loading": "Checking sign-in…",
+    "invitationCode": "Invitation code",
+    "activate": "Activate invitation",
+    "invalidInvitation": "Invalid invitation or Google sign-in required"
   },
   "form": {
     "title": "Let's meet your student",
@@ -290,7 +290,14 @@
     "uploadServerError": "The server could not accept this recording. Please retry.",
     "historyLoadError": "Could not load attempt history. Refresh the page and check the connection.",
     "metronomePracticeTip": "You can record while playing to the metronome. Use headphones to avoid speaker clicks being captured by the microphone.",
-    "historyDetails": "Attempt history"
+    "historyDetails": "Attempt history",
+    "older": "Older",
+    "newer": "Newer",
+    "latest": "Latest",
+    "refresh": "Refresh history",
+    "historyStale": "Showing the previous page: new data is unavailable.",
+    "onlyPage": "All attempts are on one page.",
+    "historyUpdated": "Attempt history updated."
   },
   "evidence": {
     "heading": "My performances",
@@ -509,7 +516,8 @@
     "noSkillEvidence": "No assessed criteria yet",
     "uploadClosed": "Assignment completed. New attempts cannot be uploaded; history and feedback remain available.",
     "historyDetails": "Decision and assessment history",
-    "assessmentDetails": "Assessment details"
+    "assessmentDetails": "Assessment details",
+    "attemptUnavailable": "Attempt unavailable. Refresh history."
   },
   "apiErrors": {
     "network": "Could not connect to the app. Check your connection and try again.",

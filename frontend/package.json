@@ -7,9 +7,10 @@
     "dev": "vite",
     "build": "vue-tsc --noEmit && vite build",
     "preview": "vite preview",
-    "test": "node --experimental-strip-types --test tests/metronome.test.mjs tests/metronome-config.test.mjs tests/metronome-ui.test.mjs tests/metronome-dialog.component.test.mjs tests/metronome-recording.component.test.mjs tests/metronome-shell.component.test.mjs tests/metronome-entry-flow.test.mjs tests/locale-persistence.test.mjs tests/learning-service.test.mjs tests/learning-qa-regression.test.mjs tests/home-summary.test.mjs tests/api-failure.test.mjs tests/learner-restore.test.mjs tests/onboarding-recovery.component.test.mjs tests/auth-security.test.mjs",
+    "test": "node --experimental-strip-types --test tests/metronome.test.mjs tests/metronome-config.test.mjs tests/metronome-ui.test.mjs tests/metronome-dialog.component.test.mjs tests/metronome-recording.component.test.mjs tests/metronome-shell.component.test.mjs tests/metronome-entry-flow.test.mjs tests/locale-persistence.test.mjs tests/learning-service.test.mjs tests/learning-qa-regression.test.mjs tests/home-summary.test.mjs tests/api-failure.test.mjs tests/learner-restore.test.mjs tests/onboarding-recovery.component.test.mjs tests/attempt-pagination.test.mjs tests/auth-security.test.mjs",
     "test:intake": "node --experimental-strip-types --test tests/intake-navigation.test.mjs tests/diagnostic-component.test.mjs tests/evidence-panel.component.test.mjs tests/exercise-preview-contract.test.mjs tests/exercise-preview-mounted.test.mjs",
-    "test:tuner": "node --experimental-strip-types --test src/shared/tuner/*.test.mjs"
+    "test:tuner": "node --experimental-strip-types --test src/shared/tuner/*.test.mjs",
+    "test:browser": "node tests/qa126-browser-runner.mjs"
   },
   "dependencies": {
     "pinia": "^3.0.3",
