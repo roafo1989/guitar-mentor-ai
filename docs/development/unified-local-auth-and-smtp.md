@@ -80,15 +80,13 @@ Resend Free, по официальной странице на октябрь 20
 
 Исправлено на уровне `application-local-unified.yml`: `spring.security.oauth2.client.registration.guitar-mentor.redirect-uri=http://localhost:5173/login/oauth2/code/{registrationId}`. Startup guard требует ровно это значение. Google Cloud OAuth Web client Authorized redirect URI должен быть **http://localhost:5173/login/oauth2/code/guitar-mentor**. Перезапустить backend после обновления Git. Не добавлять 127.0.0.1 callback вместо исправления, не менять значения токенов/SMTP и не менять DNS.
 
-## Короткий старый адрес https://guitar-mentor/
 
-Оба адреса должны открывать приложение. **В объединённом локальном режиме только один origin может хранить авторизованную сессию**: `http://localhost:5173` — именно он зарегистрирован в Google OAuth Web client и указан в ссылках из письма. Поэтому `https://guitar-mentor/` служит коротким входом и автоматически переводит браузер на `http://localhost:5173/` при запуске скрипта `local-auth-unified.ps1`. Путь, query и fragment сохраняются до перехода; токен письма затем скрывается во время загрузки основного приложения. В старых режимах без `VITE_GUITAR_MENTOR_UNIFIED_LOCAL=true` перенаправление отключено, исходное поведение Caddy не меняется.
+## Единственный адрес разработки: https://guitar-mentor/
 
-Для использования короткого адреса **должен работать уже установленный Caddy** (в терминале VS Code):
+**Пожелание владельца:** весь интерфейс, регистрация, email-ссылки, профиль, CSRF и сессии должны работать на `https://guitar-mentor/`. Без редиректа браузера в `http://localhost:5173`. Поэтому временная SPA-переадресация из PR #180 удалена; в `local-unified` включены Secure session cookies и `public-origin=https://guitar-mentor`; требуются ранее установленные hosts/Caddy и доверенный локальный TLS-сертификат. SMTP Resend остаётся независимым и работает в том же backend.
 
-```powershell
-cd D:\\Development\\guitar-mentor-ai
-& 'C:\\Tools\\Caddy\\caddy.exe' run --config .\\infra\\local\\Caddyfile --adapter caddyfile
-```
+**Google OAuth пока не принят для этого адреса.** Google запрещает короткое имя хоста без публичного TLD в OAuth redirect URI: исключение есть только для `localhost`. Профиль с callback `http://localhost:5173/login/oauth2/code/guitar-mentor` нельзя без изменений использовать для полного OAuth на `https://guitar-mentor`, потому что cookie/session и OAuth state привязаны к разным host. Не допускается считать вход Google успешным без реального UAT.
 
-Проверенный в проекте hosts: `127.0.0.1 guitar-mentor`, сертификат `tls internal` уже должен быть доверен Chrome. При работающем Caddy и Vite короткий HTTPS-адрес открывает приложение, а после перенаправления в адресной строке **будет localhost** — это ожидаемо, не баг. Нельзя сохранять отдельную Google-сессию на `guitar-mentor` и пытаться автоматически перенести cookie/CSRF с `localhost`: браузер разделяет сессии по origin. Для постоянного HTTPS-адреса без перенаправления потребуется отдельная настройка Google OAuth для реального `https://guitar-mentor.ru` и полноценный HTTPS-деплой.
+**Требуемая дополнительная доработка:** безопасный одноразовый серверный OAuth handoff между разрешённым Google callback на localhost и защищённой сессией `https://guitar-mentor`: короткий срок жизни, state/nonce, session binding, повторное использование запрещено, сохранение OIDC identity без привязки по email, logout/CSRF, тесты. После реализации пользователь работает только с HTTPS alias, а технический callback может выполняться через localhost во время входа. Текущие временные profile instructions про `http://localhost:5173` не использовать как окончательную конфигурацию в данном режиме. **PR #180 не merge до разработки и приемки OAuth handoff.**
+
+Официальные ограничения Google OAuth redirect URI: https://developers.google.com/identity/protocols/oauth2/web-server#uri-validation .
