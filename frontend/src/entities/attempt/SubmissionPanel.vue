@@ -19,7 +19,7 @@ const emit = defineEmits<{ 'draft-state': [state: { busy: boolean; dirty: boolea
 const { t } = useI18n();
 const lightMinimal = import.meta.env?.VITE_GUITAR_MENTOR_LIGHT_MINIMAL === 'true';
 const metronomeError = ref(false);
-const metronomeBpm = ref(metronome.getConfig().bpm);
+const metronomeBpm = ref(props.exercise?.bpm ?? 100);
 const metronomeStatus = ref(metronome.getState().status);
 const metronomeRunning = computed(() => metronomeStatus.value === 'running');
 const metronomeBusy = computed(() => metronomeStatus.value === 'starting');
