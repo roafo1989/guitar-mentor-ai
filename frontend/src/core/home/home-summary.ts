@@ -1,3 +1,4 @@
+import { isHttp, ApiFailure } from '../../shared/api-failure';
 import { diagnosticService } from '../../entities/diagnostic/diagnostic.service';
 import { onboardingService } from '../../entities/onboarding/onboarding.service';
 import { learningService } from '../../entities/attempt/learning.service';
@@ -36,7 +37,7 @@ export async function resolveHomeSummary(
     session = await diagnosticService.get(learnerId, selected);
   } catch (cause) {
     // Only a 404 from GET session invalidates this browser's selection.
-    if (cause instanceof Error && cause.message.startsWith('HTTP_404')) {
+    if (isHttp(cause, 404)) {
       // A concurrent tab or selection change must not be overwritten by an old 404.
       if (storage.getItem(key) !== selected) throw cause;
       storage.removeItem(key);
@@ -47,12 +48,12 @@ export async function resolveHomeSummary(
   }
   if (session.status === 'COLLECTING_EVIDENCE') return simple('diagnostics');
   if (session.status === 'READY_FOR_TASK') return simple('choose');
-  if (session.status !== 'TASK_ASSIGNED') throw new Error('INVALID_SESSION');
+  if (session.status !== 'TASK_ASSIGNED') throw new ApiFailure('INVALID_RESPONSE');
   const task: DiagnosticTask | null = await diagnosticService.currentTask(learnerId, session.id);
-  if (!task?.exercise) throw new Error('INVALID_TASK');
+  if (!task?.exercise) throw new ApiFailure('INVALID_RESPONSE');
   const learning = await learningService.state(learnerId, session.id, task.id);
   if (!['ACTIVE', 'COMPLETED_PASSED', 'COMPLETED_BY_LEARNER'].includes(learning.taskState)) {
-    throw new Error('INVALID_LEARNING_STATE');
+    throw new ApiFailure('INVALID_RESPONSE');
   }
   return {
     step: learning.taskState === 'ACTIVE' ? 'lesson' : 'result',

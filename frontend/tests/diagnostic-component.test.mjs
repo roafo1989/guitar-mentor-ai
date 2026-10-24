@@ -16,7 +16,8 @@ const panel = asModule("import { h } from '" + vueUrl +
   "'; export default {emits:['intake-state'], setup(_,{emit}) {globalThis.__testEmit = emit; return ()=>h('section');}};");
 const store = asModule("export const useLearnerStore = () => globalThis.__testLearner;");
 const metronomeUi = asModule("export const closeMetronome = () => {};");
-const diagnostic = asModule("export const diagnosticService = {get: async()=>({id:'session',status:'COLLECTING_EVIDENCE'}),listExercises:async()=>[],recommendations:async()=>({items:[]}),continueWithoutRecording:async()=>({id:'session',status:'READY_FOR_TASK'})};");
+const apiFailure = asModule("export class ApiFailure extends Error {} export const apiFailureKey = () => 'apiErrors.http'; export const asApiFailure = () => new ApiFailure('HTTP'); export const isHttp = (e, status) => e?.status === status;");
+const diagnostic = asModule("export const diagnosticService = {get: async()=>{if(globalThis.__testSessionError) throw globalThis.__testSessionError; return {id:'session',status:'COLLECTING_EVIDENCE'};}, start: async()=>{globalThis.__testStartCalls=(globalThis.__testStartCalls||0)+1; return {id:'new-session',status:'COLLECTING_EVIDENCE'};},listExercises:async()=>[],recommendations:async()=>({items:[]}),continueWithoutRecording:async()=>({id:'session',status:'READY_FOR_TASK'})};");
 let cached;
 async function compileRealView() {
   if (cached) return cached;
@@ -34,6 +35,7 @@ async function compileRealView() {
       'vue-i18n': import.meta.resolve('vue-i18n'),
       './intake-navigation': new URL('../src/entities/diagnostic/intake-navigation.ts', import.meta.url).href,
       '../metronome/metronome-ui': metronomeUi,
+      '../../shared/api-failure': apiFailure,
     };
     const target = sources[name] ?? (
       name.endsWith('DiagnosticEvidencePanel.vue') ? panel :
@@ -160,5 +162,110 @@ test('intake copy in both languages describes existing uploads and continuing to
       /без записи|without recording/i, 'button must work for a learner who already uploaded');
     assert.match(messages.diagnostic.continue,
       locale === 'ru' ? /этюд/ : /study/, 'button should describe its destination');
+  }
+});
+
+test('CORE-E: failed session GET keeps selected key and never offers new POST; read retry restores session', async () => {
+  const oldWindow = globalThis.window;
+  const values = new Map([['guitar-mentor.diagnostic.learner.ACOUSTIC_GUITAR', 'session']]);
+  const writes = [];
+  const storage = {
+    getItem: key => values.get(key) ?? null,
+    setItem: (key, value) => { writes.push(['set', key]); values.set(key, value); },
+    removeItem: key => { writes.push(['remove', key]); values.delete(key); },
+  };
+  globalThis.window = {
+    localStorage: storage,
+    addEventListener() {}, removeEventListener() {}, confirm: () => true,
+  };
+  globalThis.__testSessionError = Object.assign(new Error('offline'), { status: 500 });
+  globalThis.__testStartCalls = 0;
+  globalThis.__testLearner = { learner: { id: 'learner', displayName: 'Test' }, restore: async () => {}, error: null };
+  let app;
+  try {
+    const DiagnosticView = await compileRealView();
+    const router = createRouter({
+      history: createMemoryHistory(),
+      routes: [{ path: '/diagnostics', component: DiagnosticView }],
+    });
+    await router.push('/diagnostics');
+    await router.isReady();
+    const root = { tag: 'root', children: [], parent: null };
+    app = headlessRenderer().createApp({ render: () => h(RouterView) });
+    app.use(createI18n({ legacy: false, locale: 'en', messages: {
+      en: { home: { retry: 'Retry' }, diagnostic: { start: 'Start diagnosis' } },
+    } }));
+    app.use(router);
+    app.mount(root);
+    const flatten = node => [node, ...(node.children ?? []).flatMap(flatten)];
+    for (let i = 0; i < 15; i++) { await Promise.resolve(); await nextTick(); }
+    const nodes = flatten(root);
+    const textContent = nodes.map(n => n.text ?? '').join(' ');
+    assert.equal(globalThis.__testStartCalls, 0);
+    assert.ok(!textContent.includes('Start diagnosis'), 'no start action while selected GET fails');
+    assert.equal(values.get('guitar-mentor.diagnostic.learner.ACOUSTIC_GUITAR'), 'session');
+    assert.equal(writes.length, 0);
+    const retry = nodes.find(n => n.tag === 'button' && n.props.onClick && (n.children.some(c => String(c.text).includes('Retry')) || String(n.text).includes('Retry')));
+    assert.ok(retry, 'GET-only Retry is visible');
+    delete globalThis.__testSessionError;
+    retry.props.onClick();
+    for (let i = 0; i < 15; i++) { await Promise.resolve(); await nextTick(); }
+    assert.equal(globalThis.__testStartCalls, 0);
+    assert.equal(values.get('guitar-mentor.diagnostic.learner.ACOUSTIC_GUITAR'), 'session');
+  } finally {
+    app?.unmount();
+    globalThis.window = oldWindow;
+    delete globalThis.__testSessionError;
+    delete globalThis.__testStartCalls;
+    delete globalThis.__testLearner;
+  }
+});
+
+test('P2: learner restore failure renders Retry rather than misleading Create Profile', async () => {
+  const oldWindow = globalThis.window;
+  const values = new Map([['guitar-mentor.learnerId','learner']]);
+  globalThis.window = {
+    localStorage: { getItem: key => values.get(key) ?? null, removeItem() {}, setItem() {} },
+    addEventListener() {}, removeEventListener() {},
+  };
+  let restoreCalls = 0;
+  globalThis.__testLearner = {
+    learner: null,
+    error: null,
+    restore: async () => {
+      ++restoreCalls;
+      globalThis.__testLearner.error = new Error('offline');
+    },
+  };
+  let app;
+  try {
+    const DiagnosticView = await compileRealView();
+    const router = createRouter({
+      history: createMemoryHistory(),
+      routes: [{ path: '/diagnostics', component: DiagnosticView }],
+    });
+    await router.push('/diagnostics');
+    await router.isReady();
+    const root = { tag: 'root', children: [], parent: null };
+    app = headlessRenderer().createApp({ render: () => h(RouterView) });
+    app.use(createI18n({ legacy: false, locale: 'en', messages: { en: {
+      home: { retry: 'Retry' }, diagnostic: { needProfile: 'Create Profile' },
+      apiErrors: { http: 'Request failed' },
+    } } }));
+    app.use(router);
+    app.mount(root);
+    for(let i=0;i<15;i++) { await Promise.resolve(); await nextTick(); }
+    const flatten = n => [n,...(n.children??[]).flatMap(flatten)];
+    const nodes = flatten(root);
+    const rendered = nodes.map(n => n.text??'').join(' ');
+    assert.ok(rendered.includes('Request failed'));
+    assert.ok(!rendered.includes('Create Profile'));
+    const retry = nodes.find(n => n.tag==='button' && String(n.text).includes('Retry'));
+    assert.ok(retry?.props.onClick);
+    retry.props.onClick();
+    for(let i=0;i<15;i++) { await Promise.resolve(); await nextTick(); }
+    assert.equal(restoreCalls,2, 'only read restore repeated');
+  } finally {
+    app?.unmount(); globalThis.window=oldWindow; delete globalThis.__testLearner;
   }
 });

@@ -94,7 +94,9 @@
     "back": "Back",
     "save": "Save questionnaire",
     "saved": "Questionnaire saved to PostgreSQL",
-    "profileBack": "Back to profile"
+    "profileBack": "Back to profile",
+    "draftConflict": "A saved background exists on the server. Your local draft is still visible, but saving is blocked to prevent data loss. Load the server version to continue.",
+    "loadServerBackground": "Load saved background (replace draft)"
   },
   "diagnostic": {
     "title": "Initial assessment",
@@ -497,5 +499,15 @@
     "uploadClosed": "Assignment completed. New attempts cannot be uploaded; history and feedback remain available.",
     "historyDetails": "Decision and assessment history",
     "assessmentDetails": "Assessment details"
+  },
+  "apiErrors": {
+    "network": "Could not connect to the app. Check your connection and try again.",
+    "validation": "Check the fields and save again.",
+    "forbidden": "This action is currently unavailable.",
+    "notFound": "Data is unavailable. Refresh this section.",
+    "conflict": "Data has changed. Refresh it before trying again.",
+    "tooLarge": "The file exceeds the size limit.",
+    "http": "The request failed. Try again later.",
+    "invalid": "Could not read the app response. Try again."
   }
 }

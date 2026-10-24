@@ -19,6 +19,7 @@ function harness({ session, task, learning, background = null, sessionError, tas
     removeItem: key => { calls.push('remove'); data.delete(key); },
   };
   const services = {
+    '../../shared/api-failure': { ApiFailure: class ApiFailure extends Error {}, isHttp: (cause, status) => cause?.status === status },
     '../../entities/diagnostic/diagnostic.service': {
       diagnosticService: {
         get: async () => { calls.push('get-session'); if (sessionError) throw sessionError; return session; },
@@ -75,14 +76,14 @@ test('network failure retains session selection', async () => {
   assert.ok(!h.calls.includes('remove'));
 });
 test('404 on GET session clears only its key', async () => {
-  const h = harness({ sessionError: new Error('HTTP_404: Missing') });
+  const h = harness({ sessionError: Object.assign(new Error('HTTP_404'), { status: 404 }) });
   assert.equal((await h.resolveHomeSummary('learner-1', h.storage)).step, 'onboarding');
   assert.deepEqual(h.calls, ['get-session', 'remove', 'get-background']);
 });
 test('404 from task GET does not clear selected session', async () => {
   const h = harness({
     session: { id: 'saved-session', status: 'TASK_ASSIGNED' },
-    taskError: new Error('HTTP_404: Task missing'),
+    taskError: Object.assign(new Error('HTTP_404'), { status: 404 }),
   });
   await assert.rejects(h.resolveHomeSummary('learner-1', h.storage), /HTTP_404/);
   assert.equal(h.storage.getItem(h.selectedSessionKey('learner-1')), 'saved-session');
@@ -95,6 +96,7 @@ test('late 404 cannot erase a more recent selection', async () => {
   const key = h.selectedSessionKey('learner-1');
   const request = new Promise((_, reject) => { rejectSession = reject; });
   const services = {
+    '../../shared/api-failure': { ApiFailure: class ApiFailure extends Error {}, isHttp: (cause, status) => cause?.status === status },
     '../../entities/diagnostic/diagnostic.service': { diagnosticService: { get: () => request } },
     '../../entities/onboarding/onboarding.service': { onboardingService: { get: async () => null } },
     '../../entities/attempt/learning.service': { learningService: { state: async () => null } },
@@ -103,7 +105,7 @@ test('late 404 cannot erase a more recent selection', async () => {
   new Function('require', 'exports', compiled)(id => services[id], exports);
   const promise = exports.resolveHomeSummary('learner-1', h.storage);
   h.data.set(key, 'newer-session');
-  rejectSession(new Error('HTTP_404: Old session missing'));
+  rejectSession(Object.assign(new Error('HTTP_404'), { status: 404 }));
   await assert.rejects(promise, /HTTP_404/);
   assert.equal(original(key), 'newer-session');
   assert.ok(!h.calls.includes('remove'));
