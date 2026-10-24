@@ -2,7 +2,7 @@ import { reactive } from 'vue';
 import { metronome } from '../../shared/audio/metronome';
 import {
   type MetronomeConfig, type MetronomePreset, copyConfig, defaultMetronomeConfig,
-  readMetronomeStore, saveMetronomeStore, validConfig,
+  readMetronomeStore, saveMetronomeStore, validConfig, meterConfig,
 } from '../../shared/audio/metronome-config.ts';
 
 const restored = readMetronomeStore();
@@ -39,24 +39,38 @@ export function openMetronome(trigger: HTMLElement): void {
   metronomeUi.returnFocus = trigger;
   metronomeUi.open = true;
 }
-export function openExerciseMetronome(trigger: HTMLElement, source: string, bpm: number): void {
+/** Apply the exercise's real meter, rather than retaining an unrelated header preset. */
+export function openExerciseMetronome(
+  trigger: HTMLElement, source: string, bpm: number, meter: string,
+): boolean {
+  const parsed = /^([0-9]{1,2})\/(2|4|8|16)$/.exec(meter.trim());
+  if (!parsed || !Number.isInteger(bpm) || bpm < 20 || bpm > 240) return false;
+  const numerator = Number(parsed[1]);
+  const denominator = Number(parsed[2]) as 2 | 4 | 8 | 16;
+  if (numerator < 1 || numerator > 16) return false;
   const status = metronome.getState().status;
-  if (status === 'running' || status === 'starting') {
-    metronomeUi.sourceExercise = source;
+  // Reopening a minimized window for the *same* piece must not reset playback.
+  if ((status === 'running' || status === 'starting') &&
+      metronomeUi.sourceExercise === source) {
     openMetronome(trigger);
-    return;
+    return true;
   }
+  // A different piece (or a header-only pattern) must not inherit a running
+  // clock with the wrong accents/measure length.
+  if (status === 'running' || status === 'starting') metronome.stop();
+  const previous = metronome.getConfig();
+  const requested = meterConfig(numerator, denominator, bpm);
+  requested.masterVolumePercent = previous.masterVolumePercent;
+  requested.accentVolumes = { ...previous.accentVolumes };
+  requested.subdivisionVolumePercent = previous.subdivisionVolumePercent;
+  requested.subdivision = previous.subdivision;
+  if (!validConfig(requested) || !metronome.applyConfig(requested)) return false;
   metronomeUi.sourceExercise = source;
-  // The catalogue's recommended tempo is a QUARTER-note BPM, regardless
-  // of the user's previous eighth/dotted-quarter beat unit.
-  const requested = metronome.getConfig();
-  requested.bpm = bpm;
-  requested.tempoUnit = 'quarter';
-  if (!validConfig(requested) || !metronome.applyConfig(requested))
-    metronomeUi.sourceExercise = null;
-  else persistMetronomeConfig();
+  persistMetronomeConfig();
   openMetronome(trigger);
+  return true;
 }
+
 export function minimizeMetronome(): void {
   if (metronome.getState().status !== 'running') return;
   metronomeUi.open = false;

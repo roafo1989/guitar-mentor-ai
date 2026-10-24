@@ -417,7 +417,8 @@
     "beatHelp": "Tap a beat: ● strong · ◐ medium · ○ weak · × mute",
     "subdivisionCount": "Clicks per beat: {count}",
     "closeSettings": "Close panel",
-    "savingPreview": "Configuration to save"
+    "savingPreview": "Configuration to save",
+    "exerciseMeterUnavailable": "This exercise's meter or tempo is not supported by the metronome."
   },
   "tuner": {
     "title": "Guitar tuner",
