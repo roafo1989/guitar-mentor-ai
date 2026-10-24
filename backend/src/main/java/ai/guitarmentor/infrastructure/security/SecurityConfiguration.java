@@ -33,9 +33,12 @@ public class SecurityConfiguration {
     @Bean
     SecurityFilterChain securityFilterChain(HttpSecurity http, ActorRepository actors,
             @Value("${guitar-mentor.security.enabled:true}") boolean enabled,
-            @Value("${guitar-mentor.security.absolute-session-minutes:720}") long absoluteMinutes)
+            @Value("${guitar-mentor.security.absolute-session-minutes:720}") long absoluteMinutes,
+            @Value("${server.address:127.0.0.1}") String bind)
             throws Exception {
         if (!enabled) {
+            // Fail during SecurityFilterChain creation, before Tomcat can accept requests.
+            rejectInsecureNonLoopback(false, bind).run(null);
             // Insecure fallback is reserved for existing localhost-only development.
             return http.csrf(csrf -> csrf.disable())
                 .authorizeHttpRequests(auth -> auth.anyRequest().permitAll()).build();
