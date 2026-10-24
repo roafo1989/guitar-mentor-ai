@@ -18,6 +18,20 @@ const route = useRoute();
 const headerMetronomeButton = ref<HTMLButtonElement | null>(null);
 const tunerButton = ref<HTMLButtonElement | null>(null);
 const tunerOpen = ref(false);
+const logoutPending = ref(false);
+const logoutError = ref(false);
+async function signOut(): Promise<void> {
+  if (logoutPending.value) return;
+  logoutPending.value = true;
+  logoutError.value = false;
+  try {
+    await logout(() => learnerStore.clearLocalSelection());
+  } catch {
+    logoutError.value = true;
+  } finally {
+    logoutPending.value = false;
+  }
+}
 function openTuner(): void {
   // Stop even a minimized metronome to keep clicks out of pitch detection.
   stopMetronomeForAudioCapture();
@@ -108,7 +122,8 @@ onBeforeUnmount(() => { unsubscribeMetronome?.(); closeMetronome(); });
           </svg>
           <span v-if="metronomeStatus === 'running'" class="metronome-running-dot" aria-hidden="true"></span>
         </button>
-        <button v-if="auth.actor" type="button" @click="logout(() => learnerStore.clearLocalSelection())">{{ t('auth.signOut') }}</button>
+        <button v-if="auth.actor" type="button" class="header-signout-button" :disabled="logoutPending" :aria-busy="logoutPending" @click="signOut">{{ logoutPending ? t('auth.loading') : t('auth.signOut') }}</button>
+        <span v-if="logoutError" class="header-action-error" role="alert">{{ locale === 'ru' ? 'Не удалось выйти. Повторите попытку.' : 'Sign out failed. Please retry.' }}</span>
         <label class="language-picker">
           <span class="sr-only">{{ t('app.language') }}</span>
           <select v-model="locale" aria-label="Language">
