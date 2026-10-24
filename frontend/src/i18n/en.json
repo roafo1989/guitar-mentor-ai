@@ -212,7 +212,8 @@
     "repertoireHint": "Complete works are offered as options, not a compulsory entrance exam.",
     "assignedTaskLoading": "Loading the assigned task…",
     "assignedTaskMissing": "This session says a task is assigned, but the task was not found. The data is inconsistent; retry or report the issue.",
-    "assignedTaskUnavailable": "Could not retrieve the assigned task. Retry without changing your saved work."
+    "assignedTaskUnavailable": "Could not retrieve the assigned task. Retry without changing your saved work.",
+    "startRecoveryHint": "A saved diagnostic session was found. We tried to restore it; if it no longer exists, press Start diagnostics again."
   },
   "home": {
     "welcome": "Your space for music",
