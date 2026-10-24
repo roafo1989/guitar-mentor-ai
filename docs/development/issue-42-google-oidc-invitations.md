@@ -32,7 +32,7 @@ To invite an ordinary learner substitute `action=invite`; set `email=user@exampl
 
 ## Operational and acceptance restrictions
 
-- OWNER is created by a one-time, explicit invitation. A database partial unique index blocks multiple concurrently active owners; the generic `disable` operation refuses OWNER. Recovery procedure remains an operator concern.
+- OWNER is created by a one-time, explicit invitation. To preserve an existing learner profile for the first OWNER, pass its UUID explicitly with the same `--guitar-mentor.invitation-admin.learner=<UUID>` option; this performs no display-name or email-based matching. A database partial unique index blocks multiple concurrently active owners; the generic `disable` operation refuses OWNER. Recovery procedure remains an operator concern.
 - Cross-account access remains blocked by #38. Immediate learner disable is rechecked each request. Revoking a PENDING invite does not revoke an already active account.
 - Browser/Google IdP end-to-end tests, actual DNS and HTTPS/cookies, parallel activation requests and operator recovery are NOT_RUN and release blockers. This implementation still requires full security review and integration with #39/#40.
 - Do not merge #42 before #132 or claim that the secure profile was deployed.
