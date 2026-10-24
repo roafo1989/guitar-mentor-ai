@@ -1,11 +1,13 @@
 <script setup lang="ts">
-import { computed, onBeforeUnmount, ref, watch } from 'vue';
+import { computed, defineAsyncComponent, onBeforeUnmount, ref, watch } from 'vue';
 import { useI18n } from 'vue-i18n';
 import type { Exercise } from '../../shared/model/diagnostic.model';
 import { leaveMetronomeExercise, openExerciseMetronome } from '../metronome/metronome-ui';
 
 const props = defineProps<{ exercise: Exercise; assigned?: boolean }>();
 const { t } = useI18n();
+const lightMinimal = import.meta.env?.VITE_GUITAR_MENTOR_LIGHT_MINIMAL === 'true';
+const ScoreReader = defineAsyncComponent(() => import('../../shared/score/ScoreReader.vue'));
 const audioExists = ref(false);
 const pdfExists = ref(false);
 const checking = ref(true);
@@ -154,7 +156,11 @@ onBeforeUnmount(() => pdfOpenController?.abort());
         :aria-label="t('diagnostic.listenExample')" @error="audioExists = false" />
       <p v-else class="hint" role="status">{{ t('diagnostic.metadata.audioUnavailable') }}</p>
     </div>
-    <details :key="mediaIdentity" class="exercise-pdf-details" :open="pdfOpen"
+    <ScoreReader v-if="assigned && lightMinimal" :key="mediaIdentity"
+      :exercise-key="exerciseKey()" :pdf-url="exercise.previewPdfUrl"
+      :score-url="exercise.scoreUrl" :title="exercise.title"
+      v-model:open="pdfOpen" />
+    <details v-if="!assigned || !lightMinimal" :key="mediaIdentity" class="exercise-pdf-details" :open="pdfOpen"
       @toggle="onPdfToggle">
       <summary>{{ t('diagnostic.viewNotes') }}</summary>
       <!-- Explicit PDF verification must not wait for unrelated initial audio HEAD. -->
