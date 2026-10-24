@@ -21,6 +21,8 @@ public class LocalCredentialService {
     private final JdbcClient jdbc;
     private final org.springframework.beans.factory.ObjectProvider<JavaMailSender> mail;
     private final PasswordEncoder encoder = Argon2PasswordEncoder.defaultsForSpringSecurity_v5_8();
+    // Precomputed once: do not allocate a new Argon2 hash for every login attempt.
+    private final String dummyPasswordHash = encoder.encode("not-a-real-credential-value");
     private final SecureRandom random = new SecureRandom();
     private final String publicOrigin;
     private final String from;
@@ -49,7 +51,7 @@ public class LocalCredentialService {
         message.setTo(destination); message.setFrom(from); message.setSubject(subject);
         // No link token in logs, DTOs, persistent plaintext or analytics.
         message.setText("Open " + publicOrigin + (action.equals("link") ? "/profile" : "/") + "#authAction=" + action + "&token=" + token
-                + "\\nIf you did not request this, ignore this message.");
+                + "\nIf you did not request this, ignore this message.");
         JavaMailSender transport = mail.getIfAvailable();
         if (transport == null) throw new IllegalStateException("MAIL_NOT_CONFIGURED");
         transport.send(message);
@@ -131,8 +133,7 @@ public class LocalCredentialService {
             """).param("name",name).query((rs,i)->new Credential(
                 rs.getObject("account_id",UUID.class),rs.getString("password_hash"))).optional();
         // Constant costly comparison on an unknown user mitigates simple timing enumeration.
-        String fallback=encoder.encode("not-a-real-credential-value");
-        boolean passwordMatches = encoder.matches(password, found.map(Credential::hash).orElse(fallback));
+        boolean passwordMatches = encoder.matches(password, found.map(Credential::hash).orElse(dummyPasswordHash));
         if(found.isEmpty() || !passwordMatches)
             throw new SecurityException("INVALID_CREDENTIALS");
         var credential=found.get();
