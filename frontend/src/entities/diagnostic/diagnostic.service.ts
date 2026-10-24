@@ -1,69 +1,84 @@
 import type { DiagnosticSession, DiagnosticTask, Exercise, ScoreEvents, DiagnosticRecommendation, SkillSnapshot } from '../../shared/model/diagnostic.model';
+import { apiRequest, isArrayOf, isNumber, isObject, isString, isStringArray, isUuid } from '../../shared/api-failure';
 
 function baseUrl(learnerId: string): string {
   return '/api/v1/learners/' + encodeURIComponent(learnerId) + '/diagnostic-sessions';
 }
-
-async function request<T>(url: string, options?: RequestInit): Promise<T> {
-  let result: Response;
-  try {
-    result = await fetch(url, {
-      ...options,
-      headers: { 'Content-Type': 'application/json', ...options?.headers },
-    });
-  } catch {
-    throw new Error('NETWORK_UNAVAILABLE');
-  }
-
-  if (!result.ok) {
-    const payload: unknown = await result.json().catch(() => null);
-    const message = typeof payload === 'object' && payload !== null
-      && 'error' in payload && typeof payload.error === 'string'
-      ? payload.error : result.statusText;
-    throw new Error('HTTP_' + result.status + ': ' + message);
-  }
-  if (result.status === 204) return null as T;
-  return (await result.json()) as T;
+function validSession(value: unknown): value is DiagnosticSession {
+  return isObject(value) && isUuid(value.id) && isString(value.instrumentCode)
+    && ['COLLECTING_EVIDENCE', 'READY_FOR_TASK', 'TASK_ASSIGNED'].includes(String(value.status))
+    && isString(value.createdAt) && isString(value.updatedAt) && isStringArray(value.availableActions);
 }
-
+function validExercise(value: unknown): value is Exercise {
+  if (!isObject(value)) return false;
+  return ['code','version','title','styleCode','difficulty','meter','author','license',
+    'reviewStatus','description','scoreUrl','eventsUrl'].every(key => isString(value[key]))
+    && isNumber(value.bpm) && isNumber(value.measures) && isStringArray(value.skillCodes)
+    && (value.previewAudioUrl == null || isString(value.previewAudioUrl))
+    && (value.previewPdfUrl == null || isString(value.previewPdfUrl));
+}
+function validTask(value: unknown): value is DiagnosticTask {
+  return isObject(value) && isUuid(value.id) && isUuid(value.sessionId)
+    && isString(value.assignedAt) && validExercise(value.exercise);
+}
+function validRecommendation(value: unknown): value is DiagnosticRecommendation {
+  return isObject(value) && isUuid(value.sessionId) && isString(value.algorithmVersion)
+    && ['RECOMMENDED', 'NO_MATCH'].includes(String(value.status))
+    && (value.reasonCode === null || isString(value.reasonCode))
+    && isArrayOf(value.items, item => isObject(item) &&
+      ['exerciseCode','exerciseVersion','title','reasonText'].every(key => isString(item[key]))
+      && isNumber(item.recommendedPracticeMinutes) && isStringArray(item.skillCodes)
+      && isStringArray(item.reasonCodes));
+}
+function validSkill(value: unknown): value is SkillSnapshot {
+  return isObject(value) && isString(value.skillCode) && isString(value.title)
+    && isString(value.description) && isStringArray(value.prerequisites)
+    && typeof value.selfReported === 'boolean' && isNumber(value.assessedLevel)
+    && isString(value.evidenceStatus) && isStringArray(value.unresolvedGaps);
+}
+function validEvents(value: unknown): value is ScoreEvents {
+  return isObject(value) && isArrayOf(value.measures, measure =>
+    isObject(measure) && isNumber(measure.bar) && isString(measure.chord)
+    && ['upper','bass'].every(key => isArrayOf(measure[key], event =>
+      isObject(event) && isNumber(event.beat)
+      && (event.length == null || isNumber(event.length))
+      && (event.duration == null || isNumber(event.duration))
+      && isArrayOf(event.notes, note => isObject(note) && isNumber(note.string) && isNumber(note.fret)))));
+}
 export const diagnosticService = {
   start(learnerId: string, instrumentCode: string) {
-    return request<DiagnosticSession>(baseUrl(learnerId), {
-      method: 'POST',
-      body: JSON.stringify({ instrumentCode }),
-    });
+    return apiRequest(baseUrl(learnerId),
+      { method: 'POST', body: JSON.stringify({ instrumentCode }) }, validSession);
   },
   get(learnerId: string, sessionId: string) {
-    return request<DiagnosticSession>(baseUrl(learnerId) + '/' + encodeURIComponent(sessionId));
+    return apiRequest(baseUrl(learnerId) + '/' + encodeURIComponent(sessionId), undefined, validSession);
   },
   continueWithoutRecording(learnerId: string, sessionId: string) {
-    return request<DiagnosticSession>(baseUrl(learnerId) + '/' + encodeURIComponent(sessionId) + '/continue', {
-      method: 'POST',
-    });
+    return apiRequest(baseUrl(learnerId) + '/' + encodeURIComponent(sessionId) + '/continue',
+      { method: 'POST' }, validSession);
   },
   listExercises() {
-    return request<Exercise[]>('/api/v1/exercises?instrumentCode=ACOUSTIC_GUITAR&techniqueCode=FINGERSTYLE');
+    return apiRequest('/api/v1/exercises?instrumentCode=ACOUSTIC_GUITAR&techniqueCode=FINGERSTYLE',
+      undefined, (v): v is Exercise[] => isArrayOf(v, validExercise));
   },
   recommendations(learnerId: string, sessionId: string) {
-    return request<DiagnosticRecommendation>(baseUrl(learnerId) + '/' +
-      encodeURIComponent(sessionId) + '/exercise-recommendations');
+    return apiRequest(baseUrl(learnerId) + '/' + encodeURIComponent(sessionId) +
+      '/exercise-recommendations', undefined, validRecommendation);
   },
   skillMap(learnerId: string, instrumentCode: string) {
-    return request<SkillSnapshot[]>('/api/v1/learners/' + encodeURIComponent(learnerId) +
-      '/instruments/' + encodeURIComponent(instrumentCode) + '/skills');
+    return apiRequest('/api/v1/learners/' + encodeURIComponent(learnerId) +
+      '/instruments/' + encodeURIComponent(instrumentCode) + '/skills',
+      undefined, (v): v is SkillSnapshot[] => isArrayOf(v, validSkill));
   },
   currentTask(learnerId: string, sessionId: string) {
-    return request<DiagnosticTask | null>(baseUrl(learnerId) + '/' +
-      encodeURIComponent(sessionId) + '/tasks');
+    return apiRequest(baseUrl(learnerId) + '/' + encodeURIComponent(sessionId) +
+      '/tasks', undefined, (v): v is DiagnosticTask | null => v === null || validTask(v), true);
   },
   assignTask(learnerId: string, sessionId: string, exerciseCode: string) {
-    return request<DiagnosticTask>(baseUrl(learnerId) + '/' +
-      encodeURIComponent(sessionId) + '/tasks', {
-      method: 'POST', body: JSON.stringify({ exerciseCode }),
-    });
+    return apiRequest(baseUrl(learnerId) + '/' + encodeURIComponent(sessionId) + '/tasks',
+      { method: 'POST', body: JSON.stringify({ exerciseCode }) }, validTask);
   },
   scoreEvents(eventsUrl: string) {
-    // The URL comes from our own trusted backend exercise catalog.
-    return request<ScoreEvents>(eventsUrl);
+    return apiRequest(eventsUrl, undefined, validEvents);
   },
 };
