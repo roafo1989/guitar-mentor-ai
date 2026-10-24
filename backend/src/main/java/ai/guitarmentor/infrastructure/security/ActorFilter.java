@@ -40,9 +40,15 @@ public class ActorFilter extends OncePerRequestFilter {
             return;
         }
         Authentication auth = SecurityContextHolder.getContext().getAuthentication();
-        if (auth == null || !(auth.getPrincipal() instanceof OidcUser oidc)) {
+        if (auth == null || !auth.isAuthenticated()) {
             deny(response, 401, "UNAUTHENTICATED");
             return;
+        }
+        if (path.equals("/api/v1/csrf") && request.getMethod().equals("GET")) {
+            chain.doFilter(request, response); return;
+        }
+        if (path.startsWith("/api/v1/local-auth/") && !path.equals("/api/v1/local-auth/change")) {
+            chain.doFilter(request, response); return;
         }
         // Validated Google OIDC users without admission may redeem an invite only.
         // All other private API routes still require an admitted active account.
@@ -51,7 +57,11 @@ public class ActorFilter extends OncePerRequestFilter {
             chain.doFilter(request, response);
             return;
         }
-        var actor = repository.findActive(oidc.getIssuer().toString(), oidc.getSubject());
+        var actor = auth.getPrincipal() instanceof OidcUser oidc
+            ? repository.findActive(oidc.getIssuer().toString(), oidc.getSubject())
+            : auth.getPrincipal() instanceof LocalPrincipal local
+                ? repository.findActiveLocal(local.accountId(),local.accessVersion())
+                : java.util.Optional.<CurrentActor>empty();
         if (actor.isEmpty()) {
             deny(response, 403, "ACCOUNT_NOT_ADMITTED");
             return;
