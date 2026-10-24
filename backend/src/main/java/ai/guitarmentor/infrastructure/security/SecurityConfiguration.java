@@ -57,6 +57,9 @@ public class SecurityConfiguration {
             .authorizeHttpRequests(auth -> auth
                 .requestMatchers("/actuator/**").denyAll()
                 .requestMatchers("/error", "/login/**", "/oauth2/**", "/").permitAll()
+                .requestMatchers("/api/v1/csrf", "/api/v1/local-auth/register", "/api/v1/local-auth/verify",
+                    "/api/v1/local-auth/login", "/api/v1/local-auth/request-reset",
+                    "/api/v1/local-auth/reset").permitAll()
                 .requestMatchers("/api/**").authenticated()
                 .anyRequest().permitAll())
             .oauth2Login(login -> login
