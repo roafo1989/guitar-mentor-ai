@@ -1,0 +1,8 @@
+flowchart TD
+  Accepted["148 / 149 / 150: completed"] --> Media["151: media coordination, Queue"]
+  Auth["198: отдельный auth и новый brand"] --> Candidate["Общий проверяемый candidate SHA"]
+  Media --> Candidate
+  Candidate --> Results["152: results mapping и integration QA"]
+  Results --> Owner["Визуальная приёмка владельца"]
+  Owner --> Story["147: можно завершать после gates"]
+  Prep["Подготовка mapping/fixtures152 допустима заранее"] -.-> Results

@@ -8,6 +8,7 @@
 
 | Версия | Дата | Что поменялось |
 | --- | --- | --- |
+| 0.30 | 25.10.2026 | БТ0.21: актуализирован остатокFT01604/05 после принятой150; media/draft/config и selected results/gates151+198. НовыхFT нет;151остаток8ч,152сохраняет8ч. |
 | 0.29 | 25.10.2026 | БТ0.21: FT-016-06/#198 auth UI/Google CTA/новый logo, Full,8ч;24TC, диаграммы и точные assets. API/БД/права прежние. |
 | 0.28 | 24.10.2026 | Сверка принятой141: свободная регистрация вместо invitation-only; локальный SMTP179 принят, публичный rollout39/40 не подтверждён; фактическая очередь150 и162. Новые US/FT не создаются. |
 | 0.27 | 24.10.2026 | БТ0.19/BT-012: US016 Light Minimal/#147 и FT01601…05/#148–152;48ч, контракты/26TC/схемы, начало очереди148.15действующихUS/59FT;51 не переоткрывается. |
@@ -419,11 +420,11 @@ US-009 покрывает BT-010/BT-011 версии БТ 0.2; реализац�
 | FT-016-01 | Light tokens, белый sticky shell/header, responsive nav по существующим routes, username/tools/logout/language, сохранённые auth/profile/onboarding | AC-LM-01/02; AC-012-LM-01/05 | [#148](https://github.com/roafo1989/guitar-mentor-ai/issues/148) |
 | FT-016-02 | Home layout и реальные CTA через существующий frontend resolver, bare learner/loading/error/stale states | AC-LM-03/04; AC-012-LM-02/05 | [#149](https://github.com/roafo1989/guitar-mentor-ai/issues/149) |
 | FT-016-03 | Все diagnostic states, responsive workspace с доминирующими нотами и version-pinned изолированный PDF reader с page/zoom/fullscreen/fallback | AC-LM-05/06/07; AC-012-LM-03/05 | [#150](https://github.com/roafo1989/guitar-mentor-ai/issues/150) |
-| FT-016-04 | Stateful запись/preview/upload и sample, существующие метроном/тюнер с mic priority и сохранёнными guards/history | AC-LM-08/09/10; AC-012-LM-03/04/05 | [#151](https://github.com/roafo1989/guitar-mentor-ai/issues/151) |
-| FT-016-05 | Настоящие feedback/progress states по API, locale/a11y/responsive и общий прогон/визуальная приёмка | AC-LM-11/12; AC-012-LM-04/05 | [#152](https://github.com/roafo1989/guitar-mentor-ai/issues/152) |
+| FT-016-04 | Довести координацию sample/draft/capture, сохранность File/comment/payload-bound requestId и один metronome config; переиспользовать принятый150 layout/inline tools | AC-LM-08/09/10; AC-151-01…08; [Full151](../specifications/UX-02-04-media-tools.md) | [#151](https://github.com/roafo1989/guitar-mentor-ai/issues/151) |
+| FT-016-05 | Честные selected/latest/transport/assessment/provenance/banner и student decision states; общий151+198 candidate и visual/accessibility regression | AC-LM-11/12; AC-152-01…07; [Standard152](../specifications/UX-02-05-results-and-acceptance.md) | [#152](https://github.com/roafo1989/guitar-mentor-ai/issues/152) |
 | FT-016-06 | Единая auth-card login/register, Google CTA одним действием, явные mail/verify/reset/error состояния, новый выбранный logo/header/favicon; reuse принятой141/179 без новых API/прав | AC-AUTH03-01…12; AC-012-AUTH-01…03; [AUTH-03](../specifications/AUTH-03-auth-ui-and-branding.md),24TC | [#198](https://github.com/roafo1989/guitar-mentor-ai/issues/198) |
 
-Новые backend API/БД/права/ИИ не входят. Отсутствующийlibraryroute не изображается работающим и остаётся163. Метроному передаются реальныеmeter/tempoUnit, записьподнегоразрешена. СтандартнотнепереписываетготовыеPDF;UIпоказываеторигиналпоversion. Оценённыйпорядок148→149→150→151→152,48ч, всеIssues OPEN.
+Новые backend API/БД/права/ИИ не входят. Отсутствующийlibraryroute не изображается работающим и остаётся163. Метроному передаются реальныеmeter/tempoUnit, записьподнегоразрешена. СтандартнотнепереписываетготовыеPDF;UIпоказываеторигиналпоversion. Историческая передача148→149→150→151→152 оценивалась48ч. На25.10:148/149/150 completed;1518чQueue,1528чWaiting151 и интеграции198,1988чQueue. [Текущий остаток](../project/UX02-REFRESH-2026-10-25.md).
 
 ## 4. Нефункциональные требования
 

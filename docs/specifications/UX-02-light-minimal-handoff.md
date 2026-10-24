@@ -1,5 +1,7 @@
 # UX-02 — передача Light Minimal в разработку
 
+**Редакция1.1,25.10.2026:**151/152 перепроверены после принятой150 на main4426becd. [Актуальный остаток и оценки](../project/UX02-REFRESH-2026-10-25.md). §6/7 ниже заменены индивидуальными контрактами; код/QA оставшихся задач этой актуализацией не выполнены. Предыдущие dated notices отражают своё время.
+
 **Дополнение25.10.2026:** новое представление auth и выбранный новый logo реализуются отдельно в [AUTH-03/#198](AUTH-03-auth-ui-and-branding.md), FT01606, parent147. Этим уточнён текущий header/card brand и будущая общая регрессия152; принятые148/149 не переоткрываются. Код/визуальная приёмка198 впереди.
 
 **Сверка после приёмки148/149, вечер24.10.2026:**148/149 приняты,150 остаётся в разработке после замечаний;151/152 ожидают. Концепция определяет направление, последнее решение владельца убирает отдельный Home-link (переход через logo/name). [Текущий реестр](../project/board-audit-evening-2026-10-24.md).
@@ -84,6 +86,8 @@ Shell: белая surface, тёмный текст, зелёный active indica
 
 ## 5. FT-016-03 / #150 — занятие и score reader (Full)
 
+**Граница актуализации25.10:** этот раздел сохраняет исходный контракт150. Для151/152 базой служит принятый workspace main4426becd: assigned Light Minimal открывает score сразу, legacy/catalog сохраняет прежний details.151/152 не меняют этот default и не переделывают reader; тест закрытого состояния начинается с ручного закрытия. Иные изменения reader не включены в остаток этих задач.
+
 Layout при viewport≥1100px: общая ширина≤1560px, page gutters24px, grid `minmax(0,1fr) 320px`, gap24px; партитура получает больше60% рабочей ширины. При1100px слева около708px. При меньшей ширине — один столбец, page gutters16px наphone; рабочая область может масштабировать/прокручивать **собственный** score, но не body. Наdesktop right rail подчинён партитуре; его длинное содержимое не сжимает лист. Наmobile порядокDOM: title/goal → sample → score → recording/tools → feedback/progress. Fullscreen не меняет route/task, выход возвращает focus к trigger.
 
 Все состояния DiagnosticView сохранены, не только TASK_ASSIGNED. READY_FOR_TASK продолжает различать short diagnostic probes и optional repertoire, показывать available recommendation/reason, no-match/catalog errors и metadata. В assigned header — title/code/version, реальный BPM/meter/tempoUnit, goal и optional recommended duration с явной подписью. Metadata/criteria можно компактно раскрыть, но они доступны до записи; AI-оценкой они не называются.
@@ -112,48 +116,21 @@ Close/unmount/logout/change key отменяют fetch, PDF loading/render task,
 
 **AC-LM-05:** все diagnostic states сохранены, две колонки только при достаточной ширине, score>60%, mobile без body overflow. **AC-LM-06:** closed→open→ready/error, page/zoom/fullscreen работают на реальном PDF, controls доступны с клавиатуры/RU/EN, fallback сохранён. **AC-LM-07:** version identity, response guard, auth и sandbox соблюдены; оригинал неизменён, PDF не ждёт audio HEAD. Новые музыкальные материалы и их музыкальная приёмка в150 не входят.
 
-## 6. FT-016-04 / #151 — запись, аудио и инструменты (Full)
+## 6. FT-016-04 / #151 — координация media/tools (Full), актуально25.10
 
-Один `SubmissionPanel` на контекст `{learnerId, sessionId, taskId}`, один `MicrophoneRecorder`, один global metronome singleton и tuner dialog. Не размещать отдельные экземпляры для desktop/mobile через v-if. Для layout использовать CSS grid/slots: resize, открытие PDF/fullscreen или меню не меняют component key, не вызывают unmount и не чистят File/comment/requestId/history. Разделение upload/results на slots допускается только с сохранением одного владельца состояния и существующих событий.
+[Полный актуальный контракт151](UX-02-04-media-tools.md) имеет приоритет над первоначальной постановкой компоновки. Record/file tabs, одна панель записи, result-card и inline метроном уже приняты в150. Остаток — sample/preview/capture coordination, transactional draft приpermission/error/cancel, payload-bound retry key и context cleanup, единый engine config между inline/header/dialog.
 
-| Состояние/событие | Ожидаемое поведение |
-| --- | --- |
-| Idle, нет файла | Start и выбор файла доступны при capabilities enabled; submit disabled; причина недоступности понятна |
-| Permission pending/denied/no input | Существующая диагностика микрофона; доступны file upload и retry, нет выдуманного уровня сигнала |
-| Recording | Видны timer/input level/Stop; recorder mic lease приоритетнее tuner; duration120s/byte caps сохраняются |
-| Preview ready / выбран File | Запись отличается от sample; play/replace/discard/submit доступны по состоянию; удаление явное, objectURL освобождается |
-| Uploading/processing/error | Busy/draft-state передаются вверх; double submit запрещён, context guard сохранён; ошибка сохраняет File/comment/idempotency key; transport processing не musical PASS |
-| Upload success | File/native file input/comment/preview очищаются, создаётся новый requestId; history/latest/pinned selection сохраняют текущую семантику |
-| Route leave/Back/header logo | В busy guard запрещает переход; при dirty запрашивает discard, отмена сохраняет ввод; F5/tab close предупреждает beforeunload |
-| Logout/account change | Существующий auth cleanup останавливает медиа и очищает private context; сохранение черновика после logout не обещается |
+**AC-LM-08:** один draft ownerK; permission failure не удаляет прежнийFile; accepted replacement/delete/upload success и late callbacks обрабатываются корректно. **AC-LM-09:** сохраняются настоящие meter/tempoUnit/accents/volumes/subdivision, stop/start/reopen sameE не теряют config; mic recorder выше tuner, запись под метроном допустима. **AC-LM-10:** exact-version sample и preview не играют во время capture, no autoplay; guards/logout/actor/stream/objectURL cleanup выполняются. Подробная трассировка AC-151-01…08 →14TC в новом контракте.
 
-Метроному передавать `openExerciseMetronome(trigger,code@version,bpm,meter,tempoUnit)` из реального Exercise. Проверить новый probe3/8 с eighth=100 и обычные4/4/6/8; accents/volume/subdivision/presets104 и фон109 сохраняются. Header без assignment не подставляет BPM концепта. Reopen/minimize той же композиции сохраняет phase/темп, обычное close останавливает. Запись под метроном разрешена: показать совет использовать наушники, не останавливать его автоматически при Start recorder.
+Прежнее ожидание150 снято: **Разработка/В очереди,8ч (6–10)**. Shared business/audio code работает и при flagoff; accepted workspace150, его inline placement, score/description и initial viewer state не изменяются под видом151. API/БД/права/ИИ не расширяются.
 
-Тюнер сохраняет approved headstock, Auto/Manual, Standard/Drop D/Open G и существующий mic lease. Запуск тюнера останавливает метроном. Тюнер не прерывает активную запись: сообщает busy. Start recorder может остановить tuner через acquireAudio. Справа достаточно компактного фактического состояния и кнопок существующих dialogs; новые дубли полных панелей не нужны. Subscription cleanup обязателен. Placeholder целевой ноты не изображает достоверный сигнал.
+## 7. FT-016-05 / #152 — результаты и общий candidate (Standard), актуально25.10
 
-Audio sample: один HTML player назначенной редакции, no autoplay. Late error даёт unavailable; смена task/route/logout останавливает player. Если тип примера достоверно неизвестен, не называть его живым исполнением или синтезом по догадке. При Start recorder sample player останавливается **без остановки разрешённого метронома**, чтобы случайно не записать образец вместо ученика. Остановка sample не отправляет attempt. Автоматическая музыкальная оценка не добавляется.
+[Полный актуальный контракт152](UX-02-05-results-and-acceptance.md). Существующий LearningResultsPanel остаётся одним owner/fetch-loop. Отличать selected attempt/assessment от latest summary, transport PROCESSED от musical assessment, student choice от skillPASS. Banner получает typed context-bound UI state, а не статичное in-progress; unknown/stale/error/source/date честно показаны. Existing command version/baseAssessmentId/requestId/409/retry/pinned history сохраняются.
 
-События `SubmissionPanel`: `draft-state:{busy,dirty}`; `LearningResultsPanel`: selected-id/latest-id/decision-busy/terminal-state. Они и guards DiagnosticView сохраняются. Screenshot не доказывает реальную запись микрофона: в QA различать actual device и fake MediaStream. Новых API, provider, постоянного хранения File/localStorage нет.
+**AC-LM-11:** реальные состояния/provenance/limitations, отсутствие выдуманных процентов/streak/ИИ; самостоятельное завершение ученика не повышает навык, no next lesson при NOT_IMPLEMENTED. **AC-LM-12:** общий candidate151+198 проверен на конкретном SHA, RU/EN/keyboard/reflow/zoom и auth/media/score/decision regression задокументированы с реальными ограничениями; финальная визуальная приёмка владельца отдельно. Подробные AC-152-01…07 →12TC в контракте152.
 
-**AC-LM-08:** запись/preview/replace/submit/error/retry/input reset работают; resize/PDF/dialog не уничтожают draft. **AC-LM-09:** meter/tempoUnit/minimize/reopen/фон сохранены, запись под метроном возможна, mic priority честный. **AC-LM-10:** sample относится к назначенной версии, отличается от записи, no autoplay; navigation/logout/history guards и async cleanup работают.
-
-## 7. FT-016-05 / #152 — результаты, доступность и общая проверка (Standard)
-
-Существующий LearningResultsPanel остаётся единственным владельцем selected attempt/assessment/decision. Допускается слот/компактное summary справа, но не второй независимый fetch-loop. История, критерии, замечания и ограничения доступны. Completion by learner не означает подтверждённый навык. Unknown API field/state даёт neutral unavailable, а не процент по умолчанию0/100.
-
-| Источник | Что показываем | Что не следует из данных |
-| --- | --- | --- |
-| TaskLearningView.taskState | ACTIVE/COMPLETED_PASSED/COMPLETED_BY_LEARNER с локализованной причиной | Процент освоения, streak, общий уровень |
-| assessmentState NO_ATTEMPT/NO_ASSESSMENT/AVAILABLE | Сначала отправьте запись / оценки пока нет / реальная выбранная оценка | Готовый ИИ-совет при отсутствии assessment |
-| AssessmentView sourceKind/method/version/recommendation/criteria/limitations | PASS/REVISE/UNCERTAIN с основаниями, provenance и uncertainty | Техническая обработка не PASS; human/fixture нельзя назвать ИИ-анализом |
-| SkillEvidenceView и CriterionResult | Существующие доказательства/ограничения; уровень только с основанием по контракту |0/null не означает, что пользователь ничего не умеет |
-| nextStepAvailability=NOT_IMPLEMENTED | Следующий шаг пока недоступен; доступные действия из availableActions | Активная кнопка автоматического следующего задания |
-
-Нейтральный заголовок «Обратная связь» допустим без словаИИ, если оценка не модельная. Никаких stub recommendations, фиктивных API calls или случайной статистики. Серверный API не расширяется. Диагностические recommendations145 с reason codes остаются отдельными от assessment.
-
-Матрица экранов: auth/register/verify/reset/settings; Home шесть next steps; profile/onboarding; три diagnostic states; assigned/recording/results/history; metronome/tuner/fullscreen. Viewports1440×900/1180×820/1024×768/768×1024/360×800 и landscape800×360; RU/EN,200%zoom, keyboard и reduced-motion. Фокус не скрыт sticky header, DOM order логичен, errors role=alert, loading role=status, полное username доступно. Текст и Stop не обрезаются фиксированной высотой. Проверку browser zoom не заменять масштабированием скриншота.
-
-**AC-LM-11:** настоящие состояния данных/provenance/uncertainty/решение ученика сохранены, нет фиктивных процентов и ИИ-текста. **AC-LM-12:** auth/learning/media regression и a11y/locale/responsive матрица подтверждены, владелец видит снимки до/после для финальной визуальной приёмки.152 получает решение владельца, не принимает результат самостоятельно.
+**Разработка/Ожидание151; завершение общей проверки также требует198.8ч (6–12)** сохраняются. Начать results/fixtures можно после151 независимо от завершения198; закрыть152/147 без общего candidate нельзя.24TCauth198 не переписываются в152, выполняются интеграционные smoke.
 
 ## 8. API, установка и откат
 
@@ -167,8 +144,6 @@ Candidate: Node>=22.12, `cd frontend`, `npm ci`, `npm run build`. Версии l
 
 Для реализации: `npm run build`, `npm test`, `npm run test:intake`, `npm run test:tuner` плюс адресные component/browser кейсы [TC-UX02](../testing/TC-UX02-light-minimal.md). Сейчас они **NOT_RUN**: код этим анализом не меняется. Markdown/traceability/token contrast math — самопроверка аналитики, не CI или visual PASS.
 
-## 9. Готовность и передача
+## 9. Текущая передача —25.10.2026
 
-[Оценки, порядок и связи](../project/UX02-READINESS-2026-10-24.md):148→149→150→151→152. У всех пяти задач конкретный принимаемый объём.148 — Разработка/В очереди, остальные — Разработка/Ожидание предшественников. Блокирующих продуктовых вопросов для ограниченного редизайна нет. Exact PDF.js version выбирает исполнитель150 по официальному registry/security на старте; пользователю не передаётся выбор библиотеки. При конфликте актуального main с контрактом зафиксировать diff/влияние до продолжения.
-
-Подготовка147 не переставляет автоматически активные разработки в других чатах. Здесь создаётся очередь; кодирование, merge, deployment и закрытие Issues не выполняются. Принятие реализации требует нового UI и реальных проверок.
+148/149/150 закрыты completed.151 готова к разработке после снятия зависимости150;198 — отдельный подготовленный auth-кандидат;152 ждёт готовой151 и общего candidate с198 для финального прогона. У1476детей, закрыто3/6. [Актуальный реестр остатка](../project/UX02-REFRESH-2026-10-25.md). Ветка реализации из текущего main, не из documentation runtime-копии. WIP=1; уточнение ТЗ не начало кода/merge/деплоя/приёмки.

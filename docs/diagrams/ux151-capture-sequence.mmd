@@ -1,0 +1,20 @@
+sequenceDiagram
+  actor User as Ученик
+  participant View as DiagnosticView и players
+  participant Panel as SubmissionPanel
+  participant Mic as MicrophoneRecorder
+  User->>Mic: Start capture
+  Mic->>Panel: active=true после lease, до getUserMedia
+  Panel->>Panel: Сохранить предыдущий draft, busy=true
+  Panel->>View: capture-state(K, true)
+  View->>View: Pause sample/preview, метроном продолжает
+  Mic->>Mic: Request microphone
+  alt Denied / cancel / invalid result
+    Mic->>Panel: active=false, без valid File
+    Panel->>Panel: Прежний draft/key/comment остаются
+  else Valid recording stopped
+    Mic->>Panel: recorded(File), active=false
+    Panel->>Panel: Заменить attachment/key, сохранить comment
+  end
+  Panel->>View: capture-state(K, false)
+  View->>View: Разрешить новый play, без auto-resume
