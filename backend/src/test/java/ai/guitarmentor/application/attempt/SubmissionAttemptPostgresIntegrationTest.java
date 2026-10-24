@@ -368,4 +368,60 @@ class SubmissionAttemptPostgresIntegrationTest {
         assertEquals(1L, fileCount());
         assertTrue(Files.isRegularFile(MEDIA_ROOT.resolve(key)));
     }
+    @Test
+    void historyPagesStayStableWhenNewerAttemptArrives() {
+        Instant created = Instant.now();
+        jdbc.update("""
+            INSERT INTO submission_attempts
+              (id,diagnostic_task_id,request_id,attempt_number,submitted_at,status,
+               media_key,media_format,size_bytes)
+            SELECT gen_random_uuid(), ?, gen_random_uuid(), n, ?, 'UPLOADED',
+                   gen_random_uuid()::text || '.wav', 'wav', 12
+            FROM generate_series(1,45) AS n
+            """, taskId, java.sql.Timestamp.from(created));
+        var first = service.page(learnerId, sessionId, taskId, 20, null);
+        assertEquals(20, first.items().size());
+        assertEquals(45, first.items().get(0).number());
+        assertEquals(26, first.nextBeforeNumber());
+        assertTrue(first.hasMore());
+        jdbc.update("""
+            INSERT INTO submission_attempts
+              (id,diagnostic_task_id,request_id,attempt_number,submitted_at,status,
+               media_key,media_format,size_bytes)
+            VALUES (gen_random_uuid(),?,gen_random_uuid(),46,?,'UPLOADED',
+                    gen_random_uuid()::text || '.wav','wav',12)
+            """,taskId,java.sql.Timestamp.from(created));
+        var older = service.page(learnerId,sessionId,taskId,20,first.nextBeforeNumber());
+        assertEquals(25,older.items().get(0).number());
+        assertEquals(6,older.nextBeforeNumber());
+        assertEquals(20,older.items().size());
+        var last = service.page(learnerId,sessionId,taskId,20,older.nextBeforeNumber());
+        assertEquals(5,last.items().size());
+        assertEquals(5,last.items().get(0).number());
+        assertFalse(last.hasMore());
+        assertEquals(null,last.nextBeforeNumber());
+        assertEquals(46,service.page(learnerId,sessionId,taskId,20,null).items().get(0).number());
+        assertEquals(46,service.list(learnerId,sessionId,taskId).size());
+        assertEquals(first.items().get(0).id(),
+                service.detail(learnerId,sessionId,taskId,first.items().get(0).id()).id());
+        assertThrows(jakarta.persistence.EntityNotFoundException.class,
+                () -> service.detail(learnerId,sessionId,taskId,UUID.randomUUID()));
+        assertThrows(jakarta.persistence.EntityNotFoundException.class,
+                () -> service.page(UUID.randomUUID(),sessionId,taskId,20,null));
+        var all = service.page(learnerId,sessionId,taskId,50,null);
+        assertEquals(46,all.items().size());
+        assertFalse(all.hasMore());
+        assertEquals(0,service.page(learnerId,sessionId,taskId,20,1).items().size());
+    }
+
+    @Test
+    void emptyPageAndLimitBoundaries() {
+        assertTrue(service.page(learnerId,sessionId,taskId,20,null).items().isEmpty());
+        assertFalse(service.page(learnerId,sessionId,taskId,20,null).hasMore());
+        assertThrows(IllegalArgumentException.class,
+                () -> service.page(learnerId,sessionId,taskId,0,null));
+        assertThrows(IllegalArgumentException.class,
+                () -> service.page(learnerId,sessionId,taskId,51,null));
+    }
+
 }
