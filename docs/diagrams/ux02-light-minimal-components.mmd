@@ -1,0 +1,12 @@
+flowchart TD
+    Shell["Light shell и auth gate"] --> Home["Home resolver и CTA"]
+    Shell --> Workspace["Diagnostic workspace"]
+    Shell --> Tools["Singleton metronome и tuner"]
+    Workspace --> Reader["Isolated score reader"]
+    Workspace --> Submission["Submission state и recorder"]
+    Submission --> Results["Results, decisions и history"]
+    Reader --> Resources["Version-pinned media API"]
+    Home --> Services["Existing learner и learning API"]
+    Results --> Services
+    Submission --> Lease["Shared microphone lease"]
+    Tools --> Lease

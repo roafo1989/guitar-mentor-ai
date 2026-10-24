@@ -1,0 +1,22 @@
+sequenceDiagram
+    actor Student as Ученик
+    participant UI as Workspace
+    participant API as Version media API
+    participant Frame as Isolated reader
+    Student->>UI: Открыть PDF текущей версии
+    UI->>API: HEAD advisory, затем bounded GET
+    alt Валидные bytes и текущая generation
+        API-->>UI: PDF exact version
+        UI->>Frame: Bounded bytes, nonce и MessagePort
+        Frame-->>UI: Page count, READY или render error
+        Student->>UI: Page, zoom или fullscreen
+        UI->>Frame: Typed render command
+        Frame-->>UI: Current page result
+    else Missing, auth, timeout или corrupt
+        API-->>UI: Ошибка
+        UI-->>Student: Honest error и допустимый fallback
+    end
+    Student->>UI: Close, другой task или logout
+    UI->>API: Abort незавершённого запроса
+    UI->>Frame: Destroy renderer и buffers
+    Note over UI,Frame: Старые callbacks не восстанавливают страницу
