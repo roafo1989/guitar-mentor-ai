@@ -51,6 +51,14 @@ public class SecurityConfiguration {
                 .anyRequest().permitAll())
             .oauth2Login(login -> login
                 .successHandler((req, res, auth) -> {
+                    if (!(auth.getPrincipal() instanceof
+                            org.springframework.security.oauth2.core.oidc.user.OidcUser oidc)
+                            || actors.findActive(oidc.getIssuer().toString(), oidc.getSubject()).isEmpty()) {
+                        req.getSession().invalidate();
+                        org.springframework.security.core.context.SecurityContextHolder.clearContext();
+                        res.sendRedirect("/?auth=denied");
+                        return;
+                    }
                     res.sendRedirect("/");
                 })
                 .failureHandler((req, res, ex) -> res.sendRedirect("/?auth=failed")))
