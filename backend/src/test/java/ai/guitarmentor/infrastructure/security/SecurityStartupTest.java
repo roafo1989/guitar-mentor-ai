@@ -45,9 +45,9 @@ class SecurityStartupTest {
         return new org.springframework.mock.env.MockEnvironment()
             .withProperty("guitar-mentor.local-auth.unified-local","true")
             .withProperty("server.address","127.0.0.1")
-            .withProperty("guitar-mentor.local-auth.public-origin","http://localhost:5173")
+            .withProperty("guitar-mentor.local-auth.public-origin","https://guitar-mentor")
             .withProperty("guitar-mentor.security.enabled","true")
-            .withProperty("guitar-mentor.security.local-http","true")
+            .withProperty("guitar-mentor.security.local-http","false")
             .withProperty("spring.security.oauth2.client.registration.guitar-mentor.client-id","example-client")
             .withProperty("spring.security.oauth2.client.registration.guitar-mentor.client-secret","example-secret")
             .withProperty("spring.security.oauth2.client.registration.guitar-mentor.redirect-uri",
@@ -63,9 +63,9 @@ class SecurityStartupTest {
         assertDoesNotThrow(() -> configuration.guardUnifiedLocalAuth(unifiedEnv()).run(null));
         for (String[] invalid : new String[][] {
             {"server.address","0.0.0.0"},
-            {"guitar-mentor.local-auth.public-origin","http://guitar-mentor"},
+            {"guitar-mentor.local-auth.public-origin","http://localhost:5173"},
             {"guitar-mentor.security.enabled","false"},
-            {"guitar-mentor.security.local-http","false"},
+            {"guitar-mentor.security.local-http","true"},
             {"spring.security.oauth2.client.registration.guitar-mentor.client-secret",""},
             {"spring.security.oauth2.client.registration.guitar-mentor.redirect-uri",
                 "http://127.0.0.1:5173/login/oauth2/code/{registrationId}"},
