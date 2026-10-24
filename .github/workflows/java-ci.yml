@@ -40,6 +40,20 @@ jobs:
           java-version: "21"
           cache: maven
           cache-dependency-path: backend/pom.xml
+      # Published assets may be added only: changing/removing existing bytes breaks assigned versions.
+      - name: Enforce immutable published exercise assets
+        if: github.event_name == 'pull_request'
+        shell: bash
+        run: |
+          set -euo pipefail
+          git fetch --no-tags --depth=1 origin "$GITHUB_BASE_REF"
+          git diff --name-status --diff-filter=MDRCT "origin/$GITHUB_BASE_REF" HEAD -- backend/src/main/resources/exercises > /tmp/changed-exercise-assets.txt
+          if [ -s /tmp/changed-exercise-assets.txt ]; then
+            echo "::error::Published exercise assets must never be overwritten, renamed or removed; publish a new version instead."
+            cat /tmp/changed-exercise-assets.txt
+            exit 1
+          fi
+          echo "Published exercise asset immutability: OK"
       - name: Run unit tests, real PostgreSQL transaction integration and package
         env:
           SPRING_DATASOURCE_URL: jdbc:postgresql://localhost:5432/guitar_mentor
@@ -143,6 +157,46 @@ jobs:
               curl --fail --silent --show-error \
                 "http://localhost:8080/api/v1/exercises/GM-EB01/events" -o exercise-events.json
               grep -q '"measures"' exercise-events.json
+              # #120 exact-version HTTP contract: GET/HEAD, MIME, no-cache, safe errors.
+              exact_base="http://localhost:8080/api/v1/exercises/GM-EB01/versions/0.8B"
+              curl --fail --silent --show-error "$exact_base" | grep -q '"version":"0.8B"'
+              curl --silent --output qa120-detail-headers --head "$exact_base"
+              grep -qi 'cache-control: no-cache' qa120-detail-headers
+              for resource in score events; do
+                curl --fail --silent --show-error "$exact_base/$resource" -o "qa120-$resource"
+                curl --fail --silent --show-error --head "$exact_base/$resource" -o "qa120-$resource-headers"
+                grep -qi 'cache-control: no-cache' "qa120-$resource-headers"
+              done
+              grep -qi 'content-type: application/vnd.recordare.musicxml+xml' qa120-score-headers
+              grep -qi 'content-type: application/json' qa120-events-headers
+              grep -q 'score-partwise' qa120-score
+              grep -q '"measures"' qa120-events
+              test "$(curl --silent --output qa120-missing.json --write-out '%{http_code}' "$exact_base/preview/pdf")" = '404'
+              python3 -c 'import json; assert json.load(open("qa120-missing.json"))["code"]=="EXERCISE_RESOURCE_NOT_FOUND"'
+              test "$(curl --silent --output qa120-unknown.json --write-out '%{http_code}' "http://localhost:8080/api/v1/exercises/GM-EB01/versions/no-such-version")" = '404'
+              python3 -c 'import json; assert json.load(open("qa120-unknown.json"))["code"]=="EXERCISE_NOT_FOUND"'
+              test "$(curl --silent --output qa120-invalid.json --write-out '%{http_code}' "http://localhost:8080/api/v1/exercises/GM-EB01/versions/bad%25name")" = '400'
+              python3 -c 'import json; assert json.load(open("qa120-invalid.json"))["code"]=="INVALID_EXERCISE_REFERENCE"'
+              # Real Tomcat HTTP parser and application validation: encoded unsafe path segments.
+              # A proxy/container may reject malformed paths itself (404) or app validation may reject (400).
+              for bad in \
+                'bad%20code/versions/0.8B' \
+                'GM-EB01/versions/bad%25version' \
+                'GM-EB01/versions/bad%5Cversion' \
+                'GM-EB01/versions/bad%2Fversion' \
+                'GM-EB01/versions/%2E%2E' \
+                'GM-EB01/versions/123456789012345678901'; do
+                status=$(curl --path-as-is --silent --output /dev/null --write-out '%{http_code}' \
+                  "http://localhost:8080/api/v1/exercises/$bad")
+                if [ "$status" != 400 ] && [ "$status" != 404 ]; then
+                  echo "Unsafe exact URL returned $status: $bad"
+                  exit 1
+                fi
+              done
+              test "$(curl --silent --output /dev/null --write-out '%{http_code}' \
+                "http://localhost:8080/api/v1/exercises/GM-EB01/versions/0.8B")" = 200
+              echo "Exact-version HTTP parser rejection matrix: OK"
+              echo "Exact-version HTTP contract smoke: OK"
               assigned=$(curl --fail --silent --show-error -X POST \
                 "http://localhost:8080/api/v1/learners/$learner_id/diagnostic-sessions/$session_id/tasks" \
                 -H 'Content-Type: application/json' --data '{"exerciseCode":"GM-EB01"}')
@@ -173,7 +227,7 @@ jobs:
               assert exercise["tuning"] is None
               assert exercise["successCriteria"] == criteria
               assert exercise["recommendedPracticeMinutes"] == 30
-              assert exercise["scoreUrl"] == "/api/v1/exercises/GM-EB01/score"
+              assert exercise["scoreUrl"] == "/api/v1/exercises/GM-EB01/versions/0.8B/score"
           assert catalog[0] == detail == assigned == current
           print("QA #119 HTTP catalog/detail/assigned/retrieved DTO contract: OK")
           PY

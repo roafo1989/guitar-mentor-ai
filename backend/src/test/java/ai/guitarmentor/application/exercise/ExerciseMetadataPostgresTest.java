@@ -132,6 +132,10 @@ class ExerciseMetadataPostgresTest {
                     "SELECT exercise_id FROM diagnostic_tasks WHERE id=?", UUID.class, task));
             assertEquals("GM-EB01", assigned.exercise().code());
             assertEquals("v1", assigned.exercise().version());
+            assertEquals("/api/v1/exercises/GM-EB01/versions/v1/score",
+                    assigned.exercise().scoreUrl());
+            assertEquals("/api/v1/exercises/GM-EB01/versions/v1/events",
+                    assigned.exercise().eventsUrl());
             assertEquals("Original goal", assigned.exercise().learningGoal());
             assertEquals(java.util.List.of("Old version criterion"),
                     assigned.exercise().successCriteria());

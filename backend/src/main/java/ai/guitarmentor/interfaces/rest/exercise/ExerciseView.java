@@ -14,7 +14,7 @@ public record ExerciseView(
         String scoreUrl, String eventsUrl, String previewAudioUrl, String previewPdfUrl) {
 
     public static ExerciseView from(Exercise item, List<String> successCriteria) {
-        var prefix = "/api/v1/exercises/" + item.getCode();
+        var prefix = "/api/v1/exercises/" + item.getCode() + "/versions/" + item.getVersion();
         return new ExerciseView(item.getCode(), item.getVersion(), item.getTitle(),
                 item.getInstrumentCode(), item.getTechniqueCode(), item.getStyleCode(),
                 item.getDifficulty(), item.getBpm(), item.getMeasures(), item.getMeter(),
