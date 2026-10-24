@@ -20,20 +20,12 @@ async function loadRealController() {
   const output = ts.transpileModule(source, {
     compilerOptions: { target: ts.ScriptTarget.ES2022, module: ts.ModuleKind.ESNext },
   }).outputText;
-  const configUrl = asModule([
-    'export const copyConfig = c => structuredClone(c);',
-    'export const meterConfig = (n=4,d=4,bpm=80) => ({ bpm, numerator:n, denominator:d,',
-    ' tempoUnit:d===8 && n>=6 && n%3===0 ? "dotted-quarter" : "quarter",',
-    ' groups: n===6&&d===8?[3,3]:[n], subdivision:1, masterVolumePercent:50,',
-    ' accentVolumes:{strong:100,medium:65,weak:35},subdivisionVolumePercent:25,',
-    ' positions:Array.from({length:n},(_,i)=>({accent:i===0?"strong":"weak",volumePercent:100})) });',
-    'export const defaultMetronomeConfig = () => meterConfig();',
-    'export const validConfig = c => Number.isInteger(c.bpm)&&c.bpm>=20&&c.bpm<=240&&',
-    ' Number.isInteger(c.numerator)&&c.numerator>=1&&c.numerator<=16&&',
-    ' [2,4,8,16].includes(c.denominator)&&c.positions.length===c.numerator;',
-    'export const readMetronomeStore = () => ({store:null,error:false});',
-    'export const saveMetronomeStore = () => true;',
-  ].join('\n'));
+  const configSource = await readFile(
+    new URL('../src/shared/audio/metronome-config.ts', import.meta.url), 'utf8',
+  );
+  const configUrl = asModule(ts.transpileModule(configSource, {
+    compilerOptions: { target: ts.ScriptTarget.ES2022, module: ts.ModuleKind.ESNext },
+  }).outputText);
   const mapped = output.replace(/from (['"])(.*?)\1/g, (_match, _q, specifier) => {
     const mapping = {
       vue: vueUrl,
