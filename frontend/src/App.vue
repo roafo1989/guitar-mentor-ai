@@ -3,6 +3,8 @@ import { nextTick, onBeforeUnmount, onMounted, ref, watch } from 'vue';
 import { useRoute } from 'vue-router';
 import { useI18n } from 'vue-i18n';
 import MetronomeDialog from './entities/metronome/MetronomeDialog.vue';
+import AuthGate from './core/auth/AuthGate.vue';
+import { auth, logout } from './core/auth/auth';
 import TunerDialog from './shared/tuner/TunerDialog.vue';
 import { closeMetronome, metronomeUi, minimizeMetronome, openMetronome, stopMetronomeForAudioCapture } from './entities/metronome/metronome-ui';
 import { metronome, type MetronomeStatus } from './shared/audio/metronome';
@@ -98,6 +100,7 @@ onBeforeUnmount(() => { unsubscribeMetronome?.(); closeMetronome(); });
           </svg>
           <span v-if="metronomeStatus === 'running'" class="metronome-running-dot" aria-hidden="true"></span>
         </button>
+        <button v-if="auth.actor" type="button" @click="logout(() => learnerStore.clearLocalSelection())">Выйти / Logout</button>
         <label class="language-picker">
           <span class="sr-only">{{ t('app.language') }}</span>
           <select v-model="locale" aria-label="Language">
@@ -109,7 +112,7 @@ onBeforeUnmount(() => { unsubscribeMetronome?.(); closeMetronome(); });
     </header>
     <MetronomeDialog v-if="metronomeUi.open" @close="closeMetronome" @minimize="minimizeMetronome" />
     <TunerDialog :open="tunerOpen" @close="closeTuner" />
-    <main class="main-content"><RouterView /></main>
+    <AuthGate><main class="main-content"><RouterView /></main></AuthGate>
     <footer>Guitar Mentor AI · MVP</footer>
   </div>
 </template>
