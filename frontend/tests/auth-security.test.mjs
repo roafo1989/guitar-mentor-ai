@@ -257,3 +257,11 @@ test('AUTH-03 regression: POST guarded before validation and email tokens checke
   assert.match(gate, /const epoch = requestEpoch\.value \+ 1;/);
   assert.match(gate, /if \(!mounted \|\| epoch !== requestEpoch\.value\) return;/);
 });
+
+test('AUTH-03: switching from login to taller register form restores top scroll and focuses without auto-scrolling', async () => {
+  const gate = await readFile(new URL('../src/core/auth/AuthGate.vue', import.meta.url), 'utf8');
+  const switchMode = gate.slice(gate.indexOf('function setMode('), gate.indexOf('async function request('));
+  assert.match(switchMode, /heading\.value\?\.focus\(\{ preventScroll: true \}\)/);
+  assert.match(switchMode, /window\.scrollTo\(0, 0\)/);
+  assert.match(gate, /mode === 'register'/);
+});
