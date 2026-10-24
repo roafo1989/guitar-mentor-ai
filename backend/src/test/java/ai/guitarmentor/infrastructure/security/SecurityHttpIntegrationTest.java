@@ -53,6 +53,27 @@ class SecurityHttpIntegrationTest {
     private final UUID learnerB = UUID.randomUUID();
 
     @Test
+    void sameOriginScorePdfCanBeEmbeddedWhileOtherRoutesStayFrameDenied() throws Exception {
+        activeA();
+        var principal = oidcLogin().idToken(t -> t.claim("iss", "https://issuer.example").subject("user-a"));
+        String pdf = "/api/v1/exercises/GM-DIAG-PULSE-3-8-01/versions/0.1.0/preview/pdf";
+        mvc.perform(get(pdf).with(principal).sessionAttr("guitarMentorAccessVersion", 0L))
+            .andExpect(status().isOk())
+            .andExpect(header().string("X-Frame-Options", "SAMEORIGIN"))
+            .andExpect(header().string("Content-Type", "application/pdf"));
+        mvc.perform(head(pdf).with(principal).sessionAttr("guitarMentorAccessVersion", 0L))
+            .andExpect(status().isOk())
+            .andExpect(header().string("X-Frame-Options", "SAMEORIGIN"));
+        mvc.perform(get(pdf.replace("/pdf", "/audio")).with(principal)
+                .sessionAttr("guitarMentorAccessVersion", 0L))
+            .andExpect(header().string("X-Frame-Options", "DENY"));
+        mvc.perform(get("/api/v1/me").with(principal).sessionAttr("guitarMentorAccessVersion", 0L))
+            .andExpect(header().string("X-Frame-Options", "DENY"));
+        mvc.perform(get(pdf))
+            .andExpect(status().isUnauthorized());
+    }
+
+    @Test
     void anonymousAccessToPrivateResourcesIsRejected() throws Exception {
         mvc.perform(get("/api/v1/me")).andExpect(status().isUnauthorized());
         mvc.perform(get("/api/v1/learners/" + learnerA)).andExpect(status().isUnauthorized());
