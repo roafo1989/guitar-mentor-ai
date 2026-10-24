@@ -92,6 +92,36 @@ public class LocalAuthController {
         return ResponseEntity.ok(Map.of("passwordEnabled",actors.hasLocalCredential(actor.accountId())));
     }
 
+    @PostMapping("/link/password/start")
+    ResponseEntity<Map<String,String>> startLink(@RequestBody LinkPassword req, HttpServletRequest http) {
+        limit(http,"password-link");
+        var actor=(CurrentActor)http.getAttribute("guitarMentorActor");
+        if(actor==null || !(SecurityContextHolder.getContext().getAuthentication().getPrincipal()
+                instanceof org.springframework.security.oauth2.core.oidc.user.OidcUser))
+            return ResponseEntity.status(403).body(Map.of("code","REAUTH_REQUIRED"));
+        Object loginAt=http.getSession(false)==null?null:http.getSession(false).getAttribute("guitarMentorAuthenticatedAt");
+        if(!(loginAt instanceof Long timestamp) || System.currentTimeMillis()-timestamp>300000L)
+            return ResponseEntity.status(403).body(Map.of("code","REAUTH_REQUIRED"));
+        try {
+            service.beginLink(actor.accountId(),req.email(),req.login(),req.password());
+            return ResponseEntity.accepted().body(Map.of("code","VERIFY_EMAIL"));
+        } catch(IllegalArgumentException|SecurityException|org.springframework.dao.DataIntegrityViolationException ex) {
+            return bad("LINK_REJECTED");
+        }
+    }
+    @PostMapping("/link/password/verify")
+    ResponseEntity<Map<String,String>> verifyLink(@RequestBody Token req,HttpServletRequest http) {
+        limit(http,"password-link-verify");
+        var actor=(CurrentActor)http.getAttribute("guitarMentorActor");
+        if(actor==null) return ResponseEntity.status(401).body(Map.of("code","UNAUTHENTICATED"));
+        try {
+            service.verifyLink(actor.accountId(),req.token());
+            return ResponseEntity.ok(Map.of("code","PASSWORD_LINKED"));
+        } catch(SecurityException|org.springframework.dao.DataIntegrityViolationException ex) {
+            return bad("LINK_REJECTED");
+        }
+    }
+
     @PostMapping("/change")
     ResponseEntity<Map<String,String>> change(@RequestBody Change req,HttpServletRequest http) {
         limit(http,"change");
@@ -118,4 +148,5 @@ public class LocalAuthController {
     public record Email(String email) {}
     public record Reset(String token,String password) {}
     public record Change(String currentPassword,String newPassword) {}
+    public record LinkPassword(String email,String login,String password) {}
 }
