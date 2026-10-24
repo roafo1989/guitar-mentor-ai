@@ -294,8 +294,6 @@ async function assign(exerciseCode: string): Promise<void> {
         <div class="lesson-workspace">
           <section class="lesson-materials" :aria-label="t('diagnostic.workspace.materials')">
             <h3>{{ t('diagnostic.workspace.materials') }}</h3>
-            <h4>{{ t('diagnostic.taskInstructions') }}</h4>
-            <p>{{ t('diagnostic.practiceTips') }}</p>
             <p class="hint">{{ t('diagnostic.draftWarning') }}</p>
             <ExercisePreview :exercise="task.exercise" assigned />
           </section>
