@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { onMounted, ref } from 'vue';
+import { nextTick, onMounted, ref } from 'vue';
 import { useI18n } from 'vue-i18n';
 import { auth, login, refreshActor, secureUi } from './auth';
 const { t, locale } = useI18n();
@@ -16,10 +16,21 @@ const busy = ref(false);
 const error = ref('');
 const success = ref('');
 const verificationToken = ref('');
+const tokenFromLink = ref(false);
+const identifierInput = ref<HTMLInputElement | null>(null);
+const tokenPattern = /^[a-f0-9]{64}$/;
+function clearTokenLikeIdentifier(): void {
+  // Browser password managers sometimes populate a one-time code into the username field.
+  if (tokenPattern.test(identifier.value)) identifier.value = '';
+}
+
 const label = (ru: string, en: string) => locale.value === 'ru' ? ru : en;
 function setMode(next: Mode) {
   mode.value = next; error.value = ''; success.value = '';
   password.value = ''; confirmPassword.value = '';
+  if (next !== 'verify' && next !== 'reset') {
+    verificationToken.value = ''; tokenFromLink.value = false;
+  }
 }
 async function request(path: string, body: object): Promise<boolean> {
   if (busy.value) return false;
@@ -42,6 +53,11 @@ async function request(path: string, body: object): Promise<boolean> {
   } finally { busy.value = false; }
 }
 async function localLogin() {
+  clearTokenLikeIdentifier();
+  if (!identifier.value) {
+    error.value = label('Введите email или логин.', 'Enter your email or username.');
+    return;
+  }
   if (await request('login', { identifier: identifier.value, password: password.value })) {
     password.value = '';
     await refreshActor();
@@ -63,6 +79,7 @@ async function register() {
 async function verify() {
   if (await request('verify', { token: verificationToken.value })) {
     verificationToken.value = '';
+    tokenFromLink.value = false;
     setMode('login');
     success.value = label('Почта подтверждена. Теперь можно войти.', 'Email verified. You can sign in.');
   }
@@ -78,7 +95,11 @@ async function reset() {
     error.value = label('Пароли не совпадают.', 'Passwords do not match.'); return;
   }
   if (await request('reset', { token: verificationToken.value, password: password.value })) {
-    verificationToken.value = ''; setMode('login');
+    verificationToken.value = ''; tokenFromLink.value = false;
+    identifier.value = ''; email.value = '';
+    setMode('login');
+    await nextTick();
+    if (identifierInput.value) identifierInput.value.value = '';
     success.value = label('Пароль изменён. Войдите снова.', 'Password changed. Please sign in.');
   }
 }
@@ -89,6 +110,8 @@ onMounted(() => {
   const token = fragment.get('token');
   if (token && /^[a-f0-9]{64}$/.test(token) && (action === 'verify' || action === 'reset')) {
     verificationToken.value = token;
+    tokenFromLink.value = true;
+    identifier.value = '';
     mode.value = action;
     fragment.delete('token'); fragment.delete('authAction');
     window.history.replaceState(null, '', url.pathname + url.search + (fragment.toString() ? '#' + fragment : ''));
@@ -109,7 +132,7 @@ onMounted(() => {
       </div>
       <form v-if="mode === 'login'" class="auth-form" @submit.prevent="localLogin">
         <label for="local-identifier">{{ label('Email или логин', 'Email or username') }}</label>
-        <input id="local-identifier" v-model.trim="identifier" autocomplete="username" required maxlength="320" />
+        <input id="local-identifier" ref="identifierInput" v-model.trim="identifier" autocomplete="username" required maxlength="320" @input="clearTokenLikeIdentifier" />
         <label for="local-password">{{ label('Пароль', 'Password') }}</label>
         <input id="local-password" v-model="password" :type="showPassword ? 'text' : 'password'" autocomplete="current-password" required />
         <label class="auth-checkbox"><input v-model="showPassword" type="checkbox" />{{ label('Показать пароль', 'Show password') }}</label>
@@ -129,8 +152,8 @@ onMounted(() => {
         <button class="auth-primary" type="submit" :disabled="busy" :aria-busy="busy">{{ label('Зарегистрироваться', 'Register') }}</button>
       </form>
       <form v-else-if="mode === 'verify'" class="auth-form" @submit.prevent="verify">
-        <label for="verify-token">{{ label('Код подтверждения из письма', 'Verification code from email') }}</label>
-        <input id="verify-token" v-model.trim="verificationToken" autocomplete="off" maxlength="64" required />
+        <label v-if="!tokenFromLink" for="verify-token">{{ label('Код подтверждения из письма', 'Verification code from email') }}</label>
+        <input v-if="!tokenFromLink" id="verify-token" v-model.trim="verificationToken" autocomplete="one-time-code" maxlength="64" required />
         <button class="auth-primary" type="submit" :disabled="busy">{{ label('Подтвердить', 'Verify') }}</button>
       </form>
       <form v-else-if="mode === 'forgot'" class="auth-form" @submit.prevent="forgot">
@@ -139,8 +162,8 @@ onMounted(() => {
         <button class="auth-primary" type="submit" :disabled="busy">{{ label('Отправить письмо', 'Send email') }}</button>
       </form>
       <form v-else-if="mode === 'reset'" class="auth-form" @submit.prevent="reset">
-        <label for="reset-token">{{ label('Код восстановления', 'Reset code') }}</label>
-        <input id="reset-token" v-model.trim="verificationToken" autocomplete="off" maxlength="64" required />
+        <label v-if="!tokenFromLink" for="reset-token">{{ label('Код восстановления', 'Reset code') }}</label>
+        <input v-if="!tokenFromLink" id="reset-token" v-model.trim="verificationToken" autocomplete="one-time-code" maxlength="64" required />
         <label for="reset-password">{{ label('Новый пароль', 'New password') }}</label>
         <input id="reset-password" v-model="password" type="password" autocomplete="new-password" minlength="12" required />
         <label for="reset-confirm">{{ label('Подтверждение пароля', 'Confirm password') }}</label>
