@@ -11,10 +11,10 @@ export default defineConfig({
     allowedHosts: ['guitar-mentor'],
     strictPort: true,
     proxy: {
-      '/api': {
-        target: 'http://127.0.0.1:8080',
-        changeOrigin: false,
-      },
+      '/api': { target: 'http://127.0.0.1:8080', changeOrigin: false },
+      '/oauth2': { target: 'http://127.0.0.1:8080', changeOrigin: false },
+      '/login/oauth2': { target: 'http://127.0.0.1:8080', changeOrigin: false },
+      '/logout': { target: 'http://127.0.0.1:8080', changeOrigin: false },
     },
   },
 });

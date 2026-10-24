@@ -79,6 +79,9 @@ ping -4 guitar-mentor
 cd D:\Development\guitar-mentor-ai\backend
 $password = Read-Host "Пароль guitar_mentor_app" -AsSecureString
 $env:SPRING_DATASOURCE_PASSWORD = [System.Net.NetworkCredential]::new('', $password).Password
+# Только для локальной разработки с синтетическими данными.
+# Защищённый режим по умолчанию требует настроенного OIDC.
+$env:GUITAR_MENTOR_SECURITY_ENABLED = 'false'
 .\mvnw.cmd spring-boot:run
 ```
 

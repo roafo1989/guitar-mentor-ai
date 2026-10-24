@@ -1,6 +1,7 @@
 import { defineStore } from 'pinia';
 import { ref } from 'vue';
 import { learnerService } from '../entities/learner/learner.service';
+import { auth, secureUi } from '../core/auth/auth';
 import { ApiFailure, asApiFailure, isHttp } from '../shared/api-failure';
 import type { CreateLearnerRequest, Learner, UpdatePreferencesRequest } from '../shared/model/learner.model';
 
@@ -20,8 +21,9 @@ export const useLearnerStore = defineStore('learner', () => {
     try {
       const loaded = await action();
       if (current !== generation) return false;
+      if (secureUi && (!auth.actor || loaded.id !== auth.actor.learnerId)) throw new Error('RESOURCE_NOT_FOUND');
       learner.value = loaded;
-      window.localStorage.setItem(storageKey, loaded.id);
+      if (!secureUi) window.localStorage.setItem(storageKey, loaded.id);
       return true;
     } catch (cause) {
       if (current === generation && !(cause instanceof Error && cause.name === 'AbortError'))
@@ -33,17 +35,19 @@ export const useLearnerStore = defineStore('learner', () => {
   }
 
   async function restore(): Promise<void> {
-    const id = window.localStorage.getItem(storageKey);
+    if (secureUi) learner.value = null;
+    const id = secureUi ? auth.actor?.learnerId : window.localStorage.getItem(storageKey);
     if (!id) { error.value = null; return; }
     const current = ++generation;
     busy.value = true;
     error.value = null;
     try {
       const loaded = await learnerService.get(id);
-      if (current !== generation || window.localStorage.getItem(storageKey) !== id) return;
+      if (current !== generation || (secureUi ? auth.actor?.learnerId !== id : window.localStorage.getItem(storageKey) !== id)) return;
+      if (secureUi && loaded.id !== id) throw new Error('RESOURCE_NOT_FOUND');
       learner.value = loaded;
     } catch (cause) {
-      if (current !== generation || window.localStorage.getItem(storageKey) !== id) return;
+      if (current !== generation || (secureUi ? auth.actor?.learnerId !== id : window.localStorage.getItem(storageKey) !== id)) return;
       if (cause instanceof Error && cause.name === 'AbortError') return;
       if (isHttp(cause, 404)) {
         // Only a failed learner GET may forget this learner. No other key is touched.
@@ -58,11 +62,12 @@ export const useLearnerStore = defineStore('learner', () => {
   }
 
   async function create(data: CreateLearnerRequest): Promise<boolean> {
+    if (secureUi) return false;
     return execute(() => learnerService.create(data));
   }
 
   async function replacePreferences(data: UpdatePreferencesRequest): Promise<boolean> {
-    if (!learner.value) return false;
+    if (!learner.value || (secureUi && learner.value.id !== auth.actor?.learnerId)) return false;
     return execute(() => learnerService.replacePreferences(learner.value!.id, data));
   }
 
@@ -72,6 +77,12 @@ export const useLearnerStore = defineStore('learner', () => {
     learner.value = null;
     error.value = null;
     window.localStorage.removeItem(storageKey);
+    if (secureUi) {
+      for (let i = window.localStorage.length - 1; i >= 0; i--) {
+        const key = window.localStorage.key(i);
+        if (key?.startsWith('guitar-mentor.diagnostic.')) window.localStorage.removeItem(key);
+      }
+    }
   }
 
   return { learner, busy, error, restore, create, replacePreferences, clearLocalSelection };

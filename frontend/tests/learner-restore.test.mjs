@@ -27,6 +27,7 @@ function harness(get) {
       get, create: async () => null, replacePreferences: async () => null,
     } },
     '../shared/api-failure': { ApiFailure, asApiFailure, isHttp },
+    '../core/auth/auth': { auth: { actor: null }, secureUi: false },
   };
   const exports = {};
   new Function('require', 'exports', code)(
