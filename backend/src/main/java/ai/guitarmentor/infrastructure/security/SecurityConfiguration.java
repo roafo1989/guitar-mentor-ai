@@ -161,7 +161,19 @@ public class SecurityConfiguration {
                     Object bridgeStart = callbackSession == null ? null
                         : callbackSession.getAttribute("guitarMentorBridgeStartNonce");
                     String bridgeNonce = bridgeStart instanceof String value ? value : null;
-                    if (bridgeNonce != null && oauthBridge.linking(bridgeNonce)) {
+                    boolean bridgeLinking = false;
+                    if (bridgeNonce != null) {
+                        try {
+                            bridgeLinking = oauthBridge.linking(bridgeNonce);
+                        } catch (SecurityException expired) {
+                            callbackSession.removeAttribute("guitarMentorBridgeStartNonce");
+                            callbackSession.invalidate();
+                            org.springframework.security.core.context.SecurityContextHolder.clearContext();
+                            res.sendRedirect("https://guitar-mentor/?auth=bridge_expired");
+                            return;
+                        }
+                    }
+                    if (bridgeLinking) {
                         callbackSession.removeAttribute("guitarMentorBridgeStartNonce");
                         try {
                             String ticket = oauthBridge.complete(bridgeNonce, auth);
@@ -209,7 +221,8 @@ public class SecurityConfiguration {
                         } catch (RuntimeException ex) {
                             req.getSession().invalidate();
                             org.springframework.security.core.context.SecurityContextHolder.clearContext();
-                            res.sendRedirect("/?auth=denied");
+                            res.sendRedirect(bridgeNonce == null
+                                ? "/?auth=denied" : "https://guitar-mentor/?auth=denied");
                             return;
                         }
                     }
@@ -230,7 +243,16 @@ public class SecurityConfiguration {
                         res.sendRedirect("/");
                     }
                 })
-                .failureHandler((req, res, ex) -> res.sendRedirect("/?auth=failed")));
+                .failureHandler((req, res, ex) -> {
+                    var session = req.getSession(false);
+                    if (session != null && session.getAttribute("guitarMentorBridgeStartNonce") != null) {
+                        session.invalidate();
+                        org.springframework.security.core.context.SecurityContextHolder.clearContext();
+                        res.sendRedirect("https://guitar-mentor/?auth=google_failed");
+                    } else {
+                        res.sendRedirect("/?auth=failed");
+                    }
+                }));
         }
         return http.build();
     }
