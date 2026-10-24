@@ -5,7 +5,7 @@
 }
 .app-shell[data-ui="light-minimal"] .brand small {color:var(--gm-muted)}
 .app-shell[data-ui="light-minimal"] .brand {min-width:0}
-.app-shell[data-ui="light-minimal"] .header-actions {gap:8px;min-width:0}
+.app-shell[data-ui="light-minimal"] .header-actions {gap:6px;min-width:0;align-items:center}
 .app-shell[data-ui="light-minimal"] .header-navigation {gap:4px;align-items:center}
 .app-shell[data-ui="light-minimal"] .header-navigation a {
   color:var(--gm-muted);padding:10px 12px;border-radius:var(--gm-radius-sm);
@@ -19,29 +19,37 @@
   box-shadow:inset 0 -3px var(--gm-primary);
 }
 .app-shell[data-ui="light-minimal"] .header-learner {
-  color:var(--gm-text);background:#f0f6f4;border:1px solid var(--gm-control-border);
-  max-width:200px;
+  color:var(--gm-text);background:transparent;border:0;
+  border-radius:10px;max-width:200px;padding:9px 12px;
 }
+.app-shell[data-ui="light-minimal"] .header-learner:hover {background:#eef4f1}
 .app-shell[data-ui="light-minimal"] .header-tool-button,
 .app-shell[data-ui="light-minimal"] .header-menu-button {
-  min-width:44px;min-height:44px;width:44px;height:44px;border-radius:10px;
-  color:var(--gm-text);background:#fff;border:1px solid var(--gm-control-border);
-  display:inline-grid;place-items:center;cursor:pointer;
+  min-width:44px;min-height:44px;width:44px;height:44px;border-radius:11px;
+  color:#445853;background:transparent;border:1px solid transparent;
+  display:inline-grid;place-items:center;cursor:pointer;transition:background-color .15s,color .15s;
 }
 .app-shell[data-ui="light-minimal"] .header-menu-button {display:none;font-size:24px}
 .app-shell[data-ui="light-minimal"] .header-tool-button:hover,
 .app-shell[data-ui="light-minimal"] .header-tool-button[aria-expanded="true"],
 .app-shell[data-ui="light-minimal"] .header-menu-button:hover {
-  background:#e7f2ef;
+  background:#e7f2ef;color:var(--gm-primary);
 }
 .app-shell[data-ui="light-minimal"] .header-tool-button.is-playing {background:#def1e7;border-color:var(--gm-primary)}
 .app-shell[data-ui="light-minimal"] .metronome-running-dot {background:#176a57;box-shadow:0 0 0 1px white}
 .app-shell[data-ui="light-minimal"] .header-signout-button,
 .app-shell[data-ui="light-minimal"] .language-picker select {
-  color:var(--gm-text);background:#fff;border:1px solid var(--gm-control-border);
-  border-radius:var(--gm-radius-sm);min-height:44px;padding:8px 12px;
+  color:#43554f;background:transparent;border:1px solid transparent;
+  border-radius:10px;min-height:44px;padding:8px 11px;
+  font-weight:550;
 }
 .app-shell[data-ui="light-minimal"] .header-signout-button {cursor:pointer}
+.app-shell[data-ui="light-minimal"] .header-signout-button:hover,
+.app-shell[data-ui="light-minimal"] .language-picker select:hover {
+  background:#eef4f1;color:var(--gm-primary);
+}
+.app-shell[data-ui="light-minimal"] .language-picker select {cursor:pointer;padding-right:7px}
+.app-shell[data-ui="light-minimal"] .header-signout-button {margin-left:3px}
 .app-shell[data-ui="light-minimal"] .header-signout-button:disabled {opacity:.65;cursor:wait}
 .app-shell[data-ui="light-minimal"] :is(a,button,select,input,textarea,summary):focus-visible {
   outline:3px solid var(--gm-focus);outline-offset:3px;
