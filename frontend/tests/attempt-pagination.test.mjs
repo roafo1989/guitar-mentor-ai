@@ -454,3 +454,36 @@ test('CORE-U16: old-context completion cannot unblock polling while new detail i
     delete globalThis.__qaAttempt;
   }
 });
+
+test('CORE-U17: retry selected detail recovers guarded decision after transient error', async () => {
+  historyFixture();
+  let detailCalls = 0;
+  globalThis.__qaLearning = {
+    state: async () => ({ taskId: 't', taskState: 'ACTIVE', version: 2,
+      availableActions: ['CONTINUE_PRACTICING'], latestAttemptId: 'id-45',
+      assessmentState: 'NO_ASSESSMENT' }),
+    assessments: async () => ({ items: [], nextCursor: null }),
+    decisions: async () => ({ items: [], nextCursor: null }),
+    evidence: async () => ({ items: [], nextCursor: null }),
+    decide: async () => ({})
+  };
+  const loader = async id => {
+    detailCalls++;
+    if (detailCalls === 1) throw Error('offline');
+    return attempt(Number(id.slice(3)));
+  };
+  const { app, state } = await mount('LearningResultsPanel.vue',
+    { learnerId: 'l', sessionId: 's', taskId: 't', attempts: [attempt(45)],
+      selectedId: 'id-45', latestId: 'id-45', draftBusy: false,
+      loadAttemptDetail: loader });
+  try {
+    await flush();
+    assert.equal(state.canDecide, false);
+    assert.ok(state.detailError);
+    await state.loadDetail(1);
+    await flush();
+    assert.equal(detailCalls, 2);
+    assert.equal(state.detailError, '');
+    assert.equal(state.canDecide, true);
+  } finally { app.unmount(); delete globalThis.__qaLearning; delete globalThis.__qaAttempt; }
+});
