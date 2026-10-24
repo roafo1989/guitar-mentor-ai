@@ -316,8 +316,18 @@ public final class LibraryOriginalController {
     }
 
     private void cleanup(List<Incoming> files) {
-        for(Incoming input:files) try {storage.delete(input.object().key());}
-            catch(IOException ignored) { /* orphan requires operator reconciliation */ }
+        for(Incoming input:files) {
+            try {
+                // DB commit can succeed even when its acknowledgement is lost.
+                // Never compensate a physical key until a live DB read proves it unreferenced.
+                Boolean referenced=jdbc.sql("""
+                    SELECT EXISTS (SELECT 1 FROM library_assets WHERE object_key=:key)
+                    """).param("key",input.object().key()).query(Boolean.class).single();
+                if(Boolean.FALSE.equals(referenced)) storage.delete(input.object().key());
+            } catch(Exception ignored) {
+                // Fail closed: deferred orphan reconciler retries after DB/storage recovery.
+            }
+        }
     }
     private static String fingerprint(String title,String type,String author,List<Incoming> files) {
         try {
