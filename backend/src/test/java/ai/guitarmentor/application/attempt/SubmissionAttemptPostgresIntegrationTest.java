@@ -91,6 +91,7 @@ class SubmissionAttemptPostgresIntegrationTest {
     @AfterEach
     void cleanFixture() throws IOException {
         if (taskId != null) {
+            jdbc.update("DELETE FROM attempt_assessments WHERE task_id=?", taskId);
             jdbc.update("DELETE FROM submission_attempts WHERE diagnostic_task_id=?", taskId);
             jdbc.update("DELETE FROM diagnostic_tasks WHERE id=?", taskId);
             jdbc.update("DELETE FROM diagnostic_sessions WHERE id=?", sessionId);
@@ -379,7 +380,22 @@ class SubmissionAttemptPostgresIntegrationTest {
                    gen_random_uuid()::text || '.wav', 'wav', 12
             FROM generate_series(1,45) AS n
             """, taskId, java.sql.Timestamp.from(created));
+        UUID assessedAttempt = jdbc.queryForObject(
+                "SELECT id FROM submission_attempts WHERE diagnostic_task_id=? AND attempt_number=45",
+                UUID.class, taskId);
+        for (int revision = 1; revision <= 2; revision++) {
+            jdbc.update("""
+                INSERT INTO attempt_assessments
+                  (id,task_id,attempt_id,revision,source_operation_id,input_fingerprint,
+                   method_id,method_version,source_kind,recommendation,created_at)
+                VALUES (?,?,?,?,? ,?, 'manual','1','HUMAN_REVIEW','REVISE',?)
+                """,UUID.randomUUID(),taskId,assessedAttempt,revision,UUID.randomUUID(),
+                "f".repeat(64),java.sql.Timestamp.from(created));
+        }
         var first = service.page(learnerId, sessionId, taskId, 20, null);
+        assertTrue(first.items().get(0).assessmentAvailable(),
+                "Any assessment revision makes the page flag true");
+        assertFalse(first.items().get(1).assessmentAvailable());
         assertEquals(20, first.items().size());
         assertEquals(45, first.items().get(0).number());
         assertEquals(26, first.nextBeforeNumber());
