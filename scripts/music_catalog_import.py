@@ -73,8 +73,8 @@ def verify(data):
     if len(paths)!=len(set(paths)):
         raise ValueError("Duplicate source paths")
     for row in works:
-        if not row["title"] or row["identity_status"] not in {"CANDIDATE","UNRESOLVED","VERIFIED"}:
-            raise ValueError("Invalid work title or identity status")
+        if row["identity_status"] not in {"CANDIDATE","UNRESOLVED","VERIFIED"}:
+            raise ValueError("Invalid work identity status")
     for row in arrangements:
         if not row["name"] or not row["parser_status"]:
             raise ValueError("Incomplete arrangement")
