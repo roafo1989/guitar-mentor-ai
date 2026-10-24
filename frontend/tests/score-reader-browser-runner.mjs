@@ -107,7 +107,7 @@ try {
     const dimensions=await evaluate('({width:innerWidth,scrollWidth:document.documentElement.scrollWidth})');
     assert.ok(dimensions.scrollWidth<=dimensions.width,'body overflow at '+width+': '+JSON.stringify(dimensions));
   }
-  await evaluate("document.querySelector('button.score-toggle').click()");
+  await evaluate("document.querySelector('button.score-close').click()");
   assert.equal(await evaluate("document.querySelector('iframe.score-canvas-frame')===null"),true);
   assert.equal(await evaluate('window.__scoreRequests()'),2,'close must not refetch');
   await evaluate("document.querySelector('button.score-focus').click()");
