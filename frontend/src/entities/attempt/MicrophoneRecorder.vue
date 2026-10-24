@@ -231,7 +231,7 @@ onBeforeUnmount(() => {
         :style="{ height: (18 + ((tick * 17 + 13) % 68)) + '%' }" />
       <span class="studio-wave-timer">{{ state === 'recording' ? timeLabel : '00:00' }} / 02:00</span>
     </div>
-    <div v-else class="microphone-controls">
+    <div v-if="supported" class="microphone-controls">
       <button v-if="state === 'idle'" type="button" class="recorder-button"
         :disabled="disabled" @click="start">{{ t('attempt.startRecording') }}</button>
       <span v-else-if="state === 'requesting'" class="hint" role="status">
