@@ -56,9 +56,9 @@ function stopWork() {
   pending = null;
   frameReady = false;
 }
-function reset() {
+function reset(preserveFullscreen = false) {
   stopWork();
-  leaveFullscreen();
+  if (!preserveFullscreen) leaveFullscreen();
   page.value = 1;
   pageInput.value = '1';
   pageError.value = false;
@@ -238,7 +238,7 @@ const iframeDocument = computed(() => {
 });
 
 async function openReader() {
-  reset();
+  reset(fullscreen.value);
   const current = generation;
   const url = safeUrl.value;
   if (!url) { transition('UNAVAILABLE'); return; }
@@ -307,6 +307,7 @@ onBeforeUnmount(()=>{
     <div class="score-toolbar">
       <button ref="focusButton" type="button" class="score-toggle score-close" :aria-expanded="open"
         @click="open ? close() : emit('update:open', true)">{{ open ? t('score.close') : t('score.open') }}</button>
+      <button v-if="!open" ref="focusTrigger" type="button" class="score-focus" @click="focusMode">{{ t('score.focus') }}</button>
       <template v-if="open">
         <div class="score-pagination">
           <button type="button" :disabled="state!=='READY'||page<=1" :aria-label="t('score.previous')" @click="switchPage(page-1)">‹</button>
