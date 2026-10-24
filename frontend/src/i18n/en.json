@@ -337,7 +337,8 @@
     "onlyPage": "All attempts are on one page.",
     "historyUpdated": "Attempt history updated.",
     "microphoneTitle": "Record with microphone",
-    "uploadAlternative": "Or upload an existing audio file"
+    "uploadAlternative": "Or upload an existing audio file",
+    "microphoneInstructions": "About recording and microphone access"
   },
   "evidence": {
     "heading": "My performances",
