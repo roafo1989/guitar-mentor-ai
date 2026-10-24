@@ -3,7 +3,7 @@ import { computed, onBeforeUnmount, ref } from 'vue';
 import { useI18n } from 'vue-i18n';
 import { acquireAudio, releaseAudio } from '../../shared/audio/audio-session';
 
-const props = defineProps<{ disabled: boolean; maxBytes: number }>();
+const props = defineProps<{ disabled: boolean; maxBytes: number; compact?: boolean }>();
 const emit = defineEmits<{ recorded: [file: File]; active: [value: boolean] }>();
 const { t } = useI18n();
 
@@ -212,9 +212,16 @@ onBeforeUnmount(() => {
 
 <template>
   <div class="microphone-recorder">
-    <strong>{{ t('attempt.micHeading') }}</strong>
-    <p class="hint">{{ t('attempt.micPrivacy') }}</p>
-    <p class="hint">{{ t('attempt.metronomePracticeTip') }}</p>
+    <strong v-if="!compact">{{ t('attempt.micHeading') }}</strong>
+    <template v-if="!compact">
+      <p class="hint">{{ t('attempt.micPrivacy') }}</p>
+      <p class="hint">{{ t('attempt.metronomePracticeTip') }}</p>
+    </template>
+    <details v-else class="compact-recording-info">
+      <summary>{{ t('attempt.microphoneInstructions') }}</summary>
+      <p class="hint">{{ t('attempt.micPrivacy') }}</p>
+      <p class="hint">{{ t('attempt.metronomePracticeTip') }}</p>
+    </details>
     <p v-if="!supported" class="hint">{{ t('attempt.micUnsupported') }}</p>
     <div v-else class="microphone-controls">
       <button v-if="state === 'idle'" type="button" class="recorder-button"
@@ -253,3 +260,9 @@ onBeforeUnmount(() => {
     <p v-if="error" role="alert" class="attempt-error">{{ error }}</p>
   </div>
 </template>
+
+<style scoped>
+.compact-recording-info {margin:0 0 12px;font-size:12px;color:#64746f}
+.compact-recording-info summary {cursor:pointer;min-height:38px;display:flex;align-items:center;color:#45685e}
+.compact-recording-info summary:focus-visible {outline:3px solid #28776d;outline-offset:2px}
+</style>

@@ -13,6 +13,7 @@ const props = defineProps<{
 }>();
 const emit = defineEmits<{ 'draft-state': [state: { busy: boolean; dirty: boolean }] }>();
 const { t } = useI18n();
+const lightMinimal = import.meta.env?.VITE_GUITAR_MENTOR_LIGHT_MINIMAL === 'true';
 const attempts = ref<SubmissionAttempt[]>([]);
 const pinned = ref<SubmissionAttempt[]>([]);
 const selectedId = ref('');
@@ -368,13 +369,28 @@ onBeforeUnmount(() => {
       </p>
       <p v-if="learningTerminal" class="hint" role="status">{{ t('learning.uploadClosed') }}</p>
       <form class="homework-form" @submit.prevent="submit">
-        <label for="attempt-file">{{ t('attempt.fileLabel') }}</label>
+        <div v-if="lightMinimal" class="recording-primary">
+          <h4>{{ t('attempt.microphoneTitle') }}</h4>
+          <MicrophoneRecorder :compact="lightMinimal" :disabled="learningTerminal || !capabilities?.enabled || uploading"
+          :max-bytes="capabilities?.maxBytes ?? 20971520"
+          @recorded="onRecorded" @active="onRecordingActive" />
+        </div>
+        <details v-if="lightMinimal" class="recording-file-option">
+          <summary>{{ t('attempt.uploadAlternative') }}</summary>
+          <label for="attempt-file">{{ t('attempt.fileLabel') }}</label>
         <input id="attempt-file" ref="fileInput" type="file" accept=".mp3,.wav,.ogg,.webm,.m4a,audio/*"
           :disabled="learningTerminal || !capabilities?.enabled || uploading || recordingActive" @change="selectFile" />
         <p class="hint">{{ t('attempt.fileLimits') }}</p>
-        <MicrophoneRecorder :disabled="learningTerminal || !capabilities?.enabled || uploading"
+        </details>
+        <template v-if="!lightMinimal">
+          <label for="attempt-file">{{ t('attempt.fileLabel') }}</label>
+        <input id="attempt-file" ref="fileInput" type="file" accept=".mp3,.wav,.ogg,.webm,.m4a,audio/*"
+          :disabled="learningTerminal || !capabilities?.enabled || uploading || recordingActive" @change="selectFile" />
+        <p class="hint">{{ t('attempt.fileLimits') }}</p>
+          <MicrophoneRecorder :compact="lightMinimal" :disabled="learningTerminal || !capabilities?.enabled || uploading"
           :max-bytes="capabilities?.maxBytes ?? 20971520"
           @recorded="onRecorded" @active="onRecordingActive" />
+        </template>
         <div v-if="recordedPreview && file" class="recorded-preview">
           <strong>{{ t('attempt.recordingReady') }} ({{ fileSize(file.size) }})</strong>
           <audio :src="recordedPreview" controls preload="metadata"
@@ -431,3 +447,13 @@ onBeforeUnmount(() => {
     </template>
   </section>
 </template>
+
+<style scoped>
+.recording-primary {border:1px solid #dae7e1;background:#f6faf8;border-radius:12px;padding:14px;min-width:0}
+.recording-primary h4 {font-size:14px;font-weight:650;margin:0 0 10px}
+.recording-file-option {border-bottom:1px solid #dce5e4;padding:12px 0}
+.recording-file-option summary {min-height:44px;display:flex;align-items:center;color:#205f57;font-weight:600;cursor:pointer}
+.recording-file-option summary:focus-visible {outline:3px solid #28776d;outline-offset:2px}
+.recording-file-option input[type=file] {display:block;margin:10px 0;max-width:100%}
+.recording-primary :deep(.microphone-recorder) {min-width:0;max-width:100%}
+</style>
