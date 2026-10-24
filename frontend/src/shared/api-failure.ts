@@ -70,8 +70,15 @@ export async function apiRequest<T>(
   }
   // Classify HTTP before trying to parse an HTML/empty error body.
   if (!response.ok) {
-    // Do not read/log arbitrary response bodies; codes are intentionally not trusted.
-    throw new ApiFailure('HTTP', response.status);
+    // HTTP is classified before parsing; HTML and missing bodies keep their status.
+    // Extract only a recognized machine code; never retain raw message/error text.
+    let code: string | null = null;
+    try {
+      const payload: unknown = await response.json();
+      if (isObject(payload) && isString(payload.code) && allowedCodes.has(payload.code))
+        code = payload.code;
+    } catch { /* HTML or empty error response is still an HTTP failure. */ }
+    throw new ApiFailure('HTTP', response.status, code);
   }
   if (allowEmpty && response.status === 204) return null as T;
   let payload: unknown;
