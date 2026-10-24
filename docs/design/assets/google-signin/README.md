@@ -1,0 +1,11 @@
+# Google Sign-in — официальные ресурсы для #198
+
+Источник требований: https://developers.google.com/identity/branding-guidelines , проверено25.10.2026, page updated2026-07-07. Допустима собственная HTML-кнопка с официальными assets и точным branding; это **не внедрение GIS SDK**. Локальный Spring OIDC/guarded bridge179 сохраняется.
+
+- g-logo.png — исходные **неизменённые** bytes https://developers.google.com/static/identity/images/g-logo.png (200×204RGBA,33661bytes). На странице также подтверждён официальный bundle https://developers.google.com/static/identity/images/signin-assets.zip; ZIP не обязателен runtime.
+- GoogleSans-Medium-auth.ttf — subset официального GoogleSans-Medium.ttf из build/GoogleSans/static/GoogleSans-Medium.ttf в GoogleSans-v14.000.zip: https://github.com/googlefonts/googlesans/releases/download/v14.000/GoogleSans-v14.000.zip . Оригинальный TTF2232604bytes, в repo только subset10200bytes для двух точных CTA “Продолжить с Google” и “Continue with Google”. Glyph coverage обеих строк проверен. Форма glyph не перерисовывалась. Исходник/релиз https://github.com/googlefonts/googlesans , OFL.txt и TRADEMARKS.txt приложены; права на шрифт не являются лицензией на использование Google mark вне branding rules.
+- Нужен self-hosted @font-face только для Google CTA, font-weight500,14/20, без Google Fonts CDN/трекера. Включить font и лицензии в frontend/public/vendor/google-signin/. При расширении labels пересобрать subset из указанного оригинала либо использовать подходящий полный шрифт; остальные тексты используют app font.
+
+Правила: light белый фон#fff, stroke1px#747775, текст#1f1f1f, высота48px. КонтейнерG20×20 и object-fit:contain сохраняет200:204, слева12px и послеG10px. Текст явно про действие «Продолжить с Google» / “Continue with Google”, не просто Google/Войти; цветной G, не типографская буква/монохромная иконка/логотип приложения. Не добавлять scopes/OneTap/FedCM/клиентский ID лишь ради вида кнопки.
+
+SHA-256/size источников и готовых файлов — [manifest.json](manifest.json). Вычисление/проверка assets не является runtime/Google verification либо обещанием прохождения внешней app verification. Внешние правила при реализации повторно сверить, если обновились.

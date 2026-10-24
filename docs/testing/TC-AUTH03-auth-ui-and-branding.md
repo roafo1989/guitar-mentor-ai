@@ -1,0 +1,40 @@
+# TC-AUTH03 — проверка редизайна #198
+
+Версия1.0 ·25.10.2026 · [контракт AUTH-03](../specifications/AUTH-03-auth-ui-and-branding.md). **Все24 кейса NOT_RUN**: подготовлен план, продуктовый код не менялся и не тестировался этим анализом. Исполнитель фиксирует фактический SHA, OS/browser/viewport/locale/flags, режим fixture/live, шаги, result и обезличенные доказательства. PASS CI не равен real Google/SMTP или визуальной приёмке владельца. Самопроверка аналитики не независимое QA.
+
+База разработки main80a306a. Изолированный HTTPS test instance179, PostgreSQL, два тестовых actor и controlled mail capture/QA fixtures без настоящих секретов в отчёте. Google direct и guarded local bridge тестировать отдельно; интеграционный stand с настроенным Google нужен для live path. Для CI не обращаться к чужим аккаунтам или production SMTP. Во всех формах проверять RU/EN и browser keyboard actions; расширенная матрицаTC24.
+
+| TC-AUTH03 | AC | Действия | Ожидаемый результат | Статус |
+| --- | --- | --- | --- | --- |
+|01|01|Открыть anonymous приложение, перейти login→register→login по нижним ссылкам|Одна card, правильный h1 и поля; нет Google-вкладки/двух форм рядом/мерцания private data|NOT_RUN|
+|02|01|Login/register в legacy и Light Minimal production builds; reload |Новый auth UI работает в обеих конфигурациях, default login; dev prototype bypass не принимается за auth-проверку|NOT_RUN|
+|03|01,08|Заполнить email/username/password/confirm; переключить режим и обратно; сменить язык|Несекретные значения допустимо сохраняются в памяти, passwords/visibility сброшены при смене режима, язык не теряет текущий ввод; нет storage/URL values|NOT_RUN|
+|04|02|С пустой local формой нажать Google на login; повторить register, клавиатурой|Один вызов start, без local submit/required validation, без второго экрана; G/label/рамка соответствуют official assets|NOT_RUN|
+|05|02|Direct mode; controlled redirect→успех, cancel/failure; вернуться browser Back |Прежний /oauth2/authorization/guitar-mentor; no new scopes/returnUrl; success через actor; safe error и рабочая кнопка после возврата|NOT_RUN|
+|06|02,11|Bridge mode: start/consume, корректный/чужой/reused ticket, подставленный beginUrl; google_failed/bridge_start_failed marker|CSRF/allowlist/session binding прежние; секрет до Router scrubbed, consume один, ошибка generic; нет open redirect/auto account linking|NOT_RUN|
+|07|03,11|Local login верные/неверные/неизвестные/DISABLED credentials, затем /me200/401/403|Только принятый actor открывает slot; одинаковый неверный вход, cleanup на реальный auth loss, business403 не отключает actor|NOT_RUN|
+|08|03,08|Password длины11/12/128/129, крайние пробелы; username2/3/64/65, uppercase/кириллица; email malformed; confirm mismatch|Клиент согласован server contract, password без trim, username server normalization не отвергается произвольно; сообщения у поля, значения не пропадают на ошибке|NOT_RUN|
+|09|03,07|Двойной click, Enter+click, медленный ответ, повтор429 и network/5xx|Один текущий POST, явный pending/ошибка, нет auto retry; manual retry после завершения; неизвестный итог timeout не выдаётся за rollback|NOT_RUN|
+|10|03,07|Задержать ответ register/login; попытаться перейти в иной mode; unmount; вернуть старый response|Mode actions во время запроса отключены; late response не меняет новую/unmounted форму; кнопки снова доступны после failure|NOT_RUN|
+|11|04|Register fresh202 и collision202 с identical public response; SMTP fail; GET/me до verify|Check-mail без «аккаунт создан/письмо доставлено»; collision не раскрыта, no access before verification; delivery failure не симулирует success|NOT_RUN|
+|12|04|После register202 проверить все действия; повторить register теми же pending данными; открыть check-mail|Нет resend UI/несуществующего endpoint, повтор register не назван повторной отправкой; helper о spam/адресе, return links работают|NOT_RUN|
+|13|05,11|Открыть valid verify fragment на новом и logged-in browser; inspect history/DOM/storage/network, нажать подтвердить|Auth action обрабатывается поверх actor, scrub до Router, link token только в памяти/одном POST, не показан DOM input;200→login/status|NOT_RUN|
+|14|05|Неверный формат/пустой/reused/expired verify token; manual fallback64hex|Safe error и возврат, нет шестизначного OTP/расширенного объяснения чужого аккаунта; manual поле лишь по явному раскрытию без link token|NOT_RUN|
+|15|05|Reset link при actor и anonymous, перезагрузка/повтор/hashi navigation|Правильный reset screen приоритетнее private slot; token scrub/one-time state, отсутствие переноса токена в next mode; никакой query-token реализации|NOT_RUN|
+|16|05,11|Проверить link helpers до createWebHistory; неожиданные query/auth strings и XSS-like marker|Only allowlisted marker→safe static string, recognised marker очищен; raw query не показан/не выполняется, неизвестное не становится redirect/HTML|NOT_RUN|
+|17|06|Forgot для known/unknown email и SMTP delivery failure;202,429,network|Одинаковое условное check-mail, не enumeration/доставка; error/повтор безопасны, return login работает|NOT_RUN|
+|18|06|Reset12–128/confirm, invalid/reused token, затем старый/new password login|Один POST, server status учтён, reset success→clearActor/login без auto-login; old secret/visibility очищены; expiry/revocation по принятому backend|NOT_RUN|
+|19|07,11|Session expiry/logout/account change; чужие IDs/private API; CSRF missing/invalid на auth POST; settings linking/change-password|Прежний ownership/CSRF deny, cleanup/resetPersonalState; logout error не fake success; settings не регрессируют. DB/cookie/flags не ослаблены|NOT_RUN|
+|20|07,08|Google slow/start failure, doubleclick, Back/pageshow/bfcache; inspect password states|Нет duplicate OAuth и вечно disabled, secrets cleared/hidden; видимые safe error/повтор и local login остаются доступны|NOT_RUN|
+|21|08,10|Менеджер паролей/paste/keyboard only/Enter/Space; каждое eye toggle; screen reader|Autocomplete username/current/new, toggle typebutton не submit и сохраняет value/focus, связанный label/helper/error; h1 focus при смене mode, no live-region flood|NOT_RUN|
+|22|09|Сравнить deployed brand bytes с manifest; header/card/favicon32/64, retina; offline/missing font|Новые точные PNG/альфа/пропорции, текст читаем RU/EN, fallback не скрывает CTA; старый cached favicon не выдаётся за new, новый URL версии|NOT_RUN|
+|23|09,11|Logo click при actor/anonymous; длинное имя, языки; Home/profile/diagnostics; инструменты/logout; runtime network|Home через logo/name, нет отдельного Home item, controls работают; нет CDN/GIS/new tracker, google asset/code не путается с app brand|NOT_RUN|
+|24|10|360/768/1440 и320 CSSpx,200%browser zoom, RU/EN; login/register/checkmail/verify/forgot/reset/error/pending; long email, software keyboard; computed styles/contrast|Видимы все поля/actions и focus, normal vertical scroll, нет horizontal overflow/по буквам сломанного h1; text≥4.5/control-focus≥3; error не только цвет; reduced-motion|NOT_RUN|
+
+## Исполнение и передача
+
+Автоматизировать полезные пользовательские действия в mounted Vue/Chrome: Google-one-click/no local validation, password toggle, mode/pending/race, status mapping, CSRF/helper/history, card reflow. Не заменять их regex-assertions HTML. Существующий auth-security.test.mjs и общий frontend/intake/tuner/build прогоняются на реальном diff; при необходимости расширяется backend HTTP security regression без новых контрактов.
+
+ДляTC05/06/11/13/17/18 различать fixture и реальный настроенный HTTPS/SMTP/Google stand. Реальную авторизацию выполнять разрешённым тестовым аккаунтом; секреты и one-time links не включать в скриншоты/PR. Если setup недоступен — BLOCKED с конкретным условием, не PASS. Фактический reset меняет только disposable test account. Записать отдельные ограничения реального backend/провайдера и browsers.
+
+При ошибках — дефект в198 с TC/AC, SHA, средой, шагами/ожидаемым/фактическим и доказательством, возвращение в разработку. После прогона — независимый отчёт; финальная визуальная/пользовательская приёмка владельца до закрытия. Ни один пустой checkbox здесь не утверждает нового дефекта в уже принятой141.

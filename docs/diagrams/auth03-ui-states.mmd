@@ -1,0 +1,19 @@
+flowchart TD
+  Start["Anonymous / session expired"] --> Login["Вход"]
+  Login -->|"Нижняя ссылка"| Register["Регистрация"]
+  Register -->|"Вернуться"| Login
+  Register -->|"POST register: 202"| Mail["Проверьте почту: условный результат"]
+  Login -->|"Забыли пароль"| Forgot["Запрос reset"]
+  Forgot -->|"202: без enumeration"| Mail
+  Link["Ссылка: scrub до Router"] -->|"verify"| Verify["Подтвердить email"]
+  Link -->|"reset"| Reset["Новый пароль"]
+  Verify -->|"POST: 200"| Login
+  Reset -->|"POST: 200, clearActor"| Login
+  Login -->|"POST login + me: 200"| App["Защищённое приложение"]
+  Login -->|"Google: один CTA"| OAuth["Existing direct / guarded bridge"]
+  Register -->|"Google: один CTA"| OAuth
+  OAuth -->|"Успех + me: 200"| App
+  OAuth -->|"Failure / Back"| Login
+  Pending["В каждом запросе: pending, single submit, guard позднего ответа"]
+  Error["Ошибка остаётся в текущем flow, safe text, manual retry"]
+  Pending --> Error

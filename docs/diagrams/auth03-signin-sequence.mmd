@@ -1,0 +1,26 @@
+sequenceDiagram
+  actor User as Пользователь
+  participant Gate as AuthGate
+  participant Helper as Existing auth helpers
+  participant Server as Java / Google OIDC
+  User->>Gate: Login или register, Google CTA
+  Gate->>Gate: Очистить пароли, pending, duplicate guard
+  Gate->>Helper: login() один раз, без local submit
+  alt Прямой Google
+    Helper->>Server: Навигация /oauth2/authorization/guitar-mentor
+  else Локальный guarded bridge
+    Helper->>Server: POST start с existing CSRF
+    Server-->>Helper: Allowlisted localhost beginUrl
+    Helper->>Server: Existing OIDC / bound one-time ticket exchange
+  end
+  alt Успех
+    Server-->>Helper: Прежняя сессия / one-time fragment
+    Helper->>Helper: Scrub до Router, consume once
+    Helper->>Server: Existing consume если bridge, затем GET /me
+    Server-->>Gate: Actor либо безопасный отказ
+    Gate-->>User: Private slot только при actor
+  else Ошибка / отказ
+    Server-->>Gate: Existing allowlisted failure marker
+    Gate->>Gate: Очистить marker/pending, static safe error
+    Gate-->>User: Повтор или вход по email
+  end

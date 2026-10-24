@@ -8,6 +8,7 @@
 
 | Версия | Дата | Что поменялось |
 | --- | --- | --- |
+| 0.29 | 25.10.2026 | БТ0.21: FT-016-06/#198 auth UI/Google CTA/новый logo, Full,8ч;24TC, диаграммы и точные assets. API/БД/права прежние. |
 | 0.28 | 24.10.2026 | Сверка принятой141: свободная регистрация вместо invitation-only; локальный SMTP179 принят, публичный rollout39/40 не подтверждён; фактическая очередь150 и162. Новые US/FT не создаются. |
 | 0.27 | 24.10.2026 | БТ0.19/BT-012: US016 Light Minimal/#147 и FT01601…05/#148–152;48ч, контракты/26TC/схемы, начало очереди148.15действующихUS/59FT;51 не переоткрывается. |
 | 0.26 | 24.10.2026 | Все16 задач каталога проработаны: P0v1.1; Full-контракт публикации/поиска/media,24TCcommunity;3research briefs.12задач оценены96ч,4pipeline ждутgates. БТ0.18,14действующихUS/54FT сохранены. |
@@ -420,6 +421,7 @@ US-009 покрывает BT-010/BT-011 версии БТ 0.2; реализац�
 | FT-016-03 | Все diagnostic states, responsive workspace с доминирующими нотами и version-pinned изолированный PDF reader с page/zoom/fullscreen/fallback | AC-LM-05/06/07; AC-012-LM-03/05 | [#150](https://github.com/roafo1989/guitar-mentor-ai/issues/150) |
 | FT-016-04 | Stateful запись/preview/upload и sample, существующие метроном/тюнер с mic priority и сохранёнными guards/history | AC-LM-08/09/10; AC-012-LM-03/04/05 | [#151](https://github.com/roafo1989/guitar-mentor-ai/issues/151) |
 | FT-016-05 | Настоящие feedback/progress states по API, locale/a11y/responsive и общий прогон/визуальная приёмка | AC-LM-11/12; AC-012-LM-04/05 | [#152](https://github.com/roafo1989/guitar-mentor-ai/issues/152) |
+| FT-016-06 | Единая auth-card login/register, Google CTA одним действием, явные mail/verify/reset/error состояния, новый выбранный logo/header/favicon; reuse принятой141/179 без новых API/прав | AC-AUTH03-01…12; AC-012-AUTH-01…03; [AUTH-03](../specifications/AUTH-03-auth-ui-and-branding.md),24TC | [#198](https://github.com/roafo1989/guitar-mentor-ai/issues/198) |
 
 Новые backend API/БД/права/ИИ не входят. Отсутствующийlibraryroute не изображается работающим и остаётся163. Метроному передаются реальныеmeter/tempoUnit, записьподнегоразрешена. СтандартнотнепереписываетготовыеPDF;UIпоказываеторигиналпоversion. Оценённыйпорядок148→149→150→151→152,48ч, всеIssues OPEN.
 
@@ -477,3 +479,7 @@ US-009 покрывает BT-010/BT-011 версии БТ 0.2; реализац�
 ## Передача каталога к разработке —24.10.2026
 
 [Матрица готовности и оценок](../project/CATALOG-READINESS-2026-10-24.md) определяет актуальные статусы/условия всех16 задач. [CATALOG-03](../specifications/CATALOG-03-community-catalog.md) — точный Full-контракт US012; [CATALOG-04](../specifications/CATALOG-04-research-gates.md) — исполнимые исследования и незакрытые gates US013–015. Наличие54FT не означает готовность170/172/174/175 к реализации. Публикуемые originals не обязаны эталону; project-produced derivatives обязаны MUS-NOTATION-01. Существующие84/119/120/141 не дублируются.
+
+## Передача auth UX198 —25.10.2026
+
+БТ0.21/BT-012/013 → US016/FT01606,147→53; TypeФронтенд/Full/8ч (6–10), целевые поля Разработка/В очереди. [Паспорт передачи](../project/AUTH03-READINESS-2026-10-25.md). Обычная регистрация свободная, email verification/сессии/CSRF обязательны как в141/179. HTTP202 не подтверждает доставку, resend отсутствует, GIS не нужен. Подготовка не реализация/QA/приёмка. Новый FT один, действующая редакция содержит60FT (плюс4исторически отменённых); глобальные числа доски не выводятся из этой локальной поправки, новые192–196 — отдельный поток анализа.

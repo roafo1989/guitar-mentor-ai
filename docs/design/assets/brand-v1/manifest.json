@@ -1,0 +1,62 @@
+{
+  "version": "1.0",
+  "received": "2026-10-25",
+  "source_archive_sha256": "eab95280366536bfaaaf9c5e3d13c70cfce6e6a80b0406f0fb05435aba954bac",
+  "source_library_ids": [
+    "libfile_678ad56fef1481918e52b4edad3eb688",
+    "libfile_ed2c40eb6b788191bfcb05d2cde88383",
+    "libfile_b51e94d3d2b48191891a0200daf1ea23",
+    "libfile_badc642c87108191af93f0771f785c85"
+  ],
+  "files": [
+    {
+      "file": "guitar-mentor-logo-1024.png",
+      "width": 1024,
+      "height": 1024,
+      "bytes": 357048,
+      "sha256": "ae40b9a905589daa518ea360080ebf3b3116d03604c1c6069a5b63ed5587f3c1"
+    },
+    {
+      "file": "guitar-mentor-logo-128.png",
+      "width": 128,
+      "height": 128,
+      "bytes": 16465,
+      "sha256": "7e8f5d4a1b1d544d7420feecbb062e9d9cc6296c5e8a5fe43cbfb3cc8b3327eb"
+    },
+    {
+      "file": "guitar-mentor-logo-256.png",
+      "width": 256,
+      "height": 256,
+      "bytes": 50153,
+      "sha256": "22dad31fccd9d9c30e70a1077acfac562a9dc55adeb4213b936f3e8403bb8ef9"
+    },
+    {
+      "file": "guitar-mentor-logo-32.png",
+      "width": 32,
+      "height": 32,
+      "bytes": 1988,
+      "sha256": "4d2ebf9393bdfdf6efae65f8698c6afe1ef27953276ef82b9a69b2ab89f3026c"
+    },
+    {
+      "file": "guitar-mentor-logo-512.png",
+      "width": 512,
+      "height": 512,
+      "bytes": 148027,
+      "sha256": "4bc817781f1b2fdc973ce94f030ac70011e3406774c69608aad5ec4be8bdf658"
+    },
+    {
+      "file": "guitar-mentor-logo-64.png",
+      "width": 64,
+      "height": 64,
+      "bytes": 5553,
+      "sha256": "4a710bab4226adfbed992c7a5a43c84384c21dd60cd4dfcc1ffab65111eff7f7"
+    },
+    {
+      "file": "guitar-mentor-logo-horizontal.png",
+      "width": 1200,
+      "height": 280,
+      "bytes": 64971,
+      "sha256": "63a858ef79fa23b13de49db52d0ae6c4847785c80fc5d22378626292f713d350"
+    }
+  ]
+}

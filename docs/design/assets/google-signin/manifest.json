@@ -1,0 +1,43 @@
+{
+  "version": "1.0",
+  "checked": "2026-10-25",
+  "files": [
+    {
+      "file": "GoogleSans-Medium-auth.ttf",
+      "bytes": 10200,
+      "sha256": "ecddd4ebecec524abe9887277d8d7fe3904db6f355a8f5e2db48bb3d615fc8b1"
+    },
+    {
+      "file": "OFL.txt",
+      "bytes": 4398,
+      "sha256": "8735de36ff67f2e9b50dd20ac0fe00435ab2d4de08445b48e79e1f1b8b524b8e"
+    },
+    {
+      "file": "TRADEMARKS.txt",
+      "bytes": 1472,
+      "sha256": "d8118af18bc08d30a26717d1f7109bc0865f191a450272c38978d8c65d45ab52"
+    },
+    {
+      "file": "g-logo.png",
+      "bytes": 33661,
+      "sha256": "d1ce9c2af0b10a7333abc99bc706f9a6a199e5b65bf3e3009624f076b8638e6a"
+    }
+  ],
+  "sources": [
+    {
+      "file": "GoogleSans-v14.000.zip",
+      "bytes": 34886516,
+      "sha256": "d338f0e74f5eabead86a85b87edf4cc50cd6561196dbe173d1db4139e95b3ca7"
+    },
+    {
+      "file": "g-logo.png",
+      "bytes": 33661,
+      "sha256": "d1ce9c2af0b10a7333abc99bc706f9a6a199e5b65bf3e3009624f076b8638e6a"
+    },
+    {
+      "file": "signin-assets.zip",
+      "bytes": 855303,
+      "sha256": "ba884069e12093b06bcfd776915081254a7c95094b80d50be2c5dc6bac1c1da1"
+    }
+  ]
+}
