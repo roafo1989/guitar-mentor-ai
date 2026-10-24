@@ -21,6 +21,7 @@ const zoom = ref(100);
 const fitWidth = ref(true);
 const fullscreen = ref(false);
 const focusButton = ref<HTMLButtonElement | null>(null);
+const focusTrigger = ref<HTMLButtonElement | null>(null);
 const frame = ref<HTMLIFrameElement | null>(null);
 const container = ref<HTMLElement | null>(null);
 const safeUrl = computed(() => pinnedPdfUrl(props.pdfUrl, props.exerciseKey, window.location.origin));
@@ -28,7 +29,7 @@ const fallback = computed(() => safeScoreLink(props.scoreUrl, window.location.or
 let controller: AbortController | null = null;
 let channel: MessageChannel | null = null;
 let generation = 0;
-let nonce = '';
+const nonce = ref('');
 let frameReady = false;
 let pending: {bytes: ArrayBuffer; renderer: string; worker: string} | null = null;
 let resizeObserver: ResizeObserver | null = null;
@@ -59,13 +60,13 @@ function reset() {
   pageCount.value = 0;
   zoom.value = 100;
   fitWidth.value = true;
-  nonce = crypto.randomUUID();
+  nonce.value = crypto.randomUUID();
 }
 function close() { emit('update:open', false); }
 function leaveFullscreen() {
   if (!fullscreen.value) return;
   fullscreen.value = false;
-  void nextTick(() => focusButton.value?.focus());
+  void nextTick(() => focusTrigger.value?.focus());
 }
 function onKeydown(event: KeyboardEvent) {
   if (event.key === 'Escape' && fullscreen.value) {
@@ -89,7 +90,7 @@ function focusMode() {
 }
 function sendRender() {
   if (!channel || state.value !== 'READY') return;
-  channel.port1.postMessage({type:'render',nonce,page:page.value,zoom:zoom.value,fitWidth:fitWidth.value});
+  channel.port1.postMessage({type:'render',nonce:nonce.value,page:page.value,zoom:zoom.value,fitWidth:fitWidth.value});
 }
 function switchPage(next: number) { page.value = Math.max(1, Math.min(pageCount.value, next)); sendRender(); }
 function adjustZoom(next: number) { fitWidth.value = false; zoom.value = Math.max(50, Math.min(250,next)); sendRender(); }
@@ -99,7 +100,7 @@ const statusText = computed(() => state.value === 'UNAVAILABLE' ? t('score.unava
   : t('score.states.' + state.value));
 
 function receiveWindowMessage(event: MessageEvent) {
-  if (event.source !== frame.value?.contentWindow || event.data?.type !== 'GM_SCORE_READY' || event.data.nonce !== nonce) return;
+  if (event.source !== frame.value?.contentWindow || event.data?.type !== 'GM_SCORE_READY' || event.data.nonce !== nonce.value) return;
   frameReady = true;
   sendPending();
 }
@@ -110,7 +111,7 @@ function sendPending() {
   channel = new MessageChannel();
   channel.port1.onmessage = event => {
     const message = event.data;
-    if (current !== generation || message?.nonce !== nonce) return;
+    if (current !== generation || message?.nonce !== nonce.value) return;
     if (message.type === 'loaded') {
       if (!Number.isInteger(message.pages) || message.pages < 1 || message.pages > 100) {
         transition('ERROR','limit'); return;
@@ -121,13 +122,13 @@ function sendPending() {
     if (message.type === 'failure') transition('ERROR', ['limit','password','corrupt','render'].includes(message.reason) ? message.reason : 'render');
   };
   frame.value.contentWindow.postMessage(
-    {type:'GM_SCORE_INIT',nonce,renderer:data.renderer,worker:data.worker,bytes:data.bytes},
+    {type:'GM_SCORE_INIT',nonce:nonce.value,renderer:data.renderer,worker:data.worker,bytes:data.bytes},
     '*',[channel.port2,data.bytes]
   );
 }
 
 const iframeDocument = computed(() => {
-  const key = nonce;
+  const key = nonce.value;
   const javascript = `
     let port, pdf, rendering, nextRender, workerUrl, rendererUrl;
     const nonce = ${JSON.stringify(key)};
@@ -278,7 +279,7 @@ onBeforeUnmount(()=>{
           <button type="button" :disabled="state!=='READY'||(!fitWidth&&zoom>=250)" :aria-label="t('score.zoomIn')" @click="adjustZoom(fitWidth?125:zoom+25)">+</button>
           <button type="button" :disabled="state!=='READY'" @click="autoFit">{{ t('score.fitWidth') }}</button>
         </div>
-        <button type="button" class="score-focus" @click="fullscreen?leaveFullscreen():focusMode()">
+        <button ref="focusTrigger" type="button" class="score-focus" @click="fullscreen?leaveFullscreen():focusMode()">
           {{ fullscreen?t('score.exitFocus'):t('score.focus') }}
         </button>
       </template>
