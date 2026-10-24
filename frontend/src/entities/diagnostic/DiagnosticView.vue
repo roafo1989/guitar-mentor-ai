@@ -457,7 +457,7 @@ async function assign(exerciseCode: string): Promise<void> {
           <aside class="studio-sidebar" :aria-label="t('diagnostic.workspace.recording')">
             <SubmissionPanel v-if="learnerStore.learner"
               :learner-id="learnerStore.learner.id"
-              :session-id="session.id" :task-id="task.id" @draft-state="onSubmissionDraft" />
+              :session-id="session.id" :task-id="task.id" :exercise="task.exercise" @draft-state="onSubmissionDraft" />
           </aside>
         </div>
         <details class="studio-extra">
