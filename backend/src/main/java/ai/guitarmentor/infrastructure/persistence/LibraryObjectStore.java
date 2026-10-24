@@ -67,6 +67,26 @@ public final class LibraryObjectStore {
             throw e;
         }
     }
+    /** Candidate cleanup never follows symlinks and never traverses subfolders. */
+    public java.util.List<Path> expiredCandidates(java.time.Duration grace,int limit) throws IOException {
+        java.time.Instant cutoff=java.time.Instant.now().minus(grace);
+        try(var stream=Files.list(root)) {
+            return stream.filter(path -> {
+                String name=path.getFileName().toString();
+                return name.matches("[a-f0-9-]{36}") || name.matches("\\.staging-[a-f0-9-]{36}");
+            }).filter(path -> Files.isRegularFile(path,LinkOption.NOFOLLOW_LINKS))
+              .filter(path -> {
+                  try {return Files.getLastModifiedTime(path,LinkOption.NOFOLLOW_LINKS)
+                      .toInstant().isBefore(cutoff);}
+                  catch(IOException e) {return false;}
+              }).limit(limit).toList();
+        }
+    }
+    public void deleteCandidate(Path path) throws IOException {
+        if(!path.getParent().equals(root) || Files.isSymbolicLink(path))
+            throw new IOException("Invalid cleanup path");
+        Files.deleteIfExists(path);
+    }
     public Path file(String key) throws IOException {
         if (!key.matches("[a-f0-9-]{36}")) throw new IOException("Invalid object key");
         Path result=safe(key);
