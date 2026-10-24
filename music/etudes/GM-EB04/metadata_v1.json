@@ -1,0 +1,43 @@
+{
+  "id": "GM-EB04",
+  "version": "1.0.0",
+  "title": "Две дорожки",
+  "status": "DRAFT_PENDING_MUSICAL_REVIEW",
+  "instrument": "ACOUSTIC_GUITAR",
+  "technique": "FINGERSTYLE",
+  "style": "FOLK",
+  "difficulty": "INTERMEDIATE",
+  "bars": 8,
+  "bpm": 76,
+  "meter": "4/4",
+  "tuning": [
+    "E2",
+    "A2",
+    "D3",
+    "G3",
+    "B3",
+    "E4"
+  ],
+  "skillCodes": [
+    "BASS_PULSE",
+    "VOICE_INDEPENDENCE"
+  ],
+  "learningGoal": "Ровный чередующийся бас под смещённой относительно долей мелодией.",
+  "practiceInstructions": "Играйте бас четвертями большим пальцем p (1–2–3–4), а верхний голос пальцами i/m. Начните с 55 BPM и постепенно доведите до 76 BPM. Выделяйте мелодию над басом; без медиатора, перкуссии и thumbpick.",
+  "successCriteria": [
+    "Ровные четыре четверти баса в каждом такте.",
+    "Вступления мелодии между долями не меняют басовый пульс.",
+    "Чистые переходы C–G–Am–F–C–G–F–C.",
+    "Мелодия слышна яснее баса."
+  ],
+  "estimatedPracticeMinutes": 15,
+  "source": "ORIGINAL",
+  "composer": "Guitar Mentor AI",
+  "license": "CC BY 4.0",
+  "licenseUrl": "https://creativecommons.org/licenses/by/4.0/",
+  "reviewStatus": "PENDING_OWNER_APPROVAL",
+  "instrumentCheck": "NOT_RUN",
+  "pdf": "OUT_OF_SCOPE_ISSUE_82",
+  "mp3": "OUT_OF_SCOPE_ISSUE_82",
+  "poc": "NOT_IMPLEMENTED"
+}
