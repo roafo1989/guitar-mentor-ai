@@ -93,7 +93,7 @@ foreach ($port in 8080,5173) {
 $machinePath = [Environment]::GetEnvironmentVariable('Path', 'Machine')
 $userPath = [Environment]::GetEnvironmentVariable('Path', 'User')
 $extraPaths = @(
-    (Join-Path $env:WINDIR 'System32\\WindowsPowerShell\\v1.0'),
+    (Join-Path $env:WINDIR 'System32\WindowsPowerShell\v1.0'),
     (Join-Path $env:ProgramFiles 'nodejs')
 )
 $segments = @($env:Path, $machinePath, $userPath) + $extraPaths
@@ -109,9 +109,9 @@ if ($missing.Count -gt 0) {
 
 $ps = (Get-Command pwsh.exe -ErrorAction Stop).Source
 $npm = (Get-Command npm.cmd -ErrorAction Stop).Source
-# Use cmd.exe only to launch native Maven/npm wrappers (on Windows these are .cmd).
+# Use the native Windows .cmd wrappers for Maven/npm.
 # All protected environment values are inherited, never interpolated into command arguments.
-$backendCommand = "Set-Location -LiteralPath '$backend'; & '.\\mvnw.cmd' spring-boot:run"
+$backendCommand = "Set-Location -LiteralPath '$backend'; & '.\mvnw.cmd' spring-boot:run"
 $frontendCommand = "Set-Location -LiteralPath '$frontend'; & '$npm' run dev"
 Start-Process -FilePath $ps -ArgumentList @('-NoExit', '-Command', $backendCommand)
 Start-Process -FilePath $ps -ArgumentList @('-NoExit', '-Command', $frontendCommand)
