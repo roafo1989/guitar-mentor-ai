@@ -167,3 +167,9 @@
   .app-shell[data-ui="light-minimal"] .header-tool-button {padding:7px 9px}
   .app-shell[data-ui="light-minimal"] .header-tool-label {display:none}
 }
+
+/* Supplied Flaticon artwork is used only for the opt-in theme. */
+.app-shell[data-ui="light-minimal"] .header-icon-image {
+  display:block;width:18px;height:18px;object-fit:contain;flex-shrink:0;
+}
+.app-shell[data-ui="light-minimal"] .icon-credits a {text-decoration:underline;text-underline-offset:2px}
