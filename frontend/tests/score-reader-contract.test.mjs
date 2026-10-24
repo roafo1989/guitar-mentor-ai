@@ -279,3 +279,12 @@ test('#150 selected input tabs and two result cards preserve one shared upload o
     assert.ok(j.attempt[key]);
  }
 });
+
+test('#150 desktop score toolbar shares the same grid row with notes/description tabs', async () => {
+ const preview=await readFile(new URL('../src/entities/diagnostic/ExercisePreview.vue',import.meta.url),'utf8');
+ assert.match(preview,/\.studio-preview \{[^}]*display:grid;grid-template-columns:max-content minmax\(0,1fr\)/);
+ assert.match(preview,/\.studio-tabs \{[^}]*grid-column:1;grid-row:1/);
+ assert.match(preview,/\.studio-preview :deep\(\.score-toolbar\) \{[^}]*grid-column:2;grid-row:1/);
+ assert.match(preview,/\.studio-preview :deep\(\.score-reader > div:not\(\.score-toolbar\)\) \{[^}]*grid-column:1 \/ -1/);
+ assert.match(preview,/@media\(max-width:780px\)/);
+});
