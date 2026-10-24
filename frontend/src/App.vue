@@ -124,19 +124,26 @@ onBeforeUnmount(() => { unsubscribeMetronome?.(); closeMetronome(); });
         <button v-if="auth.actor || localPrototype" ref="tunerButton" class="header-tool-button" type="button"
           :title="t('tuner.title')" :aria-label="t('tuner.open')"
           aria-haspopup="dialog" :aria-expanded="tunerOpen" @click="openTuner">
-          <svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor"
+          <svg viewBox="0 0 24 24" width="24" height="24" fill="none" stroke="currentColor"
             stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
-            <path d="M8 3v5a4 4 0 0 0 8 0V3M8 3 5 6m11-3 3 3M12 12v9m-3 0h6"/>
+            <!-- Guitar headstock with three tuners on each side. -->
+            <path d="M9 21v-6.5c-1-1-1.5-2.1-1.5-3.7V5.5A4.5 4.5 0 0 1 12 1.5a4.5 4.5 0 0 1 4.5 4v5.3c0 1.6-.5 2.7-1.5 3.7V21"/>
+            <path d="M7.5 6H4.5m3 3H4.5m3 3H4.5m12-6h3m-3 3h3m-3 3h3"/>
+            <circle cx="12" cy="6.5" r="1.4"/>
+            <path d="M10 21h4"/>
           </svg>
         </button>
         <button v-if="auth.actor || localPrototype" ref="headerMetronomeButton" type="button" class="header-tool-button" :class="{ 'is-playing': metronomeStatus === 'running' }"
           :title="metronomeStatus === 'running' ? t('metronome.playingInBackground') : t('metronome.open')"
           :aria-label="metronomeStatus === 'running' ? t('metronome.playingInBackground') : t('metronome.open')"
           aria-haspopup="dialog" :aria-expanded="metronomeUi.open" @click="openHeaderMetronome">
-          <svg viewBox="0 0 24 24" width="22" height="22" fill="none"
+          <svg viewBox="0 0 24 24" width="24" height="24" fill="none"
             stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"
             aria-hidden="true">
-            <path d="M8 20h9M9 18 12 4l5 14M13 5l5-2M9 18h8M12 4l-1-2"/>
+            <!-- Classic pyramidal metronome, with a weighted pendulum. -->
+            <path d="M8.5 6.5 5 20h14L15.5 6.5"/>
+            <path d="M4 22h16M12 18 17 3"/>
+            <rect x="15.8" y="4.4" width="3.4" height="3.4" rx=".6" transform="rotate(18 17.5 6.1)"/>
           </svg>
           <span v-if="metronomeStatus === 'running'" class="metronome-running-dot" aria-hidden="true"></span>
         </button>
