@@ -582,3 +582,37 @@ test('QA-126-POLL: disabled navigation throughout deferred processing poll, then
     assert.equal(state.pageBusy,false,'nav controls reenable after poll');
   } finally {waiting.resolve({items:[],hasMore:false,nextBeforeNumber:null});app.unmount();delete globalThis.__qaAttempt;}
 });
+
+test('#150 real setup state: audio tabs retain draft/comment and lock while capturing or uploading', async () => {
+  historyFixture();
+  const { app, state } = await mount('SubmissionPanel.vue',
+    { learnerId: 'learner', sessionId: 'session', taskId: 'task' });
+  try {
+    await flush();
+    assert.equal(state.inputMode, 'record');
+    state.comment = 'My practice notes';
+    state.file = {name:'take.webm',size:128};
+    state.sourceKind = 'record';
+    state.changeInputMode('file');
+    assert.equal(state.inputMode, 'file');
+    assert.equal(state.file.name, 'take.webm');
+    assert.equal(state.comment, 'My practice notes');
+
+    state.recordingActive = true;
+    state.changeInputMode('record');
+    assert.equal(state.inputMode, 'file', 'cannot switch while recording');
+    state.recordingActive = false;
+    state.uploading = true;
+    state.changeInputMode('record');
+    assert.equal(state.inputMode, 'file', 'cannot switch while uploading');
+    state.uploading = false;
+
+    state.changeInputMode('record');
+    assert.equal(state.inputMode, 'record');
+    assert.equal(state.file.name, 'take.webm', 'mode switch never deletes an unsent take');
+    state.removeDraft();
+    assert.equal(state.file, null);
+    assert.equal(state.sourceKind, null);
+    assert.equal(state.comment, 'My practice notes', 'removing attachment does not erase comment');
+  } finally { app.unmount(); }
+});
