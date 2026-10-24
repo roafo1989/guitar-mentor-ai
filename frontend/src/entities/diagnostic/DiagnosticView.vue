@@ -14,7 +14,7 @@ import type { DiagnosticSession, DiagnosticTask, Exercise, DiagnosticRecommendat
 
 const { t } = useI18n();
 // Match auth.ts secure-mode rule without introducing a runtime dependency in diagnostic views.
-const showPrototypeNotice = import.meta.env.DEV === true && import.meta.env.VITE_GUITAR_MENTOR_AUTH_REQUIRED !== 'true';
+const showPrototypeNotice = import.meta.env?.DEV === true && import.meta.env?.VITE_GUITAR_MENTOR_AUTH_REQUIRED !== 'true';
 const learnerStore = useLearnerStore();
 const session = ref<DiagnosticSession | null>(null);
 const loading = ref(true);
