@@ -109,6 +109,18 @@ try {
   }
   await evaluate("document.querySelector('button.score-toggle').click()");
   assert.equal(await evaluate("document.querySelector('iframe.score-canvas-frame')===null"),true);
+  assert.equal(await evaluate('window.__scoreRequests()'),2,'close must not refetch');
+  await evaluate("document.querySelector('button.score-focus').click()");
+  assert.equal(await evaluate("document.querySelector('.score-reader').classList.contains('score-fullscreen')"),true,
+    'one click from closed opens focus mode');
+  const reopened=await evaluate(`new Promise(resolve=>{let tries=0;const timer=setInterval(()=>{
+    if(document.querySelector('.score-reader')?.dataset.renderedPage==='1'){clearInterval(timer);resolve(true)}
+    if(++tries>250){clearInterval(timer);resolve(false)}
+  },100)})`);
+  assert.ok(reopened,'focus activation must fetch and render the PDF');
+  await cdp('Input.dispatchKeyEvent',{type:'keyDown',key:'Escape',code:'Escape',windowsVirtualKeyCode:27});
+  await cdp('Input.dispatchKeyEvent',{type:'keyUp',key:'Escape',code:'Escape',windowsVirtualKeyCode:27});
+  assert.equal(await evaluate("document.querySelector('.score-reader').classList.contains('score-fullscreen')"),false);
   process.stdout.write(JSON.stringify({status:'PASS',rendered:true,headGetOnly:true,fullscreenEscape:true,responsive:[1200,768,360]},null,2)+'\n');
 }finally{
   socket?.close();
