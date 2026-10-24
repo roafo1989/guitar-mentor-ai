@@ -1,8 +1,5 @@
 flowchart TD
-    A["Общий анализ 38 и 42"] --> B["38: security foundation"]
-    C["Анализ 39: origin и стенд"] --> A
-    B --> D["42: приглашения и отзыв"]
-    D --> E["39: защищённая staging-поставка"]
-    C --> E
-    E --> F["40: backup, regression, go/no-go"]
-    F --> G["Решение владельца о внешнем доступе"]
+    security["#38: общий Account, сессии и права"] --> invitation["#42: Google и приглашения"]
+    invitation --> password["#141: email, логин и пароль"]
+    password --> staging["#39: HTTPS и закрытый стенд"]
+    staging --> release["#40: общие проверки и go/no-go"]

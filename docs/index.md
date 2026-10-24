@@ -1,5 +1,7 @@
 # Guitar Mentor AI — документация
 
+**[AUTH-02/#141: email, логин и пароль наряду с Google](specifications/AUTH-02-email-password.md)** — новый объём эпика37/стори61; Анализ/В очереди, Full, без оценки.
+
 **[Обязательный эталон оформления нот и TAB — MUS-NOTATION-01](specifications/MUS-NOTATION-01-score-tab-standard.md)**, утверждён24.10.2026. Исходный PDF предоставлен владельцем в чате24.10.2026.
 
 **Отмена 24.10.2026:** владелец отказался от US-010/#112 и задач #113–116 («Я передумал, они мне не нужны»). BT-020 и FT-010-01…04 сняты с действующего объёма; разработка, оценки и условия старта этой ветки больше не применяются. Основной интерфейс метронома #111 сохраняется. Ниже сведения о скинах оставлены только как история.
@@ -37,10 +39,10 @@
 
 - [#104 / TOOL-02 — гибкий метроном](specifications/TOOL-02-flexible-metronome.md) — размеры, акценты, индивидуальная громкость, подразделения/Tap/пресеты; v1.1,36 ч; база — принятая #87, запись/minimize/reopen сохраняются
 
-- [Бизнес-требования 0.12](requirements/business-requirements.md) — два блока интервью, выбор репертуара и уверенная игра наизусть; ТЗ ещё не синхронизировано с BT-017/018
+- [Бизнес-требования 0.17](requirements/business-requirements.md) — два блока интервью, выбор репертуара и уверенная игра наизусть; ТЗ ещё не синхронизировано с BT-017/018
 - [Бизнес-анализ и варианты](https://github.com/roafo1989/guitar-mentor-ai/blob/main/docs/requirements/discovery/business-analysis-2026-10-20.md) — v0.3, уточнение по двум блокам ответов 21.10.2026
 - [Интервью заказчика](https://github.com/roafo1989/guitar-mentor-ai/blob/main/docs/requirements/discovery/customer-interview-2026-10-20.md) — v0.3, ответы BA-Q01–05/BA-Q21–24; следующий блок — занятие, запись и отзыв
-- [Техническое задание 0.22](requirements/technical-specification.md) — 9 действующих US / 37 FT, НФТ/SEC и открытые вопросы
+- [Техническое задание 0.23](requirements/technical-specification.md) — 9 действующих US / 38 FT, НФТ/SEC и открытые вопросы
 - [Системная спецификация 0.6](specifications/system-specification.md) — текущие API/данные и целевой остаток
 - [MVP Scope & Acceptance 1.1](project/mvp-scope-v1.md)
 - [Roadmap 1.1](project/roadmap-mvp-v1.md) — исходные оценки исторические, не текущий остаток
