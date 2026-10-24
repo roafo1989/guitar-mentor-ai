@@ -10,7 +10,8 @@ const moduleUrl = code => 'data:text/javascript,' + encodeURIComponent(code);
 const blank = moduleUrl("export default { render() { return null; } };");
 const service = moduleUrl(`export const attemptService = {
   capabilities: (...args) => globalThis.__qaAttempt.capabilities(...args),
-  list: (...args) => globalThis.__qaAttempt.list(...args),
+  page: async (...args) => { const items = await globalThis.__qaAttempt.list(...args); return { items, hasMore: false, nextBeforeNumber: null }; },
+  detail: async (...args) => globalThis.__qaAttempt ? (await globalThis.__qaAttempt.list(...args)).find(a => a.id === args[3]) : { id: args[3], status: 'PROCESSED' },
   upload: (...args) => globalThis.__qaAttempt.upload(...args)
 };
 export class AttemptHttpError extends Error {}`);
