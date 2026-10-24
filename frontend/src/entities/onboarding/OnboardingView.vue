@@ -1,5 +1,6 @@
 <script setup lang="ts">
-import { onMounted, ref } from 'vue';
+import { computed, onBeforeUnmount, onMounted, ref } from 'vue';
+import { apiFailureKey, asApiFailure, type ApiFailure } from '../../shared/api-failure';
 import { useI18n } from 'vue-i18n';
 import { useLearnerStore } from '../../stores/learner.store';
 import { onboardingService } from './onboarding.service';
@@ -21,7 +22,12 @@ const goalOptions: GoalCode[] = [
 const step = ref<1 | 2>(1);
 const loading = ref(true);
 const saving = ref(false);
-const error = ref('');
+const error = ref<ApiFailure | null>(null);
+const localValidation = ref(false);
+const errorMessage = computed(() => localValidation.value ? t('onboarding.invalidPieces') : error.value ? t(apiFailureKey(error.value)) : '');
+let loadGeneration = 0;
+let active = true;
+onBeforeUnmount(() => { active = false; ++loadGeneration; });
 const saved = ref(false);
 const experienceLevel = ref<ExperienceLevel>('BEGINNER');
 const yearsPlaying = ref(0);
@@ -31,13 +37,6 @@ const goals = ref<GoalCode[]>(['FINGERSTYLE']);
 const practiceMinutes = ref(40);
 const sessionsPerWeek = ref(3);
 const notes = ref('');
-
-function errorLabel(cause: unknown): string {
-  if (cause instanceof Error && cause.message === 'NETWORK_UNAVAILABLE') {
-    return t('form.networkError');
-  }
-  return cause instanceof Error ? cause.message : String(cause);
-}
 
 function apply(view: LearningBackground): void {
   experienceLevel.value = view.experienceLevel;
@@ -51,22 +50,27 @@ function apply(view: LearningBackground): void {
   notes.value = view.notes;
 }
 
-onMounted(async () => {
+async function loadBackground(): Promise<void> {
+  const seq = ++loadGeneration;
+  const learnerAtStart = learnerStore.learner?.id ?? window.localStorage.getItem('guitar-mentor.learnerId');
   loading.value = true;
+  error.value = null;
   try {
     if (!learnerStore.learner) await learnerStore.restore();
-    if (learnerStore.learner) {
-      const background = await onboardingService.get(
-        learnerStore.learner.id, 'ACOUSTIC_GUITAR',
-      );
-      if (background) apply(background);
-    }
+    if (learnerStore.error) throw learnerStore.error;
+    const id = learnerStore.learner?.id;
+    if (!id) return;
+    const background = await onboardingService.get(id, 'ACOUSTIC_GUITAR');
+    if (active && seq === loadGeneration && learnerStore.learner?.id === id
+      && learnerAtStart === id && background) apply(background);
   } catch (cause) {
-    error.value = errorLabel(cause);
+    if (active && seq === loadGeneration && !(cause instanceof Error && cause.name === 'AbortError'))
+      error.value = asApiFailure(cause);
   } finally {
-    loading.value = false;
+    if (active && seq === loadGeneration) loading.value = false;
   }
-});
+}
+onMounted(() => { void loadBackground(); });
 
 function parseKnownPieces(): KnownPiece[] {
   return knownPiecesText.value.split(/\r?\n/).map(line => line.trim())
@@ -81,11 +85,12 @@ function parseKnownPieces(): KnownPiece[] {
 async function save(): Promise<void> {
   if (!learnerStore.learner || saving.value) return;
   saved.value = false;
-  error.value = '';
+  error.value = null;
+  localValidation.value = false;
   const pieces = parseKnownPieces();
   if (pieces.length > 10 || pieces.some(piece => !piece.title || piece.title.length > 120
     || piece.artist.length > 120)) {
-    error.value = t('onboarding.invalidPieces');
+    localValidation.value = true;
     return;
   }
   saving.value = true;
@@ -106,7 +111,7 @@ async function save(): Promise<void> {
     if (result) apply(result);
     saved.value = true;
   } catch (cause) {
-    error.value = errorLabel(cause);
+    error.value = asApiFailure(cause);
   } finally {
     saving.value = false;
   }
@@ -123,7 +128,11 @@ async function save(): Promise<void> {
     <div class="notice" role="note">{{ t('form.notice') }}</div>
 
     <div v-if="loading" class="panel">{{ t('onboarding.loading') }}</div>
-    <div v-else-if="!learnerStore.learner" class="panel">
+    <div v-if="!loading && error && !learnerStore.learner" class="panel" role="alert">
+      <p>{{ errorMessage }}</p>
+      <button type="button" class="action-button" @click="loadBackground">{{ t('home.retry') }}</button>
+    </div>
+    <div v-else-if="!learnerStore.learner && !error" class="panel">
       <p>{{ t('onboarding.needProfile') }}</p>
       <RouterLink to="/profile">{{ t('app.profile') }}</RouterLink>
     </div>
@@ -205,7 +214,8 @@ async function save(): Promise<void> {
           </button>
         </div>
       </template>
-      <p v-if="error" class="error" role="alert">{{ error }}</p>
+      <p v-if="error || localValidation" class="error" role="alert">{{ errorMessage }}</p>
+      <button v-if="error && !saving" type="button" class="text-button" @click="loadBackground">{{ t('home.retry') }}</button>
       <p v-if="saved" class="success" role="status">{{ t('onboarding.saved') }}</p>
       <div class="form-actions"><RouterLink to="/profile">{{ t('onboarding.profileBack') }}</RouterLink><RouterLink to="/diagnostics">{{ t('diagnostic.nextFromOnboarding') }} →</RouterLink></div>
     </form>
