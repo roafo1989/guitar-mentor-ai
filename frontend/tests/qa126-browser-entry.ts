@@ -24,6 +24,7 @@ window.fetch=(async (input:RequestInfo | URL) => {
   counts[u.pathname]=(counts[u.pathname]??0)+1;
   if(u.pathname.endsWith('/attempts/capabilities')) return reply({enabled:true,maxBytes:10000000,formats:['wav']});
   if(u.pathname.endsWith('/attempts/page')) {
+    if(window.__qa126FailNextPage){ window.__qa126FailNextPage=false; return reply({code:'TEMPORARY_UNAVAILABLE'},500); }
     const before=Number(u.searchParams.get('beforeNumber')??Infinity);
     const items=attempts.filter(a=>a.number<before).slice(0,20);
     return reply({items,hasMore:attempts.some(a=>a.number<(items.at(-1)?.number??0)),nextBeforeNumber:items.length===20?items.at(-1)?.number:null});
