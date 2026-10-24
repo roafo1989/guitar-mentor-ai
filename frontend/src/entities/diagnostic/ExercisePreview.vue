@@ -236,7 +236,7 @@ details.exercise-learning > summary:focus-visible {outline:3px solid #28776d;out
 .studio-preview :deep(.score-canvas-frame) {height:min(78vh,1000px)}
 .studio-preview .exercise-preview-audio {border:1px solid #e1e9e4;border-radius:12px;background:#f8fbfa;padding:18px}
 .studio-preview .exercise-learning {border:1px solid #e1e9e4;border-radius:12px;padding:16px}
-@media(max-width:1060px) {
+@media(max-width:780px) {
  .studio-preview {grid-template-columns:minmax(0,1fr)}
  .studio-tabs {grid-column:1;grid-row:1;width:max-content;max-width:100%;flex-wrap:wrap}
  .studio-preview :deep(.score-toolbar) {grid-column:1;grid-row:2;justify-content:flex-end;flex-wrap:wrap}
