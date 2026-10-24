@@ -102,6 +102,8 @@ public class SecurityConfiguration {
                         res.sendRedirect("/?auth=denied");
                         return;
                     }
+                    // A fresh, server-side OIDC authentication is required to add a password.
+                    req.getSession(true).setAttribute("guitarMentorAuthenticatedAt", System.currentTimeMillis());
                     // An OIDC-authenticated but unadmitted user can only use invitation activation.
                     if (actors.findActive(oidc.getIssuer().toString(), oidc.getSubject()).isEmpty()) {
                         res.sendRedirect("/?auth=invitation");
