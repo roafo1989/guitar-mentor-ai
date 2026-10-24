@@ -15,7 +15,7 @@ test('metadata preview compiles and every new label is localized RU/EN', () => {
   const template = compileTemplate({ source: descriptor.template.content, filename: 'ExercisePreview.vue', id: 'issue-85' });
   assert.deepEqual(template.errors, []);
   const expected = ['heading','version','goal','instructions','criteria','criteriaHint','unknown',
-    'duration','tuning','tempo','difficulty','author','license','audioUnavailable','pdfUnavailable'];
+    'duration','tuning','tempo','difficulty','author','license','audioUnavailable','pdfUnavailable','pdfViewerFallback'];
   for (const dictionary of languages) {
     for (const key of expected) assert.equal(typeof dictionary.diagnostic.metadata[key], 'string', key);
   }
@@ -38,6 +38,6 @@ test('version and URL changes invalidate requests and stop stale media', () => {
   assert.match(source, /@error="audioExists = false"/);
   assert.match(source, /@error="pdfExists = false"/);
   assert.match(source, /:key="mediaIdentity"/);
-  assert.match(source, /v-if="pdfOpen"/);
+  assert.match(source, /v-if="pdfOpen && pdfReady"/);
   assert.match(source, /leaveMetronomeExercise/);
 });
