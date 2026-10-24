@@ -70,8 +70,8 @@ class MusicCatalogRepositoryPostgresTest {
         assertEquals("a",catalog.search(owner,"ветер","","","title",5,0).getFirst().id());
         assertEquals("a",catalog.search(owner,"Дунаевский","","","artist",5,0).getFirst().id());
         assertTrue(catalog.search(owner,"%","","","title",20,0).isEmpty()); // percent must be literal
-        assertEquals("b",catalog.search(owner,"",".gpx","PARSED","title",5,0).getFirst().id());
-        assertEquals(0,catalog.search(owner,"",".gpx","METADATA_ONLY","title",5,0).size());
+        assertEquals("b",catalog.search(owner,"","gpx","PARSED","title",5,0).getFirst().id());
+        assertEquals(0,catalog.search(owner,"","gpx","METADATA_ONLY","title",5,0).size());
         var first=catalog.search(owner,"","","","title",1,0);
         var next=catalog.search(owner,"","","","title",1,1);
         assertEquals(1,first.size());assertEquals(1,next.size());
