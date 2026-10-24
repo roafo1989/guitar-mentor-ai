@@ -78,7 +78,14 @@ public class LocalAuthController {
     @PostMapping("/request-reset")
     ResponseEntity<Map<String,String>> requestReset(@RequestBody Email req,HttpServletRequest http) {
         limit(http,"reset-request");
-        service.requestReset(req.email());
+        try {
+            service.requestReset(req.email());
+        } catch (RuntimeException deliveryFailure) {
+            // Identical public response whether the address exists or SMTP is unavailable.
+            // Deliberately never log the email or raw reset token.
+            org.slf4j.LoggerFactory.getLogger(LocalAuthController.class)
+                .warn("PASSWORD_RESET_DELIVERY_UNAVAILABLE");
+        }
         return ResponseEntity.accepted().body(Map.of("code","IF_ACCOUNT_EXISTS_EMAIL_SENT"));
     }
     @PostMapping("/reset")
