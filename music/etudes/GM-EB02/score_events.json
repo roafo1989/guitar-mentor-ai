@@ -21,312 +21,312 @@
     "PULSE",
     "RH_HAND"
   ],
-  "learningGoal": "Играть четверти ровно под метроном, сохраняя последовательность p-i-m-a.",
-  "practiceInstructions": "Сначала проговорите 1–2–3–4; сыграйте по одному звуку на каждую долю. Начните с 56 BPM и постепенно доведите до 72 BPM.",
-  "successCriteria": "Два исполнения подряд без пропущенных долей, остановок и непреднамеренного ускорения.",
+  "learningGoal": "Сохранять ровные четыре доли в каждом такте, сочетая бас большим пальцем p и мелодию i/m/a.",
+  "practiceInstructions": "Считайте вслух 1–2–3–4. На первую долю извлекайте бас p, на остальные — мелодию i/m/a. Начните в 56 BPM, затем переходите к 64 и 72 BPM. Играйте без медиатора и перкуссии.",
+  "successCriteria": "Сыграть восемь тактов дважды подряд с устойчивым счётом, без остановок, пропущенных долей и непреднамеренных ускорений.",
   "estimatedPracticeMinutes": 10,
-  "author": "Guitar Mentor AI — AI-assisted original draft",
+  "author": "Guitar Mentor AI (AI-assisted original draft)",
   "origin": "ORIGINAL",
-  "license": "CC0-1.0 (proposed; publication pending owner approval)",
+  "license": "ALL_RIGHTS_RESERVED_PENDING_OWNER_DECISION",
   "reviewStatus": "PENDING_HUMAN_MUSICAL_REVIEW",
   "events": [
     {
       "measure": 1,
       "beat": 1,
       "voice": 1,
-      "note": "C4",
-      "string": 2,
-      "fret": 1,
+      "note": "C3",
+      "string": 5,
+      "fret": 3,
       "durationQuarter": 1,
       "finger": "p"
     },
     {
       "measure": 1,
       "beat": 2,
-      "voice": 1,
-      "note": "E4",
-      "string": 2,
-      "fret": 0,
-      "durationQuarter": 1,
-      "finger": "i"
-    },
-    {
-      "measure": 1,
-      "beat": 3,
-      "voice": 1,
-      "note": "G4",
-      "string": 2,
-      "fret": 3,
-      "durationQuarter": 1,
-      "finger": "m"
-    },
-    {
-      "measure": 1,
-      "beat": 4,
-      "voice": 1,
-      "note": "E4",
-      "string": 2,
-      "fret": 0,
-      "durationQuarter": 1,
-      "finger": "a"
-    },
-    {
-      "measure": 2,
-      "beat": 1,
-      "voice": 1,
-      "note": "D4",
-      "string": 2,
-      "fret": 3,
-      "durationQuarter": 1,
-      "finger": "p"
-    },
-    {
-      "measure": 2,
-      "beat": 2,
-      "voice": 1,
-      "note": "F4",
-      "string": 2,
-      "fret": 1,
-      "durationQuarter": 1,
-      "finger": "i"
-    },
-    {
-      "measure": 2,
-      "beat": 3,
-      "voice": 1,
-      "note": "A4",
-      "string": 1,
-      "fret": 5,
-      "durationQuarter": 1,
-      "finger": "m"
-    },
-    {
-      "measure": 2,
-      "beat": 4,
-      "voice": 1,
-      "note": "F4",
-      "string": 2,
-      "fret": 1,
-      "durationQuarter": 1,
-      "finger": "a"
-    },
-    {
-      "measure": 3,
-      "beat": 1,
-      "voice": 1,
-      "note": "E4",
-      "string": 2,
-      "fret": 0,
-      "durationQuarter": 1,
-      "finger": "p"
-    },
-    {
-      "measure": 3,
-      "beat": 2,
-      "voice": 1,
-      "note": "G4",
-      "string": 2,
-      "fret": 3,
-      "durationQuarter": 1,
-      "finger": "i"
-    },
-    {
-      "measure": 3,
-      "beat": 3,
-      "voice": 1,
-      "note": "C5",
-      "string": 1,
-      "fret": 8,
-      "durationQuarter": 1,
-      "finger": "m"
-    },
-    {
-      "measure": 3,
-      "beat": 4,
-      "voice": 1,
-      "note": "G4",
-      "string": 2,
-      "fret": 3,
-      "durationQuarter": 1,
-      "finger": "a"
-    },
-    {
-      "measure": 4,
-      "beat": 1,
-      "voice": 1,
-      "note": "D4",
-      "string": 2,
-      "fret": 3,
-      "durationQuarter": 1,
-      "finger": "p"
-    },
-    {
-      "measure": 4,
-      "beat": 2,
-      "voice": 1,
-      "note": "F4",
-      "string": 2,
-      "fret": 1,
-      "durationQuarter": 1,
-      "finger": "i"
-    },
-    {
-      "measure": 4,
-      "beat": 3,
-      "voice": 1,
-      "note": "B4",
-      "string": 1,
-      "fret": 7,
-      "durationQuarter": 1,
-      "finger": "m"
-    },
-    {
-      "measure": 4,
-      "beat": 4,
-      "voice": 1,
-      "note": "G4",
-      "string": 2,
-      "fret": 3,
-      "durationQuarter": 1,
-      "finger": "a"
-    },
-    {
-      "measure": 5,
-      "beat": 1,
-      "voice": 1,
-      "note": "C4",
-      "string": 2,
-      "fret": 1,
-      "durationQuarter": 1,
-      "finger": "p"
-    },
-    {
-      "measure": 5,
-      "beat": 2,
-      "voice": 1,
-      "note": "E4",
-      "string": 2,
-      "fret": 0,
-      "durationQuarter": 1,
-      "finger": "i"
-    },
-    {
-      "measure": 5,
-      "beat": 3,
-      "voice": 1,
-      "note": "G4",
-      "string": 2,
-      "fret": 3,
-      "durationQuarter": 1,
-      "finger": "m"
-    },
-    {
-      "measure": 5,
-      "beat": 4,
-      "voice": 1,
-      "note": "C5",
-      "string": 1,
-      "fret": 8,
-      "durationQuarter": 1,
-      "finger": "a"
-    },
-    {
-      "measure": 6,
-      "beat": 1,
-      "voice": 1,
-      "note": "B3",
-      "string": 2,
-      "fret": 0,
-      "durationQuarter": 1,
-      "finger": "p"
-    },
-    {
-      "measure": 6,
-      "beat": 2,
-      "voice": 1,
-      "note": "D4",
-      "string": 2,
-      "fret": 3,
-      "durationQuarter": 1,
-      "finger": "i"
-    },
-    {
-      "measure": 6,
-      "beat": 3,
-      "voice": 1,
-      "note": "G4",
-      "string": 2,
-      "fret": 3,
-      "durationQuarter": 1,
-      "finger": "m"
-    },
-    {
-      "measure": 6,
-      "beat": 4,
-      "voice": 1,
-      "note": "B4",
-      "string": 1,
-      "fret": 7,
-      "durationQuarter": 1,
-      "finger": "a"
-    },
-    {
-      "measure": 7,
-      "beat": 1,
-      "voice": 1,
-      "note": "A3",
-      "string": 3,
-      "fret": 2,
-      "durationQuarter": 1,
-      "finger": "p"
-    },
-    {
-      "measure": 7,
-      "beat": 2,
-      "voice": 1,
-      "note": "C4",
-      "string": 2,
-      "fret": 1,
-      "durationQuarter": 1,
-      "finger": "i"
-    },
-    {
-      "measure": 7,
-      "beat": 3,
-      "voice": 1,
-      "note": "F4",
-      "string": 2,
-      "fret": 1,
-      "durationQuarter": 1,
-      "finger": "m"
-    },
-    {
-      "measure": 7,
-      "beat": 4,
-      "voice": 1,
-      "note": "A4",
-      "string": 1,
-      "fret": 5,
-      "durationQuarter": 1,
-      "finger": "a"
-    },
-    {
-      "measure": 8,
-      "beat": 1,
       "voice": 1,
       "note": "G3",
       "string": 3,
       "fret": 0,
       "durationQuarter": 1,
+      "finger": "i"
+    },
+    {
+      "measure": 1,
+      "beat": 3,
+      "voice": 1,
+      "note": "C4",
+      "string": 2,
+      "fret": 1,
+      "durationQuarter": 1,
+      "finger": "m"
+    },
+    {
+      "measure": 1,
+      "beat": 4,
+      "voice": 1,
+      "note": "E4",
+      "string": 1,
+      "fret": 0,
+      "durationQuarter": 1,
+      "finger": "a"
+    },
+    {
+      "measure": 2,
+      "beat": 1,
+      "voice": 1,
+      "note": "G2",
+      "string": 6,
+      "fret": 3,
+      "durationQuarter": 1,
+      "finger": "p"
+    },
+    {
+      "measure": 2,
+      "beat": 2,
+      "voice": 1,
+      "note": "G3",
+      "string": 3,
+      "fret": 0,
+      "durationQuarter": 1,
+      "finger": "i"
+    },
+    {
+      "measure": 2,
+      "beat": 3,
+      "voice": 1,
+      "note": "B3",
+      "string": 2,
+      "fret": 0,
+      "durationQuarter": 1,
+      "finger": "m"
+    },
+    {
+      "measure": 2,
+      "beat": 4,
+      "voice": 1,
+      "note": "G4",
+      "string": 1,
+      "fret": 3,
+      "durationQuarter": 1,
+      "finger": "a"
+    },
+    {
+      "measure": 3,
+      "beat": 1,
+      "voice": 1,
+      "note": "A2",
+      "string": 5,
+      "fret": 0,
+      "durationQuarter": 1,
+      "finger": "p"
+    },
+    {
+      "measure": 3,
+      "beat": 2,
+      "voice": 1,
+      "note": "A3",
+      "string": 3,
+      "fret": 2,
+      "durationQuarter": 1,
+      "finger": "i"
+    },
+    {
+      "measure": 3,
+      "beat": 3,
+      "voice": 1,
+      "note": "C4",
+      "string": 2,
+      "fret": 1,
+      "durationQuarter": 1,
+      "finger": "m"
+    },
+    {
+      "measure": 3,
+      "beat": 4,
+      "voice": 1,
+      "note": "E4",
+      "string": 1,
+      "fret": 0,
+      "durationQuarter": 1,
+      "finger": "a"
+    },
+    {
+      "measure": 4,
+      "beat": 1,
+      "voice": 1,
+      "note": "E2",
+      "string": 6,
+      "fret": 0,
+      "durationQuarter": 1,
+      "finger": "p"
+    },
+    {
+      "measure": 4,
+      "beat": 2,
+      "voice": 1,
+      "note": "G3",
+      "string": 3,
+      "fret": 0,
+      "durationQuarter": 1,
+      "finger": "i"
+    },
+    {
+      "measure": 4,
+      "beat": 3,
+      "voice": 1,
+      "note": "B3",
+      "string": 2,
+      "fret": 0,
+      "durationQuarter": 1,
+      "finger": "m"
+    },
+    {
+      "measure": 4,
+      "beat": 4,
+      "voice": 1,
+      "note": "E4",
+      "string": 1,
+      "fret": 0,
+      "durationQuarter": 1,
+      "finger": "a"
+    },
+    {
+      "measure": 5,
+      "beat": 1,
+      "voice": 1,
+      "note": "C3",
+      "string": 5,
+      "fret": 3,
+      "durationQuarter": 1,
+      "finger": "p"
+    },
+    {
+      "measure": 5,
+      "beat": 2,
+      "voice": 1,
+      "note": "G3",
+      "string": 3,
+      "fret": 0,
+      "durationQuarter": 1,
+      "finger": "i"
+    },
+    {
+      "measure": 5,
+      "beat": 3,
+      "voice": 1,
+      "note": "D4",
+      "string": 2,
+      "fret": 3,
+      "durationQuarter": 1,
+      "finger": "m"
+    },
+    {
+      "measure": 5,
+      "beat": 4,
+      "voice": 1,
+      "note": "E4",
+      "string": 1,
+      "fret": 0,
+      "durationQuarter": 1,
+      "finger": "a"
+    },
+    {
+      "measure": 6,
+      "beat": 1,
+      "voice": 1,
+      "note": "F3",
+      "string": 4,
+      "fret": 3,
+      "durationQuarter": 1,
+      "finger": "p"
+    },
+    {
+      "measure": 6,
+      "beat": 2,
+      "voice": 1,
+      "note": "A3",
+      "string": 3,
+      "fret": 2,
+      "durationQuarter": 1,
+      "finger": "i"
+    },
+    {
+      "measure": 6,
+      "beat": 3,
+      "voice": 1,
+      "note": "C4",
+      "string": 2,
+      "fret": 1,
+      "durationQuarter": 1,
+      "finger": "m"
+    },
+    {
+      "measure": 6,
+      "beat": 4,
+      "voice": 1,
+      "note": "E4",
+      "string": 1,
+      "fret": 0,
+      "durationQuarter": 1,
+      "finger": "a"
+    },
+    {
+      "measure": 7,
+      "beat": 1,
+      "voice": 1,
+      "note": "G2",
+      "string": 6,
+      "fret": 3,
+      "durationQuarter": 1,
+      "finger": "p"
+    },
+    {
+      "measure": 7,
+      "beat": 2,
+      "voice": 1,
+      "note": "G3",
+      "string": 3,
+      "fret": 0,
+      "durationQuarter": 1,
+      "finger": "i"
+    },
+    {
+      "measure": 7,
+      "beat": 3,
+      "voice": 1,
+      "note": "B3",
+      "string": 2,
+      "fret": 0,
+      "durationQuarter": 1,
+      "finger": "m"
+    },
+    {
+      "measure": 7,
+      "beat": 4,
+      "voice": 1,
+      "note": "G4",
+      "string": 1,
+      "fret": 3,
+      "durationQuarter": 1,
+      "finger": "a"
+    },
+    {
+      "measure": 8,
+      "beat": 1,
+      "voice": 1,
+      "note": "C3",
+      "string": 5,
+      "fret": 3,
+      "durationQuarter": 1,
       "finger": "p"
     },
     {
       "measure": 8,
       "beat": 2,
       "voice": 1,
-      "note": "D4",
-      "string": 2,
-      "fret": 3,
+      "note": "G3",
+      "string": 3,
+      "fret": 0,
       "durationQuarter": 1,
       "finger": "i"
     },
@@ -334,21 +334,21 @@
       "measure": 8,
       "beat": 3,
       "voice": 1,
-      "note": "G4",
-      "string": 2,
-      "fret": 3,
+      "note": "E4",
+      "string": 1,
+      "fret": 0,
       "durationQuarter": 1,
-      "finger": "m"
+      "finger": "a"
     },
     {
       "measure": 8,
       "beat": 4,
       "voice": 1,
-      "note": "C5",
-      "string": 1,
-      "fret": 8,
+      "note": "C4",
+      "string": 2,
+      "fret": 1,
       "durationQuarter": 1,
-      "finger": "a"
+      "finger": "m"
     }
   ]
 }
