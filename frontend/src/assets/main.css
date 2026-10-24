@@ -601,3 +601,9 @@ footer { text-align: center; font-size: 12px; padding: 24px; color: #8793a4; }
   .attempt-card { padding: 7px; }
   .homework-panel input[type=file] { width: 100%; min-width: 0; }
 }
+
+/* #126: make unavailable page navigation visibly non-interactive. */
+.attempt-history-navigation button:disabled {
+  opacity: 0.45;
+  cursor: not-allowed;
+}
