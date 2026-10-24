@@ -44,6 +44,28 @@ class ActorFilterTest {
     }
 
     @Test
+    void nestedLearnerEndpointsDenyForeignIdsAcrossMethods() throws Exception {
+        signIn();
+        when(repository.findActive("https://idp.example", "sub-A"))
+                .thenReturn(Optional.of(new CurrentActor(UUID.randomUUID(), owner, "LEARNER")));
+        String[] paths = {
+            "/instruments/GUITAR/background",
+            "/instruments/GUITAR/skills/history",
+            "/diagnostic-sessions/" + UUID.randomUUID() + "/continue",
+            "/diagnostic-sessions/" + UUID.randomUUID() + "/evidence/" + UUID.randomUUID(),
+            "/diagnostic-sessions/" + UUID.randomUUID() + "/tasks/" + UUID.randomUUID() + "/attempts",
+            "/diagnostic-sessions/" + UUID.randomUUID() + "/tasks/" + UUID.randomUUID() + "/attempts/" + UUID.randomUUID() + "/assessments",
+            "/diagnostic-sessions/" + UUID.randomUUID() + "/tasks/" + UUID.randomUUID() + "/decisions"
+        };
+        for (String suffix : paths) {
+            for (String method : new String[] { "GET", "HEAD", "POST", "PUT" }) {
+                assertEquals(404, request(method, "/api/v1/learners/" + foreign + suffix).getStatus(),
+                    method + " " + suffix);
+            }
+        }
+    }
+
+    @Test
     void disabledOrUnmappedIdentityDenied() throws Exception {
         signIn();
         when(repository.findActive("https://idp.example", "sub-A")).thenReturn(Optional.empty());
@@ -66,7 +88,11 @@ class ActorFilterTest {
     }
 
     private MockHttpServletResponse request(String path) throws Exception {
-        var request = new MockHttpServletRequest("GET", path);
+        return request("GET", path);
+    }
+
+    private MockHttpServletResponse request(String method, String path) throws Exception {
+        var request = new MockHttpServletRequest(method, path);
         var response = new MockHttpServletResponse();
         filter.doFilter(request, response, new MockFilterChain());
         return response;
