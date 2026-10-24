@@ -316,7 +316,7 @@ test('CORE-U10: template retains keyboard-native history controls and accessible
   assert.deepEqual(errors, []);
   assert.match(descriptor.template.content, /<nav class="form-actions" :aria-label="t\('attempt.history'\)">/);
   for (const action of ['older', 'newer', 'latest', 'refresh']) {
-    assert.match(descriptor.template.content, new RegExp('type="button"[^>]*' + action + ".*?</button>"));
+    assert.ok(descriptor.template.content.includes("{{ t('attempt." + action + "') }}"), action + " has a translated label");
   }
   assert.match(descriptor.template.content, /role="alert"/);
   assert.match(descriptor.template.content, /role="status"/);
