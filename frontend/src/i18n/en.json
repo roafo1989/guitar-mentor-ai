@@ -284,7 +284,9 @@
     "newer": "Newer",
     "latest": "Latest",
     "refresh": "Refresh history",
-    "historyStale": "Showing the previous page: new data is unavailable."
+    "historyStale": "Showing the previous page: new data is unavailable.",
+    "onlyPage": "All attempts are on one page.",
+    "historyUpdated": "Attempt history updated."
   },
   "evidence": {
     "heading": "My performances",
