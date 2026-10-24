@@ -2,6 +2,7 @@
 import { computed, onMounted, reactive, ref } from 'vue';
 import { useI18n } from 'vue-i18n';
 import { useLearnerStore } from '../../stores/learner.store';
+import { secureUi } from '../../core/auth/auth';
 import type { MusicPreference, PreferenceRating } from '../../shared/model/learner.model';
 
 const { t } = useI18n();
@@ -78,7 +79,7 @@ async function save(): Promise<void> {
       <p>{{ t('form.description') }}</p>
     </div>
 
-    <div class="notice" role="note">{{ t('form.notice') }}</div>
+    <div v-if="!secureUi" class="notice" role="note">{{ t('form.notice') }}</div>
 
     <form class="panel" @submit.prevent="save">
       <div v-if="hasProfile" class="saved-status" role="status">
@@ -131,11 +132,11 @@ async function save(): Promise<void> {
       <p v-if="success" class="success" role="status">{{ success }}</p>
 
       <div class="form-actions">
-        <button type="submit" :disabled="store.busy || !name.trim()">
+        <button type="submit" :disabled="store.busy || !name.trim() || (secureUi && !hasProfile)">
           {{ store.busy ? t('form.saving') : t(hasProfile ? 'form.update' : 'form.save') }}
         </button>
         <RouterLink v-if="hasProfile" to="/onboarding" class="continue-link">{{ t('form.continue') }} →</RouterLink>
-        <button v-if="hasProfile" type="button" class="text-button" @click="newProfile">
+        <button v-if="hasProfile && !secureUi" type="button" class="text-button" @click="newProfile">
           {{ t('form.new') }}
         </button>
       </div>
