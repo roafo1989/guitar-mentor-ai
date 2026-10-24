@@ -50,6 +50,12 @@ class LocalAuthHttpPostgresTest {
         mvc.perform(post("/api/v1/local-auth/register").with(csrf())
             .contentType(MediaType.APPLICATION_JSON).content(register))
             .andExpect(status().isAccepted());
+        assertFalse(register.contains("invitation"),"Public signup must not require a code");
+        // The same public response prevents probing already-reserved emails/usernames.
+        mvc.perform(post("/api/v1/local-auth/register").with(csrf())
+            .contentType(MediaType.APPLICATION_JSON).content(register))
+            .andExpect(status().isAccepted());
+        verify(mail,times(1)).send(any(SimpleMailMessage.class));
         var captor=ArgumentCaptor.forClass(SimpleMailMessage.class);
         verify(mail,atLeastOnce()).send(captor.capture());
         var match=Pattern.compile("token=([a-f0-9]{64})")
