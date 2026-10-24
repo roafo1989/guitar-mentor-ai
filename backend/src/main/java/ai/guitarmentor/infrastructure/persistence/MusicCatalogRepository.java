@@ -81,6 +81,15 @@ public class MusicCatalogRepository {
             """).param("owner",owner).param("id",workId).query(ARRANGEMENT).list();
     }
 
+    public Optional<Arrangement> arrangement(UUID owner,String id) {
+        return jdbc.sql("""
+            SELECT source_arrangement_id,name,identity_status,parser_status,tempo_raw,
+                   time_signatures_raw,instruments_raw,track_count_raw,measure_count_raw,note_count_raw
+            FROM music_catalog_arrangements
+            WHERE owner_account_id=:owner AND source_arrangement_id=:id
+            """).param("owner",owner).param("id",id).query(ARRANGEMENT).optional();
+    }
+
     public List<SourceFile> files(UUID owner,String arrangementId) {
         return jdbc.sql("""
             SELECT f.source_file_id,f.original_filename,f.extension,f.size_bytes,
