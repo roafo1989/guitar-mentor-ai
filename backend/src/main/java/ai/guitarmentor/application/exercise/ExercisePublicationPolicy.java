@@ -2,6 +2,7 @@ package ai.guitarmentor.application.exercise;
 
 import ai.guitarmentor.domain.exercise.Exercise;
 import java.util.Set;
+import org.springframework.core.io.ClassPathResource;
 
 /** Guard new assignments/public listings. Historic version-pinned tasks stay readable. */
 public final class ExercisePublicationPolicy {
@@ -13,9 +14,19 @@ public final class ExercisePublicationPolicy {
     private ExercisePublicationPolicy() {}
 
     public static boolean eligible(Exercise e) {
-        return eligible(e.getContentKind(), e.getLicense(), e.getReviewStatus(),
+        boolean approved = eligible(e.getContentKind(), e.getLicense(), e.getReviewStatus(),
                 e.getPreviewAudioResource(), e.getPreviewPdfResource(),
                 e.getDurationTargetSeconds());
+        if (!approved || !"DIAGNOSTIC_PROBE".equals(e.getContentKind())) return approved;
+        // Path metadata alone is insufficient: never expose a probe with broken media.
+        return exists(e.getScoreResource()) && exists(e.getEventsResource())
+                && exists(e.getPreviewAudioResource()) && exists(e.getPreviewPdfResource());
+    }
+
+    private static boolean exists(String path) {
+        return path != null && path.startsWith("exercises/")
+                && !path.contains("..") && path.indexOf('\\') < 0
+                && new ClassPathResource(path).exists();
     }
 
     public static boolean eligible(String kind, String license, String review,
