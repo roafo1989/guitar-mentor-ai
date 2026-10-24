@@ -27,4 +27,16 @@ No database migration, config flag, or additional dependency is required. New fr
 - [Vue CI](https://github.com/roafo1989/guitar-mentor-ai/actions/runs/40065886750): SUCCESS.
 - Live Spring Boot + PostgreSQL HTTP QA (the new `backend/scripts/qa125_attempt_http.py`): **PASS** for page/default/limit/cursor/detail/capabilities, exclusive bound, empty final page, repeated/invalid/overflow query parameters, unknown/foreign ownership, safe error codes and no-store. Runs after the existing multipart/idempotency/TTL smoke in the Java workflow; output explicitly reports `QA #125 live HTTP contract: ... PASS`.
 - Real PostgreSQL paging fixture covers 45→20/20/5, inserted newer attempt, multiple assessment revisions and legacy GET.
-- **Outstanding:** no instrumented numeric SQL-statement count was gathered; source-level bounded two-query design does not alone prove a numeric budget. Independent review and owner acceptance still pending. Do not merge or close #125 yet.
+- **SQL budget verified on actual PostgreSQL:** The test-only `AttemptSqlProbe` intercepts JDBC `prepareStatement` for both Hibernate and JdbcTemplate on the calling thread. A new integration test establishes 1 attempt SELECT + 1 assessment SELECT for each page of 1/20/50; an empty page executes 1 attempt SELECT + 0 assessment SELECT; capabilities executes 0 history/assessment SELECTs. No COUNT is generated. This is a statement-count test, not a latency benchmark. Independent review and owner acceptance still pending. Do not merge or close #125 yet.
+
+## Instrumented SQL budget — 24 October 2026
+
+Production code unchanged. Added `backend/src/test/java/ai/guitarmentor/application/attempt/AttemptSqlProbe.java` and the `boundedSqlStatementsDoNotGrowWithPageSize` PostgreSQL integration test; probe is imported into that test's Spring context only. SQL statements are counted across JPA + JdbcTemplate, not merely inferred from source or mocked repository calls. The test is thread-scoped to avoid background worker interference.
+
+- `0 rows`: 1 attempt query, 0 assessment queries.
+- `limit=1,20,50` with 51 real rows: 1 bounded attempt query, 1 assessment batch query, 0 COUNT queries for each limit.
+- `capabilities` ownership: 0 attempt queries, 0 assessment queries.
+- [Java CI #40066343742](https://github.com/roafo1989/guitar-mentor-ai/actions/runs/40066343742) for `cd25efa`: **SUCCESS**, 213 tests, 0 fails/errors, 4 pre-existing skips; attempt PostgreSQL suite 14 PASS; real HTTP page/detail/capabilities smoke PASS.
+- [Vue CI #40066343759](https://github.com/roafo1989/guitar-mentor-ai/actions/runs/40066343759): **SUCCESS**.
+
+**Remaining gate:** external independent code review and owner acceptance/merge. Self-review is not independent APPROVE. 
