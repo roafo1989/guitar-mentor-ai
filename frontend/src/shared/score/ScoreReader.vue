@@ -60,7 +60,7 @@ function reset() {
   pageCount.value = 0;
   zoom.value = 100;
   fitWidth.value = true;
-  nonce.value = crypto.randomUUID();
+  nonce.value = crypto.randomUUID().replace(/-/g,'');
 }
 function close() { emit('update:open', false); }
 function leaveFullscreen() {
@@ -136,7 +136,7 @@ const iframeDocument = computed(() => {
     const send = (type, extra={}) => port?.postMessage({type,nonce,...extra});
     async function draw(request) {
       if (!pdf) return;
-      if (rendering) { nextRender = request; await rendering.cancel().catch(()=>{}); return; }
+      if (rendering) { nextRender = request; rendering.cancel(); return; }
       try {
         const p = await pdf.getPage(request.page);
         const basic = p.getViewport({scale:1});
@@ -184,10 +184,10 @@ const iframeDocument = computed(() => {
         };
         port.start();
       } catch(err) {send('failure',{reason:err?.name==='PasswordException'?'password':'corrupt'});}
-    },{once:true});
+    });
     window.parent.postMessage({type:'GM_SCORE_READY',nonce},'*');
     window.addEventListener('pagehide',()=>{
-      rendering?.cancel().catch(()=>{});
+      rendering?.cancel();
       pdf?.destroy?.();port?.close();
       if(workerUrl)URL.revokeObjectURL(workerUrl);
       if(rendererUrl)URL.revokeObjectURL(rendererUrl);
