@@ -1,14 +1,25 @@
 <script setup lang="ts">
-import { computed, onMounted, ref } from 'vue';
+import { computed, onBeforeUnmount, onMounted, ref, watch } from 'vue';
+import { resolveHomeSummary, type HomeSummary } from './home-summary';
 import { useI18n } from 'vue-i18n';
 import { useLearnerStore } from '../../stores/learner.store';
 
 const { t } = useI18n();
 const learnerStore = useLearnerStore();
 const loading = ref(true);
-const restoreFailed = computed(() =>
-  Boolean(learnerStore.error) && !learnerStore.error.startsWith('HTTP_404'),
-);
+const summary = ref<HomeSummary | null>(null);
+const recoveryError = ref(false);
+const primaryTarget = computed(() =>
+  summary.value?.step === 'profile' ? '/profile'
+    : summary.value?.step === 'onboarding' ? '/onboarding' : '/diagnostics');
+const primaryLabel = computed(() => {
+  if (recoveryError.value) return t('home.retry');
+  if (!summary.value) return t('home.start');
+  return t('home.next.' + summary.value.step);
+});
+let generation = 0;
+let active = true;
+const restoreFailed = computed(() => recoveryError.value);
 const sections = [
   { key: 'profile', to: '/profile', number: '01', icon: 'M12 12a4 4 0 1 0 0-8 4 4 0 0 0 0 8ZM4 21v-2a6 6 0 0 1 6-6h4a6 6 0 0 1 6 6v2' },
   { key: 'onboarding', to: '/onboarding', number: '02', icon: 'M8 4H5a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2V6a2 2 0 0 0-2-2h-3M8 2h8v5H8ZM7 12h10M7 17h7' },
@@ -16,13 +27,34 @@ const sections = [
 ] as const;
 
 async function restoreProfile(): Promise<void> {
+  const seq = ++generation;
   loading.value = true;
+  recoveryError.value = false;
   try {
+    const previous = learnerStore.learner?.id;
     if (!learnerStore.learner) await learnerStore.restore();
+    if (!active || seq !== generation) return;
+    if (learnerStore.error && !learnerStore.error.startsWith('HTTP_404')) throw new Error('RESTORE_FAILED');
+    // No new session or assignment is created by the home screen.
+    const id = learnerStore.learner?.id ?? null;
+    if (previous && id !== previous) summary.value = null;
+    const next = await resolveHomeSummary(id, window.localStorage);
+    if (!active || seq !== generation || learnerStore.learner?.id !== id) return;
+    summary.value = next;
+  } catch {
+    if (active && seq === generation) recoveryError.value = true;
   } finally {
-    loading.value = false;
+    if (active && seq === generation) loading.value = false;
   }
 }
+function refreshForLearner(): void {
+  summary.value = null;
+  void restoreProfile();
+}
+watch(() => learnerStore.learner?.id, (now, old) => {
+  if (now !== old) refreshForLearner();
+});
+onBeforeUnmount(() => { active = false; ++generation; });
 
 onMounted(restoreProfile);
 </script>
@@ -40,10 +72,15 @@ onMounted(restoreProfile);
         <p class="home-description">{{ t('home.description') }}</p>
         <div class="home-start">
           <p v-if="loading" class="home-loading" role="status">{{ t('home.loading') }}</p>
-          <RouterLink v-else to="/profile" class="home-primary">
-            {{ t(learnerStore.learner || restoreFailed ? 'home.openProfile' : 'home.start') }}
-            <span aria-hidden="true">→</span>
+          <button v-else-if="restoreFailed" type="button" class="home-primary" @click="restoreProfile">
+            {{ t('home.retry') }} <span aria-hidden="true">↻</span>
+          </button>
+          <RouterLink v-else :to="primaryTarget" class="home-primary">
+            {{ primaryLabel }} <span aria-hidden="true">→</span>
           </RouterLink>
+          <p v-if="!loading && !restoreFailed && summary?.title" class="home-current-task">
+            {{ summary.title }} · {{ summary.exerciseCode }} · v{{ summary.exerciseVersion }}
+          </p>
         </div>
       </div>
       <aside class="home-instrument" :aria-label="t('home.focus')">
@@ -87,6 +124,8 @@ onMounted(restoreProfile);
 h1 { max-width: 590px; font-size: clamp(36px, 4.5vw, 54px); line-height: 1.12; letter-spacing: -1.6px; margin: 0 0 20px; text-wrap: balance; }
 .home-description { max-width: 540px; color: #5c6b7e; line-height: 1.75; margin: 0; }
 .home-start { margin-top: 28px; min-height: 48px; }
+.home-current-task { margin: 14px 0 0; color: #395f58; font-size: 14px; overflow-wrap: anywhere; }
+button.home-primary { border: 0; font: inherit; cursor: pointer; }
 .home-loading { color: #5c6b7e; margin: 0; padding: 13px 0; }
 .home-primary { display: inline-flex; align-items: center; justify-content: space-between; gap: 24px; border-radius: 9px; padding: 14px 22px; background: #28776d; color: white; text-decoration: none; font-weight: 600; }
 .home-primary:hover { background: #205f57; }

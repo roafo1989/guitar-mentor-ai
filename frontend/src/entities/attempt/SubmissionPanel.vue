@@ -267,8 +267,8 @@ onBeforeUnmount(() => {
       <p v-if="error" role="alert" class="error">{{ error }}</p>
       <LearningResultsPanel :learner-id="learnerId" :session-id="sessionId" :task-id="taskId"
         :attempts="attempts" :draft-busy="draftBusy" @decision-busy="decisionBusy = $event" @terminal-state="learningTerminal = $event" />
-      <div class="homework-history">
-        <h4>{{ t('attempt.history') }}</h4>
+      <details class="homework-history">
+        <summary>{{ t('attempt.historyDetails') }}</summary>
         <p v-if="!attempts.length" class="hint">{{ t('attempt.noAttempts') }}</p>
         <article v-for="item in attempts" :key="item.id" class="attempt-card">
           <div class="attempt-card-title">
@@ -284,7 +284,7 @@ onBeforeUnmount(() => {
           <p v-if="item.mediaState === 'DELETED'" class="hint">{{ t('attempt.mediaDeleted') }}</p>
           <p v-else-if="item.mediaState === 'DELETE_PENDING'" class="hint">{{ t('attempt.mediaPending') }}</p>
         </article>
-      </div>
+      </details>
     </template>
   </section>
 </template>
