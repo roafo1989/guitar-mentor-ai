@@ -4,14 +4,17 @@ import ScoreReader from '../src/shared/score/ScoreReader.vue';
 import ru from '../src/i18n/ru.json';
 
 const encoder=new TextEncoder();
-function onePagePdf():Uint8Array {
-  const commands='BT /F1 24 Tf 30 300 Td (Test Score) Tj ET';
+function twoPagePdf():Uint8Array {
+  const commands='BT /F1 24 Tf 30 300 Td (Test Score, Page 1) Tj ET';
+  const second='BT /F1 24 Tf 30 300 Td (Test Score, Page 2) Tj ET';
   const parts=[
     '<< /Type /Catalog /Pages 2 0 R >>',
-    '<< /Type /Pages /Kids [3 0 R] /Count 1 >>',
+    '<< /Type /Pages /Kids [3 0 R 6 0 R] /Count 2 >>',
     '<< /Type /Page /Parent 2 0 R /MediaBox [0 0 320 420] /Resources << /Font << /F1 5 0 R >> >> /Contents 4 0 R >>',
     '<< /Length '+commands.length+' >>\nstream\n'+commands+'\nendstream',
     '<< /Type /Font /Subtype /Type1 /BaseFont /Helvetica >>',
+    '<< /Type /Page /Parent 2 0 R /MediaBox [0 0 320 420] /Resources << /Font << /F1 5 0 R >> >> /Contents 7 0 R >>',
+    '<< /Length '+second.length+' >>\nstream\n'+second+'\nendstream',
   ];
   let text='%PDF-1.4\n';
   const offsets=[0];
@@ -25,7 +28,7 @@ function onePagePdf():Uint8Array {
   text+='trailer\n<< /Root 1 0 R /Size '+(parts.length+1)+' >>\nstartxref\n'+xref+'\n%%EOF\n';
   return encoder.encode(text);
 }
-const pdf=onePagePdf();
+const pdf=twoPagePdf();
 const native=window.fetch.bind(window);
 let requests=0;
 window.fetch=((input:RequestInfo|URL,init?:RequestInit)=>{
