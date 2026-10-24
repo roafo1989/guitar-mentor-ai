@@ -64,8 +64,9 @@ public class LocalCredentialService {
             throw new SecurityException("INVITATION_INVALID");
         var inv = jdbc.sql("""
             SELECT id,email_normalized FROM invitations
-            WHERE token_hash=:hash AND status='PENDING' AND expires_at>now() FOR UPDATE
+            WHERE token_hash=:hash AND issuer=:issuer AND status='PENDING' AND expires_at>now() FOR UPDATE
             """).param("hash",InvitationService.digest(invitationToken))
+            .param("issuer",InvitationService.ADMISSION_ISSUER)
             .query((rs,i)->new Invitation(rs.getObject("id",UUID.class),rs.getString("email_normalized"))).optional();
         if (inv.isEmpty() || !inv.get().email.equals(email)) throw new SecurityException("INVITATION_INVALID");
         long exists = jdbc.sql("""
