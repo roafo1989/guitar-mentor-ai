@@ -99,7 +99,7 @@ class LocalCredentialPostgresTest {
     }
 
     @Test
-    void explicitGoogleLinkRejectsAlreadyClaimedIdentity() {
+    void explicitGoogleLinkRejectsAlreadyClaimedIdentity() throws Exception {
         String email=UUID.randomUUID()+"@example.test";
         String login="first"+UUID.randomUUID().toString().substring(0,8);
         local.register(invitations.issue(email,null,false),email,login,"first-password-999");
