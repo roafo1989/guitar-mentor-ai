@@ -294,13 +294,15 @@ onBeforeUnmount(() => { ++generation; ++detailSequence; ++decisionSequence; pend
       <p role="status">{{ t(safeTaskStateKey(state.taskState)) }}</p>
       <p v-if="state.latestAttemptId" class="hint">{{ t('learning.latestAttempt') }}: {{ state.latestAttemptId === selected ? t('learning.selectedIsLatest') : t('learning.differentSelected') }}</p>
       <p v-if="terminal" class="hint">{{ t('learning.nextUnavailable') }}</p>
-      <label for="learning-attempt">{{ t('learning.chooseAttempt') }}</label>
-      <select id="learning-attempt" :value="selected" :disabled="loading || sending" @change="chooseAttempt(($event.target as HTMLSelectElement).value)">
-        <option v-if="selected && !selectorAttempts.some(attempt => attempt.id === selected)" :value="selected">{{ t('learning.attemptUnavailable') }}</option>
-        <option v-for="attempt in selectorAttempts" :key="attempt.id" :value="attempt.id">
-          {{ t('attempt.attempt') }} №{{ attempt.number }}
-        </option>
-      </select>
+      <div class="learning-attempt-picker">
+        <label for="learning-attempt">{{ t('learning.chooseAttempt') }}</label>
+        <select id="learning-attempt" :value="selected" :disabled="loading || sending" @change="chooseAttempt(($event.target as HTMLSelectElement).value)">
+          <option v-if="selected && !selectorAttempts.some(attempt => attempt.id === selected)" :value="selected">{{ t('learning.attemptUnavailable') }}</option>
+          <option v-for="attempt in selectorAttempts" :key="attempt.id" :value="attempt.id">
+            {{ t('attempt.attempt') }} №{{ attempt.number }}
+          </option>
+        </select>
+      </div>
       <p v-if="detailError" class="error" role="alert">{{ detailError }} <button type="button" @click="loadDetail(generation)">{{ t("learning.retry") }}</button></p>
       <p v-if="!selected && !currentAttempt" class="hint">{{ t('learning.noAttempts') }}</p>
       <p v-else-if="detailBusy && !detailFresh" role="status">{{ t('learning.loading') }}</p>
@@ -386,6 +388,11 @@ onBeforeUnmount(() => { ++generation; ++detailSequence; ++decisionSequence; pend
 </template>
 
 <style scoped>
+.learning-attempt-picker {display:flex;flex-direction:column;align-items:stretch;gap:8px;margin:16px 0;min-width:0}
+.learning-attempt-picker label {display:block;margin:0;font-size:13px;font-weight:600;color:#425b52}
+.learning-attempt-picker select {display:block;box-sizing:border-box;width:100%;min-width:0;min-height:44px;padding:10px 36px 10px 12px;border:1px solid #dce5e0;border-radius:10px;background-color:#fff;color:inherit;font:inherit}
+.learning-attempt-picker select:focus-visible {outline:3px solid #28776d;outline-offset:2px}
+.learning-attempt-picker select:disabled {opacity:.65;cursor:not-allowed}
 .studio-learning-heading {display:flex;align-items:center;justify-content:space-between;gap:8px;margin:0 0 12px}
 .studio-learning-heading h3 {font-size:17px;line-height:1.35;margin:0}
 .studio-learning-heading .studio-refresh-button {min-height:36px;display:inline-flex;align-items:center;gap:5px;padding:6px 9px;border:1px solid #dbe5df;background:#f7faf8;border-radius:8px;color:#426b58;white-space:nowrap;font-size:12px;min-width:0}
