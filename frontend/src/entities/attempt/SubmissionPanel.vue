@@ -2,7 +2,8 @@
 import { computed, onBeforeUnmount, onMounted, ref, watch } from 'vue';
 import MicrophoneRecorder from './MicrophoneRecorder.vue';
 import LearningResultsPanel from './LearningResultsPanel.vue';
-import { openExerciseMetronome } from '../metronome/metronome-ui';
+import { openExerciseMetronome, metronomeUi } from '../metronome/metronome-ui';
+import { metronome } from '../../shared/audio/metronome';
 import type { Exercise } from '../../shared/model/diagnostic.model';
 import { useI18n } from 'vue-i18n';
 import { AttemptHttpError, attemptService } from './attempt.service';
@@ -18,14 +19,49 @@ const emit = defineEmits<{ 'draft-state': [state: { busy: boolean; dirty: boolea
 const { t } = useI18n();
 const lightMinimal = import.meta.env?.VITE_GUITAR_MENTOR_LIGHT_MINIMAL === 'true';
 const metronomeError = ref(false);
-function launchExerciseMetronome(event: MouseEvent): void {
+const metronomeBpm = ref(props.exercise?.bpm ?? 100);
+const metronomeStatus = ref(metronome.getState().status);
+const metronomeRunning = computed(() => metronomeStatus.value === 'running');
+const metronomeBusy = computed(() => metronomeStatus.value === 'starting');
+const metronomeSource = computed(() => props.exercise ? props.exercise.code + '@' + props.exercise.version : '');
+const exerciseMeter = computed(() => props.exercise?.meter ?? '4/4');
+let unsubscribeMetronome: (() => void) | undefined;
+onMounted(() => {
+  unsubscribeMetronome = metronome.subscribe(state => { metronomeStatus.value = state.status; });
+});
+onBeforeUnmount(() => {
+  unsubscribeMetronome?.();
+  if (metronomeUi.sourceExercise === metronomeSource.value) {
+    metronome.stop();
+    metronomeUi.sourceExercise = null;
+  }
+});
+watch(() => [props.exercise?.code, props.exercise?.version, props.exercise?.bpm], () => {
+  metronomeBpm.value = props.exercise?.bpm ?? 100;
+  metronomeError.value = false;
+});
+function setMetronomeBpm(value: number): void {
+  if (!Number.isFinite(value)) return;
+  metronomeBpm.value = Math.max(20, Math.min(240, Math.round(value)));
+  if (metronomeUi.sourceExercise === metronomeSource.value &&
+    (metronomeStatus.value === 'running' || metronomeStatus.value === 'starting')) {
+    metronome.setBpm(metronomeBpm.value);
+  }
+}
+async function toggleExerciseMetronome(event: MouseEvent): Promise<void> {
   const exercise = props.exercise;
-  if (!exercise) return;
-  metronomeError.value = !openExerciseMetronome(
-    event.currentTarget as HTMLElement,
-    exercise.code + '@' + exercise.version,
-    exercise.bpm, exercise.meter, exercise.tempoUnit,
-  );
+  if (!exercise || metronomeBusy.value) return;
+  if (metronomeRunning.value && metronomeUi.sourceExercise === metronomeSource.value) {
+    metronome.stop();
+    return;
+  }
+  metronomeError.value = false;
+  if (!openExerciseMetronome(event.currentTarget as HTMLElement,
+    metronomeSource.value, metronomeBpm.value, exercise.meter, exercise.tempoUnit, false)) {
+    metronomeError.value = true;
+    return;
+  }
+  metronomeError.value = !(await metronome.start());
 }
 const inputMode = ref<'record' | 'file'>('record');
 const sourceKind = ref<'record' | 'file' | null>(null);
@@ -539,13 +575,23 @@ onBeforeUnmount(() => {
         <h3>{{ t('metronome.title') }}</h3>
       </div>
       <div class="studio-metronome-controls">
-        <span class="studio-metronome-setting"><small>BPM</small><strong>{{ exercise.bpm }}</strong></span>
-        <span class="studio-metronome-setting"><small>{{ t('diagnostic.metadata.tempo') }}</small><strong>{{ exercise.meter }}</strong></span>
-        <button type="button" class="studio-metronome-launch" @click="launchExerciseMetronome"
-          :aria-label="t('metronome.openExercise')">
-          <svg width="19" height="19" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true">
-            <path d="M8 5.5a1 1 0 0 1 1.53-.85l10 6.5a1 1 0 0 1 0 1.7l-10 6.5A1 1 0 0 1 8 18.5z"/>
-          </svg>{{ t('metronome.openExercise') }}
+        <div class="studio-metronome-setting studio-bpm-input">
+          <label for="exercise-metronome-bpm">BPM</label>
+          <button type="button" :disabled="metronomeBusy" :aria-label="t('metronome.decreaseBpm')"
+            @click="setMetronomeBpm(metronomeBpm - 1)">−</button>
+          <input id="exercise-metronome-bpm" type="number" min="20" max="240" step="1"
+            :value="metronomeBpm" :disabled="metronomeBusy"
+            @change="setMetronomeBpm(Number(($event.target as HTMLInputElement).value))" />
+          <button type="button" :disabled="metronomeBusy" :aria-label="t('metronome.increaseBpm')"
+            @click="setMetronomeBpm(metronomeBpm + 1)">+</button>
+        </div>
+        <span class="studio-metronome-setting"><small>{{ t('diagnostic.metadata.tempo') }}</small><strong>{{ exerciseMeter }}</strong></span>
+        <button type="button" class="studio-metronome-launch" :disabled="metronomeBusy"
+          @click="toggleExerciseMetronome" :aria-pressed="metronomeRunning && metronomeUi.sourceExercise === metronomeSource"
+          :aria-label="metronomeRunning && metronomeUi.sourceExercise === metronomeSource ? t('metronome.stop') : t('metronome.start')">
+          <svg v-if="metronomeRunning && metronomeUi.sourceExercise === metronomeSource" width="19" height="19" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><rect x="5" y="5" width="14" height="14" rx="2"/></svg>
+          <svg v-else width="19" height="19" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M8 5.5a1 1 0 0 1 1.53-.85l10 6.5a1 1 0 0 1 0 1.7l-10 6.5A1 1 0 0 1 8 18.5z"/></svg>
+          {{ metronomeRunning && metronomeUi.sourceExercise === metronomeSource ? t('metronome.stop') : t('metronome.start') }}
         </button>
       </div>
       <p v-if="metronomeError" role="alert" class="error">{{ t('metronome.exerciseMeterUnavailable') }}</p>
@@ -666,6 +712,11 @@ onBeforeUnmount(() => {
 .studio-metronome-heading h3 {margin:0;font-size:16px;color:#172333}
 .studio-metronome-controls {display:flex;align-items:center;gap:10px;flex-wrap:wrap}
 .studio-metronome-setting {display:flex;align-items:center;gap:8px;padding:9px 12px;background:#f6f9f7;border:1px solid #e0e8e3;border-radius:9px;min-height:42px}
+.studio-bpm-input {gap:5px;padding:5px 7px}
+.studio-bpm-input label {font-size:12px;color:#75847c;margin-right:4px}
+.studio-bpm-input input {width:47px;border:0;background:transparent;text-align:center;font:inherit;font-size:15px;font-weight:700;color:#172333;appearance:textfield}
+.studio-bpm-input input::-webkit-inner-spin-button,.studio-bpm-input input::-webkit-outer-spin-button {appearance:none;margin:0}
+.studio-bpm-input button {height:32px;min-width:30px;border:1px solid #e1e8e4;border-radius:8px;background:white;cursor:pointer;font-size:17px}
 .studio-metronome-setting small {font-size:12px;color:#75847c}
 .studio-metronome-setting strong {font-size:15px;font-variant-numeric:tabular-nums}
 .studio-metronome-launch {display:inline-flex;align-items:center;justify-content:center;gap:8px;margin-left:auto;min-height:44px;padding:9px 14px;border-radius:10px;border:0;color:#fff;background:#28776d;font-weight:600;cursor:pointer}
