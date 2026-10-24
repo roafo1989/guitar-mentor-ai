@@ -8,6 +8,9 @@ import java.util.UUID;
 import org.junit.jupiter.api.Test;
 import org.springframework.http.HttpStatus;
 import org.springframework.util.LinkedMultiValueMap;
+import org.springframework.test.web.servlet.setup.MockMvcBuilders;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
+import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.*;
 import static org.junit.jupiter.api.Assertions.*;
 import static org.mockito.Mockito.*;
 
@@ -53,6 +56,30 @@ class SubmissionAttemptPagingControllerTest {
         var failure = controller.page(learner,session,task,query);
         assertEquals(HttpStatus.INTERNAL_SERVER_ERROR, failure.getStatusCode());
         assertEquals(java.util.Map.of("code","ATTEMPT_READ_FAILED"),failure.getBody());
+    }
+
+    @Test
+    void mvcTransportNeverLeaksReadFailuresOnPageOrDetail() throws Exception {
+        // Exercise actual Spring MVC handler mapping, serialization, and response headers,
+        // rather than invoking controller methods directly.
+        var mvc = MockMvcBuilders.standaloneSetup(controller).build();
+        String base = "/api/v1/learners/" + learner + "/diagnostic-sessions/" + session
+                + "/tasks/" + task + "/attempts";
+        when(service.page(learner,session,task,20,null))
+                .thenThrow(new IllegalStateException("secret jdbc credentials: /mnt/media/key.wav"));
+        var attemptId = UUID.randomUUID();
+        when(service.detail(learner,session,task,attemptId))
+                .thenThrow(new IllegalStateException("private media path: /var/private/audio"));
+
+        for (String uri : List.of(base + "/page", base + "/" + attemptId)) {
+            var response = mvc.perform(get(uri))
+                    .andExpect(status().isInternalServerError())
+                    .andExpect(header().string("Cache-Control", org.hamcrest.Matchers.containsString("no-store")))
+                    .andExpect(content().json("{\\"code\\":\\"ATTEMPT_READ_FAILED\\"}"))
+                    .andReturn().getResponse();
+            assertEquals("{\\"code\\":\\"ATTEMPT_READ_FAILED\\"}",response.getContentAsString());
+            assertFalse(response.getContentAsString().contains("media"));
+        }
     }
 
     @Test
