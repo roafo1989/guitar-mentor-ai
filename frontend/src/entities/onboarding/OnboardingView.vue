@@ -28,7 +28,9 @@ const failedRead = ref(false);
 const edited = ref(false);
 const loadedFor = ref<string | null>(null);
 const readResolved = ref(false);
-const formContext = ref<string | null>(null);
+const pendingBackground = ref<LearningBackground | null>(null);
+let saveGeneration = 0;
+const needsReadResolution = computed(() => pendingBackground.value !== null);
 const maySave = computed(() => !!learnerStore.learner && !saving.value && !loading.value && !failedRead.value && readResolved.value && loadedFor.value === learnerStore.learner.id);
 function resetForm(): void {
   step.value = 1;
@@ -43,6 +45,9 @@ function resetForm(): void {
   edited.value = false;
   readResolved.value = false;
   loadedFor.value = null;
+  pendingBackground.value = null;
+  saving.value = false;
+  ++saveGeneration;
   failedRead.value = false;
   error.value = null;
   localValidation.value = false;
@@ -56,7 +61,6 @@ watch(() => learnerStore.learner?.id ?? null, (next, previous) => {
   if (next === previous) return;
   ++loadGeneration;
   resetForm();
-  formContext.value = next;
   if (next && active) void loadBackground();
 });
 const saved = ref(false);
@@ -96,9 +100,17 @@ async function loadBackground(): Promise<void> {
     if (active && seq === loadGeneration && learnerStore.learner?.id === id && learnerAtStart === id) {
       // A GET never overwrites a locally edited form. Even a successful 204
       // resolves the load gate, so a new background can be saved explicitly.
-      if (background && !edited.value) apply(background);
       loadedFor.value = id;
-      readResolved.value = true;
+      if (background && edited.value) {
+        // Preserve the draft, but do not allow a partial default-filled PUT.
+        // The learner must explicitly load the existing server version.
+        pendingBackground.value = background;
+        readResolved.value = false;
+      } else {
+        if (background) apply(background);
+        pendingBackground.value = null;
+        readResolved.value = true;
+      }
     }
   } catch (cause) {
     if (active && seq === loadGeneration && !(cause instanceof Error && cause.name === 'AbortError'))
@@ -107,7 +119,15 @@ async function loadBackground(): Promise<void> {
     if (active && seq === loadGeneration) loading.value = false;
   }
 }
-onMounted(() => { formContext.value = learnerStore.learner?.id ?? null; void loadBackground(); });
+function acceptServerBackground(): void {
+  const server = pendingBackground.value;
+  if (!server || loadedFor.value !== learnerStore.learner?.id) return;
+  apply(server);
+  edited.value = false;
+  pendingBackground.value = null;
+  readResolved.value = true;
+}
+onMounted(() => { void loadBackground(); });
 
 function parseKnownPieces(): KnownPiece[] {
   return knownPiecesText.value.split(/\r?\n/).map(line => line.trim())
@@ -132,6 +152,8 @@ async function save(): Promise<void> {
     return;
   }
   saving.value = true;
+  const learnerId = learnerStore.learner.id;
+  const currentSave = ++saveGeneration;
   try {
     const background: LearningBackground = {
       experienceLevel: experienceLevel.value,
@@ -144,14 +166,17 @@ async function save(): Promise<void> {
       notes: notes.value,
     };
     const result = await onboardingService.save(
-      learnerStore.learner.id, 'ACOUSTIC_GUITAR', background,
+      learnerId, 'ACOUSTIC_GUITAR', background,
     );
+    if (!active || currentSave !== saveGeneration || learnerStore.learner?.id !== learnerId) return;
     if (result) apply(result);
+    edited.value = false;
     saved.value = true;
   } catch (cause) {
-    error.value = asApiFailure(cause);
+    if (active && currentSave === saveGeneration && learnerStore.learner?.id === learnerId)
+      error.value = asApiFailure(cause);
   } finally {
-    saving.value = false;
+    if (currentSave === saveGeneration) saving.value = false;
   }
 }
 </script>
@@ -253,6 +278,10 @@ async function save(): Promise<void> {
         </div>
       </template>
       <p v-if="error || localValidation" class="error" role="alert">{{ errorMessage }}</p>
+      <div v-if="needsReadResolution" class="notice" role="alert">
+        <p>{{ t("onboarding.draftConflict") }}</p>
+        <button type="button" class="action-button secondary-button" @click="acceptServerBackground">{{ t("onboarding.loadServerBackground") }}</button>
+      </div>
       <button v-if="failedRead && error && !saving" type="button" class="text-button" @click="loadBackground">{{ t('home.retry') }}</button>
       <p v-if="saved" class="success" role="status">{{ t('onboarding.saved') }}</p>
       <div class="form-actions"><RouterLink to="/profile">{{ t('onboarding.profileBack') }}</RouterLink><RouterLink to="/diagnostics">{{ t('diagnostic.nextFromOnboarding') }} →</RouterLink></div>
