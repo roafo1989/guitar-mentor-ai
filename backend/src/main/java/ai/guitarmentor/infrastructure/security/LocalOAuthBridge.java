@@ -24,7 +24,8 @@ public class LocalOAuthBridge {
     private final Map<String, Pending> pending = new ConcurrentHashMap<>();
     private final Map<String, Completed> completed = new ConcurrentHashMap<>();
     private record Pending(String originalSessionId, boolean linking, long expiresAt) {}
-    private record Completed(String originalSessionId, OidcUser principal, long expiresAt) {}
+    private record Completed(String originalSessionId, OidcUser principal, boolean linking, long expiresAt) {}
+    public record Handoff(OidcUser principal, boolean linking) {}
 
     private String token() {
         byte[] bytes = new byte[32];
@@ -74,13 +75,13 @@ public class LocalOAuthBridge {
             throw new SecurityException("OAUTH_START_EXPIRED");
         prune();
         String ticket = token();
-        completed.put(ticket, new Completed(start.originalSessionId, oidc,
+        completed.put(ticket, new Completed(start.originalSessionId, oidc, start.linking,
                 System.currentTimeMillis() + TICKET_MS));
         return ticket;
     }
 
     /** Burns even a mismatched ticket so a stolen ticket cannot be retried. */
-    public OidcUser consume(String ticket, String originalSessionId) {
+    public Handoff consume(String ticket, String originalSessionId) {
         prune();
         if (ticket == null || !ticket.matches("[a-f0-9]{64}"))
             throw new SecurityException("INVALID_BRIDGE_TICKET");
@@ -88,6 +89,6 @@ public class LocalOAuthBridge {
         if (finished == null || finished.expiresAt < System.currentTimeMillis()
                 || !finished.originalSessionId.equals(originalSessionId))
             throw new SecurityException("INVALID_BRIDGE_TICKET");
-        return finished.principal;
+        return new Handoff(finished.principal, finished.linking);
     }
 }
