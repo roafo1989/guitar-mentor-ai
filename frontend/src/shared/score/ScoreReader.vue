@@ -17,6 +17,7 @@ const state = ref<ViewerState>('CLOSED');
 const reasonCode = ref('');
 const page = ref(1);
 const pageCount = ref(0);
+const renderedPage = ref<number | null>(null);
 const zoom = ref(100);
 const fitWidth = ref(true);
 const fullscreen = ref(false);
@@ -58,6 +59,7 @@ function reset() {
   leaveFullscreen();
   page.value = 1;
   pageCount.value = 0;
+  renderedPage.value = null;
   zoom.value = 100;
   fitWidth.value = true;
   nonce.value = crypto.randomUUID().replace(/-/g,'');
@@ -66,7 +68,11 @@ function close() { emit('update:open', false); }
 function leaveFullscreen() {
   if (!fullscreen.value) return;
   fullscreen.value = false;
+  if (document.fullscreenElement === container.value) void document.exitFullscreen().catch(() => {});
   void nextTick(() => focusTrigger.value?.focus());
+}
+function onFullscreenChange() {
+  if (fullscreen.value && document.fullscreenElement !== container.value) leaveFullscreen();
 }
 function onKeydown(event: KeyboardEvent) {
   if (event.key === 'Escape' && fullscreen.value) {
@@ -86,6 +92,10 @@ function onKeydown(event: KeyboardEvent) {
 function focusMode() {
   if (!props.open) emit('update:open', true);
   fullscreen.value = true;
+  // Must be called directly from the user click; CSS fixed is the safe fallback.
+  try {
+    void container.value?.requestFullscreen?.().catch(() => {});
+  } catch { /* Browser disallowed native fullscreen; CSS fallback remains active. */ }
   void nextTick(() => container.value?.querySelector<HTMLButtonElement>('button.score-close')?.focus());
 }
 function sendRender() {
@@ -118,7 +128,7 @@ function sendPending() {
       }
       pageCount.value = message.pages; transition('READY'); sendRender();
     }
-    if (message.type === 'rendered') { /* Canvas belongs only to sandbox. */ }
+    if (message.type === 'rendered' && Number.isInteger(message.page)) renderedPage.value = message.page;
     if (message.type === 'failure') transition('ERROR', ['limit','password','corrupt','render'].includes(message.reason) ? message.reason : 'render');
   };
   frame.value.contentWindow.postMessage(
@@ -255,17 +265,19 @@ watch(container, el => {
   }
 });
 window.addEventListener('message',receiveWindowMessage);
+document.addEventListener('fullscreenchange',onFullscreenChange);
 onBeforeUnmount(()=>{
   stopWork();resizeObserver?.disconnect();document.removeEventListener('keydown',onKeydown);
   window.removeEventListener('message',receiveWindowMessage);
+  document.removeEventListener('fullscreenchange',onFullscreenChange);
 });
 </script>
 
 <template>
-  <section ref="container" class="score-reader" :class="{ 'score-fullscreen': fullscreen }"
+  <section ref="container" class="score-reader" :data-rendered-page="renderedPage ?? undefined" :class="{ 'score-fullscreen': fullscreen }"
     :aria-label="t('score.heading')">
     <div class="score-toolbar">
-      <button ref="focusButton" type="button" class="score-toggle" :aria-expanded="open"
+      <button ref="focusButton" type="button" class="score-toggle score-close" :aria-expanded="open"
         @click="open ? close() : emit('update:open', true)">{{ open ? t('score.close') : t('score.open') }}</button>
       <template v-if="open">
         <div class="score-pagination">
