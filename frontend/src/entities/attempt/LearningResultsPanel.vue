@@ -222,9 +222,11 @@ watch(() => [props.learnerId, props.sessionId, props.taskId], () => {
   decisionCursor.value = null; decisionHistoryError.value = ''; stateFresh.value = false;
   assessmentFresh.value = false; reason.value = ''; void refresh();
 });
-watch(() => props.attempts.map(a => a.id + ':' + a.status + ':' + a.assessmentAvailable).join(','), () => {
-  if (!loading.value && !sending.value && !pending.value && currentAttempt.value &&
-    (currentAttempt.value.status === 'UPLOADED' || currentAttempt.value.status === 'PROCESSING')) void refresh();
+watch(() => {
+  const item = currentAttempt.value;
+  return item ? item.id + ':' + item.status + ':' + item.assessmentAvailable : '';
+}, (next, previous) => {
+  if (next && previous && next !== previous && !loading.value && !sending.value && !pending.value) void refresh();
 });
 
 onMounted(() => { void refresh(); });
