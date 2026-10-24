@@ -34,6 +34,7 @@ public class SecurityConfiguration {
 
     @Bean
     SecurityFilterChain securityFilterChain(HttpSecurity http, ActorRepository actors, GoogleLinkService googleLinks,
+            InvitationService invitations,
             org.springframework.beans.factory.ObjectProvider<org.springframework.security.oauth2.client.registration.ClientRegistrationRepository> oidcClients,
             @Value("${guitar-mentor.security.enabled:true}") boolean enabled,
             @Value("${guitar-mentor.security.absolute-session-minutes:720}") long absoluteMinutes,
@@ -130,10 +131,16 @@ public class SecurityConfiguration {
                     }
                     // A fresh, server-side OIDC authentication is required to add a password.
                     req.getSession(true).setAttribute("guitarMentorAuthenticatedAt", System.currentTimeMillis());
-                    // An OIDC-authenticated but unadmitted user can only use invitation activation.
+                    // Self-service Google admission. Never merge identities by matching email.
                     if (actors.findActive(oidc.getIssuer().toString(), oidc.getSubject()).isEmpty()) {
-                        res.sendRedirect("/?auth=invitation");
-                        return;
+                        try {
+                            invitations.admitPublicGoogle(oidc);
+                        } catch (RuntimeException ex) {
+                            req.getSession().invalidate();
+                            org.springframework.security.core.context.SecurityContextHolder.clearContext();
+                            res.sendRedirect("/?auth=denied");
+                            return;
+                        }
                     }
                     var current = actors.findActive(oidc.getIssuer().toString(), oidc.getSubject()).orElseThrow();
                     req.getSession(true).setAttribute("guitarMentorAccessVersion",
