@@ -20,6 +20,19 @@ class ApiRouteOwnershipInventoryTest {
         "/api/v1/me",
         "/api/v1/csrf",
         "/api/v1/invitations/activate",
+        // Anonymous, CSRF-protected and throttled; admission requires invitation + delivered proof.
+        "/api/v1/local-auth/register",
+        "/api/v1/local-auth/verify",
+        "/api/v1/local-auth/login",
+        "/api/v1/local-auth/request-reset",
+        "/api/v1/local-auth/reset",
+        // Authenticated CurrentActor + current password, never client-selected account.
+        "/api/v1/local-auth/change",
+        "/api/v1/local-auth/methods",
+        // Each link route requires a current actor, fresh method proof and CSRF.
+        "/api/v1/local-auth/link/google/start",
+        "/api/v1/local-auth/link/password/start",
+        "/api/v1/local-auth/link/password/verify",
         "/api/v1/system/ping"
     );
     @Autowired

@@ -39,8 +39,17 @@ public class ActorFilter extends OncePerRequestFilter {
             deny(response, 401, "SESSION_EXPIRED");
             return;
         }
+        if (path.equals("/api/v1/csrf") && request.getMethod().equals("GET")) {
+            chain.doFilter(request, response); return;
+        }
+        if (java.util.Set.of(
+                "/api/v1/local-auth/register", "/api/v1/local-auth/verify",
+                "/api/v1/local-auth/login", "/api/v1/local-auth/request-reset",
+                "/api/v1/local-auth/reset").contains(path)) {
+            chain.doFilter(request, response); return;
+        }
         Authentication auth = SecurityContextHolder.getContext().getAuthentication();
-        if (auth == null || !(auth.getPrincipal() instanceof OidcUser oidc)) {
+        if (auth == null || !auth.isAuthenticated()) {
             deny(response, 401, "UNAUTHENTICATED");
             return;
         }
@@ -51,10 +60,26 @@ public class ActorFilter extends OncePerRequestFilter {
             chain.doFilter(request, response);
             return;
         }
-        var actor = repository.findActive(oidc.getIssuer().toString(), oidc.getSubject());
+        var actor = auth.getPrincipal() instanceof OidcUser oidc
+            ? repository.findActive(oidc.getIssuer().toString(), oidc.getSubject())
+            : auth.getPrincipal() instanceof LocalPrincipal local
+                ? repository.findActiveLocal(local.accountId(),local.accessVersion())
+                : java.util.Optional.<CurrentActor>empty();
         if (actor.isEmpty()) {
             deny(response, 403, "ACCOUNT_NOT_ADMITTED");
             return;
+        }
+        // Existing OIDC sessions are version-pinned at successful login/activation.
+        // Password change/reset or operator revocation bumps access_version and rejects old sessions.
+        if (auth.getPrincipal() instanceof OidcUser) {
+            Object pinned = session == null ? null : session.getAttribute("guitarMentorAccessVersion");
+            var current = repository.localVersion(actor.get().accountId());
+            if (session != null && (!(pinned instanceof Long) || current.isEmpty() || !pinned.equals(current.get()))) {
+                if (session != null) session.invalidate();
+                SecurityContextHolder.clearContext();
+                deny(response, 401, "SESSION_EXPIRED");
+                return;
+            }
         }
         request.setAttribute("guitarMentorActor", actor.get());
         if (path.equals("/api/v1/learners") || path.equals("/api/v1/learners/")) {

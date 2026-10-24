@@ -4,6 +4,7 @@ import { apiFailureKey } from '../../shared/api-failure';
 import { useI18n } from 'vue-i18n';
 import { useLearnerStore } from '../../stores/learner.store';
 import { secureUi } from '../../core/auth/auth';
+import PasswordSettings from '../../core/auth/PasswordSettings.vue';
 import type { MusicPreference, PreferenceRating } from '../../shared/model/learner.model';
 
 const { t } = useI18n();
@@ -145,5 +146,6 @@ async function save(): Promise<void> {
         </button>
       </div>
     </form>
+    <PasswordSettings v-if="secureUi" />
   </section>
 </template>

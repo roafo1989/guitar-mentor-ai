@@ -11,13 +11,17 @@ import org.springframework.web.bind.annotation.RestController;
 @RestController
 public class InvitationController {
     private final InvitationService invitations;
-    public InvitationController(InvitationService invitations) { this.invitations=invitations; }
+    private final ActorRepository actors;
+    public InvitationController(InvitationService invitations, ActorRepository actors) { this.invitations=invitations; this.actors=actors; }
 
     @PostMapping("/api/v1/invitations/activate")
     ResponseEntity<Map<String,String>> activate(@RequestBody ActivateRequest body,
-                                                @AuthenticationPrincipal OidcUser identity) {
+                                                @AuthenticationPrincipal OidcUser identity,
+                                                jakarta.servlet.http.HttpServletRequest request) {
         try {
-            invitations.activate(body.token(), identity);
+            var account = invitations.activate(body.token(), identity);
+            request.getSession(true).setAttribute("guitarMentorAccessVersion",
+                actors.localVersion(account).orElseThrow());
             return ResponseEntity.ok(Map.of("code","INVITATION_ACCEPTED"));
         } catch (SecurityException | org.springframework.dao.DataIntegrityViolationException ex) {
             return ResponseEntity.status(403).body(Map.of("code","INVITATION_INVALID"));

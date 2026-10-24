@@ -32,8 +32,33 @@ public class SecurityConfiguration {
         };
     }
 
+    /**
+     * Explicit QA profile is only safe with a loopback backend and loopback SMTP.
+     * Fail startup if environment variables override the profile for network access.
+     */
     @Bean
-    SecurityFilterChain securityFilterChain(HttpSecurity http, ActorRepository actors,
+    org.springframework.boot.ApplicationRunner restrictLocalMailQa(
+            @Value("${guitar-mentor.local-auth.qa-mail-capture:false}") boolean qa,
+            @Value("${server.address:127.0.0.1}") String bind,
+            @Value("${spring.mail.host:}") String smtpHost,
+            @Value("${spring.mail.port:0}") int smtpPort,
+            @Value("${guitar-mentor.local-auth.public-origin:}") String origin,
+            @Value("${guitar-mentor.security.enabled:true}") boolean securityEnabled,
+            @Value("${guitar-mentor.security.local-http:false}") boolean localHttp) {
+        return args -> {
+            if (qa && (!("127.0.0.1".equals(bind) || "::1".equals(bind))
+                    || !("127.0.0.1".equals(smtpHost) || "localhost".equals(smtpHost))
+                    || smtpPort != 1025 || !"https://guitar-mentor".equals(origin)
+                    || !securityEnabled || localHttp)) {
+                throw new IllegalStateException("QA SMTP capture must run on loopback with HTTPS, authentication and local port 1025");
+            }
+        };
+    }
+
+    @Bean
+    SecurityFilterChain securityFilterChain(HttpSecurity http, ActorRepository actors, GoogleLinkService googleLinks,
+            InvitationService invitations,
+            org.springframework.beans.factory.ObjectProvider<org.springframework.security.oauth2.client.registration.ClientRegistrationRepository> oidcClients,
             @Value("${guitar-mentor.security.enabled:true}") boolean enabled,
             @Value("${guitar-mentor.security.absolute-session-minutes:720}") long absoluteMinutes,
             @Value("${server.address:127.0.0.1}") String bind,
@@ -57,25 +82,11 @@ public class SecurityConfiguration {
             .authorizeHttpRequests(auth -> auth
                 .requestMatchers("/actuator/**").denyAll()
                 .requestMatchers("/error", "/login/**", "/oauth2/**", "/").permitAll()
+                .requestMatchers("/api/v1/csrf", "/api/v1/local-auth/register", "/api/v1/local-auth/verify",
+                    "/api/v1/local-auth/login", "/api/v1/local-auth/request-reset",
+                    "/api/v1/local-auth/reset").permitAll()
                 .requestMatchers("/api/**").authenticated()
                 .anyRequest().permitAll())
-            .oauth2Login(login -> login
-                .successHandler((req, res, auth) -> {
-                    if (!(auth.getPrincipal() instanceof
-                            org.springframework.security.oauth2.core.oidc.user.OidcUser oidc)) {
-                        req.getSession().invalidate();
-                        org.springframework.security.core.context.SecurityContextHolder.clearContext();
-                        res.sendRedirect("/?auth=denied");
-                        return;
-                    }
-                    // An OIDC-authenticated but unadmitted user can only use invitation activation.
-                    if (actors.findActive(oidc.getIssuer().toString(), oidc.getSubject()).isEmpty()) {
-                        res.sendRedirect("/?auth=invitation");
-                        return;
-                    }
-                    res.sendRedirect("/");
-                })
-                .failureHandler((req, res, ex) -> res.sendRedirect("/?auth=failed")))
             .csrf(csrf -> csrf.csrfTokenRepository(csrfRepo)
                 .ignoringRequestMatchers(request -> request.getRequestURI().startsWith("/oauth2/")))
             .sessionManagement(session -> session
@@ -104,6 +115,63 @@ public class SecurityConfiguration {
                 }))
             .addFilterAfter(new ActorFilter(actors, java.time.Duration.ofMinutes(absoluteMinutes)),
                     UsernamePasswordAuthenticationFilter.class);
+        // Keep local credentials operational when Google OIDC is not configured.
+        if (oidcClients.getIfAvailable() != null) {
+            http.oauth2Login(login -> login
+                .successHandler((req, res, auth) -> {
+                    if (!(auth.getPrincipal() instanceof
+                            org.springframework.security.oauth2.core.oidc.user.OidcUser oidc)) {
+                        req.getSession().invalidate();
+                        org.springframework.security.core.context.SecurityContextHolder.clearContext();
+                        res.sendRedirect("/?auth=denied");
+                        return;
+                    }
+                    // A local user requested explicit Google linking after re-entering a password.
+                    // Do not fall back to email-based account matching on any failure.
+                    var linkingSession=req.getSession(false);
+                    if (linkingSession != null && linkingSession.getAttribute("guitarMentorLinkGoogleAccount") != null) {
+                        Object id=linkingSession.getAttribute("guitarMentorLinkGoogleAccount");
+                        Object version=linkingSession.getAttribute("guitarMentorLinkGoogleVersion");
+                        Object started=linkingSession.getAttribute("guitarMentorLinkGoogleStarted");
+                        linkingSession.removeAttribute("guitarMentorLinkGoogleAccount");
+                        linkingSession.removeAttribute("guitarMentorLinkGoogleVersion");
+                        linkingSession.removeAttribute("guitarMentorLinkGoogleStarted");
+                        try {
+                            if (!(id instanceof java.util.UUID account) || !(version instanceof Long pinned)
+                                || !(started instanceof Long timestamp)
+                                || System.currentTimeMillis()-timestamp>300000L)
+                                throw new SecurityException("GOOGLE_LINK_REJECTED");
+                            long current=googleLinks.attachVerifiedGoogle(account,pinned,oidc);
+                            linkingSession.setAttribute("guitarMentorAccessVersion",current);
+                            linkingSession.setAttribute("guitarMentorAuthenticatedAt",System.currentTimeMillis());
+                            res.sendRedirect("/profile?linked=google");
+                        } catch (RuntimeException ex) {
+                            linkingSession.invalidate();
+                            org.springframework.security.core.context.SecurityContextHolder.clearContext();
+                            res.sendRedirect("/?auth=link_failed");
+                        }
+                        return;
+                    }
+                    // A fresh, server-side OIDC authentication is required to add a password.
+                    req.getSession(true).setAttribute("guitarMentorAuthenticatedAt", System.currentTimeMillis());
+                    // Self-service Google admission. Never merge identities by matching email.
+                    if (actors.findActive(oidc.getIssuer().toString(), oidc.getSubject()).isEmpty()) {
+                        try {
+                            invitations.admitPublicGoogle(oidc);
+                        } catch (RuntimeException ex) {
+                            req.getSession().invalidate();
+                            org.springframework.security.core.context.SecurityContextHolder.clearContext();
+                            res.sendRedirect("/?auth=denied");
+                            return;
+                        }
+                    }
+                    var current = actors.findActive(oidc.getIssuer().toString(), oidc.getSubject()).orElseThrow();
+                    req.getSession(true).setAttribute("guitarMentorAccessVersion",
+                        actors.localVersion(current.accountId()).orElseThrow());
+                    res.sendRedirect("/");
+                })
+                .failureHandler((req, res, ex) -> res.sendRedirect("/?auth=failed")));
+        }
         return http.build();
     }
 

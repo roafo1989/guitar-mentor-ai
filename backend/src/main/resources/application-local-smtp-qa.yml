@@ -1,0 +1,32 @@
+# Local QA only. Run together with local-auth: local-auth,local-smtp-qa.
+# Existing Caddy/Vite serves the browser over https://guitar-mentor.
+# No external delivery: python -m aiosmtpd -n -l 127.0.0.1:1025
+server:
+  address: 127.0.0.1
+  servlet:
+    session:
+      cookie:
+        http-only: true
+        secure: true
+        same-site: lax
+guitar-mentor:
+  security:
+    enabled: true
+    local-http: false
+  local-auth:
+    qa-mail-capture: true
+    public-origin: https://guitar-mentor
+    mail-from: qa-noreply@guitar-mentor.test
+spring:
+  mail:
+    host: 127.0.0.1
+    port: 1025
+    username: ""
+    password: ""
+    properties:
+      mail.smtp.auth: false
+      mail.smtp.starttls.enable: false
+      mail.smtp.starttls.required: false
+      mail.smtp.connectiontimeout: 2000
+      mail.smtp.timeout: 2000
+      mail.smtp.writetimeout: 2000

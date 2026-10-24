@@ -43,13 +43,24 @@ public class LearnerService {
 
     @Transactional
     public LearnerView replacePreferences(UUID learnerId, UpdatePreferencesRequest request) {
-        var learner = find(learnerId);
+        // Public signup provisions a bare learner. First profile save must add the
+        // supported instrument in that same account, not create a second learner.
+        // Lock serializes concurrent first saves to avoid duplicate instruments.
+        var learner = learnerRepository.findLockedById(learnerId)
+                .orElseThrow(() -> new EntityNotFoundException("Learner not found"));
         var instrument = learner.getInstrumentProfiles().stream()
                 .filter(p -> p.getInstrumentCode().equals(request.instrumentCode()))
-                .findFirst()
-                .orElseThrow(() -> new EntityNotFoundException("Instrument profile not found"));
+                .findFirst().orElse(null);
+        if (instrument == null) {
+            if (!learner.getInstrumentProfiles().isEmpty()
+                    || !"ACOUSTIC_GUITAR".equals(request.instrumentCode())) {
+                throw new EntityNotFoundException("Instrument profile not found");
+            }
+            instrument = new InstrumentProfile("ACOUSTIC_GUITAR", "FINGERSTYLE");
+            learner.addInstrumentProfile(instrument);
+        }
         instrument.replacePreferences(toPreferences(request.preferences()));
-        return toView(learner);
+        return toView(learnerRepository.saveAndFlush(learner));
     }
 
     private Learner find(UUID learnerId) {

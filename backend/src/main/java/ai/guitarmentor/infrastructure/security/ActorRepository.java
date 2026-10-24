@@ -11,6 +11,33 @@ public class ActorRepository {
 
     public ActorRepository(JdbcClient jdbc) { this.jdbc = jdbc; }
 
+    public boolean hasGoogleIdentity(UUID accountId) {
+        return jdbc.sql("""
+            SELECT count(*) FROM account_identities
+            WHERE account_id=:id AND issuer=:issuer
+            """).param("id", accountId)
+            .param("issuer", InvitationService.GOOGLE_ISSUER)
+            .query(Long.class).single() > 0;
+    }
+
+    public boolean hasLocalCredential(UUID accountId) {
+        return jdbc.sql("SELECT count(*) FROM local_credentials WHERE account_id=:id")
+            .param("id", accountId).query(Long.class).single() > 0;
+    }
+
+    public Optional<Long> localVersion(UUID accountId) {
+        return jdbc.sql("SELECT access_version FROM accounts WHERE id=:id AND status='ACTIVE'")
+            .param("id", accountId).query(Long.class).optional();
+    }
+
+    public Optional<CurrentActor> findActiveLocal(UUID accountId, long version) {
+        return jdbc.sql("""
+            SELECT id AS account_id,learner_id,role FROM accounts
+            WHERE id=:id AND access_version=:version AND status='ACTIVE'
+            """).param("id", accountId).param("version", version)
+            .query((rs,n)->new CurrentActor(rs.getObject("account_id",UUID.class),
+                rs.getObject("learner_id",UUID.class),rs.getString("role"))).optional();
+    }
     /** Always recheck status against the database; disabling access affects the next request. */
     public Optional<CurrentActor> findActive(String issuer, String subject) {
         return jdbc.sql("""
