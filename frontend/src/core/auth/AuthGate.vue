@@ -275,6 +275,7 @@ onBeforeUnmount(() => {
         <button v-if="mode === 'expired-link' && mailPurpose === 'reset'" class="auth-primary" type="button" @click="setMode('forgot')">{{ label('Запросить новую ссылку', 'Request another link') }}</button>
         <button class="auth-link" type="button" @click="setMode('login')">{{ label('Вернуться ко входу', 'Back to sign in') }}</button>
         <button v-if="mode === 'check-mail' && mailPurpose === 'register'" class="auth-link" type="button" @click="setMode('register')">{{ label('Изменить данные регистрации', 'Change registration details') }}</button>
+        <button v-if="mode === 'check-mail'" class="auth-link" type="button" @click="setMode(mailPurpose === 'register' ? 'verify' : 'reset')">{{ label('Ввести код из письма', 'Enter code from email') }}</button>
       </section>
       <form v-else-if="mode === 'verify'" class="auth-form auth03-form" @submit.prevent="verify">
         <button v-if="!tokenFromLink && !manualCode" type="button" class="auth-link" @click="manualCode = true">{{ label('Ввести код из письма', 'Enter code from email') }}</button>
