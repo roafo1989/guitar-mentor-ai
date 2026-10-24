@@ -3,7 +3,6 @@ package ai.guitarmentor.interfaces.rest.library;
 import ai.guitarmentor.infrastructure.persistence.LibraryMaterialRepository;
 import ai.guitarmentor.infrastructure.persistence.LibraryMaterialRepository.Material;
 import ai.guitarmentor.infrastructure.security.CurrentActor;
-import com.fasterxml.jackson.databind.ObjectMapper;
 import java.time.OffsetDateTime;
 import java.util.List;
 import java.util.Optional;
@@ -18,7 +17,6 @@ class LibraryMaterialControllerTest {
     private final LibraryMaterialController controller=new LibraryMaterialController(repository,
             "test-only-hmac-secret-32-bytes-long",true);
     private final UUID owner=UUID.randomUUID();
-    private final ObjectMapper mapper=new ObjectMapper();
     private MockHttpServletRequest request() {
         var req=new MockHttpServletRequest();
         req.setAttribute("guitarMentorActor",new CurrentActor(owner,null,"LEARNER"));
@@ -51,7 +49,7 @@ class LibraryMaterialControllerTest {
         UUID id=UUID.randomUUID();
         when(repository.find(owner,id)).thenReturn(Optional.of(material(id,2)));
         var e=assertThrows(RuntimeException.class,()->controller.edit(request(),id,
-                "\"1\"",mapper.readTree("{\"title\":\"Blues\"}")));
+                "\"1\"",java.util.Map.of("title","Blues")));
         assertEquals("LIBRARY_REVISION_CONFLICT",e.getMessage());
         verify(repository).update(owner,id,1,"Blues","ETUDE",null);
     }
@@ -72,7 +70,7 @@ class LibraryMaterialControllerTest {
     @Test void unknownPatchFieldRejected() throws Exception {
         UUID id=UUID.randomUUID();
         assertEquals("LIBRARY_INVALID_METADATA",assertThrows(RuntimeException.class,
-                ()->controller.edit(request(),id,"\"1\"",mapper.readTree("{\"ownerId\":\"evil\"}"))).getMessage());
+                ()->controller.edit(request(),id,"\"1\"",java.util.Map.of("ownerId","evil"))).getMessage());
         verifyNoInteractions(repository);
     }
 }
