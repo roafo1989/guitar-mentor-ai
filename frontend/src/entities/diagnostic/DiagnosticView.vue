@@ -28,9 +28,12 @@ function onSubmissionDraft(value: { busy: boolean; dirty: boolean }): void {
 const error = ref('');
 const apiError = ref<ApiFailure | null>(null);
 const catalogMissing = ref(false);
+const catalogFailure = ref(false);
 const failedRestoreRead = ref(false);
 const displayError = computed(() => error.value || (catalogMissing.value ? t('diagnostic.catalogApiMissing') : apiError.value ? t(apiFailureKey(apiError.value)) : ''));
 let restoreGeneration = 0;
+let catalogGeneration = 0;
+let recommendationGeneration = 0;
 let active = true;
 
 function onIntakeState(value: { busy: boolean; dirty: boolean }): void {
@@ -82,41 +85,59 @@ function onBrowserUnload(event: BeforeUnloadEvent): void {
   event.returnValue = '';
 }
 onMounted(() => window.addEventListener('beforeunload', onBrowserUnload));
-onBeforeUnmount(() => { active = false; ++restoreGeneration; window.removeEventListener('beforeunload', onBrowserUnload); });
+onBeforeUnmount(() => { active = false; ++restoreGeneration; ++catalogGeneration; ++recommendationGeneration; window.removeEventListener('beforeunload', onBrowserUnload); });
 
 async function loadTask(learnerId: string, diagnosticId: string): Promise<void> {
-  task.value = await diagnosticService.currentTask(learnerId, diagnosticId);
+  const requestedTask = await diagnosticService.currentTask(learnerId, diagnosticId);
+  if (active && learnerStore.learner?.id === learnerId && session.value?.id === diagnosticId)
+    task.value = requestedTask;
 }
 
 async function loadCatalog(): Promise<void> {
+  const id = learnerStore.learner?.id;
+  const sessionId = session.value?.id;
+  const seq = ++catalogGeneration;
+  const current = () => active && seq === catalogGeneration
+    && learnerStore.learner?.id === id && session.value?.id === sessionId;
   catalogBusy.value = true;
+  catalogFailure.value = false;
   error.value = '';
   apiError.value = null;
   catalogMissing.value = false;
   try {
-    exercises.value = await diagnosticService.listExercises();
+    const result = await diagnosticService.listExercises();
+    if (current()) exercises.value = result;
   } catch (cause) {
-    // Keep previous catalog cards until a successful read replaces them.
-    catalogMissing.value = isHttp(cause, 404);
-    apiError.value = catalogMissing.value ? null : asApiFailure(cause);
+    if (current() && !(cause instanceof Error && cause.name === 'AbortError')) {
+      catalogFailure.value = true;
+      catalogMissing.value = isHttp(cause, 404);
+      apiError.value = catalogMissing.value ? null : asApiFailure(cause);
+    }
   } finally {
-    catalogBusy.value = false;
+    if (current()) catalogBusy.value = false;
   }
-  await loadRecommendations();
+  if (current()) await loadRecommendations();
 }
 
 async function loadRecommendations(): Promise<void> {
   const id = learnerStore.learner?.id;
-  if (!id || !session.value || session.value.status !== 'READY_FOR_TASK') return;
+  const sessionId = session.value?.id;
+  if (!id || !sessionId || session.value?.status !== 'READY_FOR_TASK') return;
+  const seq = ++recommendationGeneration;
+  const current = () => active && seq === recommendationGeneration
+    && learnerStore.learner?.id === id && session.value?.id === sessionId;
   recommendationBusy.value = true;
   recommendationError.value = '';
   try {
-    recommendation.value = await diagnosticService.recommendations(id, session.value.id);
+    const result = await diagnosticService.recommendations(id, sessionId);
+    if (current()) recommendation.value = result;
   } catch (cause) {
-    recommendation.value = null;
-    recommendationError.value = 'failed';
+    if (current() && !(cause instanceof Error && cause.name === 'AbortError')) {
+      recommendation.value = null;
+      recommendationError.value = 'failed';
+    }
   } finally {
-    recommendationBusy.value = false;
+    if (current()) recommendationBusy.value = false;
   }
 }
 const instrumentCode = 'ACOUSTIC_GUITAR';
@@ -293,7 +314,7 @@ async function assign(exerciseCode: string): Promise<void> {
         <h3>{{ t('diagnostic.catalogAll') }}</h3>
         <p v-if="catalogBusy" class="hint">{{ t('diagnostic.catalogLoading') }}</p>
         <p v-else-if="!displayError && exercises.length === 0" class="hint">{{ t('diagnostic.noExercises') }}</p>
-        <button v-if="catalogMissing || apiError" type="button" class="action-button secondary-button" :disabled="catalogBusy" @click="loadCatalog">
+        <button v-if="catalogFailure" type="button" class="action-button secondary-button" :disabled="catalogBusy" @click="loadCatalog">
           {{ t('diagnostic.retryCatalog') }}
         </button>
         <article v-for="exercise in exercises" :key="exercise.code" class="exercise-card">
