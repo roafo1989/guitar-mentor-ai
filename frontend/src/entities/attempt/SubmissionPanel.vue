@@ -80,6 +80,8 @@ let polling: ReturnType<typeof setInterval> | undefined;
 let historyRequestInFlight = false;
 let requestSerial = 0;
 let pinSerial = 0;
+let pendingLatest = false;
+let pendingRefresh = false;
 let contextGeneration = 0;
 let mounted = true;
 function currentContext(generation: number): boolean {
@@ -90,6 +92,9 @@ function resetForContext(): void {
   ++requestSerial;
   ++pinSerial;
   historyRequestInFlight = false;
+  pendingLatest = false;
+  pendingRefresh = false;
+  pageBusy.value = false;
   attempts.value = [];
   pinned.value = [];
   selectedId.value = '';
@@ -156,7 +161,8 @@ async function readPage(cursor: number | null | undefined = pageCursor.value, ke
     hasMore.value = page.hasMore;
     historyError.value = '';
     historyStale.value = false;
-    await refreshPinned(generation, serial);
+    // Never couple page navigation to potentially slow pinned-detail reads.
+    void refreshPinned(generation, serial);
     return true;
   } catch {
     if (currentContext(generation) && serial === requestSerial) {
@@ -168,6 +174,13 @@ async function readPage(cursor: number | null | undefined = pageCursor.value, ke
     if (currentContext(generation) && serial === requestSerial) {
       historyRequestInFlight = false;
       pageBusy.value = false;
+      if (pendingLatest) {
+        pendingLatest = false; pendingRefresh = false;
+        void navigate(undefined, 'latest');
+      } else if (pendingRefresh) {
+        pendingRefresh = false;
+        void readPage();
+      }
     }
   }
 }
@@ -181,7 +194,11 @@ async function refreshPinned(generation: number, serial: number) {
   pinned.value = results.flatMap(result => result.status === 'fulfilled' ? [result.value] : []);
 }
 async function navigate(cursor: number | undefined, direction: 'older' | 'newer' | 'latest') {
-  if (pageBusy.value || historyRequestInFlight) return;
+  if (historyRequestInFlight) {
+    if (direction === 'latest') pendingLatest = true;
+    return;
+  }
+  if (pageBusy.value) return;
   const old = pageCursor.value;
   const stack = [...cursorStack.value];
   if (direction === 'older') stack.push(old);
@@ -190,6 +207,10 @@ async function navigate(cursor: number | undefined, direction: 'older' | 'newer'
     pageCursor.value = direction === 'latest' ? undefined : cursor;
     cursorStack.value = direction === 'latest' ? [] : stack;
   }
+}
+function requestRefresh() {
+  if (historyRequestInFlight) { pendingRefresh = true; return; }
+  void readPage();
 }
 watch([selectedId, latestId], () => {
   if (!loading.value && !historyRequestInFlight) {
@@ -203,7 +224,7 @@ async function pollHistory() {
   await readPage(pageCursor.value, true);
 }
 function onVisibility() {
-  if ((typeof document === 'undefined' || !document.hidden) && !loading.value && !historyRequestInFlight) void readPage();
+  if ((typeof document === 'undefined' || !document.hidden) && !loading.value) requestRefresh();
 }
 
 function uploadErrorMessage(cause: unknown): string {
@@ -347,7 +368,7 @@ onBeforeUnmount(() => {
         :draft-busy="draftBusy" @selected-id="selectedId = $event" @latest-id="latestId = $event" @decision-busy="decisionBusy = $event" @terminal-state="learningTerminal = $event" />
       <details class="homework-history">
         <summary>{{ t('attempt.historyDetails') }}</summary>
-        <p v-if="historyError" role="alert" class="error">{{ historyError }} <button type="button" :disabled="pageBusy" @click="readPage()">{{ t('learning.retry') }}</button></p>
+        <p v-if="historyError" role="alert" class="error">{{ historyError }} <button type="button" :disabled="pageBusy" @click="requestRefresh()">{{ t('learning.retry') }}</button></p>
         <p v-if="historyStale" role="status" class="hint">{{ t('attempt.historyStale') }}</p>
         <p v-if="!attempts.length" class="hint">{{ t('attempt.noAttempts') }}</p>
         <article v-for="item in attempts" :key="item.id" class="attempt-card">
