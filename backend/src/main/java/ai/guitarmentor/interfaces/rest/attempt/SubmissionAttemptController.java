@@ -3,6 +3,10 @@ package ai.guitarmentor.interfaces.rest.attempt;
 import ai.guitarmentor.application.attempt.SubmissionAttemptService;
 import ai.guitarmentor.application.attempt.AttemptMediaStore;
 import ai.guitarmentor.interfaces.rest.attempt.AttemptDtos.AttemptView;
+import ai.guitarmentor.interfaces.rest.attempt.AttemptDtos.AttemptPage;
+import org.springframework.http.CacheControl;
+import org.springframework.http.HttpStatus;
+import org.springframework.util.MultiValueMap;
 import ai.guitarmentor.interfaces.rest.attempt.AttemptDtos.UploadCapabilities;
 import java.net.URI;
 import java.util.Map;
@@ -30,17 +34,85 @@ public class SubmissionAttemptController {
     }
 
     @GetMapping("/capabilities")
-    public UploadCapabilities capabilities(@PathVariable UUID learnerId,
+    public ResponseEntity<UploadCapabilities> capabilities(@PathVariable UUID learnerId,
             @PathVariable UUID sessionId, @PathVariable UUID taskId) {
-        service.list(learnerId, sessionId, taskId); // Verify the task belongs to this learner.
-        return new UploadCapabilities(service.isEnabled(), AttemptMediaStore.MAX_BYTES,
-                new String[] {"mp3", "wav", "ogg", "webm", "m4a"});
+        service.verifyOwnership(learnerId, sessionId, taskId);
+        return ResponseEntity.ok().cacheControl(CacheControl.noStore()).body(
+                new UploadCapabilities(service.isEnabled(), AttemptMediaStore.MAX_BYTES,
+                    new String[] {"mp3", "wav", "ogg", "webm", "m4a"}));
     }
 
     @GetMapping
     public List<AttemptView> list(@PathVariable UUID learnerId,
             @PathVariable UUID sessionId, @PathVariable UUID taskId) {
         return service.list(learnerId, sessionId, taskId);
+    }
+
+    @GetMapping("/page")
+    public ResponseEntity<?> page(@PathVariable UUID learnerId,
+            @PathVariable UUID sessionId, @PathVariable UUID taskId,
+            @RequestParam MultiValueMap<String, String> query) {
+        final int limit;
+        final Integer before;
+        try {
+            limit = parsePositive(query, "limit", 20, 50);
+            before = query.containsKey("beforeNumber")
+                    ? parsePositive(query, "beforeNumber", null, Integer.MAX_VALUE) : null;
+        } catch (IllegalArgumentException invalid) {
+            return safeError(HttpStatus.BAD_REQUEST, "INVALID_ATTEMPT_PAGE");
+        }
+        try {
+            AttemptPage result = service.page(learnerId, sessionId, taskId, limit, before);
+            return ResponseEntity.ok().cacheControl(CacheControl.noStore()).body(result);
+        } catch (jakarta.persistence.EntityNotFoundException missing) {
+            return safeError(HttpStatus.NOT_FOUND, "RESOURCE_NOT_FOUND");
+        } catch (RuntimeException unexpected) {
+            return safeError(HttpStatus.INTERNAL_SERVER_ERROR, "ATTEMPT_READ_FAILED");
+        }
+    }
+
+    @GetMapping("/{attemptId}")
+    public ResponseEntity<?> detail(@PathVariable UUID learnerId,
+            @PathVariable UUID sessionId, @PathVariable UUID taskId,
+            @PathVariable String attemptId) {
+        UUID id;
+        try {
+            if (!attemptId.matches("(?i)[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}")) {
+                throw new IllegalArgumentException("Invalid UUID");
+            }
+            id = UUID.fromString(attemptId);
+        } catch (IllegalArgumentException invalid) {
+            return safeError(HttpStatus.BAD_REQUEST, "INVALID_ATTEMPT_REFERENCE");
+        }
+        try {
+            return ResponseEntity.ok().cacheControl(CacheControl.noStore())
+                    .body(service.detail(learnerId, sessionId, taskId, id));
+        } catch (jakarta.persistence.EntityNotFoundException missing) {
+            return safeError(HttpStatus.NOT_FOUND, "RESOURCE_NOT_FOUND");
+        } catch (RuntimeException unexpected) {
+            return safeError(HttpStatus.INTERNAL_SERVER_ERROR, "ATTEMPT_READ_FAILED");
+        }
+    }
+
+    private static Integer parsePositive(MultiValueMap<String, String> params,
+            String name, Integer fallback, int max) {
+        if (!params.containsKey(name)) return fallback;
+        List<String> values = params.get(name);
+        if (values == null || values.size() != 1) throw new IllegalArgumentException();
+        String value = values.get(0);
+        if (value == null || !value.matches("[0-9]+")) throw new IllegalArgumentException();
+        try {
+            int number = Integer.parseInt(value);
+            if (number < 1 || number > max) throw new IllegalArgumentException();
+            return number;
+        } catch (NumberFormatException invalid) {
+            throw new IllegalArgumentException(invalid);
+        }
+    }
+
+    private static ResponseEntity<Map<String, String>> safeError(HttpStatus status, String code) {
+        return ResponseEntity.status(status).cacheControl(CacheControl.noStore())
+                .body(Map.of("code", code));
     }
 
     /**
@@ -64,8 +136,7 @@ public class SubmissionAttemptController {
 
     @ExceptionHandler(jakarta.persistence.EntityNotFoundException.class)
     public ResponseEntity<Map<String,String>> missingTask() {
-        return ResponseEntity.status(org.springframework.http.HttpStatus.NOT_FOUND)
-                .body(Map.of("code","RESOURCE_NOT_FOUND"));
+        return safeError(HttpStatus.NOT_FOUND, "RESOURCE_NOT_FOUND");
     }
 
     @PostMapping(consumes = "multipart/form-data")

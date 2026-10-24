@@ -306,6 +306,7 @@ jobs:
               after_rejection=$(curl --fail --silent --show-error "$attempts_base")
               printf '%s' "$after_rejection" | python3 -c 'import json,sys; a=json.load(sys.stdin); assert len(a)==2 and a[0]["number"]==2 and a[1]["number"]==1'
               echo "Attempt upload, idempotency, structured rejection and unchanged history HTTP smoke: OK"
+              python3 scripts/qa125_attempt_http.py "$attempts_base" "$attempt_id" "$learner_id" "$session_id" "$task_id"
               # Compatibility regression for all accepted formats, using real encoded audio.
               # Only the single AttemptMediaStore adapter should handle these uploads.
               for format in mp3 ogg webm; do
