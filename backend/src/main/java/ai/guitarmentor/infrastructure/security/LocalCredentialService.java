@@ -132,7 +132,8 @@ public class LocalCredentialService {
                 rs.getObject("account_id",UUID.class),rs.getString("password_hash"))).optional();
         // Constant costly comparison on an unknown user mitigates simple timing enumeration.
         String fallback=encoder.encode("not-a-real-credential-value");
-        if(found.isEmpty() || !encoder.matches(password,found.map(Credential::hash).orElse(fallback)))
+        boolean passwordMatches = encoder.matches(password, found.map(Credential::hash).orElse(fallback));
+        if(found.isEmpty() || !passwordMatches)
             throw new SecurityException("INVALID_CREDENTIALS");
         var credential=found.get();
         if(encoder.upgradeEncoding(credential.hash)) {
