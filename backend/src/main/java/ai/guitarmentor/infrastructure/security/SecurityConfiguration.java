@@ -34,6 +34,7 @@ public class SecurityConfiguration {
 
     @Bean
     SecurityFilterChain securityFilterChain(HttpSecurity http, ActorRepository actors,
+            org.springframework.beans.factory.ObjectProvider<org.springframework.security.oauth2.client.registration.ClientRegistrationRepository> oidcClients,
             @Value("${guitar-mentor.security.enabled:true}") boolean enabled,
             @Value("${guitar-mentor.security.absolute-session-minutes:720}") long absoluteMinutes,
             @Value("${server.address:127.0.0.1}") String bind,
@@ -62,23 +63,6 @@ public class SecurityConfiguration {
                     "/api/v1/local-auth/reset").permitAll()
                 .requestMatchers("/api/**").authenticated()
                 .anyRequest().permitAll())
-            .oauth2Login(login -> login
-                .successHandler((req, res, auth) -> {
-                    if (!(auth.getPrincipal() instanceof
-                            org.springframework.security.oauth2.core.oidc.user.OidcUser oidc)) {
-                        req.getSession().invalidate();
-                        org.springframework.security.core.context.SecurityContextHolder.clearContext();
-                        res.sendRedirect("/?auth=denied");
-                        return;
-                    }
-                    // An OIDC-authenticated but unadmitted user can only use invitation activation.
-                    if (actors.findActive(oidc.getIssuer().toString(), oidc.getSubject()).isEmpty()) {
-                        res.sendRedirect("/?auth=invitation");
-                        return;
-                    }
-                    res.sendRedirect("/");
-                })
-                .failureHandler((req, res, ex) -> res.sendRedirect("/?auth=failed")))
             .csrf(csrf -> csrf.csrfTokenRepository(csrfRepo)
                 .ignoringRequestMatchers(request -> request.getRequestURI().startsWith("/oauth2/")))
             .sessionManagement(session -> session
@@ -107,6 +91,26 @@ public class SecurityConfiguration {
                 }))
             .addFilterAfter(new ActorFilter(actors, java.time.Duration.ofMinutes(absoluteMinutes)),
                     UsernamePasswordAuthenticationFilter.class);
+        // Keep local credentials operational when Google OIDC is not configured.
+        if (oidcClients.getIfAvailable() != null) {
+            http.oauth2Login(login -> login
+                .successHandler((req, res, auth) -> {
+                    if (!(auth.getPrincipal() instanceof
+                            org.springframework.security.oauth2.core.oidc.user.OidcUser oidc)) {
+                        req.getSession().invalidate();
+                        org.springframework.security.core.context.SecurityContextHolder.clearContext();
+                        res.sendRedirect("/?auth=denied");
+                        return;
+                    }
+                    // An OIDC-authenticated but unadmitted user can only use invitation activation.
+                    if (actors.findActive(oidc.getIssuer().toString(), oidc.getSubject()).isEmpty()) {
+                        res.sendRedirect("/?auth=invitation");
+                        return;
+                    }
+                    res.sendRedirect("/");
+                })
+                .failureHandler((req, res, ex) -> res.sendRedirect("/?auth=failed")))
+        }
         return http.build();
     }
 
