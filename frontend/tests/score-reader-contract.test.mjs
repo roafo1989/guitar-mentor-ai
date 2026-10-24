@@ -317,3 +317,14 @@ test('#150 artwork: approved acoustic image replaces note tile with safe fallbac
  assert.match(view,/object-fit:cover/);
  assert.match(model,/coverUrl\?: string \| null/);
 });
+
+test('#150 regression: exercise metronome stays visible in both score and description tabs', async () => {
+ const source=await readFile(new URL('../src/entities/diagnostic/ExercisePreview.vue',import.meta.url),'utf8');
+ const block=source.match(/<div class="metronome-exercise-tool"[^>]*>[\s\S]*?<\/div>/)?.[0];
+ assert.ok(block,'exercise metronome button should remain mounted');
+ assert.doesNotMatch(block,/studio-tab-hidden|studioTab !== 'description'/);
+ assert.match(block,/@click="launchMetronome"/);
+ assert.match(block,/exercise\.bpm/);
+ assert.match(block,/exercise\.meter/);
+ assert.ok(source.indexOf('class="metronome-exercise-tool"') > source.indexOf('<ScoreReader '),'metronome below score');
+});
