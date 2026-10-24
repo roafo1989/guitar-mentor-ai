@@ -589,3 +589,15 @@ footer { text-align: center; font-size: 12px; padding: 24px; color: #8793a4; }
 @media (max-width:650px) and (min-height:701px) {
   .m111 .m111-rhythm-card { overflow-y:auto; }
 }
+
+/* #126: preserve real layout reflow at 200% zoom on a 360px viewport.
+   Controls with intrinsic minimum widths must not widen the document. */
+@media (max-width: 240px) {
+  .homework-panel { padding: 8px; overflow-wrap: anywhere; }
+  .homework-form, .microphone-recorder, .homework-history, .homework-history nav,
+  .homework-panel select, .homework-panel input, .homework-panel textarea,
+  .homework-panel button, .attempt-card, .form-actions { min-width: 0; max-width: 100%; box-sizing: border-box; }
+  .microphone-recorder { padding: 7px; }
+  .attempt-card { padding: 7px; }
+  .homework-panel input[type=file] { width: 100%; min-width: 0; }
+}
