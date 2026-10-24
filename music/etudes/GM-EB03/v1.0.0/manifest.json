@@ -1,0 +1,29 @@
+{
+  "code": "GM-EB03",
+  "version": "1.0.0",
+  "title": "Quiet Steps",
+  "instrumentCode": "ACOUSTIC_GUITAR",
+  "techniqueCode": "FINGERSTYLE",
+  "meter": "4/4",
+  "measures": 8,
+  "bpm": 76,
+  "difficulty": "BEGINNER_INTERMEDIATE",
+  "tuning": "E A D G B E",
+  "learningGoal": "Maintain a sustained bass pulse while projecting a clear upper melody over arpeggiated middle notes.",
+  "practiceInstructions": "Use thumb (p) for bass and i-m-a for the three upper strings. Start at 55 BPM, play four measures per phrase, then progress toward 76 BPM. No pick or percussion.",
+  "successCriteria": [
+    "Eight complete measures at a steady tempo",
+    "Melody notes audibly stand out over inner arpeggio",
+    "No unintended muted strings or missed beats"
+  ],
+  "estimatedPracticeMinutes": 15,
+  "origin": "ORIGINAL",
+  "author": "Guitar Mentor AI",
+  "license": "Project-owned original educational composition; publication requires owner confirmation",
+  "reviewStatus": "PENDING_MUSICAL_REVIEW",
+  "previewStatus": "NOT_GENERATED",
+  "files": [
+    "score.musicxml",
+    "score_events.json"
+  ]
+}
