@@ -391,3 +391,66 @@ test('CORE-U14: selected detail outside page is coalesced with parent pinned fet
     assert.equal(count, 1);
   } finally { app.unmount(); delete globalThis.__qaAttempt; }
 });
+
+test('CORE-U15: failed detail is evicted and Retry performs a fresh network GET', async () => {
+  historyFixture();
+  let reads = 0;
+  const original = globalThis.__qaAttempt.detail;
+  globalThis.__qaAttempt.detail = (...args) => {
+    reads++;
+    return reads === 1 ? Promise.reject(Error('temporary outage')) : original(...args);
+  };
+  const { app, state } = await mount('SubmissionPanel.vue',
+    { learnerId: 'l', sessionId: 's', taskId: 't' });
+  try {
+    await flush();
+    await assert.rejects(state.fetchDetail('id-2'));
+    assert.equal(reads, 1);
+    const restored = await state.fetchDetail('id-2');
+    assert.equal(restored.id, 'id-2');
+    assert.equal(reads, 2, 'Retry must issue a new GET, not reuse rejected Promise');
+    await state.fetchDetail('id-2');
+    assert.equal(reads, 2, 'successful detail is still coalesced');
+  } finally { app.unmount(); delete globalThis.__qaAttempt; }
+});
+test('CORE-U16: old-context completion cannot unblock polling while new detail is in flight', async () => {
+  historyFixture();
+  const oldDetail = deferred(), newDetail = deferred();
+  const originalDetail = globalThis.__qaAttempt.detail;
+  globalThis.__qaAttempt.detail = (_l, _s, task, id) => {
+    if (id === 'old-id') return oldDetail.promise;
+    if (id === 'new-id') return newDetail.promise;
+    return originalDetail(_l, _s, task, id);
+  };
+  const originalPage = globalThis.__qaAttempt.page;
+  let pageReads = 0;
+  globalThis.__qaAttempt.page = (...args) => {
+    pageReads++;
+    return originalPage(...args).then(page => ({
+      ...page, items: page.items.map((a, i) => i === 0 ? { ...a, status: 'PROCESSING' } : a)
+    }));
+  };
+  const { app, state } = await mount('SubmissionPanel.vue',
+    { learnerId: 'l', sessionId: 's', taskId: 'old-task' });
+  try {
+    await flush();
+    const stale = state.fetchDetail('old-id');
+    app._instance.props.taskId = 'new-task';
+    await flush();
+    const current = state.fetchDetail('new-id');
+    oldDetail.resolve(attempt(2));
+    await stale; await flush();
+    const readsBefore = pageReads;
+    await state.pollHistory();
+    assert.equal(pageReads, readsBefore, 'new context remains blocked while new detail is pending');
+    newDetail.resolve(attempt(1));
+    await current; await flush();
+    await state.pollHistory();
+    assert.equal(pageReads, readsBefore + 1, 'new context resumes after its own request settles');
+  } finally {
+    oldDetail.resolve(attempt(2));
+    newDetail.resolve(attempt(1));
+    app.unmount();
+    delete globalThis.__qaAttempt;
+  }
+});
