@@ -5,6 +5,7 @@ CREATE TABLE invitations (
   issuer VARCHAR(512) NOT NULL,
   email_normalized VARCHAR(320) NOT NULL,
   learner_id UUID REFERENCES learners(id) ON DELETE RESTRICT,
+  role VARCHAR(16) NOT NULL DEFAULT 'LEARNER' CHECK (role IN ('OWNER','LEARNER')),
   status VARCHAR(16) NOT NULL DEFAULT 'PENDING'
     CHECK (status IN ('PENDING','ACCEPTED','REVOKED')),
   expires_at TIMESTAMPTZ NOT NULL,
@@ -17,4 +18,5 @@ CREATE TABLE invitations (
 );
 CREATE UNIQUE INDEX ux_pending_invite_email_issuer
  ON invitations(issuer,email_normalized) WHERE status='PENDING';
+CREATE UNIQUE INDEX ux_one_active_owner ON accounts(role) WHERE role='OWNER' AND status='ACTIVE';
 CREATE INDEX idx_invites_expiry ON invitations(expires_at) WHERE status='PENDING';
