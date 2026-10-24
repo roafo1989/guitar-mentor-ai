@@ -73,11 +73,11 @@ public class SecurityConfiguration {
             boolean localHttp = env.getProperty("guitar-mentor.security.local-http",Boolean.class,false);
             boolean smtpAuth = env.getProperty("spring.mail.properties.mail.smtp.auth",Boolean.class,false);
             boolean smtpTls = env.getProperty("spring.mail.properties.mail.smtp.starttls.required",Boolean.class,false);
-            if (!"127.0.0.1".equals(bind) || !"http://localhost:5173".equals(origin)
-                    || !secureAuth || !localHttp || client.isBlank() || clientSecret.isBlank()
+            if (!"127.0.0.1".equals(bind) || !"https://guitar-mentor".equals(origin)
+                    || !secureAuth || localHttp || client.isBlank() || clientSecret.isBlank()
                     || !"http://localhost:5173/login/oauth2/code/{registrationId}".equals(redirect)
                     || smtp.isBlank() || from.isBlank() || !smtpAuth || !smtpTls) {
-                throw new IllegalStateException("Unified local auth needs loopback, Google OAuth, SMTP STARTTLS and a verified sender");
+                throw new IllegalStateException("Unified local auth needs HTTPS guitar-mentor, loopback, Google OAuth, SMTP STARTTLS and a verified sender");
             }
         };
     }
