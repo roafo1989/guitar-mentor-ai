@@ -73,6 +73,7 @@ $env:GUITAR_MENTOR_SECURITY_ENABLED = 'true'
 $env:GUITAR_MENTOR_BIND_ADDRESS = '127.0.0.1'
 $env:GUITAR_MENTOR_PUBLIC_ORIGIN = 'https://guitar-mentor'
 $env:VITE_GUITAR_MENTOR_AUTH_REQUIRED = 'true'
+$env:VITE_GUITAR_MENTOR_OAUTH_BRIDGE = 'true'
 $env:SPRING_PROFILES_ACTIVE = 'secure,local-auth,local-unified'
 
 $backend = Join-Path $root 'backend'
