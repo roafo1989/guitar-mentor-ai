@@ -29,9 +29,14 @@ def check():
         assert int(measure.get("number")) == data["number"] == number
         harmony = measure.find("./harmony/root/root-step")
         assert harmony is not None and harmony.text == data["chord"][0]
+        expected_kind = {"C": "major", "Am": "minor", "Fmaj7": "major-seventh", "G7": "dominant"}
+        assert data["chord"] in expected_kind
+        assert measure.findtext("./harmony/kind") == expected_kind[data["chord"]]
         notes = measure.findall("./note")
         assert len(notes) == len(data["melody"]) + len(data["accompaniment"])
         assert len(data["accompaniment"]) == 8
+        assert all(n["duration"] == 0.5 for n in data["accompaniment"])
+        assert [n["start"] for n in data["accompaniment"]] == [i / 2 for i in range(8)]
         for voice_id, key in ((1, "melody"), (2, "accompaniment")):
             expected = data[key]
             assert abs(sum(n["duration"] for n in expected) - 4) < 1e-9
@@ -59,6 +64,9 @@ def check():
         total_melody += len(data["melody"])
         assert measure.findtext("./backup/duration") == "8"
     assert total_melody >= 24
+    assert [m["chord"] for m in events["measures"]] == [
+        "C", "Am", "Fmaj7", "G7", "C", "Am", "G7", "C"
+    ]
     assert manifest["origin"] == "ORIGINAL"
     assert manifest["reviewStatus"] == "PENDING_MUSICAL_REVIEW"
     assert manifest["mediaDeferredToIssue"] == 81
