@@ -98,3 +98,13 @@ test('password reset links do not render secrets as form inputs or retain them i
   assert.match(gate, /clearTokenLikeIdentifier/);
   assert.match(gate, /if \(identifierInput\.value\) identifierInput\.value\.value = '';/);
 });
+
+test('SPA reset links are scrubbed and shown even when an authenticated actor exists', async () => {
+  const gate = await readFile(new URL('../src/core/auth/AuthGate.vue', import.meta.url), 'utf8');
+  assert.match(gate, /window\.addEventListener\('hashchange', consumeAuthFragment\)/);
+  assert.match(gate, /window\.removeEventListener\('hashchange', consumeAuthFragment\)/);
+  assert.match(gate, /fragment\.delete\('token'\)/);
+  assert.match(gate, /window\.history\.replaceState\(/);
+  assert.match(gate, /auth\.actor && !\(mode === 'reset' && tokenFromLink\)/);
+  assert.match(gate, /clearActor\(\);\s*setMode\('login'\)/);
+});
