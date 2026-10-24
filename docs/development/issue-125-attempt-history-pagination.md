@@ -19,3 +19,12 @@ A dedicated repository keyset query uses the existing V7 index; `LIMIT limit+1` 
 Tests include PostgreSQL cursor sequence (45→20/20/5), a newer insertion between pages, empty/limit 50, ownership/detail and unchanged legacy results; controller unit tests exercise invalid/repeated/overflow parameters, safe 404/500 and capabilities. PostgreSQL tests run only with `GUITAR_MENTOR_TEST_POSTGRES=true` and a configured disposable database; do not count skipped integration tests as a pass.
 
 No database migration, config flag, or additional dependency is required. New frontend clients should use /page and /{attemptId} from #126. Rollback backend only after rolling back that frontend client; legacy clients remain compatible.
+
+## Additional HTTP QA — 24 October 2026
+
+- Head `447f77d713ac1612f14ac5d80f133cf2dd04656a`.
+- [Java CI](https://github.com/roafo1989/guitar-mentor-ai/actions/runs/40065886766): SUCCESS, 212 tests, 0 failures/errors, 4 skipped. PostgreSQL attempt integration 13 PASS; controller unit 3 PASS.
+- [Vue CI](https://github.com/roafo1989/guitar-mentor-ai/actions/runs/40065886750): SUCCESS.
+- Live Spring Boot + PostgreSQL HTTP QA (the new `backend/scripts/qa125_attempt_http.py`): **PASS** for page/default/limit/cursor/detail/capabilities, exclusive bound, empty final page, repeated/invalid/overflow query parameters, unknown/foreign ownership, safe error codes and no-store. Runs after the existing multipart/idempotency/TTL smoke in the Java workflow; output explicitly reports `QA #125 live HTTP contract: ... PASS`.
+- Real PostgreSQL paging fixture covers 45→20/20/5, inserted newer attempt, multiple assessment revisions and legacy GET.
+- **Outstanding:** no instrumented numeric SQL-statement count was gathered; source-level bounded two-query design does not alone prove a numeric budget. Independent review and owner acceptance still pending. Do not merge or close #125 yet.
