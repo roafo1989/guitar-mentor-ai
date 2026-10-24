@@ -12,6 +12,19 @@ import { useLearnerStore } from './stores/learner.store';
 
 const { locale, t } = useI18n();
 const localPrototype = !secureUi;
+const lightMinimal = import.meta.env.VITE_GUITAR_MENTOR_LIGHT_MINIMAL === 'true';
+const menuOpen = ref(false);
+const menuButton = ref<HTMLButtonElement | null>(null);
+const menuId = 'gm-header-menu';
+function closeMenu(restoreFocus = false): void {
+  if (!menuOpen.value) return;
+  menuOpen.value = false;
+  if (restoreFocus) void nextTick(() => menuButton.value?.focus());
+}
+function onHeaderKeydown(event: KeyboardEvent): void {
+  if (event.key === 'Escape' && menuOpen.value) { event.preventDefault(); closeMenu(true); }
+}
+
 // All routed pages restore the selected learner on mount; this header reacts to Pinia changes.
 const learnerStore = useLearnerStore();
 const route = useRoute();
@@ -60,6 +73,7 @@ watch(() => auth.actor?.accountId, (current, previous) => {
 });
 
 watch(() => route.fullPath, () => {
+  closeMenu();
   // Route changes never carry audio tools into a different form or exercise.
   metronomeUi.sourceExercise = null;
   closeMetronome();
@@ -79,8 +93,8 @@ onBeforeUnmount(() => { unsubscribeMetronome?.(); closeMetronome(); });
 </script>
 
 <template>
-  <div class="app-shell light-minimal" :inert="metronomeUi.open || tunerOpen">
-    <header class="site-header">
+  <div class="app-shell" :data-ui="lightMinimal ? 'light-minimal' : undefined" :inert="metronomeUi.open || tunerOpen">
+    <header class="site-header" @keydown="onHeaderKeydown">
       <RouterLink to="/" class="brand" :aria-label="t('app.home') + ' · Guitar Mentor AI'">
         <img class="brand-icon" src="/favicon.png" alt="" aria-hidden="true" width="40" height="40" />
         <div>
@@ -89,10 +103,14 @@ onBeforeUnmount(() => { unsubscribeMetronome?.(); closeMetronome(); });
         </div>
       </RouterLink>
       <div class="header-actions">
-        <nav v-if="auth.actor || localPrototype" aria-label="Navigation">
-          <RouterLink to="/profile">{{ t('app.profile') }}</RouterLink>
-          <RouterLink to="/onboarding">{{ t('app.onboarding') }}</RouterLink>
-          <RouterLink to="/diagnostics">{{ t('app.diagnostics') }}</RouterLink>
+        <button v-if="lightMinimal && (auth.actor || localPrototype)" ref="menuButton" class="header-menu-button" type="button" :aria-expanded="menuOpen" :aria-controls="menuId" :aria-label="locale === 'ru' ? 'Меню навигации' : 'Navigation menu'" @click="menuOpen = !menuOpen">
+          <span aria-hidden="true">☰</span>
+        </button>
+        <nav v-if="auth.actor || localPrototype" :id="menuId" class="header-navigation" :class="{ 'menu-open': menuOpen }" :aria-label="locale === 'ru' ? 'Основная навигация' : 'Main navigation'">
+          <RouterLink to="/" @click="closeMenu()">{{ t('app.home') }}</RouterLink>
+          <RouterLink to="/profile" @click="closeMenu()">{{ t('app.profile') }}</RouterLink>
+          <RouterLink to="/onboarding" @click="closeMenu()">{{ t('app.onboarding') }}</RouterLink>
+          <RouterLink to="/diagnostics" @click="closeMenu()">{{ locale === 'ru' ? 'Занятие' : 'Practice' }}</RouterLink>
         </nav>
         <RouterLink
           v-if="learnerStore.learner && (auth.actor || localPrototype)"
