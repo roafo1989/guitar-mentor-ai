@@ -43,6 +43,7 @@ export function openMetronome(trigger: HTMLElement): void {
 export function openExerciseMetronome(
   trigger: HTMLElement, source: string, bpm: number, meter: string,
   tempoUnit?: 'quarter' | 'eighth' | 'dotted-quarter',
+  showOverlay = true,
 ): boolean {
   const parsed = /^([0-9]{1,2})\/(2|4|8|16)$/.exec(meter.trim());
   if (!parsed || !Number.isInteger(bpm) || bpm < 20 || bpm > 240) return false;
@@ -53,7 +54,7 @@ export function openExerciseMetronome(
   // Reopening a minimized window for the *same* piece must not reset playback.
   if ((status === 'running' || status === 'starting') &&
       metronomeUi.sourceExercise === source) {
-    openMetronome(trigger);
+    if (showOverlay) openMetronome(trigger);
     return true;
   }
   // A different piece (or a header-only pattern) must not inherit a running
@@ -70,7 +71,8 @@ export function openExerciseMetronome(
   if (!validConfig(requested) || !metronome.applyConfig(requested)) return false;
   metronomeUi.sourceExercise = source;
   persistMetronomeConfig();
-  openMetronome(trigger);
+  if (showOverlay) openMetronome(trigger);
+  else metronomeUi.open = false;
   return true;
 }
 
