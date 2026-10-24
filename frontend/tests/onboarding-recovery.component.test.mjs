@@ -183,7 +183,7 @@ test('P1: edited draft after failed GET cannot overwrite existing background on 
     await settle();
     nodes = flatten(root);
     const unlocked = nodes.find(n => n.tag === 'button' && String(n.text).includes('Save'));
-    assert.equal(unlocked?.props.disabled, false, 'explicit loading unlocks PUT');
+    assert.equal(unlocked?.props.disabled, false, 'explicit loading unlocks PUT. DOM=' + JSON.stringify(nodes.filter(n => n.tag === 'button').map(n => ({text:n.text,disabled:n.props.disabled}))) + ' conflict=' + nodes.map(n=>String(n.text||'')).filter(x=>x.includes('Load server')).join('|'));
   } finally {
     app?.unmount(); globalThis.window = oldWindow;
     delete globalThis.__learner127; delete globalThis.__background127;
