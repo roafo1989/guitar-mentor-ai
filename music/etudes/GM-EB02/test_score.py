@@ -57,8 +57,10 @@ def validate(xml_text, data):
             duration_total += duration
         assert duration_total == 4 * divisions, f"Measure {measure_num} duration"
     assert expected == data["events"], "MusicXML events differ from JSON"
-    assert len(expected) == 32
+    assert len(expected) == 37
     assert all(e["finger"] == "p" for e in expected if e["beat"] == 1)
+    assert sum(e["durationQuarter"] == 0.5 for e in expected) == 10
+    assert all(e["durationQuarter"] in (0.5, 1) for e in expected)
     assert measures[-1].findtext("barline/bar-style") == "light-heavy"
     return True
 
