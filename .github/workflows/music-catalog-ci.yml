@@ -1,0 +1,28 @@
+name: Music catalog import checks
+on:
+  pull_request:
+    paths:
+      - 'scripts/music_catalog_import.py'
+      - 'scripts/tests/test_music_catalog_import.py'
+      - '.github/workflows/music-catalog-ci.yml'
+      - 'backend/src/main/resources/db/migration/V27__private_music_catalog_index.sql'
+  push:
+    branches: [main]
+    paths:
+      - 'scripts/music_catalog_import.py'
+      - 'scripts/tests/test_music_catalog_import.py'
+      - '.github/workflows/music-catalog-ci.yml'
+jobs:
+  validate:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Compile and test offline validator
+        run: |
+          python -m py_compile scripts/music_catalog_import.py
+          python -m unittest discover -s scripts/tests -p 'test_music_catalog_import.py' -v
