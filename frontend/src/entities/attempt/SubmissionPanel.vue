@@ -80,15 +80,25 @@ let polling: ReturnType<typeof setInterval> | undefined;
 let historyRequestInFlight = false;
 let requestSerial = 0;
 let pinSerial = 0;
-let detailBusy = 0;
+// Each context owns its own in-flight set. An old request may settle after
+// navigation, but its cleanup must never touch the new context's bookkeeping.
+let activeDetails = new Set<Promise<SubmissionAttempt>>();
 const detailCache = new Map<string, Promise<SubmissionAttempt>>();
 function fetchDetail(id: string): Promise<SubmissionAttempt> {
   const existing = detailCache.get(id);
   if (existing) return existing;
   const { learnerId, sessionId, taskId } = props;
-  ++detailBusy;
-  const request = attemptService.detail(learnerId, sessionId, taskId, id)
-    .finally(() => { --detailBusy; });
+  const inFlight = activeDetails;
+  let request: Promise<SubmissionAttempt>;
+  request = attemptService.detail(learnerId, sessionId, taskId, id)
+    .catch(cause => {
+      // A rejected request is never reusable for Retry. Do not remove a newer
+      // request for the same id, created after a page refresh.
+      if (detailCache.get(id) === request) detailCache.delete(id);
+      throw cause;
+    })
+    .finally(() => { inFlight.delete(request); });
+  inFlight.add(request);
   detailCache.set(id, request);
   return request;
 }
@@ -104,7 +114,7 @@ function resetForContext(): void {
   ++requestSerial;
   ++pinSerial;
   detailCache.clear();
-  detailBusy = 0;
+  activeDetails = new Set<Promise<SubmissionAttempt>>();
   historyRequestInFlight = false;
   pendingLatest = false;
   pendingRefresh = false;
@@ -238,7 +248,7 @@ watch([selectedId, latestId], () => {
   }
 });
 async function pollHistory() {
-  if ((typeof document !== 'undefined' && document.hidden) || uploading.value || loading.value || pageBusy.value || historyRequestInFlight ||
+  if ((typeof document !== 'undefined' && document.hidden) || uploading.value || loading.value || pageBusy.value || historyRequestInFlight || activeDetails.size > 0 ||
       !displayAttempts.value.some(isProcessing)) return;
   await readPage(pageCursor.value, true);
 }
