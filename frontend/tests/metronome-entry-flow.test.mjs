@@ -7,12 +7,11 @@ const asModule = code => 'data:text/javascript,' + encodeURIComponent(code);
 const vueUrl = import.meta.resolve('vue');
 const audioUrl = asModule([
   'export const metronome = {',
-  '  getState: () => globalThis.__exerciseMetronome.getState(),',
-  '  stop: () => globalThis.__exerciseMetronome.stop(),',
-  '  getConfig: () => globalThis.__exerciseMetronome.getConfig(),',
-  '  getPendingConfig: () => null,',
-  '  applyConfig: c => globalThis.__exerciseMetronome.applyConfig(c),',
-  '  setBpm: bpm => globalThis.__exerciseMetronome.setBpm(bpm)',
+  ' getState: () => globalThis.__exerciseMetronome.getState(),',
+  ' stop: () => globalThis.__exerciseMetronome.stop(),',
+  ' getConfig: () => globalThis.__exerciseMetronome.getConfig(),',
+  ' getPendingConfig: () => null,',
+  ' applyConfig: c => globalThis.__exerciseMetronome.applyConfig(c)',
   '};',
 ].join('\n'));
 
@@ -21,11 +20,25 @@ async function loadRealController() {
   const output = ts.transpileModule(source, {
     compilerOptions: { target: ts.ScriptTarget.ES2022, module: ts.ModuleKind.ESNext },
   }).outputText;
+  const configUrl = asModule([
+    'export const copyConfig = c => structuredClone(c);',
+    'export const meterConfig = (n=4,d=4,bpm=80) => ({ bpm, numerator:n, denominator:d,',
+    ' tempoUnit:d===8 && n>=6 && n%3===0 ? "dotted-quarter" : "quarter",',
+    ' groups: n===6&&d===8?[3,3]:[n], subdivision:1, masterVolumePercent:50,',
+    ' accentVolumes:{strong:100,medium:65,weak:35},subdivisionVolumePercent:25,',
+    ' positions:Array.from({length:n},(_,i)=>({accent:i===0?"strong":"weak",volumePercent:100})) });',
+    'export const defaultMetronomeConfig = () => meterConfig();',
+    'export const validConfig = c => Number.isInteger(c.bpm)&&c.bpm>=20&&c.bpm<=240&&',
+    ' Number.isInteger(c.numerator)&&c.numerator>=1&&c.numerator<=16&&',
+    ' [2,4,8,16].includes(c.denominator)&&c.positions.length===c.numerator;',
+    'export const readMetronomeStore = () => ({store:null,error:false});',
+    'export const saveMetronomeStore = () => true;',
+  ].join('\n'));
   const mapped = output.replace(/from (['"])(.*?)\1/g, (_match, _q, specifier) => {
     const mapping = {
       vue: vueUrl,
       '../../shared/audio/metronome': audioUrl,
-      '../../shared/audio/metronome-config.ts': asModule('export const copyConfig=c=>structuredClone(c); export const defaultMetronomeConfig=()=>({bpm:80,tempoUnit:"quarter",numerator:4}); export const validConfig=c=>Number.isInteger(c.bpm)&&c.bpm>=20&&c.bpm<=240&&["quarter","eighth","dotted-quarter"].includes(c.tempoUnit); export const readMetronomeStore=()=>({store:null,error:false}); export const saveMetronomeStore=()=>true;'),
+      '../../shared/audio/metronome-config.ts': configUrl,
     };
     assert.ok(mapping[specifier], 'unexpected controller dependency: ' + specifier);
     return 'from ' + JSON.stringify(mapping[specifier]);
@@ -33,85 +46,58 @@ async function loadRealController() {
   return import(asModule(mapped));
 }
 
-test('real exercise/controller entries keep existing playback/BPM and do not reset scheduling', async () => {
-  const state = { bpm: 80, status: 'stopped' };
+test('exercise launcher applies real meter, grouping, BPM and does not leak a prior pattern', async () => {
+  const state = { bpm:80, status:'stopped' };
   let stops = 0;
-  const appliedConfigs = [];
-  const setBpmCalls = [];
-  const config = { bpm:80, tempoUnit:'dotted-quarter', numerator:6, denominator:8 };
+  const applied = [];
+  let config = { bpm:80, numerator:4, denominator:4, tempoUnit:'quarter', groups:[4],
+    subdivision:2, masterVolumePercent:30, accentVolumes:{strong:100,medium:65,weak:35},
+    subdivisionVolumePercent:20, positions:Array.from({length:4},()=>({accent:'weak',volumePercent:100})) };
   globalThis.__exerciseMetronome = {
-    getState: () => ({ ...state }),
-    getConfig: () => ({ ...config }),
-    applyConfig(requested) {
-      appliedConfigs.push({ ...requested });
-      Object.assign(config,requested);
-      state.bpm=requested.bpm;
-      return true;
-    },
-    stop() { stops++; state.status = 'stopped'; },
-    setBpm(bpm) {
-      setBpmCalls.push(bpm);
-      if (!Number.isInteger(bpm) || bpm < 20 || bpm > 240) return false;
-      state.bpm = bpm;
-      return true;
-    },
+    getState: () => ({...state}),
+    getConfig: () => structuredClone(config),
+    applyConfig(c) { applied.push(structuredClone(c)); config=structuredClone(c);state.bpm=c.bpm;return true; },
+    stop() { stops++;state.status='stopped'; },
   };
   try {
     const ui = await loadRealController();
-    const header = { kind: 'header' };
-    const exercise = { kind: 'exercise-button' };
-    const exerciseB = { kind: 'exercise-b' };
+    const a={kind:'piece-a'}, b={kind:'piece-b'};
+    assert.equal(ui.openExerciseMetronome(a,'WALTZ@1',76,'3/8'),true);
+    assert.equal(config.numerator,3);
+    assert.equal(config.denominator,8);
+    assert.deepEqual(config.groups,[3]);
+    assert.equal(config.tempoUnit,'quarter');
+    assert.equal(config.bpm,76);
+    assert.equal(config.masterVolumePercent,30);
+    assert.equal(config.subdivision,2);
+    assert.equal(stops,0);
 
-    ui.openExerciseMetronome(exercise, 'GM-EB01@0.8B', 84);
-    assert.equal(ui.metronomeUi.open, true);
-    assert.equal(ui.metronomeUi.sourceExercise, 'GM-EB01@0.8B');
-    assert.equal(state.bpm, 84, 'stopped engine adopts recommended exercise tempo');
-    assert.equal(config.tempoUnit,'quarter','exercise quarter BPM must override previous dotted-quarter unit');
-    assert.deepEqual(appliedConfigs.map(c=>c.bpm),[84]);
-    assert.equal(appliedConfigs[0].numerator,6,'user-defined meter preserved');
-    assert.equal(stops, 0, 'opening never invokes an unnecessary stop');
-
-    state.status = 'running';
-    state.bpm = 90; // student adjusts live tempo from the controls
+    state.status='running';
+    state.bpm=79;
     ui.minimizeMetronome();
-    assert.equal(ui.metronomeUi.open, false);
-    assert.equal(state.status, 'running');
-    ui.openExerciseMetronome(exercise, 'GM-EB01@0.8B', 84);
-    assert.equal(ui.metronomeUi.open, true);
-    assert.equal(ui.metronomeUi.returnFocus.kind, exercise.kind, 'focus target remains the exercise opener');
-    assert.equal(state.bpm, 90, 'reopen from task does not replace the chosen tempo');
-    assert.equal(state.status, 'running', 'ongoing click must continue');
-    assert.equal(stops, 0, 'reopening does not stop the audio graph');
-    assert.equal(appliedConfigs.length,1,'reopening does not reset scheduler via applyConfig');
+    assert.equal(ui.openExerciseMetronome(a,'WALTZ@1',76,'3/8'),true);
+    assert.equal(stops,0,'same exercise keeps playing');
+    assert.equal(applied.length,1);
 
     ui.minimizeMetronome();
-    ui.openMetronome(header);
-    assert.equal(ui.metronomeUi.open, true);
-    assert.equal(state.status, 'running');
-    assert.equal(state.bpm, 90);
-    assert.equal(stops, 0, 'opening the header control is not an implicit Stop');
+    assert.equal(ui.openExerciseMetronome(b,'SIX-EIGHT@1',88,'6/8'),true);
+    assert.equal(stops,1,'different piece stops old meter');
+    assert.equal(config.numerator,6);
+    assert.equal(config.denominator,8);
+    assert.deepEqual(config.groups,[3,3]);
+    assert.equal(config.tempoUnit,'dotted-quarter');
+    assert.equal(config.bpm,88);
+    assert.equal(applied.length,2);
 
-    ui.minimizeMetronome();
-    ui.openExerciseMetronome(exerciseB, 'GM-EB02@1', 72);
-    assert.equal(state.bpm, 90, 'other exercise entry also preserves running tempo');
-    assert.equal(stops, 0);
-    assert.equal(appliedConfigs.length,1);
-    assert.equal(ui.metronomeUi.sourceExercise, 'GM-EB02@1');
-
-    state.status = 'starting';
-    ui.openExerciseMetronome(exercise, 'GM-EB01@0.8B', 84);
-    assert.equal(state.status, 'starting', 'do not cancel an in-flight asynchronous Start');
-    assert.equal(stops, 0);
-    assert.equal(appliedConfigs.length,1);
-
+    assert.equal(ui.openExerciseMetronome(a,'BROKEN@1',80,'17/8'),false);
+    assert.equal(ui.openExerciseMetronome(a,'BROKEN@2',80,'3:8'),false);
+    assert.equal(ui.openExerciseMetronome(a,'BROKEN@3',241,'3/8'),false);
+    assert.equal(config.numerator,6,'invalid data never silently falls back to 4/4');
+    assert.equal(applied.length,2);
+    assert.equal(ui.metronomeUi.sourceExercise,'SIX-EIGHT@1');
     ui.closeMetronome();
-    assert.equal(stops, 1, 'explicit close still stops audio');
-    assert.equal(ui.metronomeUi.open, false);
-    ui.openExerciseMetronome(exercise, 'GM-EB01@0.8B', 84);
-    assert.equal(state.bpm, 84, 'recommendation applies on a newly stopped engine');
-    assert.deepEqual(appliedConfigs.map(c=>c.bpm),[84,84]);
-    assert.deepEqual(setBpmCalls,[],'stopped recommendation applies as one valid composite, not manual BPM reset');
-    ui.closeMetronome();
+    assert.equal(stops,2);
+    assert.equal(ui.metronomeUi.open,false);
   } finally {
     delete globalThis.__exerciseMetronome;
   }
