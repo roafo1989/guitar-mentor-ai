@@ -88,6 +88,38 @@ public class LocalCredentialService {
             .param("expiry",java.sql.Timestamp.from(Instant.now().plus(30,ChronoUnit.MINUTES))).update();
         send(email,"Verify Guitar Mentor account",token,"verify");
     }
+    /** Self-service registration: no invitation, no active account until verified email. */
+    @Transactional
+    public void registerPublic(String address, String login, String password) {
+        String email = InvitationService.email(address);
+        String username = loginName(login);
+        validPassword(password);
+        // Expired reservations cannot permanently hold a username or email.
+        jdbc.sql("DELETE FROM pending_local_registrations WHERE expires_at<=now()").update();
+        long exists = jdbc.sql("""
+            SELECT (SELECT count(*) FROM local_credentials
+                    WHERE email_normalized=:email OR login_normalized=:login)
+                 + (SELECT count(*) FROM pending_local_registrations
+                    WHERE email_normalized=:email OR login_normalized=:login)
+                 + (SELECT count(*) FROM pending_local_links
+                    WHERE email_normalized=:email OR login_normalized=:login)
+            """).param("email",email).param("login",username).query(Long.class).single();
+        if (exists != 0) throw new SecurityException("REGISTRATION_REJECTED");
+        String token = newToken();
+        jdbc.sql("""
+            INSERT INTO pending_local_registrations
+                (id,invitation_id,email_normalized,login_normalized,password_hash,verification_hash,expires_at)
+            VALUES (:id,NULL,:email,:login,:hash,:token,:expiry)
+            """).param("id",UUID.randomUUID())
+            .param("email",email).param("login",username)
+            .param("hash",encoder.encode(password))
+            .param("token",InvitationService.digest(token))
+            .param("expiry",java.sql.Timestamp.from(Instant.now().plus(30,ChronoUnit.MINUTES)))
+            .update();
+        // Transaction rolls back the pending entry if delivery fails.
+        send(email,"Verify Guitar Mentor account",token,"verify");
+    }
+
     @Transactional
     public void verify(String token) {
         if (token==null || !token.matches("[a-f0-9]{64}")) throw new SecurityException("INVALID_TOKEN");
@@ -95,14 +127,16 @@ public class LocalCredentialService {
             SELECT p.id,p.invitation_id,p.email_normalized,p.login_normalized,p.password_hash,
                    i.learner_id,i.role
             FROM pending_local_registrations p
-            JOIN invitations i ON i.id=p.invitation_id
+            LEFT JOIN invitations i ON i.id=p.invitation_id
             WHERE p.verification_hash=:token AND p.expires_at>now()
-              AND i.status='PENDING' AND i.expires_at>now()
-            FOR UPDATE OF p,i
+              AND (p.invitation_id IS NULL OR
+                  (i.status='PENDING' AND i.expires_at>now()))
+            FOR UPDATE OF p
             """).param("token",InvitationService.digest(token)).query((rs,i)->new Pending(
                 rs.getObject("id",UUID.class),rs.getObject("invitation_id",UUID.class),
                 rs.getString("email_normalized"),rs.getString("login_normalized"),
-                rs.getString("password_hash"),rs.getObject("learner_id",UUID.class),rs.getString("role"))).optional();
+                rs.getString("password_hash"),rs.getObject("learner_id",UUID.class),
+                rs.getString("role")==null?"LEARNER":rs.getString("role")))).optional();
         if (pending.isEmpty()) throw new SecurityException("INVALID_TOKEN");
         var p=pending.get();
         if ("OWNER".equals(p.role) && jdbc.sql("SELECT count(*) FROM accounts WHERE role='OWNER' AND status='ACTIVE'").query(Long.class).single()>0)
@@ -118,8 +152,10 @@ public class LocalCredentialService {
             INSERT INTO local_credentials(account_id,email_normalized,login_normalized,password_hash,email_verified_at)
             VALUES (:id,:email,:login,:hash,now())
             """).param("id",account).param("email",p.email).param("login",p.login).param("hash",p.hash).update();
-        jdbc.sql("UPDATE invitations SET status='ACCEPTED',accepted_at=now(),accepted_account_id=:account WHERE id=:id")
-            .param("account",account).param("id",p.invitation).update();
+        if (p.invitation != null) {
+            jdbc.sql("UPDATE invitations SET status='ACCEPTED',accepted_at=now(),accepted_account_id=:account WHERE id=:id")
+                .param("account",account).param("id",p.invitation).update();
+        }
         jdbc.sql("DELETE FROM pending_local_registrations WHERE id=:id").param("id",p.id).update();
     }
     public UUID authenticate(String identifier, String password) {
