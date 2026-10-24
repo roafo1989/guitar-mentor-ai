@@ -4,26 +4,32 @@
   "title": "Quiet Steps",
   "instrumentCode": "ACOUSTIC_GUITAR",
   "techniqueCode": "FINGERSTYLE",
+  "styleCode": "ACOUSTIC",
   "meter": "4/4",
   "measures": 8,
   "bpm": 76,
   "difficulty": "BEGINNER_INTERMEDIATE",
   "tuning": "E A D G B E",
-  "learningGoal": "Maintain a sustained bass pulse while projecting a clear upper melody over arpeggiated middle notes.",
-  "practiceInstructions": "Use thumb (p) for bass and i-m-a for the three upper strings. Start at 55 BPM, play four measures per phrase, then progress toward 76 BPM. No pick or percussion.",
+  "learningGoal": "Project a lyrical top-string melody over an even, quiet eighth-note arpeggio while maintaining a clear underlying bass pulse.",
+  "practiceInstructions": "Fingerstyle only, no pick or percussion. Thumb p plays bass and fourth string, index i plays third, middle m second, ring a first. Start around 55 BPM. Practice bars 1–4 and 5–8 separately, then join them. Keep melody louder than accompaniment. String/fret markings are included in MusicXML; melody notes occur on first string.",
   "successCriteria": [
-    "Eight complete measures at a steady tempo",
-    "Melody notes audibly stand out over inner arpeggio",
-    "No unintended muted strings or missed beats"
+    "Eight complete 4/4 measures with each voice rhythmically complete",
+    "Even eight eighth-note accompaniment attacks per bar without losing the underlying pulse",
+    "Distinct and audible upper melody, including the final dotted-half cadence",
+    "Clean chord transitions C–Am–Fmaj7–G–C–Am–G7–C"
   ],
   "estimatedPracticeMinutes": 15,
   "origin": "ORIGINAL",
-  "author": "Guitar Mentor AI",
-  "license": "Project-owned original educational composition; publication requires owner confirmation",
+  "author": "Guitar Mentor AI (AI-assisted original composition)",
+  "license": "Original material created for Guitar Mentor AI; publication and licensing to be confirmed by repository owner",
+  "rightsEvidence": "Composed for issue #78 without importing or adapting an identified third-party score; not a legal originality certification.",
   "reviewStatus": "PENDING_MUSICAL_REVIEW",
+  "automatedValidationStatus": "VALIDATOR_INCLUDED",
   "previewStatus": "NOT_GENERATED",
   "files": [
     "score.musicxml",
-    "score_events.json"
-  ]
+    "score_events.json",
+    "manifest.json"
+  ],
+  "mediaDeferredToIssue": 81
 }
