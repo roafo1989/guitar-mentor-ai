@@ -38,6 +38,7 @@ function renderer() {
     tag, tagName: String(tag).toUpperCase(), text, children: [], parent: null, props: {},
     value: '', checked: false, multiple: false, selectedIndex: -1,
     addEventListener() {}, removeEventListener() {}, dispatchEvent() {},
+    getRootNode() { return { activeElement: null }; },
     get options() { return this.children.filter(child => child.tag === 'option'); },
   });
   const remove = n => {
