@@ -9,6 +9,7 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.http.HttpStatus;
+import org.springframework.core.io.ClassPathResource;
 
 /** Real Flyway-migrated PostgreSQL: hidden draft cannot leak through exact APIs. */
 @SpringBootTest
@@ -19,7 +20,7 @@ class DiagnosticProbePostgresTest {
     @Autowired ExerciseRepository exercises;
     @Autowired ExerciseVersionResourceService media;
 
-    @Test void v20IsAdditiveAndDraftV21IsNeverAssignableOrPublic() {
+    @Test void v20IsAdditiveAndDraftV21IsNeverAssignableOrPublic() throws Exception {
         var original=catalog.find("GM-EB01");
         assertEquals("LEARNING_REPERTOIRE",original.contentKind());
         assertEquals("quarter",original.tempoUnit());
@@ -32,6 +33,12 @@ class DiagnosticProbePostgresTest {
         assertEquals("3/8",draft.getMeter());
         assertFalse(draft.isCurrent());
         assertFalse(ExercisePublicationPolicy.eligible(draft));
+        assertTrue(draft.getPreviewAudioResource().endsWith("preview_v010.mp3"));
+        assertTrue(draft.getPreviewPdfResource().endsWith("preview_v010.pdf"));
+        var pdf = new ClassPathResource(draft.getPreviewPdfResource()).getContentAsByteArray();
+        var audio = new ClassPathResource(draft.getPreviewAudioResource()).getContentAsByteArray();
+        assertTrue(pdf.length > 3000 && pdf[0] == 37 && pdf[1] == 80);
+        assertTrue(audio.length > 3000 && (audio[0] == 73 || (audio[0] & 0xff) == 0xff));
         assertTrue(catalog.available("ACOUSTIC_GUITAR","FINGERSTYLE")
                 .stream().noneMatch(e->e.code().equals(draft.getCode())));
         assertThrows(ExerciseReferenceException.class,
