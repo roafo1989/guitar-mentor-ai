@@ -1,0 +1,20 @@
+name: GM-EB02 score consistency
+on:
+  pull_request:
+    paths:
+      - 'music/etudes/GM-EB02/**'
+      - '.github/workflows/gm-eb02-score.yml'
+  push:
+    paths:
+      - 'music/etudes/GM-EB02/**'
+      - '.github/workflows/gm-eb02-score.yml'
+  workflow_dispatch:
+jobs:
+  validate-score:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/checkout@v4
+      - name: Validate MusicXML and event JSON
+        run: python3 music/etudes/GM-EB02/test_score.py
