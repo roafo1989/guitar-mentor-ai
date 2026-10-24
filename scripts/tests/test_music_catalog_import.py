@@ -51,9 +51,9 @@ class MusicCatalogValidationTest(unittest.TestCase):
         with self.assertRaises(ValueError):
             mod.verify(data)
 
-    def test_empty_required_field_rejected(self):
+    def test_invalid_work_identity_status_rejected(self):
         data = fixture()
-        data[0][0]["title"] = ""
+        data[0][0]["identity_status"] = "INVALID"
         with self.assertRaises(ValueError):
             mod.verify(data)
 
