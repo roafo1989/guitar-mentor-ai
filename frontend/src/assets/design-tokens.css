@@ -1,0 +1,12 @@
+/* FT-016-01 — shared semantic tokens, only active for opted-in application. */
+.app-shell[data-ui="light-minimal"] {
+  --gm-bg:#f7f8f7;--gm-surface:#fff;--gm-text:#162331;--gm-muted:#53636d;
+  --gm-primary:#28776d;--gm-primary-hover:#205f57;--gm-border:#dde5e4;
+  --gm-control-border:#7c8987;--gm-focus:#205f57;--gm-danger:#a42d32;
+  --gm-space-1:4px;--gm-space-2:8px;--gm-space-3:12px;--gm-space-4:16px;
+  --gm-space-6:24px;--gm-space-8:32px;
+  --gm-radius-sm:8px;--gm-radius-md:12px;--gm-radius-lg:16px;
+  --gm-shadow:0 4px 22px rgba(22,35,49,.06);
+  font-family:Inter,"Segoe UI",system-ui,sans-serif;
+  font-size:16px;line-height:1.5;color:var(--gm-text);background:var(--gm-bg);
+}
