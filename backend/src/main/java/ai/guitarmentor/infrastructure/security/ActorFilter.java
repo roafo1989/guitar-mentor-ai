@@ -71,7 +71,7 @@ public class ActorFilter extends OncePerRequestFilter {
         if (auth.getPrincipal() instanceof OidcUser) {
             Object pinned = session == null ? null : session.getAttribute("guitarMentorAccessVersion");
             var current = repository.localVersion(actor.get().accountId());
-            if (!(pinned instanceof Long) || current.isEmpty() || !pinned.equals(current.get())) {
+            if (session != null && (!(pinned instanceof Long) || current.isEmpty() || !pinned.equals(current.get()))) {
                 if (session != null) session.invalidate();
                 SecurityContextHolder.clearContext();
                 deny(response, 401, "SESSION_EXPIRED");
