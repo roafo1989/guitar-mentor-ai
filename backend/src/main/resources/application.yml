@@ -34,6 +34,10 @@ guitar-mentor:
     storage-path: ${GUITAR_MENTOR_LIBRARY_STORAGE_PATH:./.local-media/library}
     cursor-secret: ${GUITAR_MENTOR_LIBRARY_CURSOR_SECRET:}
     reconcile-delay-ms: ${GUITAR_MENTOR_LIBRARY_RECONCILE_MS:600000}
+    max-upload-bytes: ${GUITAR_MENTOR_LIBRARY_MAX_UPLOAD_BYTES:20971520}
+    max-account-bytes: ${GUITAR_MENTOR_LIBRARY_MAX_ACCOUNT_BYTES:209715200}
+    max-account-files: ${GUITAR_MENTOR_LIBRARY_MAX_ACCOUNT_FILES:100}
+    max-files-per-material: ${GUITAR_MENTOR_LIBRARY_MAX_FILES_PER_MATERIAL:5}
   security:
     enabled: ${GUITAR_MENTOR_SECURITY_ENABLED:true}
   submissions:
