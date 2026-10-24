@@ -533,6 +533,46 @@ class SubmissionAttemptPostgresIntegrationTest {
     }
 
     @Test
+    void existingForeignTaskAndAttemptAreInvisibleToOwnerOfAnotherTask() {
+        UUID learnerB=UUID.randomUUID();
+        UUID profileB=UUID.randomUUID();
+        UUID sessionB=UUID.randomUUID();
+        UUID taskB=UUID.randomUUID();
+        UUID attemptB=UUID.randomUUID();
+        java.sql.Timestamp now=java.sql.Timestamp.from(Instant.now());
+        jdbc.update("INSERT INTO learners(id,display_name,created_at) VALUES(?,?,?)",
+                learnerB,"Foreign student",now);
+        try {
+            jdbc.update("INSERT INTO instrument_profiles(id,learner_id,instrument_code,technique_code)"
+                    +" VALUES(?,?,?,?)",profileB,learnerB,"ACOUSTIC_GUITAR","FINGERSTYLE");
+            jdbc.update("INSERT INTO diagnostic_sessions"
+                    +"(id,instrument_profile_id,status,created_at,updated_at,version)"
+                    +" VALUES(?,?,?,?,?,?)",sessionB,profileB,"TASK_ASSIGNED",now,now,0L);
+            jdbc.update("INSERT INTO diagnostic_tasks(id,diagnostic_session_id,exercise_id,assigned_at)"
+                    +" VALUES(?,?,?,?)",taskB,sessionB,EXERCISE_ID,now);
+            jdbc.update("""
+                INSERT INTO submission_attempts
+                  (id,diagnostic_task_id,request_id,attempt_number,submitted_at,status,
+                   media_key,media_format,size_bytes)
+                VALUES (?,?,?,1,?,'UPLOADED','foreign-fixture.wav','wav',12)
+                """,attemptB,taskB,UUID.randomUUID(),now);
+            assertThrows(jakarta.persistence.EntityNotFoundException.class,
+                    () -> service.page(learnerId,sessionB,taskB,20,null));
+            assertThrows(jakarta.persistence.EntityNotFoundException.class,
+                    () -> service.detail(learnerId,sessionB,taskB,attemptB));
+            assertThrows(jakarta.persistence.EntityNotFoundException.class,
+                    () -> service.detail(learnerId,sessionId,taskId,attemptB));
+            assertEquals(attemptB,service.detail(learnerB,sessionB,taskB,attemptB).id());
+        } finally {
+            jdbc.update("DELETE FROM submission_attempts WHERE diagnostic_task_id=?",taskB);
+            jdbc.update("DELETE FROM diagnostic_tasks WHERE id=?",taskB);
+            jdbc.update("DELETE FROM diagnostic_sessions WHERE id=?",sessionB);
+            jdbc.update("DELETE FROM instrument_profiles WHERE id=?",profileB);
+            jdbc.update("DELETE FROM learners WHERE id=?",learnerB);
+        }
+    }
+
+    @Test
     void emptyPageAndLimitBoundaries() {
         assertTrue(service.page(learnerId,sessionId,taskId,20,null).items().isEmpty());
         assertFalse(service.page(learnerId,sessionId,taskId,20,null).hasMore());
