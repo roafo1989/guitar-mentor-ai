@@ -7,6 +7,7 @@ import argparse
 import csv
 import os
 import uuid
+import re
 from pathlib import Path
 
 TABLES = [
@@ -71,11 +72,25 @@ def verify(data):
     paths=[row["relative_path"].casefold() for row in files]
     if len(paths)!=len(set(paths)):
         raise ValueError("Duplicate source paths")
+    for row in works:
+        if not row["title"] or row["identity_status"] not in {"CANDIDATE","UNRESOLVED","VERIFIED"}:
+            raise ValueError("Invalid work title or identity status")
+    for row in arrangements:
+        if not row["name"] or not row["parser_status"]:
+            raise ValueError("Incomplete arrangement")
+    for row in reviews:
+        if not row["review_reasons"] or not row["parser_status"]:
+            raise ValueError("Incomplete review")
     for row in files:
         if row["visibility"]!="PRIVATE":
             raise ValueError("Refusing non-private source file")
-        if not row["relative_path"] or row["relative_path"].startswith(("/", "\\\\")):
+        relative = row["relative_path"].replace("\\\\", "/")
+        if (not relative or relative.startswith("/") or
+                re.match(r"^[A-Za-z]:", relative) or
+                any(part in {"", ".", ".."} for part in relative.split("/"))):
             raise ValueError("Invalid source-relative path")
+        if not row["file_id"] or not row["arrangement_id"] or not row["original_filename"] or not row["source_group"] or not row["extension"] or not row["rights_status"]:
+            raise ValueError("Incomplete file metadata")
         n=int(row["size_bytes"])
         if n<0:
             raise ValueError("Negative source size")
