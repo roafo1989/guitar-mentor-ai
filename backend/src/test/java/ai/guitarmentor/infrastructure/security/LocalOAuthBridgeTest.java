@@ -19,7 +19,7 @@ class LocalOAuthBridgeTest {
         String ticket = bridge.complete(start, auth);
         assertFalse(bridge.validStart(start));
         assertThrows(SecurityException.class, () -> bridge.complete(start, auth));
-        assertSame(oidc, bridge.consume(ticket, "https-session-a"));
+        assertSame(oidc, bridge.consume(ticket, "https-session-a").principal());
         assertThrows(SecurityException.class, () -> bridge.consume(ticket, "https-session-a"));
     }
 
@@ -42,7 +42,9 @@ class LocalOAuthBridgeTest {
         var oidc = mock(OidcUser.class);
         var auth = new UsernamePasswordAuthenticationToken(oidc, null, List.of());
         var ticket = bridge.complete(start, auth);
-        assertSame(oidc, bridge.consume(ticket, "password-reauthed-session"));
+        var result = bridge.consume(ticket, "password-reauthed-session");
+        assertSame(oidc, result.principal());
+        assertTrue(result.linking());
         String unvalidated = bridge.begin("session", false);
         assertThrows(SecurityException.class, () -> bridge.complete(unvalidated,
                 new UsernamePasswordAuthenticationToken("untrusted-email", null, List.of())));
