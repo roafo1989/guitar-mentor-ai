@@ -12,7 +12,7 @@ import { useLearnerStore } from './stores/learner.store';
 
 const { locale, t } = useI18n();
 const localPrototype = !secureUi;
-const lightMinimal = import.meta.env.VITE_GUITAR_MENTOR_LIGHT_MINIMAL === 'true';
+const lightMinimal = import.meta.env?.VITE_GUITAR_MENTOR_LIGHT_MINIMAL === 'true';
 const menuOpen = ref(false);
 const menuButton = ref<HTMLButtonElement | null>(null);
 const menuId = 'gm-header-menu';
