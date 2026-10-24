@@ -202,7 +202,7 @@ test('#150 design acceptance: assigned preview has real audio, capture waveform 
  assert.match(diagnostic,/preload="none" controls/);
  assert.match(microphone,/class="studio-live-wave"/);
  assert.match(microphone,/meterLevel/);
- assert.match(microphone,/v-if="supported" class="microphone-controls"/);
+ assert.match(microphone,/v-if="supported \|\| !compact" class="microphone-controls"/);
  assert.match(submission,/class="studio-results-divider"/);
  assert.match(reader,/v-if="!fitWidth"/);
  assert.match(reader,/justify-content:flex-end/);
