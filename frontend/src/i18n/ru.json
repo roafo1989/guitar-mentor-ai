@@ -338,7 +338,8 @@
     "historyUpdated": "История попыток обновлена.",
     "microphoneTitle": "Запись с микрофона",
     "uploadAlternative": "Или загрузить готовый аудиофайл",
-    "microphoneInstructions": "О записи и использовании микрофона"
+    "microphoneInstructions": "О записи и использовании микрофона",
+    "localRecordingAvailable": "Запись с микрофона доступна локально: её можно прослушать до отправки. Отправка на сервер пока отключена."
   },
   "evidence": {
     "heading": "Мои исполнения",
