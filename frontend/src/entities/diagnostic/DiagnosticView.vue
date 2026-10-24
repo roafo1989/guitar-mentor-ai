@@ -289,7 +289,7 @@ async function assign(exerciseCode: string): Promise<void> {
 
 <template>
   <section class="profile-page diagnostic-workspace" :class="{ 'diagnostic-workspace--light': lightMinimal }">
-    <div class="intro">
+    <div v-if="!lightMinimal || session?.status !== 'TASK_ASSIGNED' || !task" class="intro">
       <span class="eyebrow">{{ t("diagnostic.workspace.lesson") }}</span>
       <h1>{{ session?.status === 'TASK_ASSIGNED' ? t('diagnostic.workspace.lesson') : t('diagnostic.title') }}</h1>
       <p>{{ session?.status === 'TASK_ASSIGNED' ? t('diagnostic.workspace.lessonSubtitle') : t('diagnostic.subtitle') }}</p>
@@ -304,12 +304,12 @@ async function assign(exerciseCode: string): Promise<void> {
       <p>{{ t('diagnostic.needProfile') }}</p>
       <RouterLink to="/profile">{{ t('app.profile') }}</RouterLink>
     </div>
-    <div v-else class="panel" :class="{ 'lesson-panel--light': lightMinimal && session?.status === 'TASK_ASSIGNED' }">
-      <details v-if="session" class="session-details">
+    <div v-else class="panel" :class="{ 'lesson-panel--light': lightMinimal && session?.status === 'TASK_ASSIGNED', 'studio-panel': lightMinimal && session?.status === 'TASK_ASSIGNED' && task }">
+      <details v-if="session && (!lightMinimal || session.status !== 'TASK_ASSIGNED')" class="session-details">
         <summary>{{ t('diagnostic.workspace.sessionDetails') }}</summary>
         <p class="hint">{{ t('diagnostic.session') }}: {{ session.id }}</p>
       </details>
-      <DiagnosticEvidencePanel v-if="session && learnerStore.learner"
+      <DiagnosticEvidencePanel v-if="session && learnerStore.learner && (!lightMinimal || session.status !== 'TASK_ASSIGNED')"
         :learner-id="learnerStore.learner.id" :session-id="session.id"
         :allow-upload="session.status === 'COLLECTING_EVIDENCE'"
         @intake-state="onIntakeState" />
@@ -401,7 +401,40 @@ async function assign(exerciseCode: string): Promise<void> {
           </template>
         </div>
       </template>
-      <template v-else-if="session?.status === 'TASK_ASSIGNED' && task">
+      <template v-else-if="session?.status === 'TASK_ASSIGNED' && task && lightMinimal">
+        <div class="studio-titlebar">
+          <div class="studio-titlecopy">
+            <p class="studio-overline">{{ t('diagnostic.studio.overline') }}</p>
+            <h2>{{ t('diagnostic.studio.currentTitle') }}</h2>
+            <p>{{ t('diagnostic.studio.subtitle') }}</p>
+          </div>
+          <div class="studio-assignment" :aria-label="t('diagnostic.studio.assigned')">
+            <div class="studio-assignment-icon" aria-hidden="true">♫</div>
+            <div class="studio-assignment-description">
+              <strong>{{ task.exercise.title }}</strong>
+              <span>{{ task.exercise.code }} · v{{ task.exercise.version }}</span>
+              <small>{{ task.exercise.bpm }} BPM · {{ task.exercise.meter }} · {{ task.exercise.measures }} {{ t('diagnostic.bars') }}</small>
+            </div>
+            <span class="studio-assignment-status">{{ t('diagnostic.studio.inProgress') }}</span>
+          </div>
+        </div>
+        <div class="studio-columns">
+          <section class="studio-score" :aria-label="t('diagnostic.workspace.materials')">
+            <ExercisePreview :exercise="task.exercise" assigned />
+          </section>
+          <aside class="studio-sidebar" :aria-label="t('diagnostic.workspace.recording')">
+            <SubmissionPanel v-if="learnerStore.learner"
+              :learner-id="learnerStore.learner.id"
+              :session-id="session.id" :task-id="task.id" @draft-state="onSubmissionDraft" />
+          </aside>
+        </div>
+        <details class="studio-extra">
+          <summary>{{ t('diagnostic.studio.details') }}</summary>
+          <p>{{ task.exercise.learningGoal?.trim() || task.exercise.description || t('diagnostic.metadata.unknown') }}</p>
+          <p>{{ task.exercise.license }}</p>
+        </details>
+      </template>
+      <template v-else-if="session?.status === 'TASK_ASSIGNED' && task && !lightMinimal">
         <div class="exercise-meta">{{ task.exercise.code }} · v{{ task.exercise.version }}</div>
         <h2>{{ task.exercise.title }}</h2>
         <p>{{ task.exercise.learningGoal?.trim() || task.exercise.description || t('diagnostic.metadata.unknown') }}</p>
@@ -427,7 +460,7 @@ async function assign(exerciseCode: string): Promise<void> {
       </template>
       <p v-if="displayError" role="alert" class="error">{{ displayError }}</p>
       <button v-if="failedRestoreRead && !busy && !intakeBusy && !submissionBusy && !intakeDraft && !submissionDraft" type="button" class="text-button" @click="restoreSession">{{ t("home.retry") }}</button>
-      <p><RouterLink to="/onboarding">{{ t('diagnostic.back') }}</RouterLink></p>
+      <p v-if="!lightMinimal || session?.status !== 'TASK_ASSIGNED'" class="studio-back"><RouterLink to="/onboarding">{{ t('diagnostic.back') }}</RouterLink></p>
     </div>
   </section>
 </template>
@@ -496,6 +529,58 @@ async function assign(exerciseCode: string): Promise<void> {
   .diagnostic-workspace--light {width:calc(100% - 32px);padding:24px 0 60px}
   .lesson-workspace--light {gap:16px}
   .lesson-workspace--light .lesson-materials {padding:14px}
+}
+
+
+/* FT-016-03 visual rebuild: one studio shell, not nested legacy panels. */
+.profile-page.diagnostic-workspace--light {
+  max-width:none;width:min(calc(100% - 64px),1560px);margin:0 auto;
+  padding:36px 0 70px;box-sizing:border-box;
+}
+.diagnostic-workspace--light .studio-panel {
+  padding:0!important;border:0!important;background:transparent!important;
+  box-shadow:none!important;max-width:none;overflow:visible;
+}
+.studio-titlebar {display:grid;grid-template-columns:minmax(280px,.44fr) minmax(0,1fr);gap:32px;align-items:center;margin:0 0 24px}
+.studio-overline {font-size:12px;font-weight:750;letter-spacing:.14em;text-transform:uppercase;color:#64776f;margin:0 0 8px}
+.studio-titlecopy h2 {font-size:clamp(30px,3.5vw,48px);letter-spacing:-.04em;line-height:1.1;margin:0 0 8px;color:#162331}
+.studio-titlecopy p:last-child {color:#5b6a71;font-size:15px;margin:0}
+.studio-assignment {display:flex;align-items:center;gap:20px;min-width:0;background:#fff;border:1px solid #e1e8e5;border-radius:16px;padding:20px;box-shadow:0 6px 24px #1623310a}
+.studio-assignment-icon {flex:none;width:90px;height:88px;border-radius:12px;background:linear-gradient(135deg,#d9ede2,#f2f7f2);color:#28776d;font-size:48px;display:grid;place-items:center}
+.studio-assignment-description {display:flex;flex-direction:column;gap:6px;min-width:0}
+.studio-assignment-description strong {font-size:20px;line-height:1.25;overflow-wrap:anywhere}
+.studio-assignment-description span {color:#56666a;font-size:13px;overflow-wrap:anywhere}
+.studio-assignment-description small {font-size:13px;color:#28776d}
+.studio-assignment-status {margin-left:auto;flex:none;padding:6px 10px;color:#226851;background:#e6f3e9;border-radius:999px;font-size:12px;font-weight:650}
+.studio-columns {display:grid;grid-template-columns:minmax(0,1fr) 340px;align-items:start;gap:16px}
+.studio-score,.studio-sidebar {min-width:0}
+.studio-score {padding:18px;background:#fff;border:1px solid #e0e7e4;border-radius:16px;box-shadow:0 5px 24px #16233108}
+.studio-sidebar :deep(.homework-panel) {margin:0;padding:18px;border:1px solid #e0e7e4;border-radius:16px;background:#fff;box-shadow:0 5px 24px #16233108}
+.studio-sidebar :deep(.homework-heading p) {font-size:13px}
+.studio-sidebar :deep(.homework-form) {gap:12px}
+.studio-sidebar :deep(.recording-primary) {border:0;background:transparent;padding:0}
+.studio-sidebar :deep(.recording-primary h4) {display:none}
+.studio-sidebar :deep(.microphone-recorder) {border:0;padding:0;box-shadow:none;background:transparent}
+.studio-sidebar :deep(.microphone-recorder > strong) {display:none}
+.studio-sidebar :deep(.microphone-recorder > .hint) {font-size:12px;line-height:1.35;margin:6px 0}
+.studio-sidebar :deep(.microphone-controls) {margin-top:12px}
+.studio-sidebar :deep(.microphone-controls button) {border-radius:10px;min-height:44px}
+.studio-sidebar :deep(.recording-file-option) {margin:0 0 8px}
+.studio-sidebar :deep(.homework-history) {margin-top:16px}
+.studio-sidebar :deep(.homework-panel textarea) {width:100%;max-width:100%}
+.studio-extra {margin:18px 0 0;color:#53635e;font-size:14px}
+.studio-extra summary {cursor:pointer;min-height:44px}
+@media(max-width:1080px) {
+  .studio-titlebar {grid-template-columns:1fr;gap:18px}
+  .studio-columns {grid-template-columns:minmax(0,1fr)}
+  .studio-sidebar {max-width:none}
+}
+@media(max-width:620px) {
+  .profile-page.diagnostic-workspace--light {width:calc(100% - 32px);padding:20px 0 50px}
+  .studio-assignment {padding:14px;gap:12px;flex-wrap:wrap}
+  .studio-assignment-icon {width:60px;height:60px;font-size:32px}
+  .studio-assignment-status {margin-left:0}
+  .studio-score {padding:10px}
 }
 
 </style>
