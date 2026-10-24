@@ -123,6 +123,20 @@ class SecurityHttpIntegrationTest {
     }
 
     @Test
+    void existingOidcSessionIsDeniedImmediatelyAfterAccountDisable() throws Exception {
+        var principal = oidcLogin().idToken(t -> t
+            .claim("iss", "https://issuer.example").subject("revoked-learner"));
+        when(actors.findActive("https://issuer.example", "revoked-learner"))
+            .thenReturn(Optional.of(new CurrentActor(UUID.randomUUID(),learnerA,"LEARNER")))
+            .thenReturn(Optional.empty());
+        mvc.perform(get("/api/v1/me").with(principal))
+            .andExpect(status().isOk());
+        mvc.perform(get("/api/v1/me").with(principal))
+            .andExpect(status().isForbidden())
+            .andExpect(jsonPath("$.code").value("ACCOUNT_NOT_ADMITTED"));
+    }
+
+    @Test
     void actuatorNeverExposesHealthThroughApplicationApi() throws Exception {
         mvc.perform(get("/actuator/health")).andExpect(status().is3xxRedirection());
         activeA();
