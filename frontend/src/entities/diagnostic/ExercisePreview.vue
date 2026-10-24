@@ -13,6 +13,8 @@ const pdfOpen = ref(false);
 const pdfLoading = ref(false);
 const pdfReady = ref(false);
 let pdfOpenController: AbortController | null = null;
+// A retry must take precedence over the initial PDF HEAD, even if that older request resolves later.
+let pdfCheckGeneration = 0;
 const exerciseKey = () => props.exercise.code + '@' + props.exercise.version;
 const mediaIdentity = computed(() => JSON.stringify([
   exerciseKey(), props.exercise.previewAudioUrl, props.exercise.previewPdfUrl,
@@ -34,6 +36,7 @@ onBeforeUnmount(() => leaveMetronomeExercise(exerciseKey()));
 // Vue cleans up each watcher run before the next one starts.
 watch(mediaIdentity, (_identity, _previous, onCleanup) => {
   const controller = new AbortController();
+  const initialPdfGeneration = ++pdfCheckGeneration;
   let active = true;
   audioExists.value = false;
   pdfExists.value = false;
@@ -58,7 +61,7 @@ watch(mediaIdentity, (_identity, _previous, onCleanup) => {
     .then(([audio, pdf]) => {
       if (!active) return;
       audioExists.value = audio;
-      pdfExists.value = pdf;
+      if (pdfCheckGeneration === initialPdfGeneration) pdfExists.value = pdf;
       checking.value = false;
     });
 }, { immediate: true });
@@ -74,7 +77,8 @@ async function onPdfToggle(event: Event): Promise<void> {
   pdfOpenController = null;
   pdfReady.value = false;
   pdfLoading.value = false;
-  if (!opened || checking.value || !pdfExists.value || !props.exercise.previewPdfUrl) return;
+  if (!opened || !props.exercise.previewPdfUrl) return;
+  ++pdfCheckGeneration;
 
   const url = props.exercise.previewPdfUrl;
   const identity = mediaIdentity.value;
