@@ -60,6 +60,73 @@ public final class LibraryOriginalController {
         return a.accountId();
     }
 
+    /** Acquire quota and the actor-scoped idempotency key before disk I/O. */
+    private boolean reserve(UUID owner,UUID key,long bytes,int files) {
+        return Boolean.TRUE.equals(transactions.execute(status -> {
+            jdbc.sql("INSERT INTO library_account_usage(account_id) VALUES(:owner) ON CONFLICT DO NOTHING")
+                .param("owner",owner).update();
+            Map<String,Object> usage=jdbc.sql("""
+                SELECT charged_bytes,charged_files,reserved_bytes,reserved_files
+                FROM library_account_usage WHERE account_id=:owner FOR UPDATE
+                """).param("owner",owner).query().singleRow();
+            List<Map<String,Object>> existing=jdbc.sql("""
+                SELECT state,terminal_code FROM library_upload_operations
+                WHERE owner_account_id=:owner AND idempotency_key=:key
+                """).param("owner",owner).param("key",key).query().listOfRows();
+            if(!existing.isEmpty()) {
+                String state=(String)existing.getFirst().get("state");
+                if("SUCCEEDED".equals(state)) return true;
+                if("FAILED".equals(state))
+                    throw new Failure(409,"LIBRARY_UPLOAD_PREVIOUSLY_FAILED");
+                throw new Failure(409,"LIBRARY_UPLOAD_IN_PROGRESS");
+            }
+            long used=((Number)usage.get("charged_bytes")).longValue()
+                +((Number)usage.get("reserved_bytes")).longValue();
+            long count=((Number)usage.get("charged_files")).longValue()
+                +((Number)usage.get("reserved_files")).longValue();
+            if(bytes>ACCOUNT_BYTES-used || files>ACCOUNT_FILES-count)
+                throw new Failure(409,"LIBRARY_QUOTA_EXCEEDED");
+            jdbc.sql("""
+                UPDATE library_account_usage SET reserved_bytes=reserved_bytes+:bytes,
+                  reserved_files=reserved_files+:files,revision=revision+1
+                WHERE account_id=:owner
+                """).param("bytes",bytes).param("files",files).param("owner",owner).update();
+            jdbc.sql("""
+                INSERT INTO library_upload_operations
+                (id,owner_account_id,idempotency_key,state,reserved_bytes,reserved_files,expires_at,
+                    lease_owner,last_lease_at)
+                VALUES (:id,:owner,:key,'RECEIVING',:bytes,:files,now()+interval '24 hours',:lease,now())
+                """).param("id",UUID.randomUUID()).param("owner",owner).param("key",key)
+                .param("bytes",bytes).param("files",files).param("lease",UUID.randomUUID()).update();
+            return false;
+        }));
+    }
+
+    private void abort(UUID owner,UUID key,String code) {
+        transactions.executeWithoutResult(status -> {
+            jdbc.sql("INSERT INTO library_account_usage(account_id) VALUES(:owner) ON CONFLICT DO NOTHING")
+                .param("owner",owner).update();
+            jdbc.sql("SELECT account_id FROM library_account_usage WHERE account_id=:owner FOR UPDATE")
+                .param("owner",owner).query().singleRow();
+            List<Map<String,Object>> rows=jdbc.sql("""
+                SELECT state,reserved_bytes,reserved_files FROM library_upload_operations
+                WHERE owner_account_id=:owner AND idempotency_key=:key FOR UPDATE
+                """).param("owner",owner).param("key",key).query().listOfRows();
+            if(rows.isEmpty() || !"RECEIVING".equals(rows.getFirst().get("state"))) return;
+            var row=rows.getFirst();
+            jdbc.sql("""
+                UPDATE library_account_usage SET reserved_bytes=reserved_bytes-:bytes,
+                    reserved_files=reserved_files-:files,revision=revision+1
+                WHERE account_id=:owner
+                """).param("owner",owner).param("bytes",row.get("reserved_bytes"))
+                .param("files",row.get("reserved_files")).update();
+            jdbc.sql("""
+                UPDATE library_upload_operations SET state='FAILED',reserved_bytes=0,reserved_files=0,
+                   terminal_code=:code,updated_at=now() WHERE owner_account_id=:owner AND idempotency_key=:key
+                """).param("owner",owner).param("key",key).param("code",code).update();
+        });
+    }
+
     @PostMapping(consumes=MediaType.MULTIPART_FORM_DATA_VALUE)
     public ResponseEntity<?> upload(HttpServletRequest request,
             @RequestHeader(value="Idempotency-Key",required=false) String idempotency,
@@ -78,6 +145,13 @@ public final class LibraryOriginalController {
             throw new Failure(400,"LIBRARY_INVALID_FILES");
         String title=metadata.title().strip();
         String author=metadata.author()==null?null:metadata.author().strip();
+        long predicted=0;
+        for(MultipartFile file:files) {
+            if(file.getSize()<=0) throw new Failure(400,"LIBRARY_INVALID_FILES");
+            predicted+=file.getSize();
+            if(predicted>MAX_FILE_BYTES) throw new Failure(413,"LIBRARY_UPLOAD_TOO_LARGE");
+        }
+        boolean replay=reserve(owner,key,predicted,files.size());
         List<Incoming> staged=new ArrayList<>();
         long total=0;
         boolean committed=false;
@@ -111,35 +185,29 @@ public final class LibraryOriginalController {
             long totalBytes=total;
             record Outcome(UUID id,boolean replay) {}
             Outcome outcome=transactions.execute(status -> {
-                jdbc.sql("""
-                    INSERT INTO library_account_usage(account_id) VALUES(:owner)
-                    ON CONFLICT(account_id) DO NOTHING
-                    """).param("owner",owner).update();
-                Map<String,Object> usage=jdbc.sql("""
-                    SELECT charged_bytes,charged_files,reserved_bytes,reserved_files
-                    FROM library_account_usage WHERE account_id=:owner FOR UPDATE
-                    """).param("owner",owner).query().singleRow();
-                List<Map<String,Object>> previous=jdbc.sql("""
-                    SELECT fingerprint,state,material_id FROM library_upload_operations
-                    WHERE owner_account_id=:owner AND idempotency_key=:key
-                    """).param("owner",owner).param("key",key).query().listOfRows();
-                if(!previous.isEmpty()) {
-                    Map<String,Object> old=previous.get(0);
-                    if(!fingerprint.equals(old.get("fingerprint")))
-                        throw new Failure(409,"IDEMPOTENCY_KEY_REUSED");
-                    if(!"SUCCEEDED".equals(old.get("state")))
+                jdbc.sql("SELECT account_id FROM library_account_usage WHERE account_id=:owner FOR UPDATE")
+                    .param("owner",owner).query().singleRow();
+                Map<String,Object> operation=jdbc.sql("""
+                    SELECT fingerprint,state,material_id,reserved_bytes,reserved_files
+                    FROM library_upload_operations WHERE owner_account_id=:owner AND idempotency_key=:key
+                    FOR UPDATE
+                    """).param("owner",owner).param("key",key).query().singleRow();
+                if(replay) {
+                    if(!"SUCCEEDED".equals(operation.get("state")))
                         throw new Failure(409,"LIBRARY_UPLOAD_IN_PROGRESS");
-                    UUID id=(UUID)old.get("material_id");
+                    if(!fingerprint.equals(operation.get("fingerprint")))
+                        throw new Failure(409,"IDEMPOTENCY_KEY_REUSED");
+                    UUID id=(UUID)operation.get("material_id");
                     if(repository.find(owner,id).isEmpty())
                         throw new Failure(410,"LIBRARY_UPLOAD_RESULT_DELETED");
                     return new Outcome(id,true);
                 }
-                long used=((Number)usage.get("charged_bytes")).longValue()
-                    +((Number)usage.get("reserved_bytes")).longValue();
-                long count=((Number)usage.get("charged_files")).longValue()
-                    +((Number)usage.get("reserved_files")).longValue();
-                if(totalBytes>ACCOUNT_BYTES-used || staged.size()>ACCOUNT_FILES-count)
-                    throw new Failure(409,"LIBRARY_QUOTA_EXCEEDED");
+                if(!"RECEIVING".equals(operation.get("state")))
+                    throw new Failure(409,"LIBRARY_UPLOAD_IN_PROGRESS");
+                long reservedBytes=((Number)operation.get("reserved_bytes")).longValue();
+                long reservedFiles=((Number)operation.get("reserved_files")).longValue();
+                if(totalBytes>reservedBytes || staged.size()!=reservedFiles)
+                    throw new Failure(413,"LIBRARY_UPLOAD_TOO_LARGE");
                 UUID id=UUID.randomUUID();
                 jdbc.sql("""
                     INSERT INTO library_materials(id,owner_account_id,title,material_type,author,state)
@@ -158,14 +226,17 @@ public final class LibraryOriginalController {
                 }
                 jdbc.sql("""
                     UPDATE library_account_usage SET charged_bytes=charged_bytes+:bytes,
-                      charged_files=charged_files+:files,revision=revision+1 WHERE account_id=:owner
+                      charged_files=charged_files+:files,reserved_bytes=reserved_bytes-:reservedBytes,
+                      reserved_files=reserved_files-:reservedFiles,revision=revision+1
+                    WHERE account_id=:owner
                     """).param("bytes",totalBytes).param("files",staged.size())
+                    .param("reservedBytes",reservedBytes).param("reservedFiles",reservedFiles)
                     .param("owner",owner).update();
                 jdbc.sql("""
-                    INSERT INTO library_upload_operations
-                      (id,owner_account_id,idempotency_key,fingerprint,state,material_id,expires_at)
-                    VALUES(:id,:owner,:key,:fingerprint,'SUCCEEDED',:material,now()+interval '24 hours')
-                    """).param("id",UUID.randomUUID()).param("owner",owner).param("key",key)
+                    UPDATE library_upload_operations SET fingerprint=:fingerprint,state='SUCCEEDED',
+                      material_id=:material,reserved_bytes=0,reserved_files=0,updated_at=now()
+                    WHERE owner_account_id=:owner AND idempotency_key=:key
+                    """).param("owner",owner).param("key",key)
                       .param("fingerprint",fingerprint).param("material",id).update();
                 return new Outcome(id,false);
             });
@@ -186,13 +257,13 @@ public final class LibraryOriginalController {
                             "/api/v1/library/materials/"+material.id()+"/files/"+a.id()+"/content"))
                         .toList()));
         } catch(LibraryObjectStore.FileTooLarge e) {
-            if(!committed) cleanup(staged); throw new Failure(413,"LIBRARY_UPLOAD_TOO_LARGE");
+            if(!committed) {cleanup(staged); if(!replay) abort(owner,key,"LIBRARY_UPLOAD_TOO_LARGE");} throw new Failure(413,"LIBRARY_UPLOAD_TOO_LARGE");
         } catch(LibraryObjectStore.EmptyFile e) {
-            if(!committed) cleanup(staged); throw new Failure(400,"LIBRARY_INVALID_FILES");
+            if(!committed) {cleanup(staged); if(!replay) abort(owner,key,"LIBRARY_INVALID_FILES");} throw new Failure(400,"LIBRARY_INVALID_FILES");
         } catch(IOException e) {
-            if(!committed) cleanup(staged); throw new Failure(503,"LIBRARY_STORAGE_UNAVAILABLE");
+            if(!committed) {cleanup(staged); if(!replay) abort(owner,key,"LIBRARY_STORAGE_UNAVAILABLE");} throw new Failure(503,"LIBRARY_STORAGE_UNAVAILABLE");
         } catch(RuntimeException e) {
-            if(!committed) cleanup(staged); throw e;
+            if(!committed) {cleanup(staged); if(!replay) abort(owner,key,e instanceof Failure failure?failure.code:"LIBRARY_UPLOAD_FAILED");} throw e;
         }
     }
 
