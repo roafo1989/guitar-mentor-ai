@@ -133,9 +133,9 @@ onBeforeUnmount(() => pdfOpenController?.abort());
   <section class="exercise-preview" :class="{ 'studio-preview': assigned && lightMinimal }" :aria-label="t('diagnostic.previewHeading')">
     <div v-if="assigned && lightMinimal" class="studio-tabs" role="tablist" :aria-label="t('diagnostic.studio.tabsLabel')" @keydown="onStudioTabKeydown">
       <button type="button" role="tab" :aria-selected="studioTab === 'score'" :tabindex="studioTab === 'score' ? 0 : -1"
-        @click="studioTab = 'score'; pdfOpen = true">{{ t('diagnostic.studio.scoreTab') }}</button>
+        @click="studioTab = 'score'; pdfOpen = true"><svg width="21" height="21" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M9 18V5l12-2v13"/><ellipse cx="6" cy="18" rx="3" ry="2"/><ellipse cx="18" cy="16" rx="3" ry="2"/></svg>{{ t('diagnostic.studio.scoreTab') }}</button>
       <button type="button" role="tab" :aria-selected="studioTab === 'description'" :tabindex="studioTab === 'description' ? 0 : -1"
-        @click="studioTab = 'description'">{{ t('diagnostic.studio.descriptionTab') }}</button>
+        @click="studioTab = 'description'"><svg width="21" height="21" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" aria-hidden="true"><path d="M4 6h16M4 12h12M4 18h8"/></svg>{{ t('diagnostic.studio.descriptionTab') }}</button>
     </div>
     <div v-if="!assigned || !lightMinimal" class="exercise-preview-heading">
       <h4>{{ assigned ? t('diagnostic.assignedMediaHeading') : t('diagnostic.previewHeading') }}</h4>
@@ -225,11 +225,11 @@ details.exercise-learning > summary:focus-visible {outline:3px solid #28776d;out
 .studio-preview {min-width:0;display:flex;flex-direction:column;gap:10px}
 .studio-preview .studio-tab-hidden {display:none!important}
 .studio-tabs {display:flex;gap:4px;align-items:center;flex-wrap:wrap;padding:4px;background:#f4f7f5;border-radius:12px;margin:0 0 4px}
-.studio-tabs button {border:0;border-radius:9px;min-height:44px;padding:10px 17px;background:transparent;color:#4b5d5b;font:inherit;font-size:13px;font-weight:600;cursor:pointer}
+.studio-tabs button {display:inline-flex;align-items:center;justify-content:center;gap:8px;border:0;border-radius:9px;min-height:44px;padding:10px 17px;background:transparent;color:#4b5d5b;font:inherit;font-size:13px;font-weight:600;cursor:pointer}
 .studio-tabs button[aria-selected="true"] {background:#fff;color:#205f57;box-shadow:0 1px 4px #16233116}
 .studio-tabs button:focus-visible {outline:3px solid #28776d;outline-offset:2px}
 .studio-preview :deep(.score-reader) {border:0;padding:0}
-.studio-preview :deep(.score-toolbar) {gap:8px;justify-content:flex-end}
+.studio-preview :deep(.score-toolbar) {gap:6px;justify-content:flex-end;padding:0 0 9px}
 .studio-preview :deep(.score-toolbar button) {border-color:#dce5e4;background:#fff}
 .studio-preview :deep(.score-canvas-frame) {height:min(78vh,1000px)}
 .studio-preview .exercise-preview-audio {border:1px solid #e1e9e4;border-radius:12px;background:#f8fbfa;padding:18px}
