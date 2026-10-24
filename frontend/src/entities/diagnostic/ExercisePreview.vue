@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { onBeforeUnmount, onMounted, ref, watch } from 'vue';
+import { computed, onBeforeUnmount, ref, watch } from 'vue';
 import { useI18n } from 'vue-i18n';
 import type { Exercise } from '../../shared/model/diagnostic.model';
 import { leaveMetronomeExercise, openExerciseMetronome } from '../metronome/metronome-ui';
@@ -9,29 +9,52 @@ const { t } = useI18n();
 const audioExists = ref(false);
 const pdfExists = ref(false);
 const checking = ref(true);
+const pdfOpen = ref(false);
 const exerciseKey = () => props.exercise.code + '@' + props.exercise.version;
+const mediaIdentity = computed(() => JSON.stringify([
+  exerciseKey(), props.exercise.previewAudioUrl, props.exercise.previewPdfUrl,
+  props.exercise.scoreUrl,
+]));
+const goal = computed(() => props.exercise.learningGoal?.trim() || props.exercise.description?.trim() || '');
+const criteria = computed(() => Array.isArray(props.exercise.successCriteria)
+  ? props.exercise.successCriteria.filter((item): item is string => typeof item === 'string' && item.trim().length > 0)
+  : []);
 
 function launchMetronome(event: MouseEvent): void {
   openExerciseMetronome(event.currentTarget as HTMLElement, exerciseKey(), props.exercise.bpm);
 }
+
 watch(exerciseKey, (_newKey, previous) => leaveMetronomeExercise(previous));
 onBeforeUnmount(() => leaveMetronomeExercise(exerciseKey()));
 
-onMounted(async () => {
-  const check = async (url: string | null) => {
+// Invalidate old HEAD requests on URL/version changes and on unmount.
+// Vue cleans up each watcher run before the next one starts.
+watch(mediaIdentity, (_identity, _previous, onCleanup) => {
+  const controller = new AbortController();
+  let active = true;
+  audioExists.value = false;
+  pdfExists.value = false;
+  checking.value = true;
+  pdfOpen.value = false;
+  onCleanup(() => { active = false; controller.abort(); });
+
+  async function check(url: string | null): Promise<boolean> {
     if (!url) return false;
     try {
-      const response = await fetch(url, { method: 'HEAD', cache: 'no-cache' });
+      const response = await fetch(url, { method: 'HEAD', cache: 'no-cache', signal: controller.signal });
       return response.ok;
     } catch {
       return false;
     }
-  };
-  [audioExists.value, pdfExists.value] = await Promise.all([
-    check(props.exercise.previewAudioUrl), check(props.exercise.previewPdfUrl),
-  ]);
-  checking.value = false;
-});
+  }
+  void Promise.all([check(props.exercise.previewAudioUrl), check(props.exercise.previewPdfUrl)])
+    .then(([audio, pdf]) => {
+      if (!active) return;
+      audioExists.value = audio;
+      pdfExists.value = pdf;
+      checking.value = false;
+    });
+}, { immediate: true });
 </script>
 
 <template>
@@ -40,6 +63,27 @@ onMounted(async () => {
       <h4>{{ assigned ? t('diagnostic.assignedMediaHeading') : t('diagnostic.previewHeading') }}</h4>
       <span class="hint">{{ assigned ? t('diagnostic.assignedMediaHint') : t('diagnostic.previewBeforeAssign') }}</span>
     </div>
+    <section class="exercise-learning" :aria-label="t('diagnostic.metadata.heading')">
+      <p class="exercise-version">{{ t('diagnostic.metadata.version') }}: {{ exercise.code }}@{{ exercise.version }}</p>
+      <h5>{{ t('diagnostic.metadata.goal') }}</h5>
+      <p>{{ goal || t('diagnostic.metadata.unknown') }}</p>
+      <h5>{{ t('diagnostic.metadata.instructions') }}</h5>
+      <p>{{ exercise.practiceInstructions?.trim() || t('diagnostic.metadata.unknown') }}</p>
+      <h5>{{ t('diagnostic.metadata.criteria') }}</h5>
+      <ul v-if="criteria.length">
+        <li v-for="(criterion, index) in criteria" :key="index">{{ criterion }}</li>
+      </ul>
+      <p v-else class="hint">{{ t('diagnostic.metadata.unknown') }}</p>
+      <p class="hint">{{ t('diagnostic.metadata.criteriaHint') }}</p>
+      <dl class="exercise-facts">
+        <div><dt>{{ t('diagnostic.metadata.duration') }}</dt><dd>{{ exercise.recommendedPracticeMinutes != null ? t('diagnostic.practiceDuration', { minutes: exercise.recommendedPracticeMinutes }) : t('diagnostic.metadata.unknown') }}</dd></div>
+        <div><dt>{{ t('diagnostic.metadata.tuning') }}</dt><dd>{{ exercise.tuning?.trim() || t('diagnostic.metadata.unknown') }}</dd></div>
+        <div><dt>{{ t('diagnostic.metadata.tempo') }}</dt><dd>{{ exercise.bpm }} BPM · {{ exercise.meter }}</dd></div>
+        <div><dt>{{ t('diagnostic.metadata.difficulty') }}</dt><dd>{{ exercise.difficulty || t('diagnostic.metadata.unknown') }}</dd></div>
+        <div><dt>{{ t('diagnostic.metadata.author') }}</dt><dd>{{ exercise.author?.trim() || t('diagnostic.metadata.unknown') }}</dd></div>
+        <div><dt>{{ t('diagnostic.metadata.license') }}</dt><dd>{{ exercise.license?.trim() || t('diagnostic.metadata.unknown') }}</dd></div>
+      </dl>
+    </section>
     <div class="metronome-exercise-tool">
       <button type="button" class="recorder-button metronome-exercise-launch"
         :title="t('metronome.openExercise')" @click="launchMetronome">
@@ -50,28 +94,41 @@ onMounted(async () => {
     <div class="exercise-preview-audio">
       <strong>{{ t('diagnostic.listenExample') }}</strong>
       <p class="hint">{{ t('diagnostic.synthesizedExample') }}</p>
-      <p v-if="checking" class="hint">{{ t('diagnostic.checkingMedia') }}</p>
+      <p v-if="checking" class="hint" role="status">{{ t('diagnostic.checkingMedia') }}</p>
       <audio v-else-if="audioExists && exercise.previewAudioUrl"
-        :src="exercise.previewAudioUrl" controls preload="none" class="audio-player"
-        :aria-label="t('diagnostic.listenExample')" />
-      <p v-else class="hint">{{ t('diagnostic.mediaNotInstalled') }}</p>
+        :key="mediaIdentity" :src="exercise.previewAudioUrl" controls preload="none" class="audio-player"
+        :aria-label="t('diagnostic.listenExample')" @error="audioExists = false" />
+      <p v-else class="hint" role="status">{{ t('diagnostic.metadata.audioUnavailable') }}</p>
     </div>
-    <details class="exercise-pdf-details">
+    <details :key="mediaIdentity" class="exercise-pdf-details" :open="pdfOpen"
+      @toggle="pdfOpen = ($event.target as HTMLDetailsElement).open">
       <summary>{{ t('diagnostic.viewNotes') }}</summary>
-      <p v-if="checking" class="hint">{{ t('diagnostic.checkingMedia') }}</p>
+      <p v-if="checking" class="hint" role="status">{{ t('diagnostic.checkingMedia') }}</p>
       <template v-else-if="pdfExists && exercise.previewPdfUrl">
-        <div class="score-frame-wrapper">
+        <div v-if="pdfOpen" class="score-frame-wrapper">
           <iframe :title="t('diagnostic.pdfTitle')" class="score-frame"
-            :src="exercise.previewPdfUrl + '#view=FitH&toolbar=1'" />
+            :src="exercise.previewPdfUrl + '#view=FitH&toolbar=1'" @error="pdfExists = false" />
         </div>
         <a :href="exercise.previewPdfUrl" target="_blank" rel="noopener noreferrer">
           {{ t('diagnostic.pdfNewTab') }}
         </a>
       </template>
-      <p v-else class="hint">{{ t('diagnostic.mediaNotInstalled') }}</p>
-      <p class="hint">{{ t('diagnostic.musicXmlAlternative') }}
+      <p v-else class="hint" role="status">{{ t('diagnostic.metadata.pdfUnavailable') }}</p>
+      <p v-if="exercise.scoreUrl" class="hint">{{ t('diagnostic.musicXmlAlternative') }}
         <a :href="exercise.scoreUrl" download>{{ t('diagnostic.downloadScore') }}</a>
       </p>
     </details>
   </section>
 </template>
+
+<style scoped>
+.exercise-learning { min-width: 0; margin: 1rem 0; overflow-wrap: anywhere; }
+.exercise-learning h5 { margin: .85rem 0 .3rem; font-size: 1rem; }
+.exercise-learning p { margin: .35rem 0; }
+.exercise-learning ul { padding-left: 1.5rem; }
+.exercise-version { font-weight: 600; }
+.exercise-facts { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(100%, 10rem), 1fr)); gap: .65rem 1rem; margin-top: 1rem; }
+.exercise-facts div { min-width: 0; }
+.exercise-facts dt { font-weight: 600; }
+.exercise-facts dd { margin: .2rem 0 0; overflow-wrap: anywhere; }
+</style>
