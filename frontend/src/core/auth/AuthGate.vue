@@ -62,6 +62,7 @@ async function request(path: string, body: object): Promise<boolean> {
         mode.value = 'expired-link';
         verificationToken.value = ''; tokenFromLink.value = false;
         emailActionInProgress.value = true;
+        void nextTick(() => heading.value?.focus());
         return false;
       }
       error.value = response.status === 429
