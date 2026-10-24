@@ -4,6 +4,7 @@ import ai.guitarmentor.domain.attempt.SubmissionAttempt;
 import ai.guitarmentor.domain.attempt.AttemptStatus;
 import jakarta.persistence.LockModeType;
 import org.springframework.data.jpa.repository.Lock;
+import org.springframework.data.domain.Pageable;
 import java.util.List;
 import java.util.Optional;
 import java.util.UUID;
@@ -11,6 +12,10 @@ import org.springframework.data.jpa.repository.JpaRepository;
 
 public interface SubmissionAttemptRepository extends JpaRepository<SubmissionAttempt, UUID> {
     List<SubmissionAttempt> findByTask_IdOrderByAttemptNumberDesc(UUID taskId);
+    List<SubmissionAttempt> findByTask_IdOrderByAttemptNumberDesc(UUID taskId, Pageable pageable);
+    List<SubmissionAttempt> findByTask_IdAndAttemptNumberLessThanOrderByAttemptNumberDesc(
+            UUID taskId, int beforeNumber, Pageable pageable);
+    Optional<SubmissionAttempt> findByIdAndTask_Id(UUID attemptId, UUID taskId);
     Optional<SubmissionAttempt> findByTask_IdAndRequestId(UUID taskId, UUID requestId);
     long countByTask_Id(UUID taskId);
     @Lock(LockModeType.PESSIMISTIC_WRITE)
