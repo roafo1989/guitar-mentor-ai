@@ -107,7 +107,7 @@ class SecurityHttpIntegrationTest {
         mvc.perform(get("/api/v1/csrf").with(pending))
             .andExpect(status().isOk()).andExpect(jsonPath("$.token").isString());
         String token = "a".repeat(64);
-        String body = "{\\"token\\":\\"" + token + "\\"}";
+        String body = "{\"token\":\"" + token + "\"}";
         mvc.perform(post("/api/v1/invitations/activate").with(pending)
                 .contentType(MediaType.APPLICATION_JSON).content(body))
             .andExpect(status().isForbidden());
