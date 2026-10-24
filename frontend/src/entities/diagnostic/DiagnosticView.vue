@@ -28,6 +28,7 @@ function onSubmissionDraft(value: { busy: boolean; dirty: boolean }): void {
 const error = ref('');
 const apiError = ref<ApiFailure | null>(null);
 const catalogMissing = ref(false);
+const failedRestoreRead = ref(false);
 const displayError = computed(() => error.value || (catalogMissing.value ? t('diagnostic.catalogApiMissing') : apiError.value ? t(apiFailureKey(apiError.value)) : ''));
 let restoreGeneration = 0;
 let active = true;
@@ -128,6 +129,7 @@ async function restoreSession(): Promise<void> {
   const seq = ++restoreGeneration;
   loading.value = true;
   apiError.value = null;
+  failedRestoreRead.value = false;
   const selectedLearner = learnerStore.learner?.id ?? window.localStorage.getItem('guitar-mentor.learnerId');
   try {
     if (!learnerStore.learner) await learnerStore.restore();
@@ -157,8 +159,10 @@ async function restoreSession(): Promise<void> {
     if (loaded.status === 'TASK_ASSIGNED') await loadTask(id, loaded.id);
     if (loaded.status === 'READY_FOR_TASK') await loadCatalog();
   } catch (cause) {
-    if (active && seq === restoreGeneration && !(cause instanceof Error && cause.name === 'AbortError'))
+    if (active && seq === restoreGeneration && !(cause instanceof Error && cause.name === 'AbortError')) {
       apiError.value = asApiFailure(cause);
+      failedRestoreRead.value = true;
+    }
   } finally {
     if (active && seq === restoreGeneration) loading.value = false;
   }
@@ -171,6 +175,7 @@ async function start(): Promise<void> {
   busy.value = true;
   error.value = '';
   apiError.value = null;
+  failedRestoreRead.value = false;
   try {
     session.value = await diagnosticService.start(id, instrumentCode);
     window.localStorage.setItem(storageKey(id), session.value.id);
@@ -190,6 +195,7 @@ async function continueWithoutRecording(): Promise<void> {
   busy.value = true;
   error.value = '';
   apiError.value = null;
+  failedRestoreRead.value = false;
   try {
     session.value = await diagnosticService.continueWithoutRecording(id, session.value.id);
     await loadCatalog();
@@ -205,6 +211,7 @@ async function assign(exerciseCode: string): Promise<void> {
   busy.value = true;
   error.value = '';
   apiError.value = null;
+  failedRestoreRead.value = false;
   try {
     task.value = await diagnosticService.assignTask(id, session.value.id, exerciseCode);
     closeMetronome(); // Assignment replaces the selected exercise; no carry-over audio.
@@ -326,7 +333,7 @@ async function assign(exerciseCode: string): Promise<void> {
         </div>
       </template>
       <p v-if="displayError" role="alert" class="error">{{ displayError }}</p>
-      <button v-if="apiError && !busy && !session" type="button" class="text-button" @click="restoreSession">{{ t("home.retry") }}</button>
+      <button v-if="failedRestoreRead && !busy && !intakeBusy && !submissionBusy" type="button" class="text-button" @click="restoreSession">{{ t("home.retry") }}</button>
       <p><RouterLink to="/onboarding">{{ t('diagnostic.back') }}</RouterLink></p>
     </div>
   </section>
