@@ -184,7 +184,8 @@
       "author": "Author",
       "license": "License",
       "audioUnavailable": "Audio preview for this version is unavailable.",
-      "pdfUnavailable": "PDF for this version is unavailable. Use the source score if available."
+      "pdfUnavailable": "PDF for this version is unavailable. Use the source score if available.",
+      "pdfViewerFallback": "If the embedded viewer fails to load, open the PDF separately or use MusicXML."
     }
   },
   "home": {
