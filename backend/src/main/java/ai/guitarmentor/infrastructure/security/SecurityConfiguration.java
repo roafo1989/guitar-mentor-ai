@@ -33,7 +33,9 @@ public class SecurityConfiguration {
 
     @Bean
     SecurityFilterChain securityFilterChain(HttpSecurity http, ActorRepository actors,
-            @Value("${guitar-mentor.security.enabled:true}") boolean enabled) throws Exception {
+            @Value("${guitar-mentor.security.enabled:true}") boolean enabled,
+            @Value("${guitar-mentor.security.absolute-session-minutes:720}") long absoluteMinutes)
+            throws Exception {
         if (!enabled) {
             // Insecure fallback is reserved for existing localhost-only development.
             return http.csrf(csrf -> csrf.disable())
@@ -79,7 +81,8 @@ public class SecurityConfiguration {
                     res.setContentType("application/json");
                     res.getWriter().write("{\"code\":\"ACCESS_DENIED\"}");
                 }))
-            .addFilterAfter(new ActorFilter(actors), UsernamePasswordAuthenticationFilter.class);
+            .addFilterAfter(new ActorFilter(actors, java.time.Duration.ofMinutes(absoluteMinutes)),
+                    UsernamePasswordAuthenticationFilter.class);
         return http.build();
     }
 
