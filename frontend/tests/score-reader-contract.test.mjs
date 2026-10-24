@@ -236,3 +236,20 @@ test('#150 final visual revisions: example audio is only in hero, status separat
   assert.ok(j.attempt.recordingPanelTitle);
  }
 });
+
+test('#150 approved microphone row has mic icon, compact controls and valid disabled playback', async () => {
+ const s=await readFile(new URL('../src/entities/attempt/SubmissionPanel.vue',import.meta.url),'utf8');
+ const mic=await readFile(new URL('../src/entities/attempt/MicrophoneRecorder.vue',import.meta.url),'utf8');
+ assert.match(s,/class="studio-mic-icon"/);
+ assert.match(s,/class="studio-play-button"/);
+ assert.match(s,/:disabled="!file \|\| !recordedPreview \|\| recordingActive \|\| uploading"/);
+ assert.match(s,/@ended="playbackActive = false"/);
+ assert.match(s,/@click="togglePlayback"/);
+ assert.match(s,/:disabled="learningTerminal \|\| !file \|\| !capabilities\?\.enabled \|\| uploading \|\| recordingActive"/);
+ assert.match(mic,/studio-record-dot/);
+ assert.match(mic,/studio-stop-square/);
+ for (const lang of ['ru','en']){
+  const j=JSON.parse(await readFile(new URL('../src/i18n/'+lang+'.json',import.meta.url),'utf8'));
+  assert.ok(j.attempt.listenShort && j.attempt.submitShort && j.attempt.pausePlayback);
+ }
+});
