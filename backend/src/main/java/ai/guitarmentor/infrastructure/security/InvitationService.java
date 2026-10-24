@@ -40,7 +40,6 @@ public class InvitationService {
     @Transactional
     public String issue(String address, UUID existingLearner, boolean owner) {
         String normalized = email(address);
-        if (owner && existingLearner != null) throw new IllegalArgumentException("OWNER legacy binding must be explicit");
         if (owner) {
             long count=jdbc.sql("SELECT count(*) FROM accounts WHERE role='OWNER' AND status='ACTIVE'")
                 .query(Long.class).single();
