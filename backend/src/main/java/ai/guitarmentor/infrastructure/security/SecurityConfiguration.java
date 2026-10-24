@@ -97,7 +97,16 @@ public class SecurityConfiguration {
                 .logoutSuccessHandler((req, res, auth) -> res.setStatus(204)))
             .headers(headers -> headers
                 .contentTypeOptions(Customizer.withDefaults())
-                .frameOptions(frame -> frame.deny())
+                .frameOptions(frame -> frame.disable())
+                .addHeaderWriter((request, response) -> {
+                    // Only immutable, version-pinned score PDFs may be embedded
+                    // by our own origin. Every other response remains DENY.
+                    String path = request.getRequestURI();
+                    boolean scorePdf = path.matches(
+                        "^/api/v1/exercises/[A-Za-z0-9][A-Za-z0-9._-]{0,49}/versions/"
+                        + "[A-Za-z0-9][A-Za-z0-9._-]{0,19}/preview/pdf$");
+                    response.setHeader("X-Frame-Options", scorePdf ? "SAMEORIGIN" : "DENY");
+                })
                 .referrerPolicy(ref -> ref.policy(
                     ReferrerPolicyHeaderWriter.ReferrerPolicy.NO_REFERRER)))
             .exceptionHandling(ex -> ex
