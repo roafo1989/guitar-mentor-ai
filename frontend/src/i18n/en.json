@@ -338,7 +338,8 @@
     "historyUpdated": "Attempt history updated.",
     "microphoneTitle": "Record with microphone",
     "uploadAlternative": "Or upload an existing audio file",
-    "microphoneInstructions": "About recording and microphone access"
+    "microphoneInstructions": "About recording and microphone access",
+    "localRecordingAvailable": "You can record and preview audio locally. Sending it to the server is currently disabled."
   },
   "evidence": {
     "heading": "My performances",
