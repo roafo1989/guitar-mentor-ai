@@ -20,6 +20,7 @@ public final class ExercisePublicationPolicy {
 
     public static boolean eligible(String kind, String license, String review,
             String audio, String pdf, Integer seconds) {
+        if (kind == null || license == null || review == null) return false;
         if (!LICENSES.contains(license) || !REVIEWS.contains(review)) return false;
         if ("LEARNING_REPERTOIRE".equals(kind)) return true;
         if (!"DIAGNOSTIC_PROBE".equals(kind)) return false;
