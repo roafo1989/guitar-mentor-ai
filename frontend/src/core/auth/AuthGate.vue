@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { nextTick, onMounted, ref } from 'vue';
+import { nextTick, onBeforeUnmount, onMounted, ref } from 'vue';
 import { useI18n } from 'vue-i18n';
 import { auth, login, refreshActor, secureUi } from './auth';
 const { t, locale } = useI18n();
@@ -103,25 +103,45 @@ async function reset() {
     success.value = label('Пароль изменён. Войдите снова.', 'Password changed. Please sign in.');
   }
 }
-onMounted(() => {
+function consumeAuthFragment(): void {
   const url = new URL(window.location.href);
   const fragment = new URLSearchParams(url.hash.slice(1));
   const action = fragment.get('authAction');
   const token = fragment.get('token');
-  if (token && /^[a-f0-9]{64}$/.test(token) && (action === 'verify' || action === 'reset')) {
-    verificationToken.value = token;
-    tokenFromLink.value = true;
-    identifier.value = '';
-    mode.value = action;
-    fragment.delete('token'); fragment.delete('authAction');
-    window.history.replaceState(null, '', url.pathname + url.search + (fragment.toString() ? '#' + fragment : ''));
+  if (action !== 'verify' && action !== 'reset') return;
+  // Always remove authentication secrets from the visible URL, including malformed tokens.
+  // Hash-only navigation in an already-running Vue app doesn't remount AuthGate.
+  fragment.delete('token');
+  fragment.delete('authAction');
+  window.history.replaceState(window.history.state, '', url.pathname + url.search
+    + (fragment.toString() ? '#' + fragment.toString() : ''));
+  if (!token || !tokenPattern.test(token)) {
+    verificationToken.value = '';
+    tokenFromLink.value = false;
+    error.value = label('Ссылка недействительна. Запросите новую.', 'Invalid link. Request another.');
+    setMode(action);
+    error.value = label('Ссылка недействительна. Запросите новую.', 'Invalid link. Request another.');
+    return;
   }
+  verificationToken.value = token;
+  tokenFromLink.value = true;
+  identifier.value = '';
+  password.value = '';
+  confirmPassword.value = '';
+  error.value = '';
+  success.value = '';
+  mode.value = action;
+}
+onMounted(() => {
+  consumeAuthFragment();
+  window.addEventListener('hashchange', consumeAuthFragment);
   if (!localPrototype) void refreshActor();
 });
+onBeforeUnmount(() => window.removeEventListener('hashchange', consumeAuthFragment));
 </script>
 <template>
-  <slot v-if="localPrototype || (auth.ready && auth.actor)" />
-  <main v-else-if="auth.ready" class="main-content auth-page" aria-live="polite">
+  <slot v-if="localPrototype || (auth.ready && auth.actor && !(mode === 'reset' && tokenFromLink))" />
+  <main v-else-if="auth.ready || (mode === 'reset' && tokenFromLink)" class="main-content auth-page" aria-live="polite">
     <section class="auth-panel">
       <h1>{{ auth.expired ? t('auth.expired') : t('auth.welcome') }}</h1>
       <p>{{ label('Создайте аккаунт или войдите в Guitar Mentor AI.', 'Create an account or sign in to Guitar Mentor AI.') }}</p>
