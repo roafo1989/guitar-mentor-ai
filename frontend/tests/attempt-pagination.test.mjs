@@ -324,3 +324,70 @@ test('CORE-U10: template retains keyboard-native history controls and accessible
   assert.match(learning, /<label for="learning-attempt"/);
 });
 
+
+test('CORE-U12: polling waits for at most two pinned detail GETs, without overlapping cycles', async () => {
+  historyFixture();
+  const first = deferred(), second = deferred();
+  const original = globalThis.__qaAttempt.detail;
+  const requests = [];
+  globalThis.__qaAttempt.detail = (...args) => {
+    requests.push(args[3]);
+    return args[3] === 'id-2' ? first.promise : args[3] === 'id-1' ? second.promise : original(...args);
+  };
+  const { app, state } = await mount('SubmissionPanel.vue',
+    { learnerId: 'l', sessionId: 's', taskId: 't' });
+  try {
+    await flush();
+    state.selectedId = 'id-2';
+    state.latestId = 'id-1';
+    await flush();
+    const pending = state.readPage();
+    await flush();
+    const pageCalls = [];
+    const oldPage = globalThis.__qaAttempt.page;
+    globalThis.__qaAttempt.page = (...args) => { pageCalls.push(args); return oldPage(...args); };
+    await state.pollHistory();
+    assert.equal(pageCalls.length, 0, 'next poll cannot overlap deferred pinned details');
+    assert.deepEqual([...new Set(requests)].sort(), ['id-1', 'id-2']);
+    first.resolve(attempt(2));
+    second.resolve(attempt(1));
+    await pending; await flush();
+    assert.ok(state.displayAttempts.length <= 22);
+  } finally { app.unmount(); delete globalThis.__qaAttempt; }
+});
+test('CORE-U13: selected off-page remains displayed if pinned GET later fails', async () => {
+  historyFixture();
+  let fails = false;
+  const original = globalThis.__qaAttempt.detail;
+  globalThis.__qaAttempt.detail = (...args) => fails ? Promise.reject(Error('offline')) : original(...args);
+  const { app, state } = await mount('SubmissionPanel.vue',
+    { learnerId: 'l', sessionId: 's', taskId: 't' });
+  try {
+    await flush();
+    state.selectedId = 'id-2';
+    await flush();
+    assert.ok(state.displayAttempts.some(x => x.id === 'id-2'));
+    fails = true;
+    await state.readPage(); await flush();
+    assert.equal(state.selectedId, 'id-2');
+    assert.ok(state.displayAttempts.some(x => x.id === 'id-2'), 'stale pinned option survives');
+  } finally { app.unmount(); delete globalThis.__qaAttempt; }
+});
+test('CORE-U14: selected detail outside page is coalesced with parent pinned fetch', async () => {
+  historyFixture();
+  const original = globalThis.__qaAttempt.detail;
+  let count = 0;
+  globalThis.__qaAttempt.detail = (...args) => {
+    if (args[3] === 'id-2') count++;
+    return original(...args);
+  };
+  const { app, state } = await mount('SubmissionPanel.vue',
+    { learnerId: 'l', sessionId: 's', taskId: 't' });
+  try {
+    await flush();
+    state.selectedId = 'id-2'; await flush();
+    const detail = await state.fetchDetail('id-2');
+    assert.equal(detail.id, 'id-2');
+    assert.equal(count, 1);
+  } finally { app.unmount(); delete globalThis.__qaAttempt; }
+});
