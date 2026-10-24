@@ -86,7 +86,7 @@ try {
   // Expand native details, then ensure the keyboard can move between enabled
   // history actions without scripts swapping focus.
   const startingFocus=await evaluate(`(() => {
-    document.querySelector('.homework-history').open=true;
+    document.querySelector('details.homework-history').open=true;
     const buttons=[...document.querySelectorAll('.homework-history nav button')];
     buttons[2].focus();
     return {focused:buttons[2]===document.activeElement,disabled:buttons[2].disabled,active:document.activeElement?.outerHTML};
