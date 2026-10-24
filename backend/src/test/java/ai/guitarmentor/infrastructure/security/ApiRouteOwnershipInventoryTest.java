@@ -56,6 +56,10 @@ class ApiRouteOwnershipInventoryTest {
                     continue; // Curated shared exercise catalog, never user-upload media.
                 if (path.equals("/api/v1/library/materials") || path.startsWith("/api/v1/library/materials/"))
                     continue; // Account-owned: every read and edit derives owner from trusted CurrentActor.
+                if (path.equals("/api/v1/music-catalog/works")
+                    || path.startsWith("/api/v1/music-catalog/works/")
+                    || path.startsWith("/api/v1/music-catalog/arrangements/"))
+                    continue; // #194 private metadata: every query derives owner from CurrentActor.
                 if (SHARED_API.contains(path)) continue;
                 unclassified.add(method.getBeanType().getSimpleName() + " " + path);
             }
