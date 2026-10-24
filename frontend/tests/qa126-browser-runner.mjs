@@ -116,7 +116,45 @@ try {
   assert.equal(reflow.width,180,'200% effective layout width was not applied');
   assert.ok(reflow.scrollWidth<=reflow.width,'Horizontal overflow at 200% effective reflow: '+JSON.stringify(reflow));
 
-  process.stdout.write(JSON.stringify({status:'PASS',viewport360:compact,keyboard,zoom200:{...zoom,pageScale:scale},reflow200:reflow},null,2)+'\n');
+  // Exercise genuine click flows through the compiled Vue template rather
+  // than only source-level unit tests: 45 rows -> 20 / 20 / 5 -> newer/latest.
+  await cdp('Emulation.setDeviceMetricsOverride',{width:360,height:820,deviceScaleFactor:1,mobile:false});
+  const firstRow=()=>evaluate("document.querySelector('details.homework-history .attempt-card strong')?.textContent?.trim() ?? ''");
+  const navClick=(i)=>evaluate("(() => { const b=document.querySelectorAll('details.homework-history nav button')["+i+"]; if(b.disabled) return false; b.click(); return true; })()");
+  const awaitRow=(number)=>evaluate(`new Promise(resolve=>{
+    let attempts=0;const timer=setInterval(()=>{
+      const label=document.querySelector('details.homework-history .attempt-card strong')?.textContent ?? '';
+      if(label.includes('№${number}')){clearInterval(timer);resolve(true);}
+      else if(++attempts>100){clearInterval(timer);resolve(false);}
+    },50);
+  })`);
+  assert.ok((await firstRow()).includes('№45'),'Initial history first row must be #45');
+  assert.equal(await navClick(1),true,'Older should be clickable');
+  assert.equal(await awaitRow(25),true,'Older should show attempts #25–6');
+  assert.equal(await navClick(1),true);
+  assert.equal(await awaitRow(5),true,'Older should show attempts #5–1');
+  assert.equal(await evaluate("document.querySelectorAll('details.homework-history .attempt-card').length"),5);
+  assert.equal(await navClick(0),true,'Newer should be clickable');
+  assert.equal(await awaitRow(25),true);
+  assert.equal(await navClick(2),true,'Latest should be clickable');
+  assert.equal(await awaitRow(45),true);
+  // HTTP failure must retain current page, show alert, and recover on retry,
+  // without issuing an upload POST.
+  await evaluate("window.__qa126FailNextPage=true");
+  assert.equal(await navClick(1),true);
+  const errorShown=await evaluate(`new Promise(resolve=>{
+    let n=0;const timer=setInterval(()=>{
+      const alert=document.querySelector('details.homework-history [role="alert"]');
+      if(alert?.textContent?.trim()){clearInterval(timer);resolve(true);}
+      else if(++n>100){clearInterval(timer);resolve(false);}
+    },50);
+  })`);
+  assert.equal(errorShown,true,'Page HTTP 500 should announce localized error');
+  assert.ok((await firstRow()).includes('№45'),'Failed navigation must keep previous page');
+  assert.equal(await navClick(1),true,'Retry Older should remain available');
+  assert.equal(await awaitRow(25),true,'Successful retry should navigate');
+  const browserNavigation={pages:['45–26','25–6','5–1','25–6','45–26'],http500KeepsPage:true,retryOlder:true};
+  process.stdout.write(JSON.stringify({status:'PASS',viewport360:compact,keyboard,zoom200:{...zoom,pageScale:scale},reflow200:reflow,browserNavigation},null,2)+'\n');
 } finally {
   socket?.close();
   if (browser && browser.exitCode === null) {
