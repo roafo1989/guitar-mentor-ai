@@ -14,6 +14,34 @@ const props = defineProps<{
 const emit = defineEmits<{ 'draft-state': [state: { busy: boolean; dirty: boolean }] }>();
 const { t } = useI18n();
 const lightMinimal = import.meta.env?.VITE_GUITAR_MENTOR_LIGHT_MINIMAL === 'true';
+const inputMode = ref<'record' | 'file'>('record');
+const sourceKind = ref<'record' | 'file' | null>(null);
+const fileChooser = ref<HTMLInputElement | null>(null);
+const canSwitchInput = computed(() => !recordingActive.value && !uploading.value);
+function changeInputMode(next: 'record' | 'file'): void {
+  if (!canSwitchInput.value || inputMode.value === next) return;
+  inputMode.value = next;
+}
+function inputModeKeys(event: KeyboardEvent): void {
+  const next = event.key === 'ArrowRight' || event.key === 'End' ? 'file'
+    : event.key === 'ArrowLeft' || event.key === 'Home' ? 'record' : null;
+  if (!next || !canSwitchInput.value) return;
+  event.preventDefault();
+  changeInputMode(next);
+  const buttons = (event.currentTarget as HTMLElement).querySelectorAll<HTMLButtonElement>('[role="tab"]');
+  buttons[next === 'record' ? 0 : 1]?.focus();
+}
+function removeDraft(): void {
+  if (uploading.value || recordingActive.value) return;
+  file.value = null;
+  sourceKind.value = null;
+  clearRecordedPreview();
+  if (fileInput.value) fileInput.value.value = '';
+  requestId.value = crypto.randomUUID();
+  notice.value = '';
+  error.value = '';
+}
+
 const attempts = ref<SubmissionAttempt[]>([]);
 const pinned = ref<SubmissionAttempt[]>([]);
 const selectedId = ref('');
@@ -57,6 +85,7 @@ function onRecordingActive(active: boolean) {
   if (!active) return;
   // Avoid accidentally submitting a previously selected file while capturing.
   file.value = null;
+  sourceKind.value = null;
   clearRecordedPreview();
   if (fileInput.value) fileInput.value.value = '';
   requestId.value = crypto.randomUUID();
@@ -68,6 +97,7 @@ function onRecorded(recording: File) {
   clearRecordedPreview();
   if (fileInput.value) fileInput.value.value = '';
   file.value = recording;
+  sourceKind.value = 'record';
   recordedPreview.value = URL.createObjectURL(recording);
   requestId.value = crypto.randomUUID();
   notice.value = '';
@@ -148,6 +178,8 @@ function resetForContext(): void {
   learningTerminal.value = false;
   // Context switching is blocked during active capture/upload by the route guard.
   file.value = null;
+  sourceKind.value = null;
+  inputMode.value = 'record';
   if (fileInput.value) fileInput.value.value = '';
   clearRecordedPreview();
   comment.value = '';
@@ -289,9 +321,19 @@ function uploadErrorMessage(cause: unknown): string {
 }
 
 function selectFile(event: Event) {
-  clearRecordedPreview();
   const input = event.target as HTMLInputElement;
-  file.value = input.files?.[0] ?? null;
+  const chosen = input.files?.[0] ?? null;
+  if (!chosen) return;
+  const max = capabilities.value?.maxBytes ?? 20971520;
+  if (chosen.size === 0 || chosen.size > max || !/\.(mp3|wav|ogg|webm|m4a)$/i.test(chosen.name)) {
+    error.value = chosen.size === 0 || chosen.size > max ? t('attempt.sizeError') : t('attempt.formatError');
+    input.value = '';
+    return;
+  }
+  clearRecordedPreview();
+  file.value = chosen;
+  sourceKind.value = 'file';
+  recordedPreview.value = URL.createObjectURL(chosen);
   requestId.value = crypto.randomUUID();
   error.value = '';
   notice.value = '';
@@ -334,6 +376,7 @@ async function submit() {
       chosen, comment.value, requestId.value);
     if (!currentContext(generation)) return;
     file.value = null;
+    sourceKind.value = null;
     clearRecordedPreview();
     // File inputs are native browser controls: clearing Vue state alone does not reset their label.
     if (fileInput.value) fileInput.value.value = '';
