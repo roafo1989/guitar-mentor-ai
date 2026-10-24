@@ -61,6 +61,9 @@ const recommendation = ref<DiagnosticRecommendation | null>(null);
 const recommendationBusy = ref(false);
 const recommendationError = ref('');
 const task = ref<DiagnosticTask | null>(null);
+const taskLoading = ref(false);
+const taskFailure = ref<'missing' | 'network' | null>(null);
+let taskGeneration = 0;
 
 /** Applies to Back, header links, router.back() and all other SPA route changes. */
 function allowRouteLeave(): boolean {
@@ -94,12 +97,34 @@ function onBrowserUnload(event: BeforeUnloadEvent): void {
   event.returnValue = '';
 }
 onMounted(() => window.addEventListener('beforeunload', onBrowserUnload));
-onBeforeUnmount(() => { active = false; ++restoreGeneration; ++catalogGeneration; ++recommendationGeneration; window.removeEventListener('beforeunload', onBrowserUnload); });
+onBeforeUnmount(() => { active = false; ++restoreGeneration; ++catalogGeneration; ++recommendationGeneration; ++taskGeneration; window.removeEventListener('beforeunload', onBrowserUnload); });
 
 async function loadTask(learnerId: string, diagnosticId: string): Promise<void> {
-  const requestedTask = await diagnosticService.currentTask(learnerId, diagnosticId);
-  if (active && learnerStore.learner?.id === learnerId && session.value?.id === diagnosticId)
-    task.value = requestedTask;
+  const seq = ++taskGeneration;
+  const current = () => active && seq === taskGeneration &&
+    learnerStore.learner?.id === learnerId && session.value?.id === diagnosticId &&
+    session.value.status === 'TASK_ASSIGNED';
+  taskLoading.value = true;
+  taskFailure.value = null;
+  task.value = null;
+  try {
+    const requestedTask = await diagnosticService.currentTask(learnerId, diagnosticId);
+    if (!current()) return;
+    if (!requestedTask) taskFailure.value = 'missing';
+    else task.value = requestedTask;
+  } catch (cause) {
+    if (current() && !(cause instanceof Error && cause.name === 'AbortError'))
+      taskFailure.value = isHttp(cause, 404) ? 'missing' : 'network';
+  } finally {
+    if (current()) taskLoading.value = false;
+  }
+}
+
+function retryAssignedTask(): void {
+  const id = learnerStore.learner?.id;
+  const diagnosticId = session.value?.id;
+  if (!id || !diagnosticId || session.value?.status !== 'TASK_ASSIGNED' || taskLoading.value) return;
+  void loadTask(id, diagnosticId);
 }
 
 async function loadCatalog(): Promise<void> {
@@ -186,6 +211,7 @@ async function restoreSession(): Promise<void> {
     if (!active || seq !== restoreGeneration || learnerStore.learner?.id !== id
       || window.localStorage.getItem(key) !== stored) return;
     session.value = loaded;
+    if (loaded.status !== 'TASK_ASSIGNED') { ++taskGeneration; task.value = null; taskFailure.value = null; taskLoading.value = false; }
     writeError.value = null;
     if (loaded.status === 'TASK_ASSIGNED') await loadTask(id, loaded.id);
     if (loaded.status === 'READY_FOR_TASK') await loadCatalog();
@@ -358,6 +384,17 @@ async function assign(exerciseCode: string): Promise<void> {
           </button>
         </article>
       </template>
+      <template v-else-if="session?.status === 'TASK_ASSIGNED' && !task">
+        <div class="assigned-task-recovery" :aria-busy="taskLoading">
+          <p v-if="taskLoading" role="status">{{ t('diagnostic.assignedTaskLoading') }}</p>
+          <template v-else>
+            <p role="alert">{{ t(taskFailure === 'missing' ? 'diagnostic.assignedTaskMissing' : 'diagnostic.assignedTaskUnavailable') }}</p>
+            <button type="button" class="action-button secondary-button" @click="retryAssignedTask">
+              {{ t('home.retry') }}
+            </button>
+          </template>
+        </div>
+      </template>
       <template v-else-if="session?.status === 'TASK_ASSIGNED' && task">
         <div class="exercise-meta">{{ task.exercise.code }} · v{{ task.exercise.version }}</div>
         <h2>{{ task.exercise.title }}</h2>
@@ -400,6 +437,8 @@ async function assign(exerciseCode: string): Promise<void> {
 .session-details p { overflow-wrap: anywhere; }
 @media(max-width: 800px) { .lesson-workspace { grid-template-columns: 1fr; gap: 16px; } }
 @media(max-width: 400px) { .lesson-materials { padding: 14px; } }
+.assigned-task-recovery {padding:24px;border:1px solid #dce5e4;border-radius:12px;background:#f8fbfa}
+.assigned-task-recovery p {margin:0 0 14px}
 /* #150 opt-in lesson layout; existing diagnostic states keep their controls. */
 .diagnostic-workspace--light {max-width:1560px;padding:clamp(24px,4vw,54px) 24px 80px}
 .diagnostic-workspace--light .intro {margin-bottom:24px}
