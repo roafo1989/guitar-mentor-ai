@@ -212,7 +212,7 @@ const iframeDocument = computed(() => {
         const engine=await import(rendererUrl);
         engine.GlobalWorkerOptions.workerSrc=workerUrl;
         const task=engine.getDocument({data:new Uint8Array(e.data.bytes),
-          isEvalSupported:false,disableAutoFetch:true,disableStream:true,useSystemFonts:true});
+          isEvalSupported:false,enableXfa:false,disableAutoFetch:true,disableStream:true,useSystemFonts:true});
         pdf=await task.promise;
         if(pdf.numPages<1||pdf.numPages>100) {send('failure',{reason:'limit'});return;}
         send('loaded',{pages:pdf.numPages});
