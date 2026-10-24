@@ -45,6 +45,12 @@ public class InvitationService {
                 .query(Long.class).single();
             if(count!=0) throw new IllegalStateException("OWNER already provisioned");
         }
+        // Expired pending invitations must not prevent issuing a replacement.
+        jdbc.sql("""
+            UPDATE invitations SET status='REVOKED'
+            WHERE issuer=:issuer AND email_normalized=:email
+              AND status='PENDING' AND expires_at <= now()
+            """).param("issuer", GOOGLE_ISSUER).param("email", normalized).update();
         if (existingLearner != null) {
             long used = jdbc.sql("SELECT count(*) FROM accounts WHERE learner_id=:id")
                 .param("id",existingLearner).query(Long.class).single();
