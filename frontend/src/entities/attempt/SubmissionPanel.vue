@@ -376,7 +376,14 @@ onBeforeUnmount(() => {
           <h4>{{ t('attempt.microphoneTitle') }}</h4>
           <MicrophoneRecorder :compact="lightMinimal" :disabled="learningTerminal || uploading"
           :max-bytes="capabilities?.maxBytes ?? 20971520"
-          @recorded="onRecorded" @active="onRecordingActive" />
+          @recorded="onRecorded" @active="onRecordingActive">
+            <template #actions>
+              <button type="submit" class="recorder-button studio-send-button"
+                :disabled="learningTerminal || !file || !capabilities?.enabled || uploading || recordingActive">
+                {{ uploading ? t('attempt.uploading') : t('attempt.submit') }}
+              </button>
+            </template>
+          </MicrophoneRecorder>
         </div>
         <details v-if="lightMinimal" class="recording-file-option">
           <summary>{{ t('attempt.uploadAlternative') }}</summary>
@@ -407,7 +414,7 @@ onBeforeUnmount(() => {
         <textarea id="attempt-comment" v-model="comment" rows="3" maxlength="2000"
           :disabled="uploading"
           :placeholder="t('attempt.commentPlaceholder')" />
-        <div class="form-actions">
+        <div v-if="!lightMinimal" class="form-actions">
           <button type="submit" class="action-button"
             :disabled="learningTerminal || !file || !capabilities?.enabled || uploading || recordingActive">
             {{ uploading ? t('attempt.uploading') : t('attempt.submit') }}
@@ -473,5 +480,7 @@ onBeforeUnmount(() => {
 .homework-panel:has(.recording-primary) .studio-secondary-label {font-size:12px;color:#52645d;margin:2px 0 0}
 .homework-panel:has(.recording-primary) textarea {border:1px solid #dbe5df;border-radius:10px;min-height:68px}
 .homework-panel:has(.recording-primary) .recording-file-option {margin:0;padding:2px 0;border-bottom:1px solid #eef2ef}
+.homework-panel:has(.recording-primary) .studio-send-button {border:1px solid #28776d!important;background:#28776d!important;color:white!important;padding:10px 16px!important;min-width:110px}
+.homework-panel:has(.recording-primary) .studio-send-button:disabled {opacity:.45;cursor:not-allowed}
 .homework-panel:has(.recording-primary) .studio-results-divider {border-top:1px solid #edf1ed;margin:18px 0 12px}
 </style>
