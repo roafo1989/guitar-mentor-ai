@@ -39,7 +39,7 @@ function setMode(next: Mode) {
   if (busy.value) return;
   requestEpoch.value++;
   mode.value = next; error.value = ''; success.value = '';
-  if (next !== 'verify' && next !== 'reset') emailActionInProgress.value = false;
+  if (next !== 'verify' && next !== 'reset' && next !== 'expired-link') emailActionInProgress.value = false;
   password.value = ''; confirmPassword.value = ''; showPassword.value = false; showConfirm.value = false; manualCode.value = false;
   if (next !== 'verify' && next !== 'reset') {
     verificationToken.value = ''; tokenFromLink.value = false;
