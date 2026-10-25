@@ -29,8 +29,9 @@ public class LibraryMaterialController {
     private final byte[] cursorSecret;
     private final boolean enabled;
 
+    @org.springframework.beans.factory.annotation.Autowired
     public LibraryMaterialController(LibraryMaterialRepository repository,
-            @org.springframework.beans.factory.annotation.Autowired(required=false) JdbcClient jdbc,
+            JdbcClient jdbc,
             @Value("${guitar-mentor.library.cursor-secret:}") String secret,
             @Value("${guitar-mentor.library.enabled:false}") boolean enabled) {
         this.repository=repository;
@@ -39,6 +40,11 @@ public class LibraryMaterialController {
         this.enabled=enabled;
         if(enabled && this.cursorSecret.length<32)
             throw new IllegalStateException("Library cursor secret must be at least 32 bytes");
+    }
+
+    /** Legacy direct-construction unit tests; live Spring injection always supplies JdbcClient. */
+    LibraryMaterialController(LibraryMaterialRepository repository,String secret,boolean enabled) {
+        this(repository,null,secret,enabled);
     }
 
     private UUID owner(HttpServletRequest request) {
