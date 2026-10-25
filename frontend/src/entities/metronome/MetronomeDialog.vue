@@ -33,7 +33,7 @@ function closePanel(): void {
   panelOpener = null;
   void nextTick(() => {
     if (opener && opener.isConnected !== false) opener.focus();
-    else bpmField.value?.focus();
+    else dialog.value?.focus({ preventScroll: true });
   });
 }
 
