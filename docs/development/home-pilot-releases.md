@@ -113,9 +113,14 @@ restore остаются отдельными пунктами #40.
   глобальные настройки Git и рабочая папка разработчика не меняются.
   Выполняются frontend `test`, `test:intake`, `test:tuner`, `build` и backend
   `mvnw.cmd --batch-mode verify` без `-DskipTests`.
-- PostgreSQL integration tests, требующие `GUITAR_MENTOR_TEST_POSTGRES=true`,
-  локальная сборка не включает и к рабочей pilot DB не подключает. Их покрывает
-  отдельный Java CI; GUI/browser suites тоже не заменяются этой сборкой.
+- Для Java verify скрипт создаёт отдельный временный PostgreSQL-кластер через
+  установленные `initdb`/`pg_ctl`: случайный loopback-порт, одноразовый пароль,
+  чистые данные. Включает `GUITAR_MENTOR_TEST_POSTGRES=true`, маленькие Hikari pools
+  и отключает auth только в этом синтетическом тестовом процессе, как Java CI.
+  После тестов кластер останавливается и удаляется, в том числе при ошибке Maven.
+  Если остановка не удалась, его файлы сохраняются с сообщением, а не удаляются
+  из-под работающего PostgreSQL. Реальные dev/pilot пароли здесь не читаются.
+  GUI/browser suites не заменяются этой сборкой.
 - Параметры Light Minimal/auth-required включены; OAuth bridge выключен.
 - Дочерние процессы не наследуют dev SPRING/GUITAR_MENTOR/VITE-настройки.
   Java получает необходимые DPAPI-секреты через окружение отдельного процесса;
