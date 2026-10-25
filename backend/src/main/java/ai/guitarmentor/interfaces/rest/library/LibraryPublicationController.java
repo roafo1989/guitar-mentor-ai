@@ -41,7 +41,8 @@ public class LibraryPublicationController {
             String provenance,String rightsBasis,String rightsEvidence,String attribution,String downloadUrl) {}
     @com.fasterxml.jackson.annotation.JsonInclude(com.fasterxml.jackson.annotation.JsonInclude.Include.NON_NULL)
     public record Publication(UUID id,UUID materialId,UUID ownerAccountId,long version,
-            String title,String type,String author,String state,long revision,List<AssetSnapshot> assets) {}
+            String title,String type,String author,String state,long revision,List<AssetSnapshot> assets,
+            List<String> tags) {}
     public record HideRequest(String reason) {}
 
     private CurrentActor actor(HttpServletRequest request) {
@@ -70,6 +71,9 @@ public class LibraryPublicationController {
     }
     private Publication snapshot(Map<String,Object> row,boolean includePrivateEvidence) {
         UUID id=(UUID)row.get("id");
+        List<String> tags=jdbc.sql("""
+            SELECT tag FROM library_publication_tags WHERE publication_id=:id ORDER BY tag
+            """).param("id",id).query(String.class).list();
         var files=jdbc.sql("""
             SELECT asset_id,original_name,format,byte_size,sha256,provenance,rights_basis,rights_evidence,attribution
             FROM library_publication_assets WHERE publication_id=:id ORDER BY asset_id
@@ -83,7 +87,7 @@ public class LibraryPublicationController {
             includePrivateEvidence?(UUID)row.get("owner_account_id"):null,((Number)row.get("version")).longValue(),
             (String)row.get("title"),(String)row.get("material_type"),
             (String)row.get("author"),(String)row.get("state"),
-            ((Number)row.get("publication_revision")).longValue(),files);
+            ((Number)row.get("publication_revision")).longValue(),files,tags);
     }
 
 
