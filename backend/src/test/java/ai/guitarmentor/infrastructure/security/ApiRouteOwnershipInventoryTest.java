@@ -60,6 +60,11 @@ class ApiRouteOwnershipInventoryTest {
                     || path.startsWith("/api/v1/music-catalog/works/")
                     || path.startsWith("/api/v1/music-catalog/arrangements/"))
                     continue; // #194 private indexed metadata, CurrentActor account scoping.
+                if (path.equals("/api/v1/community/publications/{publicationId}")
+                    || path.equals("/api/v1/community/publications/{publicationId}/files/{assetId}/content")
+                    || path.equals("/api/v1/community/publications/{publicationId}/hide")
+                    || path.equals("/api/v1/admin/catalog/publications/{publicationId}/hide"))
+                    continue; // #165: authenticated PUBLISHED+READY checks per object; hide requires OWNER and audit.
                 if (SHARED_API.contains(path)) continue;
                 unclassified.add(method.getBeanType().getSimpleName() + " " + path);
             }

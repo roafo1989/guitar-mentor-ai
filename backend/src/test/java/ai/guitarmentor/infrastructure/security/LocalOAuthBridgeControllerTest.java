@@ -39,6 +39,22 @@ class LocalOAuthBridgeControllerTest {
     }
 
     @Test
+    void devOriginIsAllowedButOldOriginIsRejected() {
+        var bridge = new LocalOAuthBridge();
+        var controller = new LocalOAuthBridgeController(bridge, mock(ActorRepository.class),
+                mock(GoogleLinkService.class), true, "https://guitar-mentor-dev");
+        var req = new MockHttpServletRequest();
+        req.setScheme("https");
+        req.setServerName("guitar-mentor");
+        req.addHeader("Origin", "https://guitar-mentor");
+        assertEquals(403, controller.start(req).getStatusCode().value());
+        req.setServerName("guitar-mentor-dev");
+        req.removeHeader("Origin");
+        req.addHeader("Origin", "https://guitar-mentor-dev");
+        assertEquals(200, controller.start(req).getStatusCode().value());
+    }
+
+    @Test
     void completedGoogleLoginRotatesSessionAndSavesOnlyServerVerifiedIdentity() throws Exception {
         var bridge = new LocalOAuthBridge();
         var actors = mock(ActorRepository.class);

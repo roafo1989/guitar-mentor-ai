@@ -33,7 +33,7 @@ function closePanel(): void {
   panelOpener = null;
   void nextTick(() => {
     if (opener && opener.isConnected !== false) opener.focus();
-    else bpmField.value?.focus();
+    else dialog.value?.focus({ preventScroll: true });
   });
 }
 
@@ -368,7 +368,9 @@ onMounted(async () => {
   previousOverflow = document.body.style.overflow;
   document.body.style.overflow = 'hidden';
   await nextTick();
-  bpmField.value?.focus();
+  // Focus the dialog, not the numeric BPM input: on mobile focusing an
+  // editable number field automatically opens the virtual keyboard.
+  dialog.value?.focus({ preventScroll: true });
 });
 onBeforeUnmount(() => {
   unsubscribe?.();

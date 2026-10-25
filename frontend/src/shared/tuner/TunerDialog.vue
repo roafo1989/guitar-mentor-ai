@@ -270,6 +270,16 @@ onBeforeUnmount(() => {
             :aria-label="t('tuner.close')" @click="close" aria-keyshortcuts="Escape">×</button>
         </header>
 
+        <!-- Primary microphone control must be visible without scrolling on phones. -->
+        <div class="tuner-controls">
+          <button v-if="phase === 'idle'" type="button" class="tuner-action" @click="start">
+            <span aria-hidden="true" class="tuner-action-dot"></span>{{ t('tuner.start') }}
+          </button>
+          <button v-else type="button" class="tuner-action tuner-stop" @click="stop">
+            {{ t('tuner.stop') }}
+          </button>
+        </div>
+
         <div class="tuner-toolbar">
           <label class="tuner-tuning-picker">
             <span>{{ t('tuner.tuning') }}</span>
@@ -345,14 +355,7 @@ onBeforeUnmount(() => {
           {{ t(phase === 'listening' ? 'tuner.microphoneOn' :
                 phase === 'requesting' ? 'tuner.requesting' : 'tuner.ready') }}
         </div>
-        <div class="tuner-controls">
-          <button v-if="phase === 'idle'" type="button" class="tuner-action" @click="start">
-            <span aria-hidden="true" class="tuner-action-dot"></span>{{ t('tuner.start') }}
-          </button>
-          <button v-else type="button" class="tuner-action tuner-stop" @click="stop">
-            {{ t('tuner.stop') }}
-          </button>
-        </div>
+
         <p class="tuner-privacy">{{ t('tuner.privacy') }}</p>
       </section>
     </div>
