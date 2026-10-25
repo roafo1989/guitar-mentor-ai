@@ -124,6 +124,7 @@ onBeforeUnmount(() => { unsubscribeMetronome?.(); closeMetronome(); });
           <RouterLink to="/profile" @click="closeMenu()">{{ t('app.profile') }}</RouterLink>
           <RouterLink to="/onboarding" @click="closeMenu()">{{ t('app.onboarding') }}</RouterLink>
           <RouterLink to="/diagnostics" @click="closeMenu()">{{ locale === 'ru' ? 'Занятие' : 'Practice' }}</RouterLink>
+          <RouterLink to="/library" @click="closeMenu()">{{ t('library.nav') }}</RouterLink>
         </nav>
         <RouterLink
           v-if="!lightMinimal && learnerStore.learner && (auth.actor || localPrototype)"
