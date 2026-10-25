@@ -27,11 +27,13 @@ const editing = ref(false);
 const removing = ref(false);
 let active = true;
 let generation = 0;
+let detailGeneration = 0;
 let pendingKey: string | null = null;
 let lastUploadFingerprint = '';
 
 function clearPrivate(): void {
   ++generation;
+  ++detailGeneration;
   entries.value = [];
   selected.value = null;
   cursor.value = null;
@@ -71,6 +73,7 @@ function message(cause: unknown): string {
   return t(apiFailureKey(failure));
 }
 async function load(nextCursor: string | null, previous: (string | null)[]): Promise<void> {
+  ++detailGeneration;
   const ticket = ++generation;
   const owner = auth.actor?.accountId;
   if (!owner) return;
@@ -127,21 +130,22 @@ async function upload(): Promise<void> {
     if (active && auth.actor?.accountId === owner) selected.value = saved;
   } catch (cause) {
     if (active && ticket === generation) error.value = message(cause);
-  } finally { if (active && ticket === generation) busy.value = false; }
+  } finally { if (active && auth.actor?.accountId === owner) busy.value = false; }
 }
 async function openCard(id: string): Promise<void> {
   const ticket = generation;
+  const requestId = ++detailGeneration;
   const owner = auth.actor?.accountId;
   if (!owner) return;
   error.value = '';
   try {
     const card = await libraryService.detail(id);
-    if (active && ticket === generation && auth.actor?.accountId === owner) {
+    if (active && ticket === generation && requestId === detailGeneration && auth.actor?.accountId === owner) {
       selected.value = card;
       editing.value = false; removing.value = false;
       editTitle.value = card.title; editType.value = card.type; editAuthor.value = card.author || '';
     }
-  } catch (cause) { if (active && ticket === generation) error.value = message(cause); }
+  } catch (cause) { if (active && ticket === generation && requestId === detailGeneration) error.value = message(cause); }
 }
 async function saveCard(): Promise<void> {
   if (!selected.value || busy.value) return;
@@ -159,7 +163,7 @@ async function saveCard(): Promise<void> {
     entries.value = entries.value.map(item => item.id === updated.id ? updated : item);
     notice.value = t('library.saved');
   } catch (cause) { if (active && ticket === generation) error.value = message(cause); }
-  finally { if (active && ticket === generation) busy.value = false; }
+  finally { if (active && auth.actor?.accountId === owner) busy.value = false; }
 }
 async function removeCard(): Promise<void> {
   if (!selected.value || busy.value) return;
@@ -172,7 +176,7 @@ async function removeCard(): Promise<void> {
     notice.value = t('library.deleted');
     await load(null, []);
   } catch (cause) { if (active && ticket === generation) error.value = message(cause); }
-  finally { if (active && ticket === generation) busy.value = false; }
+  finally { if (active && auth.actor?.accountId === owner) busy.value = false; }
 }
 async function download(file: LibraryMaterial['files'][number]): Promise<void> {
   if (!selected.value || busy.value) return;
@@ -181,7 +185,7 @@ async function download(file: LibraryMaterial['files'][number]): Promise<void> {
   try { await libraryService.download(selected.value.id, file,
     () => active && ticket === generation && auth.actor?.accountId === owner); }
   catch (cause) { if (active && ticket === generation && auth.actor?.accountId === owner) error.value = message(cause); }
-  finally { if (active && ticket === generation) busy.value = false; }
+  finally { if (active && auth.actor?.accountId === owner) busy.value = false; }
 }
 </script>
 
