@@ -51,6 +51,10 @@ try{
      if($start -ge 0 -and $end -gt $start -and $ours.Contains($anchor) -and $ours.Contains('guitar-mentor-dev')) {
        $added=$theirs.Substring($start,$end-$start)
        if($added.Contains('devOriginIsAllowedButOldOriginIsRejected') -and $added.Contains('https://guitar-mentor-dev')) {
+         $added=$added.Replace('var req = request();', 'var req = new MockHttpServletRequest();' + "`n" +
+           '        req.setScheme("https");' + "`n" +
+           '        req.setServerName("guitar-mentor");' + "`n" +
+           '        req.addHeader("Origin", "https://guitar-mentor");')
          $ours=$ours.Replace($anchor,$added+$anchor)
          [System.IO.File]::WriteAllText((Join-Path $root $expected),$ours+[Environment]::NewLine,[System.Text.UTF8Encoding]::new($false))
          & git -C $root add -- $expected
