@@ -763,6 +763,8 @@
     "pages": "Catalog pages",
     "previous": "Previous",
     "successor": "Open the next lesson",
-    "currentMarker": "Current"
+    "currentMarker": "Current",
+    "confirmRepeat": "Restart this exercise as a new lesson? Previous attempts stay in history.",
+    "uncertain": "The previous request has not been confirmed. Retry the same request or return to the current lesson."
   }
 }

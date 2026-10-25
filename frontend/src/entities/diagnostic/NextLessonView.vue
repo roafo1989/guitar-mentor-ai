@@ -17,7 +17,7 @@ const router = useRouter();
 const store = useLearnerStore();
 const loading = ref(true), pending = ref(false), error = ref(''), search = ref('');
 const exercises = ref<Exercise[]>([]), selected = ref<Exercise | null>(null);
-const source = ref<{ learner: string; session: string; task: string; version: number } | null>(null);
+const source = ref<{ learner: string; session: string; task: string; version: number; exerciseCode: string } | null>(null);
 let seq = 0;
 let pendingRequest: { key: string; code: string; version: string } | null = null;
 const page = ref(0);
@@ -43,8 +43,11 @@ async function load(): Promise<void> {
     if (!task) { error.value = t('lessonNext.noCompleted'); return; }
     const state = await learningService.state(learner, current.id, task.id);
     if (!valid()) return;
-    if (state.taskState === 'ACTIVE') { error.value = t('lessonNext.noCompleted'); return; }
-    source.value = { learner, session: current.id, task: task.id, version: state.version };
+    if (!['COMPLETED_BY_LEARNER', 'COMPLETED_PASSED'].includes(state.taskState) ||
+        !Number.isSafeInteger(state.version) || state.version < 0) {
+      error.value = t('lessonNext.noCompleted'); return;
+    }
+    source.value = { learner, session: current.id, task: task.id, version: state.version, exerciseCode: task.exercise.code };
     const catalog = await diagnosticService.listExercises();
     if (valid()) exercises.value = catalog.filter(e => e.contentKind === 'LEARNING_REPERTOIRE');
   } catch (cause) { if (valid()) error.value = t(apiFailureKey(asApiFailure(cause))); }
@@ -53,8 +56,11 @@ async function load(): Promise<void> {
 async function begin(): Promise<void> {
   const s = source.value, e = selected.value, actor = auth.actor, id = seq;
   if (!s || !e || pending.value) return;
-  if (!pendingRequest || pendingRequest.code !== e.code || pendingRequest.version !== e.version)
-    pendingRequest = { key: crypto.randomUUID(), code: e.code, version: e.version };
+  if (pendingRequest && (pendingRequest.code !== e.code || pendingRequest.version !== e.version)) {
+    error.value = t('lessonNext.uncertain'); return;
+  }
+  if (s.exerciseCode === e.code && !pendingRequest && !window.confirm(t('lessonNext.confirmRepeat'))) return;
+  if (!pendingRequest) pendingRequest = { key: crypto.randomUUID(), code: e.code, version: e.version };
   const request = pendingRequest;
   pending.value = true; error.value = '';
   try {
@@ -90,6 +96,7 @@ onBeforeUnmount(() => { ++seq; });
       <p v-if="error" role="alert">{{ error }}</p>
       <button v-if="error && !pending" type="button" @click="load">{{ t('home.retry') }}</button>
       <template v-if="source">
+        <p v-if="pendingRequest" role="status">{{ t('lessonNext.uncertain') }}</p>
         <label for="lesson-search">{{ t('lessonNext.search') }}</label>
         <input id="lesson-search" v-model="search" type="search" />
         <p v-if="!exercises.length">{{ t('lessonNext.empty') }}</p>
@@ -98,7 +105,7 @@ onBeforeUnmount(() => { ++seq; });
           <h2>{{ exercise.title }}</h2>
           <p>{{ exercise.learningGoal || exercise.description }}</p>
           <p>{{ exercise.difficulty }} · {{ exercise.measures }} · {{ exercise.bpm }} BPM</p>
-          <button type="button" :disabled="pending" @click="selected = exercise">
+          <button type="button" :disabled="pending || (!!pendingRequest && pendingRequest.code !== exercise.code)" @click="selected = exercise">
             {{ t('lessonNext.preview') }}
           </button>
         </div>
