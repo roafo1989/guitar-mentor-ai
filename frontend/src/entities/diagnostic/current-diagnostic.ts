@@ -24,7 +24,10 @@ export async function resolveCurrentDiagnostic(
       const session = await diagnosticService.get(learnerId, selected);
       verify();
       if (storage.getItem(key) !== selected) return resolveCurrentDiagnostic(learnerId, storage, isCurrent);
-      return session;
+      if (session.status !== 'ARCHIVED') return session;
+      // Archived browser selection must never hide the authoritative current lesson.
+      storage.removeItem(key);
+
     } catch (cause) {
       verify();
       if (!isHttp(cause, 404)) throw cause;

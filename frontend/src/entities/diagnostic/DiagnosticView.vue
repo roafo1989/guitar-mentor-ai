@@ -157,7 +157,7 @@ async function loadTask(learnerId: string, diagnosticId: string): Promise<void> 
   const seq = ++taskGeneration;
   const current = () => active && seq === taskGeneration &&
     learnerStore.learner?.id === learnerId && session.value?.id === diagnosticId &&
-    session.value.status === 'TASK_ASSIGNED';
+    ['TASK_ASSIGNED', 'ARCHIVED'].includes(session.value.status);
   taskLoading.value = true;
   taskFailure.value = null;
   task.value = null;
@@ -177,7 +177,7 @@ async function loadTask(learnerId: string, diagnosticId: string): Promise<void> 
 function retryAssignedTask(): void {
   const id = learnerStore.learner?.id;
   const diagnosticId = session.value?.id;
-  if (!id || !diagnosticId || session.value?.status !== 'TASK_ASSIGNED' || taskLoading.value) return;
+  if (!id || !diagnosticId || !['TASK_ASSIGNED', 'ARCHIVED'].includes(session.value?.status ?? '') || taskLoading.value) return;
   void loadTask(id, diagnosticId);
 }
 
@@ -239,7 +239,7 @@ async function hydrateSession(learnerId: string, loaded: DiagnosticSession): Pro
   taskLoading.value = false;
   session.value = loaded;
   writeError.value = null;
-  if (loaded.status === 'TASK_ASSIGNED') await loadTask(learnerId, loaded.id);
+  if (loaded.status === 'TASK_ASSIGNED' || loaded.status === 'ARCHIVED') await loadTask(learnerId, loaded.id);
   else if (loaded.status === 'READY_FOR_TASK') await loadCatalog();
 }
 
@@ -530,6 +530,10 @@ async function assign(exerciseCode: string): Promise<void> {
           </section>
         </div>
       </template>
+      <nav v-if="session && task" class="form-actions" aria-label="Lesson navigation">
+        <RouterLink v-if="learningBanner?.fresh && learningBanner.taskState !== 'ACTIVE' && session.status !== 'ARCHIVED'" class="action-button" to="/lessons/new">{{ t('lessonNext.choose') }}</RouterLink>
+        <RouterLink to="/lessons">{{ t('lessonNext.history') }}</RouterLink>
+      </nav>
       <p v-if="displayError" role="alert" class="error">{{ displayError }}</p>
       <button v-if="failedRestoreRead && !busy && !intakeBusy && !submissionBusy && !intakeDraft && !submissionDraft" type="button" class="text-button" @click="restoreSession">{{ t("home.retry") }}</button>
       <p v-if="!lightMinimal || session?.status !== 'TASK_ASSIGNED'" class="studio-back"><RouterLink to="/onboarding">{{ t('diagnostic.back') }}</RouterLink></p>
