@@ -135,13 +135,14 @@ class LibraryPublicationHttpPostgresTest {
         mvc.perform(MockMvcRequestBuilders.post(
             BASE+"/"+id+"/publications/"+snapshot.path("id").asText()+"/withdraw")
             .with(login("pub-b")).with(csrf())
-            .sessionAttr("guitarMentorAccessVersion",0L))
+            .sessionAttr("guitarMentorAccessVersion",0L).header("If-Match","\"1\""))
             .andExpect(status().isNotFound());
         mvc.perform(MockMvcRequestBuilders.post(
             BASE+"/"+id+"/publications/"+snapshot.path("id").asText()+"/withdraw")
             .with(login("pub-a")).with(csrf())
-            .sessionAttr("guitarMentorAccessVersion",0L))
-            .andExpect(status().isNoContent());
+            .sessionAttr("guitarMentorAccessVersion",0L).header("If-Match","\"1\""))
+            .andExpect(status().isOk())
+            .andExpect(jsonPath("$.state").value("WITHDRAWN"));
         mvc.perform(MockMvcRequestBuilders.get(content).with(login("pub-b"))
             .sessionAttr("guitarMentorAccessVersion",0L))
             .andExpect(status().isNotFound());
