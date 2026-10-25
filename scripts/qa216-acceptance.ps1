@@ -72,7 +72,12 @@ if (-not (Test-Path (Join-Path $root 'frontend/node_modules'))) {
         Add-Result 'browser-pdf' 'SKIP' 'Use -IncludeBrowser to run Chrome PDF tests'
     }
 }
-Run-Step 'backend-tests' 'mvn.cmd' @('-B','test') (Join-Path $root 'backend')
+$wrapper = Join-Path $root 'backend/mvnw.cmd'
+if (Test-Path -LiteralPath $wrapper) {
+    Run-Step 'backend-tests' $wrapper @('-B','test') (Join-Path $root 'backend')
+} else {
+    Run-Step 'backend-tests' 'mvn.cmd' @('-B','test') (Join-Path $root 'backend')
+}
 # These require dedicated approved disposable environments. Never mark PASS based on code review.
 Add-Result 'db-copy-migrate-restore' 'SKIP' 'Isolated PostgreSQL copy + migration + restore must be executed separately (TC-24)'
 Add-Result 'http-two-actors-csrf' 'SKIP' 'Two disposable authenticated DEV accounts required (TC-18)'
