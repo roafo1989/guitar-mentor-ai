@@ -29,6 +29,8 @@ export const useLearnerStore = defineStore('learner', () => {
 
   async function execute(action: () => Promise<Learner>): Promise<boolean> {
     const current = ++generation;
+    inFlight = null;
+    inFlightId = null;
     busy.value = true;
     error.value = null;
     try {
@@ -51,8 +53,9 @@ export const useLearnerStore = defineStore('learner', () => {
     syncActor();
     const actor = auth.actor;
     const id = secureUi ? actor?.learnerId : window.localStorage.getItem(storageKey);
-    if (!id) { busy.value = false; error.value = null; return Promise.resolve(); }
+    if (!id) { ++generation; inFlight = null; inFlightId = null; busy.value = false; error.value = null; if (secureUi) learner.value = null; return Promise.resolve(); }
     if (inFlight && inFlightId === id) return inFlight;
+    if (learner.value && learner.value.id !== id) learner.value = null;
     const current = ++generation;
     busy.value = true;
     error.value = null;
@@ -69,6 +72,7 @@ export const useLearnerStore = defineStore('learner', () => {
         if (!valid() || (cause instanceof Error && cause.name === 'AbortError')) return;
         if (isHttp(cause, 404)) {
           if (!secureUi) window.localStorage.removeItem(storageKey);
+          else error.value = asApiFailure(cause);
           learner.value = null;
         } else error.value = asApiFailure(cause);
       } finally {
