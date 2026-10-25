@@ -159,12 +159,12 @@ test('email recovery hides signed-in home and home does not duplicate retry butt
 });
 
 
-test('single HTTPS origin keeps email action URLs on guitar-mentor', async () => {
+test('unified local email actions use isolated HTTPS development origin', async () => {
   const router = await readFile(new URL('../src/router/index.ts', import.meta.url), 'utf8');
   const launcher = await readFile(new URL('../../scripts/local-auth-unified.ps1', import.meta.url), 'utf8');
   assert.doesNotMatch(router, /redirectUnifiedLocalAlias/);
   assert.match(router, /captureEmailActionLink\(\)/);
-  assert.match(launcher, /GUITAR_MENTOR_PUBLIC_ORIGIN = 'https:\/\/guitar-mentor'/);
+  assert.match(launcher, /GUITAR_MENTOR_PUBLIC_ORIGIN = 'https:\/\/guitar-mentor-dev'/);
   assert.doesNotMatch(launcher, /VITE_GUITAR_MENTOR_UNIFIED_LOCAL = 'true'/);
 });
 
