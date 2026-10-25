@@ -148,7 +148,7 @@ class LibraryPublicationPostgresTest {
         assertEquals("PUBLICATION_MODERATION_FORBIDDEN",
             code(()->publications.hide(req(bob,"LEARNER"),pub,
                 new LibraryPublicationController.HideRequest("Documented rights concern"))));
-        assertEquals(204,publications.hide(req(admin,"OWNER"),pub,
+        assertEquals(200,publications.hide(req(admin,"OWNER"),pub,
             new LibraryPublicationController.HideRequest("Documented rights concern")).getStatusCode().value());
         assertEquals("PUBLICATION_NOT_FOUND",code(()->publications.publishedContent(
             req(bob,"LEARNER"),pub,f.asset())));
