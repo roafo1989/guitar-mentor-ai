@@ -79,4 +79,62 @@ class NextLessonPostgresIntegrationTest {
         code("SOURCE_TASK_NOT_COMPLETED",()->service.start(learner,session,task,
             new NextLessonService.Request(UUID.randomUUID(),0L,"GM-EB01","0.8B")));
     }
+    @Test void concurrentTabsCreateExactlyOneSuccessor() throws Exception {
+        var pool=java.util.concurrent.Executors.newFixedThreadPool(2);
+        var ready=new java.util.concurrent.CountDownLatch(2);
+        var go=new java.util.concurrent.CountDownLatch(1);
+        try {
+            java.util.concurrent.Callable<NextLessonService.Created> work=()->{
+                ready.countDown();
+                if (!go.await(10,java.util.concurrent.TimeUnit.SECONDS))
+                    throw new IllegalStateException("barrier timeout");
+                return service.start(learner,session,task,command(UUID.randomUUID()));
+            };
+            var first=pool.submit(work);
+            var second=pool.submit(work);
+            assertTrue(ready.await(10,java.util.concurrent.TimeUnit.SECONDS));
+            go.countDown();
+            var a=first.get(20,java.util.concurrent.TimeUnit.SECONDS);
+            var b=second.get(20,java.util.concurrent.TimeUnit.SECONDS);
+            assertEquals(a.result().transitionId(),b.result().transitionId());
+            assertNotEquals(a.replay(),b.replay());
+            assertEquals(1,jdbc.queryForObject(
+                "SELECT count(*) FROM lesson_transitions WHERE source_task_id=?",Integer.class,task));
+        } finally { go.countDown(); pool.shutdownNow(); }
+    }
+
+    @Test void databaseFailureRollsBackSourceArchiveAndTargetTask() {
+        // Fail only THIS source's insert after archive/target flush.
+        String id=task.toString();
+        String function="next_lesson_injected_failure";
+        jdbc.execute("CREATE OR REPLACE FUNCTION "+function+"() RETURNS trigger LANGUAGE plpgsql AS $ BEGIN "
+            +"IF NEW.source_task_id='"+id+"'::uuid THEN RAISE EXCEPTION 'test injection'; END IF; "
+            +"RETURN NEW; END $");
+        jdbc.execute("CREATE TRIGGER next_lesson_injected_failure_trigger BEFORE INSERT ON lesson_transitions "
+            +"FOR EACH ROW EXECUTE FUNCTION "+function+"()");
+        try {
+            assertThrows(RuntimeException.class,
+                ()->service.start(learner,session,task,command(UUID.randomUUID())));
+            assertEquals("TASK_ASSIGNED",jdbc.queryForObject(
+                "SELECT status FROM diagnostic_sessions WHERE id=?",String.class,session));
+            assertEquals(1,jdbc.queryForObject(
+                "SELECT count(*) FROM diagnostic_tasks t JOIN diagnostic_sessions s ON s.id=t.diagnostic_session_id "
+                +"WHERE s.instrument_profile_id=?",Integer.class,profile));
+            assertEquals(0,jdbc.queryForObject(
+                "SELECT count(*) FROM lesson_transitions WHERE source_task_id=?",Integer.class,task));
+        } finally {
+            jdbc.execute("DROP TRIGGER IF EXISTS next_lesson_injected_failure_trigger ON lesson_transitions");
+            jdbc.execute("DROP FUNCTION IF EXISTS "+function+"()");
+        }
+    }
+
+    @Test void idempotencyKeyCannotBeReusedForDifferentPayload() {
+        UUID key=UUID.randomUUID();
+        service.start(learner,session,task,command(key));
+        code("IDEMPOTENCY_KEY_REUSED",()->service.start(learner,session,task,
+            new NextLessonService.Request(key,2L,"OTHER","1")));
+        code("NEXT_LESSON_ALREADY_EXISTS",()->service.start(learner,session,task,
+            new NextLessonService.Request(UUID.randomUUID(),2L,"OTHER","1")));
+    }
+
 }
