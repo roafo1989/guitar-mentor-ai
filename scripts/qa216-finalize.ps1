@@ -12,9 +12,9 @@ $ErrorActionPreference='Stop'
 $root=(Resolve-Path (Join-Path $PSScriptRoot '..')).Path
 $report=Join-Path $root '.qa-local/216/finalize'
 New-Item -ItemType Directory -Force -Path $report | Out-Null
-function Step([string]$name,[string[]]$args) {
+function Step([string]$name,[string[]]$gitArguments) {
  Write-Host "== $name ==" -ForegroundColor Cyan
- & git -C $root @args
+ & git -C $root @gitArguments
  if($LASTEXITCODE -ne 0){throw "$name failed (exit $LASTEXITCODE)"}
 }
 try{
