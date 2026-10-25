@@ -680,6 +680,10 @@
       "COMPOSITION": "Composition",
       "OTHER": "Other"
     },
-    "emptyFiles": "Select at least one file."
+    "emptyFiles": "Select at least one file.",
+    "updated": "Updated",
+    "actions": "Actions",
+    "actionsFor": "Actions for {title}",
+    "pickFiles": "Choose files"
   }
 }
