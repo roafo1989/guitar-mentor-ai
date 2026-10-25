@@ -16,7 +16,7 @@ guitar-mentor:
     local-http: false
   local-auth:
     unified-local: true
-    public-origin: https://guitar-mentor
+    public-origin: https://guitar-mentor-dev
 
 # Vite proxies to 127.0.0.1:8080 while the browser uses localhost:5173.
 # Do not derive OAuth redirect_uri from the proxy Host header (127.0.0.1).
