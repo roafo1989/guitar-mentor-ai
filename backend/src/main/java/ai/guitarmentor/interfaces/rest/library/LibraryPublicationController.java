@@ -63,7 +63,7 @@ public class LibraryPublicationController {
     private static String filePath(UUID id,UUID asset) {
         return detailPath(id)+"/files/"+asset+"/content";
     }
-    private Publication snapshot(Map<String,Object> row) {
+    private Publication snapshot(Map<String,Object> row,boolean includePrivateEvidence) {
         UUID id=(UUID)row.get("id");
         var files=jdbc.sql("""
             SELECT asset_id,original_name,format,byte_size,sha256,provenance,rights_basis,rights_evidence
@@ -72,7 +72,7 @@ public class LibraryPublicationController {
                 (UUID)a.get("asset_id"),(String)a.get("original_name"),
                 (String)a.get("format"),((Number)a.get("byte_size")).longValue(),
                 (String)a.get("sha256"),(String)a.get("provenance"),
-                (String)a.get("rights_basis"),(String)a.get("rights_evidence"),
+                (String)a.get("rights_basis"),includePrivateEvidence?(String)a.get("rights_evidence"):null,
                 filePath(id,(UUID)a.get("asset_id")))).toList();
         return new Publication(id,(UUID)row.get("material_id"),
             (UUID)row.get("owner_account_id"),((Number)row.get("version")).longValue(),
@@ -158,7 +158,7 @@ public class LibraryPublicationController {
         var item=jdbc.sql("SELECT * FROM library_publications WHERE id=:id")
             .param("id",pub).query().singleRow();
         return ResponseEntity.created(java.net.URI.create(detailPath(pub)))
-            .cacheControl(CacheControl.noStore()).body(snapshot(item));
+            .cacheControl(CacheControl.noStore()).body(snapshot(item,true));
     }
 
     /** Owner can see own full history; another actor cannot enumerate it. */
@@ -176,7 +176,7 @@ public class LibraryPublicationController {
             WHERE material_id=:id AND owner_account_id=:owner ORDER BY version DESC
             """).param("id",materialId).param("owner",owner).query().listOfRows();
         return ResponseEntity.ok().cacheControl(CacheControl.noStore())
-            .body(rows.stream().map(this::snapshot).toList());
+            .body(rows.stream().map(row->snapshot(row,true)).toList());
     }
 
     @GetMapping("/api/v1/community/publications/{publicationId}")
@@ -190,7 +190,7 @@ public class LibraryPublicationController {
             """).param("id",publicationId).query().listOfRows();
         if(records.isEmpty()) throw new Failure(404,"PUBLICATION_NOT_FOUND");
         return ResponseEntity.ok().cacheControl(CacheControl.noStore())
-            .body(snapshot(records.getFirst()));
+            .body(snapshot(records.getFirst(),false));
     }
 
     @PostMapping("/api/v1/library/materials/{materialId}/publications/{publicationId}/withdraw")
