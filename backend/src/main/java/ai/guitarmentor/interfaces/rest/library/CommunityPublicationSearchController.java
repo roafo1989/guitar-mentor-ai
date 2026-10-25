@@ -45,7 +45,7 @@ public class CommunityPublicationSearchController {
           AND (:audio=false OR EXISTS(
              SELECT 1 FROM library_publication_assets a
              WHERE a.publication_id=p.id AND a.format IN ('MP3','WAV','OGG','M4A','WEBM')))
-          AND (:before IS NULL OR (p.created_at,p.id)<(CAST(:before AS timestamptz),CAST(:before_id AS uuid)))
+          AND (CAST(:before AS timestamptz) IS NULL OR (p.created_at,p.id)<(CAST(:before AS timestamptz),CAST(:before_id AS uuid)))
         ORDER BY p.created_at DESC,p.id DESC LIMIT :max
         """;
     private final JdbcClient jdbc;
@@ -146,11 +146,17 @@ public class CommunityPublicationSearchController {
         boolean more=rows.size()>limit;
         List<Map<String,Object>> shown=new ArrayList<>(rows.subList(0,Math.min(rows.size(),limit)));
         List<Summary> results=shown.stream().map(row -> {
-            String[] values=(String[])row.get("tags");
+            List<String> values;
+            Object raw=row.get("tags");
+            if(raw instanceof java.sql.Array array) {
+                try {values=List.of((String[])array.getArray());}
+                catch(java.sql.SQLException e){throw new IllegalStateException("Cannot decode tags",e);}
+            } else if(raw instanceof String[] array) values=List.of(array);
+            else values=List.of();
             return new Summary((UUID)row.get("id"),(String)row.get("title"),
                 (String)row.get("author"),(String)row.get("material_type"),
                 ((Number)row.get("version")).longValue(),(OffsetDateTime)row.get("created_at"),
-                values==null?List.of():List.of(values),false,
+                values,false,
                 "/api/v1/community/publications/"+row.get("id"));
         }).toList();
         String next=null;
