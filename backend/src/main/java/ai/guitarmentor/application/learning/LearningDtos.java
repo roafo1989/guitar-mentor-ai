@@ -29,7 +29,7 @@ public final class LearningDtos {
 
     public record DecisionResult(UUID decisionId, UUID taskId, String taskState,
             long version, UUID assessmentId, Instant recordedAt,
-            String nextStepAvailability) {}
+            String nextStepAvailability, NextLessonLink nextLesson) {}
 
     public record DecisionRequest(UUID requestId, UUID attemptId, String action,
             Long expectedVersion, UUID baseAssessmentId, String reason) {}
