@@ -116,8 +116,12 @@ public class LibraryPublicationController {
                 +"|"+a.rightsEvidence()+"|"+a.attribution());
         }
         Collections.sort(normalized);
-        byte[] body=(material+"|"+revision+"|"+String.join("\n",normalized)+"|"+String.join(",",normalizedTags(payload.tags())))
-            .getBytes(StandardCharsets.UTF_8);
+        List<String> tags=normalizedTags(payload.tags());
+        String fingerprintInput=material+"|"+revision+"|"+String.join("\n",normalized);
+        // Compatibility: V28 existing publications have no tags and used the original fingerprint.
+        // Identical replay after V29 must still return 200 rather than a false 409.
+        if(!tags.isEmpty()) fingerprintInput+="|tags="+String.join(",",tags);
+        byte[] body=fingerprintInput.getBytes(StandardCharsets.UTF_8);
         try {return HexFormat.of().formatHex(
             java.security.MessageDigest.getInstance("SHA-256").digest(body));}
         catch(java.security.NoSuchAlgorithmException e){throw new IllegalStateException(e);}
