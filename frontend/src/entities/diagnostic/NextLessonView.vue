@@ -16,6 +16,7 @@ const { t } = useI18n();
 const router = useRouter();
 const store = useLearnerStore();
 const loading = ref(true), pending = ref(false), error = ref(''), search = ref('');
+const uncertain = ref(false);
 const exercises = ref<Exercise[]>([]), selected = ref<Exercise | null>(null);
 const source = ref<{ learner: string; session: string; task: string; version: number; exerciseCode: string } | null>(null);
 let seq = 0;
@@ -73,15 +74,20 @@ async function begin(): Promise<void> {
     if (id !== seq || (secureUi && auth.actor !== actor) || !current) return;
     window.localStorage.setItem(diagnosticSelectionKey(s.learner), current.id);
     pendingRequest.value = null;
+    uncertain.value = false;
     await router.replace('/diagnostics');
   } catch (cause) {
-    if (id === seq && (!secureUi || auth.actor === actor))
-      error.value = t(apiFailureKey(asApiFailure(cause)));
-    // Keep the same UUID for a network/5xx retry; a lost response may have committed.
+    if (id === seq && (!secureUi || auth.actor === actor)) {
+      const failure = asApiFailure(cause);
+      error.value = t(apiFailureKey(failure));
+      uncertain.value = failure.kind !== 'HTTP' || (failure.status ?? 0) >= 500;
+      // Only an indeterminate outcome reuses the requestId; 4xx is a definite refusal.
+      if (!uncertain.value) pendingRequest.value = null;
+    }
   } finally { if (id === seq && (!secureUi || auth.actor === actor)) pending.value = false; }
 }
 watch(() => auth.actor, () => {
-  ++seq; source.value = null; selected.value = null; exercises.value = []; pendingRequest.value = null; pending.value = false;
+  ++seq; source.value = null; selected.value = null; exercises.value = []; pendingRequest.value = null; uncertain.value = false; pending.value = false;
   if (auth.actor || !secureUi) void load();
 });
 onMounted(load);
@@ -96,7 +102,7 @@ onBeforeUnmount(() => { ++seq; });
       <p v-if="error" role="alert">{{ error }}</p>
       <button v-if="error && !pending" type="button" @click="load">{{ t('home.retry') }}</button>
       <template v-if="source">
-        <p v-if="pendingRequest" role="status">{{ t('lessonNext.uncertain') }}</p>
+        <p v-if="uncertain" role="status">{{ t('lessonNext.uncertain') }}</p>
         <label for="lesson-search">{{ t('lessonNext.search') }}</label>
         <input id="lesson-search" v-model="search" type="search" />
         <p v-if="!exercises.length">{{ t('lessonNext.empty') }}</p>
