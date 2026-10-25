@@ -20,6 +20,7 @@ export const router = createRouter({
     { path: '/onboarding', name: 'onboarding', component: OnboardingView },
     { path: '/diagnostics', name: 'diagnostics', component: DiagnosticView },
     { path: '/library', name: 'library', component: LibraryView },
+    { path: '/music-archive', name: 'music-archive', component: () => import('../entities/music-archive/MusicArchiveView.vue') },
     { path: '/:pathMatch(.*)*', redirect: '/' },
   ],
 });
