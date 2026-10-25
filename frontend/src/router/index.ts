@@ -5,6 +5,7 @@ import LearnerProfileView from '../entities/learner/LearnerProfileView.vue';
 import OnboardingView from '../entities/onboarding/OnboardingView.vue';
 import DiagnosticView from '../entities/diagnostic/DiagnosticView.vue';
 import HomeView from '../core/home/HomeView.vue';
+import LibraryView from '../entities/library/LibraryView.vue';
 
 // Scrub one-time email and OAuth tickets before Vue Router snapshots browser history.
 captureOAuthBridgeTicket();
@@ -18,6 +19,7 @@ export const router = createRouter({
     { path: '/profile', name: 'learner-profile', component: LearnerProfileView },
     { path: '/onboarding', name: 'onboarding', component: OnboardingView },
     { path: '/diagnostics', name: 'diagnostics', component: DiagnosticView },
+    { path: '/library', name: 'library', component: LibraryView },
     { path: '/:pathMatch(.*)*', redirect: '/' },
   ],
 });
