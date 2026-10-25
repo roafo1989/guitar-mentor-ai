@@ -88,6 +88,12 @@ public class CommunityPublicationSearchController {
         }
         return List.copyOf(result);
     }
+    private static OffsetDateTime timestamp(Object raw) {
+        if(raw instanceof OffsetDateTime offset) return offset;
+        if(raw instanceof java.sql.Timestamp value)
+            return value.toInstant().atOffset(java.time.ZoneOffset.UTC);
+        throw new IllegalStateException("Unsupported published_at timestamp");
+    }
     private static String sha(String value) {
         try {
             return HexFormat.of().formatHex(MessageDigest.getInstance("SHA-256")
@@ -155,14 +161,14 @@ public class CommunityPublicationSearchController {
             else values=List.of();
             return new Summary((UUID)row.get("id"),(String)row.get("title"),
                 (String)row.get("author"),(String)row.get("material_type"),
-                ((Number)row.get("version")).longValue(),(OffsetDateTime)row.get("created_at"),
+                ((Number)row.get("version")).longValue(),timestamp(row.get("created_at")),
                 values,false,
                 "/api/v1/community/publications/"+row.get("id"));
         }).toList();
         String next=null;
         if(more) {
             Map<String,Object> last=shown.getLast();
-            String body="v1|"+scope+"|"+last.get("created_at")+"|"+last.get("id");
+            String body="v1|"+scope+"|"+timestamp(last.get("created_at"))+"|"+last.get("id");
             next=Base64.getUrlEncoder().withoutPadding()
                 .encodeToString((body+"|"+sign(body)).getBytes(StandardCharsets.UTF_8));
         }
