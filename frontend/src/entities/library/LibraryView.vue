@@ -330,6 +330,7 @@ function onPageKeydown(event: KeyboardEvent): void {
           <button type="button" class="library-close" :aria-label="t('library.close')" :disabled="busy" @click="closeUpload">×</button>
         </div>
         <p class="library-muted">{{ t('library.privateNote') }}</p>
+        <p v-if="error" class="dialog-error" role="alert">{{ error }}</p>
         <form @submit.prevent="upload">
           <label class="library-field">{{ t('library.name') }}
             <input v-model="title" type="text" required maxlength="150" :disabled="busy" />
@@ -375,6 +376,7 @@ function onPageKeydown(event: KeyboardEvent): void {
           <h2 id="edit-heading">{{ t('library.edit') }}</h2>
           <button type="button" class="library-close" :disabled="busy" :aria-label="t('library.close')" @click="closeDialog">×</button>
         </div>
+        <p v-if="error" class="dialog-error" role="alert">{{ error }}</p>
         <form @submit.prevent="saveCard">
           <label class="library-field">{{ t('library.name') }}<input v-model="editTitle" maxlength="150" required :disabled="busy" /></label>
           <label class="library-field">{{ t('library.type') }}<select v-model="editType" :disabled="busy">
@@ -397,6 +399,7 @@ function onPageKeydown(event: KeyboardEvent): void {
         </div>
         <p><strong>{{ selected.title }}</strong></p>
         <p id="delete-description" class="library-muted">{{ t('library.confirmDelete') }}</p>
+        <p v-if="error" class="dialog-error" role="alert">{{ error }}</p>
         <div class="dialog-footer">
           <button type="button" class="library-quiet" :disabled="busy" @click="closeDialog">{{ t('library.cancel') }}</button>
           <button type="button" class="library-danger" :disabled="busy" @click="removeCard">{{ t('library.confirm') }}</button>
@@ -420,7 +423,7 @@ button:disabled{opacity:.5;cursor:not-allowed}
 button:focus-visible,input:focus-visible,select:focus-visible{outline:3px solid #91cbbc;outline-offset:2px}
 .library-panel{background:var(--surface,#fff);border:1px solid #dbe8e4;border-radius:18px;padding:24px;min-width:0}
 .library-table-heading h2{font-size:1.18rem;margin:0 0 4px}.library-table-heading p{margin:0}
-.library-table-scroll{overflow-x:auto;margin-top:22px}
+.library-table-scroll{overflow:visible;margin-top:22px}
 .library-table{width:100%;border-collapse:collapse;text-align:left;font-size:.9rem;min-width:700px}
 .library-table th{font-weight:600;color:#657487;font-size:.8rem;padding:14px 12px;border-bottom:1px solid #dce6e3;white-space:nowrap}
 .library-table td{padding:17px 12px;border-bottom:1px solid #e9eeee;vertical-align:middle}
@@ -433,6 +436,7 @@ button:focus-visible,input:focus-visible,select:focus-visible{outline:3px solid 
 .library-more{padding:4px 11px;font-size:1.4rem;line-height:1.1;min-width:42px;border:1px solid transparent}
 .library-more:hover,.library-more[aria-expanded=true]{background:#edf6f2;border-color:#c7dcd3}
 .library-dropdown{position:absolute;z-index:15;right:0;top:calc(100% + 4px);min-width:180px;max-width:280px;border:1px solid #d8e6e1;background:#fff;border-radius:12px;box-shadow:0 10px 30px #18382b24;padding:5px;text-align:left}
+.library-table tr:nth-last-child(-n+2) .library-dropdown{top:auto;bottom:calc(100% + 4px)}
 .library-dropdown button{background:none;border:0;width:100%;display:block;text-align:left;font:inherit;padding:11px 12px;border-radius:7px;cursor:pointer;color:#2e4945;overflow-wrap:anywhere}
 .library-dropdown button:hover{background:#eef6f2}.library-dropdown button span{margin-right:10px}
 .library-dropdown .danger-item{color:#a53741}.library-dropdown .danger-item:hover{background:#fff0ef}
@@ -453,6 +457,6 @@ button:focus-visible,input:focus-visible,select:focus-visible{outline:3px solid 
 .dialog-footer{justify-content:flex-end;margin-top:24px;flex-wrap:wrap}
 .library-progress{display:flex;gap:12px;align-items:center}.library-progress progress{max-width:120px}
 .library-error,.library-success{border-radius:9px;padding:12px 15px;margin-bottom:18px;background:#fff1f0;color:#85343b}
-.library-success{background:#eef8f2;color:#1d684e}
-@media(max-width:760px){.library-page{padding:26px 14px 48px}.library-toolbar{align-items:start;flex-wrap:wrap}.library-panel{padding:15px}.library-table-heading{align-items:start}.library-dialog{padding:20px}}
+.library-success{background:#eef8f2;color:#1d684e}.dialog-error{background:#fff1f0;color:#85343b;border-radius:9px;padding:10px 12px;margin:12px 0}
+@media(max-width:760px){.library-table-scroll{overflow-x:auto}.library-page{padding:26px 14px 48px}.library-toolbar{align-items:start;flex-wrap:wrap}.library-panel{padding:15px}.library-table-heading{align-items:start}.library-dialog{padding:20px}}
 </style>
