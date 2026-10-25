@@ -7,14 +7,16 @@
 .EXAMPLE
   pwsh -File .\scripts\qa216-acceptance.ps1 -IncludeBrowser
 .NOTES
-  Does NOT connect to, backup, restore, migrate, or alter DEV/PILOT databases.
+  Default mode never connects to PostgreSQL. The opt-in isolated mode creates and cleans up
+  ONLY a randomized QA database on local PostgreSQL (or a new Docker container).
   Does NOT submit an HTTP next-lesson request or interact with real accounts.
   Failing, unavailable and manual checks remain visible in the final report.
 #>
 [CmdletBinding()]
 param(
     [switch]$IncludeBrowser,
-    [switch]$IncludeIsolatedPostgres
+    [switch]$IncludeIsolatedPostgres,
+    [switch]$UseDocker
 )
 $ErrorActionPreference = 'Stop'
 $root = (Resolve-Path (Join-Path $PSScriptRoot '..')).Path
@@ -81,17 +83,17 @@ if (Test-Path -LiteralPath $wrapper) {
 }
 # These require dedicated approved disposable environments. Never mark PASS based on code review.
 if ($IncludeIsolatedPostgres) {
-    $runner = Join-Path $root 'scripts/qa216-isolated-postgres.ps1'
+    $runner = if($UseDocker) { Join-Path $root 'scripts/qa216-isolated-postgres.ps1' } else { Join-Path $root 'scripts/qa216-local-postgres.ps1' }
     $log = Join-Path $out 'isolated-postgres.log'
     try {
         $global:LASTEXITCODE = 0
         & pwsh -NoProfile -File $runner *> $log
         if ($LASTEXITCODE -eq 0) { Add-Result 'postgres-isolated-tests' 'PASS' 'Disposable PostgreSQL integration tests passed' $log }
-        elseif ($LASTEXITCODE -eq 2) { Add-Result 'postgres-isolated-tests' 'SKIP' 'Docker engine or cached image unavailable' $log }
+        elseif ($LASTEXITCODE -eq 2) { Add-Result 'postgres-isolated-tests' 'SKIP' 'Disposable PostgreSQL prerequisites unavailable' $log }
         else { Add-Result 'postgres-isolated-tests' 'FAIL' 'Isolated PostgreSQL test failure; inspect log' $log }
     } catch { Add-Result 'postgres-isolated-tests' 'FAIL' 'Isolated runner failed; inspect log' $log }
 } else {
-    Add-Result 'postgres-isolated-tests' 'SKIP' 'Run with -IncludeIsolatedPostgres (requires Docker)'
+    Add-Result 'postgres-isolated-tests' 'SKIP' 'Run with -IncludeIsolatedPostgres (local PostgreSQL; -UseDocker optional)'
 }
 Add-Result 'db-copy-migrate-restore' 'SKIP' 'Isolated PostgreSQL copy + migration + restore must be executed separately (TC-24)'
 Add-Result 'http-two-actors-csrf' 'SKIP' 'Two disposable authenticated DEV accounts required (TC-18)'
