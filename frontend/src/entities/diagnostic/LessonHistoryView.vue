@@ -8,7 +8,7 @@ import { diagnosticService } from './diagnostic.service';
 import { apiFailureKey, asApiFailure } from '../../shared/api-failure';
 import ExercisePreview from './ExercisePreview.vue';
 import { attemptService, type SubmissionAttempt } from '../attempt/attempt.service';
-import { learningService, type DecisionView, type SkillEvidenceView } from '../attempt/learning.service';
+import { learningService, type DecisionView, type SkillEvidenceView, type TaskLearningView } from '../attempt/learning.service';
 import type { DiagnosticTask, LessonHistoryItem } from '../../shared/model/diagnostic.model';
 
 const { t } = useI18n(), route = useRoute(), store = useLearnerStore();
@@ -17,6 +17,9 @@ const detail = ref<DiagnosticTask | null>(null);
 const attempts = ref<SubmissionAttempt[]>([]);
 const decisions = ref<DecisionView[]>([]);
 const evidence = ref<SkillEvidenceView[]>([]);
+const decisionCursor = ref<string | null>(null);
+const evidenceCursor = ref<string | null>(null);
+const learning = ref<TaskLearningView | null>(null);
 const loading = ref(true), error = ref('');
 let generation = 0;
 const requestedId = computed(() => typeof route.params.sessionId === 'string' ? route.params.sessionId : null);
@@ -34,14 +37,16 @@ async function load(cursor?: string): Promise<void> {
       const task = await diagnosticService.currentTask(learner, session.id);
       if (valid()) detail.value = task;
       if (task && valid()) {
-        const [oldAttempts, oldDecisions, oldEvidence] = await Promise.all([
+        const [oldAttempts, oldDecisions, oldEvidence, oldState] = await Promise.all([
           attemptService.list(learner,session.id,task.id),
           learningService.decisions(learner,session.id,task.id),
           learningService.evidence(learner,session.id,task.id),
+          learningService.state(learner,session.id,task.id),
         ]);
         if (valid()) {
           attempts.value=oldAttempts; decisions.value=oldDecisions.items;
-          evidence.value=oldEvidence.items;
+          evidence.value=oldEvidence.items; learning.value=oldState;
+          decisionCursor.value=oldDecisions.nextCursor; evidenceCursor.value=oldEvidence.nextCursor;
         }
       }
     } else {
@@ -55,9 +60,29 @@ async function load(cursor?: string): Promise<void> {
     if (valid()) error.value = t(apiFailureKey(asApiFailure(cause)));
   } finally { if (valid()) loading.value = false; }
 }
-watch(requestedId, () => { items.value=[]; detail.value=null; attempts.value=[]; decisions.value=[]; evidence.value=[]; void load(); });
+async function moreDecisions() {
+  const learner = secureUi ? auth.actor?.learnerId : store.learner?.id;
+  const task = detail.value, cursor = decisionCursor.value;
+  const key = generation;
+  if (!learner || !task || !cursor) return;
+  try {
+    const page = await learningService.decisions(learner,task.sessionId,task.id,cursor);
+    if (key === generation) { decisions.value.push(...page.items); decisionCursor.value=page.nextCursor; }
+  } catch { if (key === generation) error.value=t('apiErrors.http'); }
+}
+async function moreEvidence() {
+  const learner = secureUi ? auth.actor?.learnerId : store.learner?.id;
+  const task = detail.value, cursor = evidenceCursor.value;
+  const key = generation;
+  if (!learner || !task || !cursor) return;
+  try {
+    const page = await learningService.evidence(learner,task.sessionId,task.id,cursor);
+    if (key === generation) { evidence.value.push(...page.items); evidenceCursor.value=page.nextCursor; }
+  } catch { if (key === generation) error.value=t('apiErrors.http'); }
+}
+watch(requestedId, () => { items.value=[]; detail.value=null; attempts.value=[]; decisions.value=[]; evidence.value=[]; learning.value=null; void load(); });
 watch(() => auth.actor, () => {
-  ++generation; items.value=[]; detail.value=null; attempts.value=[]; decisions.value=[]; evidence.value=[];
+  ++generation; items.value=[]; detail.value=null; attempts.value=[]; decisions.value=[]; evidence.value=[]; learning.value=null;
   if (auth.actor || !secureUi) void load();
 });
 onMounted(() => void load());
@@ -79,14 +104,19 @@ onBeforeUnmount(() => { ++generation; });
           №{{ attempt.number }} · {{ attempt.status }} · {{ attempt.comment || '—' }}
           <span v-if="attempt.mediaState === 'DELETED'">{{ t('lessonNext.mediaExpired') }}</span>
         </li></ul>
+        <p v-if="learning?.nextLesson">
+          <RouterLink :to="'/lessons/' + learning.nextLesson.sessionId">{{ t('lessonNext.successor') }}</RouterLink>
+        </p>
         <h3>{{ t('lessonNext.decisions') }}</h3>
         <ul><li v-for="decision in decisions" :key="decision.decisionId">
           {{ decision.action }} · {{ decision.resultingState }} · {{ decision.reasonText || '—' }}
         </li></ul>
+        <button v-if="decisionCursor" type="button" @click="moreDecisions">{{ t('lessonNext.more') }}</button>
         <h3>{{ t('lessonNext.evidence') }}</h3>
         <ul><li v-for="entry in evidence" :key="entry.assessmentId + entry.criterionCode">
           {{ entry.criterionCode }} · {{ entry.status }} · {{ entry.outcome || '—' }}
         </li></ul>
+        <button v-if="evidenceCursor" type="button" @click="moreEvidence">{{ t('lessonNext.more') }}</button>
       </section>
     </template>
     <template v-if="!requestedId">

@@ -759,6 +759,9 @@
     "attempts": "Attempts",
     "decisions": "Learner decisions",
     "evidence": "Results and feedback",
-    "mediaExpired": "Media expired"
+    "mediaExpired": "Media expired",
+    "pages": "Catalog pages",
+    "previous": "Previous",
+    "successor": "Open the next lesson"
   }
 }

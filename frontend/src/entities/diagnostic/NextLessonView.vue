@@ -20,9 +20,12 @@ const exercises = ref<Exercise[]>([]), selected = ref<Exercise | null>(null);
 const source = ref<{ learner: string; session: string; task: string; version: number } | null>(null);
 let seq = 0;
 let pendingRequest: { key: string; code: string; version: string } | null = null;
+const page = ref(0);
 const filtered = computed(() => exercises.value.filter(e => e.contentKind === 'LEARNING_REPERTOIRE'
   && (e.title + ' ' + e.code).toLocaleLowerCase().includes(search.value.toLocaleLowerCase())));
 
+const visible = computed(() => filtered.value.slice(page.value * 20, (page.value + 1) * 20));
+watch(search, () => { page.value = 0; });
 async function load(): Promise<void> {
   const id = ++seq, actor = auth.actor;
   const valid = () => seq === id && (!secureUi || auth.actor === actor);
@@ -72,7 +75,7 @@ async function begin(): Promise<void> {
   } finally { if (id === seq && (!secureUi || auth.actor === actor)) pending.value = false; }
 }
 watch(() => auth.actor, () => {
-  ++seq; source.value = null; selected.value = null; exercises.value = []; pendingRequest = null;
+  ++seq; source.value = null; selected.value = null; exercises.value = []; pendingRequest = null; pending.value = false;
   if (auth.actor || !secureUi) void load();
 });
 onMounted(load);
@@ -91,7 +94,7 @@ onBeforeUnmount(() => { ++seq; });
         <input id="lesson-search" v-model="search" type="search" />
         <p v-if="!exercises.length">{{ t('lessonNext.empty') }}</p>
         <p v-else-if="!filtered.length">{{ t('lessonNext.noMatches') }}</p>
-        <div v-for="exercise in filtered" :key="exercise.code + '@' + exercise.version" class="panel">
+        <div v-for="exercise in visible" :key="exercise.code + '@' + exercise.version" class="panel">
           <h2>{{ exercise.title }}</h2>
           <p>{{ exercise.learningGoal || exercise.description }}</p>
           <p>{{ exercise.difficulty }} · {{ exercise.measures }} · {{ exercise.bpm }} BPM</p>
@@ -99,6 +102,12 @@ onBeforeUnmount(() => { ++seq; });
             {{ t('lessonNext.preview') }}
           </button>
         </div>
+        <nav v-if="filtered.length > 20" class="form-actions" :aria-label="t('lessonNext.pages')">
+          <button type="button" :disabled="page === 0 || pending" @click="page--">{{ t('lessonNext.previous') }}</button>
+          <span>{{ page + 1 }} / {{ Math.ceil(filtered.length / 20) }}</span>
+          <button type="button" :disabled="(page + 1) * 20 >= filtered.length || pending"
+            @click="page++">{{ t('lessonNext.more') }}</button>
+        </nav>
         <section v-if="selected" class="panel">
           <h2>{{ selected.title }}</h2>
           <ExercisePreview :exercise="selected" />
