@@ -106,6 +106,17 @@ class LibraryPublicationHttpPostgresTest {
             .andExpect(status().isCreated())
             .andExpect(jsonPath("$.state").value("PUBLISHED"))
             .andReturn().getResponse().getContentAsString();
+        // Retrying an acknowledged publication must return the same UUID, not a new snapshot.
+        mvc.perform(MockMvcRequestBuilders.post(publishPath).with(login("pub-a")).with(csrf())
+            .sessionAttr("guitarMentorAccessVersion",0L)
+            .header("If-Match","\"1\"").header("Idempotency-Key",publicationIdempotency)
+            .contentType("application/json").content(rights))
+            .andExpect(status().isOk())
+            .andExpect(jsonPath("$.id").value(JSON.readTree(published).path("id").asText()));
+        mvc.perform(MockMvcRequestBuilders.post(publishPath).with(login("pub-a")).with(csrf())
+            .sessionAttr("guitarMentorAccessVersion",0L)
+            .header("If-Match","\"1\"").contentType("application/json").content(rights))
+            .andExpect(status().isPreconditionRequired());
         JsonNode snapshot=JSON.readTree(published);
         String shared="/api/v1/community/publications/"+snapshot.path("id").asText();
         String content=shared+"/files/"+asset+"/content";
