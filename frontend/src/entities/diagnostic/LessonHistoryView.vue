@@ -124,7 +124,9 @@ onBeforeUnmount(() => { ++generation; });
       <ol>
         <li v-for="item in items" :key="item.taskId">
           <RouterLink :to="'/lessons/' + item.sessionId">{{ item.title }}</RouterLink>
-          · v{{ item.exerciseVersion }} · {{ item.taskState || t('diagnostic.studio.statusUnavailable') }}
+          · v{{ item.exerciseVersion }} · {{ new Date(item.assignedAt).toLocaleDateString() }}
+          · {{ item.taskState || t('diagnostic.studio.statusUnavailable') }}
+          <strong v-if="item.isCurrent">{{ t('lessonNext.currentMarker') }}</strong>
         </li>
       </ol>
       <button v-if="nextCursor" type="button" :disabled="loading"
