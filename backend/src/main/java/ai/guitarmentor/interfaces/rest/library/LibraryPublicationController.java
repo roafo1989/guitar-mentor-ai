@@ -67,7 +67,7 @@ public class LibraryPublicationController {
     private Publication snapshot(Map<String,Object> row,boolean includePrivateEvidence) {
         UUID id=(UUID)row.get("id");
         var files=jdbc.sql("""
-            SELECT asset_id,original_name,format,byte_size,sha256,provenance,rights_basis,rights_evidence
+            SELECT asset_id,original_name,format,byte_size,sha256,provenance,rights_basis,rights_evidence,attribution
             FROM library_publication_assets WHERE publication_id=:id ORDER BY asset_id
             """).param("id",id).query().listOfRows().stream().map(a->new AssetSnapshot(
                 (UUID)a.get("asset_id"),(String)a.get("original_name"),
@@ -156,7 +156,6 @@ public class LibraryPublicationController {
             if(right==null || right.assetId()==null || right.rightsBasis()==null
                     || !BASES.contains(right.rightsBasis())
                     || (right.provenance()!=null && !PROVENANCES.contains(right.provenance()))
-                    || (right.attribution()!=null && right.attribution().length()>2000)
                     || (right.attribution()!=null && right.attribution().length()>2000)
                     || right.rightsEvidence()==null || right.rightsEvidence().isBlank()
                     || right.rightsEvidence().trim().length()<8
