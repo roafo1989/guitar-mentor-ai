@@ -17,6 +17,7 @@ function harness({ session, task, learning, background = null, sessionError, tas
   const storage = {
     getItem: key => data.get(key) ?? null,
     removeItem: key => { calls.push('remove'); data.delete(key); },
+    setItem: (key, value) => { calls.push('set'); data.set(key, value); },
   };
   const services = {
     '../../shared/api-failure': { ApiFailure: class ApiFailure extends Error {}, isHttp: (cause, status) => cause?.status === status },
@@ -24,6 +25,24 @@ function harness({ session, task, learning, background = null, sessionError, tas
       diagnosticService: {
         get: async () => { calls.push('get-session'); if (sessionError) throw sessionError; return session; },
         currentTask: async () => { calls.push('get-task'); if (taskError) throw taskError; return task; },
+      },
+    },
+    '../../entities/diagnostic/current-diagnostic': {
+      diagnosticSelectionKey: learnerId => 'guitar-mentor.diagnostic.' + learnerId + '.ACOUSTIC_GUITAR',
+      resolveCurrentDiagnostic: async (learnerId, storage) => {
+        const key = 'guitar-mentor.diagnostic.' + learnerId + '.ACOUSTIC_GUITAR';
+        const selected = storage.getItem(key);
+        if (selected) {
+          try {
+            return await services['../../entities/diagnostic/diagnostic.service'].diagnosticService.get(learnerId, selected);
+          } catch (cause) {
+            if (cause?.status !== 404) throw cause;
+            if (storage.getItem(key) !== selected) throw cause;
+            storage.removeItem(key);
+          }
+        }
+        calls.push('get-current');
+        return null;
       },
     },
     '../../entities/onboarding/onboarding.service': {
@@ -49,7 +68,7 @@ test('no selected session asks existing onboarding, not POST', async () => {
   const h = harness({ background: { instrumentCode: 'ACOUSTIC_GUITAR' } });
   h.data.clear();
   assert.equal((await h.resolveHomeSummary('learner-1', h.storage)).step, 'diagnostics');
-  assert.deepEqual(h.calls, ['get-background']);
+  assert.deepEqual(h.calls, ['get-current', 'get-background']);
 });
 test('assigned active task shows title and lesson', async () => {
   const h = harness({
@@ -79,7 +98,7 @@ test('network failure retains session selection', async () => {
 test('404 on GET session clears only its key', async () => {
   const h = harness({ sessionError: Object.assign(new Error('HTTP_404'), { status: 404 }) });
   assert.equal((await h.resolveHomeSummary('learner-1', h.storage)).step, 'onboarding');
-  assert.deepEqual(h.calls, ['get-session', 'remove', 'get-background']);
+  assert.deepEqual(h.calls, ['get-session', 'remove', 'get-current', 'get-background']);
 });
 test('404 from task GET does not clear selected session', async () => {
   const h = harness({
@@ -99,6 +118,7 @@ test('late 404 cannot erase a more recent selection', async () => {
   const services = {
     '../../shared/api-failure': { ApiFailure: class ApiFailure extends Error {}, isHttp: (cause, status) => cause?.status === status },
     '../../entities/diagnostic/diagnostic.service': { diagnosticService: { get: () => request } },
+    '../../entities/diagnostic/current-diagnostic': { diagnosticSelectionKey: learnerId => 'guitar-mentor.diagnostic.' + learnerId + '.ACOUSTIC_GUITAR', resolveCurrentDiagnostic: async (_id, storage) => { try { return await services['../../entities/diagnostic/diagnostic.service'].diagnosticService.get(); } catch(e) { if(storage.getItem(key) !== 'saved-session') throw e; throw e; } } },
     '../../entities/onboarding/onboarding.service': { onboardingService: { get: async () => null } },
     '../../entities/attempt/learning.service': { LearningHttpError: class LearningHttpError extends Error {}, learningService: { state: async () => null } },
   };
