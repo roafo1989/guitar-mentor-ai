@@ -293,7 +293,8 @@ onBeforeUnmount(() => { ++generation; ++detailSequence; ++decisionSequence; pend
     <template v-if="state">
       <p role="status">{{ t(safeTaskStateKey(state.taskState)) }}</p>
       <p v-if="state.latestAttemptId" class="hint">{{ t('learning.latestAttempt') }}: {{ state.latestAttemptId === selected ? t('learning.selectedIsLatest') : t('learning.differentSelected') }}</p>
-      <p v-if="terminal" class="hint">{{ t('learning.nextUnavailable') }}</p>
+      <p v-if="terminal && state.nextStepAvailability === 'NOT_IMPLEMENTED'" class="hint">{{ t('learning.nextUnavailable') }}</p>
+      <RouterLink v-if="terminal && stateFresh" to="/lessons/new" class="action-button">{{ t('lessonNext.choose') }}</RouterLink>
       <div class="learning-attempt-picker">
         <label for="learning-attempt">{{ t('learning.chooseAttempt') }}</label>
         <select id="learning-attempt" :value="selected" :disabled="loading || sending" @change="chooseAttempt(($event.target as HTMLSelectElement).value)">

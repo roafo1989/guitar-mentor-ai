@@ -10,7 +10,7 @@ export interface TaskLearningView {
   availableActions: DecisionAction[]; latestAttemptId: string | null;
   assessmentState: 'NO_ATTEMPT' | 'NO_ASSESSMENT' | 'AVAILABLE';
   latestAssessmentId: string | null; latestDecision: DecisionView | null;
-  nextStepAvailability: 'NOT_IMPLEMENTED';
+  nextStepAvailability: 'NOT_IMPLEMENTED' | 'MANUAL_SELECTION' | 'SUCCESSOR_EXISTS';
 }
 export interface CriterionResult {
   criterionCode: string; skillCode: string; label: string; observableResult: string;
