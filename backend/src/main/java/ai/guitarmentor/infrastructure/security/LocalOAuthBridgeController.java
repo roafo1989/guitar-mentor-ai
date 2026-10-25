@@ -21,13 +21,16 @@ public class LocalOAuthBridgeController {
     private final ActorRepository actors;
     private final GoogleLinkService googleLinks;
     private final boolean enabled;
+    private final String publicOrigin;
 
     LocalOAuthBridgeController(LocalOAuthBridge bridge, ActorRepository actors, GoogleLinkService googleLinks,
-            @Value("${guitar-mentor.local-auth.unified-local:false}") boolean enabled) {
+            @Value("${guitar-mentor.local-auth.unified-local:false}") boolean enabled,
+            @Value("${guitar-mentor.local-auth.public-origin:}") String publicOrigin) {
         this.bridge = bridge;
         this.actors = actors;
         this.googleLinks = googleLinks;
         this.enabled = enabled;
+        this.publicOrigin = publicOrigin;
     }
 
     private void checkEnabled() {
@@ -39,7 +42,7 @@ public class LocalOAuthBridgeController {
         checkEnabled();
         // Only our HTTPS app may start the OAuth flow. CSRF is additionally
         // enforced by Spring Security before this controller is invoked.
-        if (!"https://guitar-mentor".equals(request.getHeader("Origin")))
+        if (!publicOrigin.equals(request.getHeader("Origin")))
             return ResponseEntity.status(403).build();
         var session = request.getSession(true);
         String nonce = bridge.begin(session.getId(),
@@ -61,7 +64,7 @@ public class LocalOAuthBridgeController {
     ResponseEntity<Map<String, String>> consume(@RequestBody Redeem body,
             HttpServletRequest request, HttpServletResponse response) {
         checkEnabled();
-        if (!"https://guitar-mentor".equals(request.getHeader("Origin")))
+        if (!publicOrigin.equals(request.getHeader("Origin")))
             return ResponseEntity.status(403).build();
         var session = request.getSession(false);
         if (session == null) return ResponseEntity.status(403).build();
