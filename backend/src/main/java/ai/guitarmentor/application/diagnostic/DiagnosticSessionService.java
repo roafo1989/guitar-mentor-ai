@@ -88,11 +88,11 @@ public class DiagnosticSessionService {
         return session;
     }
 
-    private static SessionView toView(DiagnosticSession session) {
+    public static SessionView toView(DiagnosticSession session) {
         var actions = switch (session.getStatus()) {
             case COLLECTING_EVIDENCE -> List.of("CONTINUE_WITHOUT_RECORDING");
             case READY_FOR_TASK -> List.of("ASSIGN_TASK");
-            case TASK_ASSIGNED -> List.of("VIEW_TASK");
+            case TASK_ASSIGNED, ARCHIVED -> List.of("VIEW_TASK");
         };
         return new SessionView(
                 session.getId(),

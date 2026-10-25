@@ -7,5 +7,6 @@ package ai.guitarmentor.domain.diagnostic;
 public enum DiagnosticStatus {
     COLLECTING_EVIDENCE,
     READY_FOR_TASK,
-    TASK_ASSIGNED
+    TASK_ASSIGNED,
+    ARCHIVED
 }
