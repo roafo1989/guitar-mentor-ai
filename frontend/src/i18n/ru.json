@@ -696,7 +696,7 @@
     "reset": "Сбросить",
     "format": "Формат",
     "all": "Все",
-    "parser": "Разбор",
+    "parser": "Состояние разбора",
     "parsed": "Файл разобран",
     "metadataOnly": "Только сведения",
     "sort": "Сортировка",
@@ -737,6 +737,10 @@
       "trackCount": "Дорожек",
       "measureCount": "Тактов",
       "noteCount": "Нот"
-    }
+    },
+    "eyebrow": "Коллекция",
+    "searchPlaceholder": "Например, Yesterday или The Beatles",
+    "emptyTitle": "Здесь пока нет произведений",
+    "noMatchesTitle": "Совпадений не найдено"
   }
 }
