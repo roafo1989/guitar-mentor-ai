@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { nextTick, onBeforeUnmount, onMounted, ref, watch } from 'vue';
+import { computed, nextTick, onBeforeUnmount, onMounted, ref, watch } from 'vue';
 import { useRoute } from 'vue-router';
 import { useI18n } from 'vue-i18n';
 import MetronomeDialog from './entities/metronome/MetronomeDialog.vue';
@@ -37,9 +37,17 @@ function onHeaderKeydown(event: KeyboardEvent): void {
   else if (menuOpen.value) { event.preventDefault(); closeMenu(true); }
 }
 
-// All routed pages restore the selected learner on mount; this header reacts to Pinia changes.
+// Hydrate the authenticated learner independently of the active route.
 const learnerStore = useLearnerStore();
 const route = useRoute();
+const headerName = computed(() => learnerStore.learner?.id === auth.actor?.learnerId || !secureUi ? learnerStore.learner?.displayName?.trim() || '' : '');
+const headerInitial = computed(() => headerName.value ? Array.from(headerName.value)[0].toLocaleUpperCase() : '');
+function retryHeaderProfile(): void { void learnerStore.restore(); }
+watch(() => auth.actor, actor => {
+  if (!secureUi) return;
+  if (!actor) learnerStore.clearLocalSelection();
+  else void learnerStore.restore();
+}, { immediate: true });
 const headerMetronomeButton = ref<HTMLButtonElement | null>(null);
 const tunerButton = ref<HTMLButtonElement | null>(null);
 const tunerOpen = ref(false);
@@ -171,12 +179,13 @@ onBeforeUnmount(() => { unsubscribeMetronome?.(); closeMetronome(); });
             :aria-label="locale === 'ru' ? 'Меню пользователя' : 'Account menu'"
             :aria-expanded="accountMenuOpen" aria-controls="gm-account-menu"
             aria-haspopup="true" @click="accountMenuOpen = !accountMenuOpen">
-            <span class="header-avatar" aria-hidden="true">{{ (learnerStore.learner?.displayName || auth.actor?.accountId || '?').slice(0,1).toUpperCase() }}</span>
-            <span class="header-account-name">{{ learnerStore.learner?.displayName || (locale === 'ru' ? 'Пользователь' : 'Account') }}</span>
+            <span class="header-avatar" aria-hidden="true">{{ headerInitial || '◯' }}</span>
+            <span class="header-account-name">{{ headerName || (learnerStore.busy ? (locale === 'ru' ? 'Загрузка…' : 'Loading…') : (locale === 'ru' ? 'Пользователь' : 'Account')) }}</span>
             <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="m6 9 6 6 6-6"/></svg>
           </button>
           <div v-if="accountMenuOpen" id="gm-account-menu" class="header-account-popover">
             <RouterLink to="/profile" @click="closeAccountMenu()">{{ t('app.profile') }}</RouterLink>
+            <button v-if="learnerStore.error" type="button" @click="retryHeaderProfile">{{ locale === 'ru' ? 'Повторить загрузку профиля' : 'Retry profile loading' }}</button>
             <label class="language-picker header-account-locale">
               <span>{{ t('app.language') }}</span>
               <select v-model="locale" :aria-label="t('app.language')">
