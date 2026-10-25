@@ -13,7 +13,8 @@
 #>
 [CmdletBinding()]
 param(
-    [switch]$IncludeBrowser
+    [switch]$IncludeBrowser,
+    [switch]$IncludeIsolatedPostgres
 )
 $ErrorActionPreference = 'Stop'
 $root = (Resolve-Path (Join-Path $PSScriptRoot '..')).Path
@@ -79,6 +80,19 @@ if (Test-Path -LiteralPath $wrapper) {
     Run-Step 'backend-tests' 'mvn.cmd' @('-B','clean','test') (Join-Path $root 'backend')
 }
 # These require dedicated approved disposable environments. Never mark PASS based on code review.
+if ($IncludeIsolatedPostgres) {
+    $runner = Join-Path $root 'scripts/qa216-isolated-postgres.ps1'
+    $log = Join-Path $out 'isolated-postgres.log'
+    try {
+        $global:LASTEXITCODE = 0
+        & pwsh -NoProfile -File $runner *> $log
+        if ($LASTEXITCODE -eq 0) { Add-Result 'postgres-isolated-tests' 'PASS' 'Disposable PostgreSQL integration tests passed' $log }
+        elseif ($LASTEXITCODE -eq 2) { Add-Result 'postgres-isolated-tests' 'SKIP' 'Docker engine or cached image unavailable' $log }
+        else { Add-Result 'postgres-isolated-tests' 'FAIL' 'Isolated PostgreSQL test failure; inspect log' $log }
+    } catch { Add-Result 'postgres-isolated-tests' 'FAIL' 'Isolated runner failed; inspect log' $log }
+} else {
+    Add-Result 'postgres-isolated-tests' 'SKIP' 'Run with -IncludeIsolatedPostgres (requires Docker)'
+}
 Add-Result 'db-copy-migrate-restore' 'SKIP' 'Isolated PostgreSQL copy + migration + restore must be executed separately (TC-24)'
 Add-Result 'http-two-actors-csrf' 'SKIP' 'Two disposable authenticated DEV accounts required (TC-18)'
 Add-Result 'real-media-ttl' 'SKIP' 'Controlled fixture, TTL and storage checks required (TC-09)'
