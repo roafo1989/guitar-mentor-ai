@@ -87,7 +87,7 @@ if (-not $caddyListening) {
             [Environment]::SetEnvironmentVariable($name, $saved[$name], 'Process')
         }
     }
-    Write-Host 'Started local Caddy HTTPS proxy for https://guitar-mentor.'
+    Write-Host 'Started local Caddy HTTPS proxy for https://guitar-mentor-dev.'
 }
 $conf = Get-Content -LiteralPath $settingsPath -Raw | ConvertFrom-Json
 $env:GUITAR_MENTOR_OIDC_CLIENT_ID = [string]$conf.clientId
@@ -108,7 +108,7 @@ if ([string]::IsNullOrWhiteSpace($env:GUITAR_MENTOR_ENABLE_UPLOADS)) {
     $env:GUITAR_MENTOR_ENABLE_UPLOADS = 'true'
 }
 $env:GUITAR_MENTOR_BIND_ADDRESS = '127.0.0.1'
-$env:GUITAR_MENTOR_PUBLIC_ORIGIN = 'https://guitar-mentor'
+$env:GUITAR_MENTOR_PUBLIC_ORIGIN = 'https://guitar-mentor-dev'
 # #164: The private library needs a stable >=32-byte HMAC cursor key.
 # Generate exactly once using the OS CSPRNG, encrypt under Windows DPAPI for this user
 # and persist outside Git. Keep the same key on subsequent local launches; otherwise
@@ -190,7 +190,7 @@ $backendCommand = "Set-Location -LiteralPath '$backend'; if (-not (Get-Command p
 $frontendCommand = "Set-Location -LiteralPath '$frontend'; if (-not (Get-Command node.exe -ErrorAction SilentlyContinue)) { throw 'Child PATH missing node.exe' }; & '$npm' run dev"
 Start-Process -FilePath $ps -ArgumentList @('-NoExit', '-Command', $backendCommand)
 Start-Process -FilePath $ps -ArgumentList @('-NoExit', '-Command', $frontendCommand)
-Write-Host 'Started private backend and Vite terminals. App address: https://guitar-mentor/'
+Write-Host 'Started private backend and Vite terminals. App address: https://guitar-mentor-dev/'
 Write-Host 'Keep existing Caddy running with infra/local/Caddyfile for HTTPS and its local certificate.'
 Write-Host 'OAuth callback must match http://localhost:5173/login/oauth2/code/guitar-mentor.'
 Write-Host 'No SMTP test-capture process is needed. Email delivery depends on your provider.'

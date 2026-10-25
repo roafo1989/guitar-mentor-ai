@@ -48,7 +48,7 @@ public class SecurityConfiguration {
         return args -> {
             if (qa && (!("127.0.0.1".equals(bind) || "::1".equals(bind))
                     || !("127.0.0.1".equals(smtpHost) || "localhost".equals(smtpHost))
-                    || smtpPort != 1025 || !"https://guitar-mentor".equals(origin)
+                    || smtpPort != 1025 || !("https://guitar-mentor".equals(origin) || "https://guitar-mentor-dev".equals(origin))
                     || !securityEnabled || localHttp)) {
                 throw new IllegalStateException("QA SMTP capture must run on loopback with HTTPS, authentication and local port 1025");
             }
@@ -73,11 +73,11 @@ public class SecurityConfiguration {
             boolean localHttp = env.getProperty("guitar-mentor.security.local-http",Boolean.class,false);
             boolean smtpAuth = env.getProperty("spring.mail.properties.mail.smtp.auth",Boolean.class,false);
             boolean smtpTls = env.getProperty("spring.mail.properties.mail.smtp.starttls.required",Boolean.class,false);
-            if (!"127.0.0.1".equals(bind) || !"https://guitar-mentor".equals(origin)
+            if (!"127.0.0.1".equals(bind) || !("https://guitar-mentor".equals(origin) || "https://guitar-mentor-dev".equals(origin))
                     || !secureAuth || localHttp || client.isBlank() || clientSecret.isBlank()
                     || !"http://localhost:5173/login/oauth2/code/{registrationId}".equals(redirect)
                     || smtp.isBlank() || from.isBlank() || !smtpAuth || !smtpTls) {
-                throw new IllegalStateException("Unified local auth needs HTTPS guitar-mentor, loopback, Google OAuth, SMTP STARTTLS and a verified sender");
+                throw new IllegalStateException("Unified local auth needs an approved local HTTPS origin, loopback, Google OAuth, SMTP STARTTLS and a verified sender");
             }
         };
     }
@@ -89,7 +89,8 @@ public class SecurityConfiguration {
             @Value("${guitar-mentor.security.enabled:true}") boolean enabled,
             @Value("${guitar-mentor.security.absolute-session-minutes:720}") long absoluteMinutes,
             @Value("${server.address:127.0.0.1}") String bind,
-            @Value("${guitar-mentor.security.local-http:false}") boolean localHttp)
+            @Value("${guitar-mentor.security.local-http:false}") boolean localHttp,
+            @Value("${guitar-mentor.local-auth.public-origin:}") String localOrigin)
             throws Exception {
         if (localHttp && (!enabled || !(bind.equals("127.0.0.1") || bind.equals("::1")
                 || bind.equals("localhost")))) {
@@ -178,7 +179,7 @@ public class SecurityConfiguration {
                             callbackSession.removeAttribute("guitarMentorBridgeStartNonce");
                             callbackSession.invalidate();
                             org.springframework.security.core.context.SecurityContextHolder.clearContext();
-                            res.sendRedirect("https://guitar-mentor/?auth=bridge_expired");
+                            res.sendRedirect(localOrigin + "/?auth=bridge_expired");
                             return;
                         }
                     }
@@ -188,9 +189,9 @@ public class SecurityConfiguration {
                             String ticket = oauthBridge.complete(bridgeNonce, auth);
                             callbackSession.invalidate();
                             org.springframework.security.core.context.SecurityContextHolder.clearContext();
-                            res.sendRedirect("https://guitar-mentor/#oauthBridge=" + ticket);
+                            res.sendRedirect(localOrigin + "/#oauthBridge=" + ticket);
                         } catch (SecurityException ex) {
-                            res.sendRedirect("https://guitar-mentor/?auth=bridge_failed");
+                            res.sendRedirect(localOrigin + "/?auth=bridge_failed");
                         }
                         return;
                     }
@@ -231,7 +232,7 @@ public class SecurityConfiguration {
                             req.getSession().invalidate();
                             org.springframework.security.core.context.SecurityContextHolder.clearContext();
                             res.sendRedirect(bridgeNonce == null
-                                ? "/?auth=denied" : "https://guitar-mentor/?auth=denied");
+                                ? "/?auth=denied" : localOrigin + "/?auth=denied");
                             return;
                         }
                     }
@@ -244,9 +245,9 @@ public class SecurityConfiguration {
                             String ticket = oauthBridge.complete(bridgeNonce, auth);
                             callbackSession.invalidate();
                             org.springframework.security.core.context.SecurityContextHolder.clearContext();
-                            res.sendRedirect("https://guitar-mentor/#oauthBridge=" + ticket);
+                            res.sendRedirect(localOrigin + "/#oauthBridge=" + ticket);
                         } catch (SecurityException ex) {
-                            res.sendRedirect("https://guitar-mentor/?auth=bridge_failed");
+                            res.sendRedirect(localOrigin + "/?auth=bridge_failed");
                         }
                     } else {
                         res.sendRedirect("/");
@@ -257,7 +258,7 @@ public class SecurityConfiguration {
                     if (session != null && session.getAttribute("guitarMentorBridgeStartNonce") != null) {
                         session.invalidate();
                         org.springframework.security.core.context.SecurityContextHolder.clearContext();
-                        res.sendRedirect("https://guitar-mentor/?auth=google_failed");
+                        res.sendRedirect(localOrigin + "/?auth=google_failed");
                     } else {
                         res.sendRedirect("/?auth=failed");
                     }
