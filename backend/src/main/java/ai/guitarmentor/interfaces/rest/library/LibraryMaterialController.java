@@ -18,19 +18,23 @@ import org.springframework.beans.factory.annotation.Value;
 import org.springframework.http.CacheControl;
 import org.springframework.http.ResponseEntity;
 import org.springframework.transaction.annotation.Transactional;
+import org.springframework.jdbc.core.simple.JdbcClient;
 import org.springframework.web.bind.annotation.*;
 
 @RestController
 @RequestMapping("/api/v1/library/materials")
 public class LibraryMaterialController {
     private final LibraryMaterialRepository repository;
+    private final JdbcClient jdbc;
     private final byte[] cursorSecret;
     private final boolean enabled;
 
     public LibraryMaterialController(LibraryMaterialRepository repository,
+            @org.springframework.beans.factory.annotation.Autowired(required=false) JdbcClient jdbc,
             @Value("${guitar-mentor.library.cursor-secret:}") String secret,
             @Value("${guitar-mentor.library.enabled:false}") boolean enabled) {
         this.repository=repository;
+        this.jdbc=jdbc;
         this.cursorSecret=secret.getBytes(StandardCharsets.UTF_8);
         this.enabled=enabled;
         if(enabled && this.cursorSecret.length<32)
