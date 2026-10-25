@@ -17,6 +17,8 @@ const panel = asModule("import { h } from '" + vueUrl +
 const store = asModule("export const useLearnerStore = () => globalThis.__testLearner;");
 const metronomeUi = asModule("export const closeMetronome = () => {};");
 const apiFailure = asModule("export class ApiFailure extends Error {} export const apiFailureKey = () => 'apiErrors.http'; export const asApiFailure = () => new ApiFailure('HTTP'); export const isHttp = (e, status) => e?.status === status;");
+const diagnosticResolver = asModule("export const diagnosticSelectionKey = id => 'guitar-mentor.diagnostic.' + id + '.ACOUSTIC_GUITAR'; export const resolveCurrentDiagnostic = async (id, storage) => { const chosen = storage.getItem('guitar-mentor.diagnostic.' + id + '.ACOUSTIC_GUITAR'); if(chosen) { if(globalThis.__testSessionError) throw globalThis.__testSessionError; return {id:'session',status:'COLLECTING_EVIDENCE'}; } return null; };");
+const authModule = asModule("export const auth = { actor: null }; export const secureUi = false;");
 const diagnostic = asModule("export const diagnosticService = {get: async()=>{if(globalThis.__testSessionError) throw globalThis.__testSessionError; return {id:'session',status:'COLLECTING_EVIDENCE'};}, start: async()=>{globalThis.__testStartCalls=(globalThis.__testStartCalls||0)+1; return {id:'new-session',status:'COLLECTING_EVIDENCE'};},listExercises:async()=>[],recommendations:async()=>({items:[]}),continueWithoutRecording:async()=>({id:'session',status:'READY_FOR_TASK'})};");
 let cached;
 async function compileRealView() {
@@ -36,6 +38,8 @@ async function compileRealView() {
       './intake-navigation': new URL('../src/entities/diagnostic/intake-navigation.ts', import.meta.url).href,
       '../metronome/metronome-ui': metronomeUi,
       '../../shared/api-failure': apiFailure,
+      './current-diagnostic': diagnosticResolver,
+      '../../core/auth/auth': authModule,
     };
     const target = sources[name] ?? (
       name.endsWith('DiagnosticEvidencePanel.vue') ? panel :
