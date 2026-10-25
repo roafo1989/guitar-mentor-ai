@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { computed, onBeforeUnmount, onMounted, ref, watch } from 'vue';
-import { useRoute } from 'vue-router';
+import { useRoute, useRouter } from 'vue-router';
 import { useI18n } from 'vue-i18n';
 import { useLearnerStore } from '../../stores/learner.store';
 import { auth, secureUi } from '../../core/auth/auth';
@@ -11,7 +11,7 @@ import { attemptService, type SubmissionAttempt } from '../attempt/attempt.servi
 import { learningService, type DecisionView, type SkillEvidenceView, type TaskLearningView } from '../attempt/learning.service';
 import type { DiagnosticTask, LessonHistoryItem } from '../../shared/model/diagnostic.model';
 
-const { t, locale } = useI18n(), route = useRoute(), store = useLearnerStore();
+const { t, locale } = useI18n(), route = useRoute(), router = useRouter(), store = useLearnerStore();
 function statusLabel(value: string | null | undefined): string {
   if (value === 'COMPLETED_BY_LEARNER') return locale.value === 'ru' ? 'Завершено учеником' : 'Completed by learner';
   if (value === 'COMPLETED_PASSED') return locale.value === 'ru' ? 'Завершено успешно' : 'Completed — passed';
@@ -44,6 +44,12 @@ async function load(cursor?: string): Promise<void> {
     if (requestedId.value) {
       const session = await diagnosticService.get(learner, requestedId.value);
       if (!valid()) return;
+      // An active/current session must use the full lesson workspace, never the archive-only detail.
+      // ARCHIVED sessions remain here as read-only history; no selected key is mutated.
+      if (session.status !== 'ARCHIVED') {
+        await router.replace('/diagnostics');
+        return;
+      }
       const task = await diagnosticService.currentTask(learner, session.id);
       if (valid()) detail.value = task;
       if (task && valid()) {
@@ -138,7 +144,7 @@ onBeforeUnmount(() => { ++generation; });
       <ol class="lesson-history-list">
         <li v-for="item in items" :key="item.taskId" class="lesson-history-card">
           <div class="lesson-history-card-heading">
-            <RouterLink :to="'/lessons/' + item.sessionId" class="lesson-history-name">{{ item.title }}</RouterLink>
+            <RouterLink :to="item.isCurrent ? '/diagnostics' : '/lessons/' + item.sessionId" class="lesson-history-name">{{ item.title }}</RouterLink>
             <span v-if="item.isCurrent" class="lesson-history-current">{{ t('lessonNext.currentMarker') }}</span>
           </div>
           <div class="lesson-history-details">
