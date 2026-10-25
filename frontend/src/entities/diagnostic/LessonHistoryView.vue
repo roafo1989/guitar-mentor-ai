@@ -7,11 +7,16 @@ import { auth, secureUi } from '../../core/auth/auth';
 import { diagnosticService } from './diagnostic.service';
 import { apiFailureKey, asApiFailure } from '../../shared/api-failure';
 import ExercisePreview from './ExercisePreview.vue';
+import { attemptService, type SubmissionAttempt } from '../attempt/attempt.service';
+import { learningService, type DecisionView, type SkillEvidenceView } from '../attempt/learning.service';
 import type { DiagnosticTask, LessonHistoryItem } from '../../shared/model/diagnostic.model';
 
 const { t } = useI18n(), route = useRoute(), store = useLearnerStore();
 const items = ref<LessonHistoryItem[]>([]), nextCursor = ref<string | null>(null);
 const detail = ref<DiagnosticTask | null>(null);
+const attempts = ref<SubmissionAttempt[]>([]);
+const decisions = ref<DecisionView[]>([]);
+const evidence = ref<SkillEvidenceView[]>([]);
 const loading = ref(true), error = ref('');
 let generation = 0;
 const requestedId = computed(() => typeof route.params.sessionId === 'string' ? route.params.sessionId : null);
@@ -28,6 +33,17 @@ async function load(cursor?: string): Promise<void> {
       if (!valid()) return;
       const task = await diagnosticService.currentTask(learner, session.id);
       if (valid()) detail.value = task;
+      if (task && valid()) {
+        const [oldAttempts, oldDecisions, oldEvidence] = await Promise.all([
+          attemptService.list(learner,session.id,task.id),
+          learningService.decisions(learner,session.id,task.id),
+          learningService.evidence(learner,session.id,task.id),
+        ]);
+        if (valid()) {
+          attempts.value=oldAttempts; decisions.value=oldDecisions.items;
+          evidence.value=oldEvidence.items;
+        }
+      }
     } else {
       const page = await diagnosticService.history(learner, cursor);
       if (valid()) {
@@ -39,7 +55,11 @@ async function load(cursor?: string): Promise<void> {
     if (valid()) error.value = t(apiFailureKey(asApiFailure(cause)));
   } finally { if (valid()) loading.value = false; }
 }
-watch(requestedId, () => { items.value=[]; detail.value=null; void load(); });
+watch(requestedId, () => { items.value=[]; detail.value=null; attempts.value=[]; decisions.value=[]; evidence.value=[]; void load(); });
+watch(() => auth.actor, () => {
+  ++generation; items.value=[]; detail.value=null; attempts.value=[]; decisions.value=[]; evidence.value=[];
+  if (auth.actor || !secureUi) void load();
+});
 onMounted(() => void load());
 onBeforeUnmount(() => { ++generation; });
 </script>
@@ -53,6 +73,21 @@ onBeforeUnmount(() => { ++generation; });
       <p>{{ t('lessonNext.readOnly') }}</p>
       <h2>{{ detail.exercise.title }}</h2>
       <ExercisePreview :exercise="detail.exercise" assigned />
+      <section class="panel">
+        <h3>{{ t('lessonNext.attempts') }}</h3>
+        <ul><li v-for="attempt in attempts" :key="attempt.id">
+          №{{ attempt.number }} · {{ attempt.status }} · {{ attempt.comment || '—' }}
+          <span v-if="attempt.mediaState === 'DELETED'">{{ t('lessonNext.mediaExpired') }}</span>
+        </li></ul>
+        <h3>{{ t('lessonNext.decisions') }}</h3>
+        <ul><li v-for="decision in decisions" :key="decision.decisionId">
+          {{ decision.action }} · {{ decision.resultingState }} · {{ decision.reasonText || '—' }}
+        </li></ul>
+        <h3>{{ t('lessonNext.evidence') }}</h3>
+        <ul><li v-for="entry in evidence" :key="entry.assessmentId + entry.criterionCode">
+          {{ entry.criterionCode }} · {{ entry.status }} · {{ entry.outcome || '—' }}
+        </li></ul>
+      </section>
     </template>
     <template v-if="!requestedId">
       <p v-if="!loading && !items.length">{{ t('lessonNext.emptyHistory') }}</p>

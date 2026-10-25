@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { computed, onBeforeUnmount, onMounted, ref } from 'vue';
+import { computed, onBeforeUnmount, onMounted, ref, watch } from 'vue';
 import { useRouter } from 'vue-router';
 import { useI18n } from 'vue-i18n';
 import { useLearnerStore } from '../../stores/learner.store';
@@ -71,6 +71,10 @@ async function begin(): Promise<void> {
     // Keep the same UUID for a network/5xx retry; a lost response may have committed.
   } finally { if (id === seq && (!secureUi || auth.actor === actor)) pending.value = false; }
 }
+watch(() => auth.actor, () => {
+  ++seq; source.value = null; selected.value = null; exercises.value = []; pendingRequest = null;
+  if (auth.actor || !secureUi) void load();
+});
 onMounted(load);
 onBeforeUnmount(() => { ++seq; });
 </script>
