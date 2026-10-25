@@ -42,6 +42,11 @@ function clearPrivate(): void {
   files.value = [];
   title.value = '';
   author.value = '';
+  type.value = 'COMPOSITION';
+  editTitle.value = '';
+  editAuthor.value = '';
+  editType.value = 'COMPOSITION';
+  if (fileInput.value) fileInput.value.value = '';
   pendingKey = null;
   lastUploadFingerprint = '';
   loading.value = false;
@@ -173,7 +178,8 @@ async function download(file: LibraryMaterial['files'][number]): Promise<void> {
   if (!selected.value || busy.value) return;
   const ticket = generation, owner = auth.actor?.accountId;
   busy.value = true; error.value = '';
-  try { await libraryService.download(selected.value.id, file); }
+  try { await libraryService.download(selected.value.id, file,
+    () => active && ticket === generation && auth.actor?.accountId === owner); }
   catch (cause) { if (active && ticket === generation && auth.actor?.accountId === owner) error.value = message(cause); }
   finally { if (active && ticket === generation) busy.value = false; }
 }
