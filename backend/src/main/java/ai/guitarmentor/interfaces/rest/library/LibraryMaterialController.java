@@ -161,6 +161,26 @@ public class LibraryMaterialController {
             throw new ApiError(412,"LIBRARY_REVISION_CONFLICT");
         if (repository.markDeleting(account,id,revision)!=1)
             throw new ApiError(412,"LIBRARY_REVISION_CONFLICT");
+        // #165: revoke shared access atomically with the tombstone and deletion intent.
+        // Publish/withdraw paths lock the same material row, preventing a race.
+        if(jdbc!=null) {
+            var active=jdbc.sql("""
+                SELECT id FROM library_publications
+                WHERE material_id=:id AND state='PUBLISHED' FOR UPDATE
+                """).param("id",id).query(UUID.class).list();
+            for(UUID pub:active) {
+                jdbc.sql("""
+                    UPDATE library_publications SET state='WITHDRAWN',ended_at=now()
+                    WHERE id=:pub AND state='PUBLISHED'
+                    """).param("pub",pub).update();
+                jdbc.sql("""
+                    INSERT INTO library_publication_events
+                      (id,publication_id,actor_account_id,action)
+                    VALUES(:event,:pub,:actor,'DELETE_WITHDRAW')
+                    """).param("event",UUID.randomUUID()).param("pub",pub)
+                    .param("actor",account).update();
+            }
+        }
         repository.queueDeletion(id);
         return ResponseEntity.accepted().cacheControl(CacheControl.noStore())
             .body(new Deleting(id,"DELETING"));
