@@ -99,6 +99,9 @@ class LibraryPublicationPostgresTest {
         assertEquals(1,blues.items().size());
         assertEquals(pub1,blues.items().getFirst().id());
         assertEquals(List.of("blues","fingerstyle"),blues.items().getFirst().tags());
+        assertEquals(List.of("blues","fingerstyle"),
+            publications.publishedDetail(req(bob,"LEARNER"),pub1).getBody().tags(),
+            "shared detail and search cards must expose consistent public tags");
         assertEquals(2,search.search(req(bob,"LEARNER"),"yesterday",null,
             List.of("rock","blues"),false,20,null).getBody().items().size(),
             "OR among tags, AND with q");
