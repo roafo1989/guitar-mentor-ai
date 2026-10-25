@@ -8,7 +8,7 @@ CREATE TABLE library_publications (
  version BIGINT NOT NULL CHECK(version>=1),
  publication_revision BIGINT NOT NULL DEFAULT 1 CHECK(publication_revision>=1),
  idempotency_key UUID NOT NULL,
- request_fingerprint CHAR(64) NOT NULL CHECK(request_fingerprint ~ '^[a-f0-9]{64}
+ request_fingerprint CHAR(64) NOT NULL CHECK(request_fingerprint ~ '^[a-f0-9]{64}$'),
  material_revision BIGINT NOT NULL CHECK(material_revision>=1),
  title VARCHAR(150) NOT NULL,
  material_type VARCHAR(16) NOT NULL CHECK(material_type IN ('EXERCISE','ETUDE','COMPOSITION','OTHER')),
