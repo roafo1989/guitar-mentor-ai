@@ -1,0 +1,60 @@
+#Requires -Version 7.4
+param(
+    [string]$Root = 'D:\GuitarMentorPilot',
+    [string]$InitialRelease = '20261025-143144',
+    [string]$Origin = 'https://guitar-mentor.tail3b8201.ts.net',
+    [string]$PostgresBin = 'C:\Program Files\PostgreSQL\17\bin'
+)
+$ErrorActionPreference = 'Stop'
+. (Join-Path $PSScriptRoot 'Pilot.Common.ps1')
+if (-not $IsWindows) { throw 'Требуются Windows и PowerShell 7.4+.' }
+$Root = (Resolve-Path -LiteralPath $Root).Path
+if ($Root -match '["&|<>^%!\r\n]') { throw 'Путь установки содержит неподдерживаемые символы.' }
+if ($Origin -notmatch '^https://[a-z0-9-]+\.[a-z0-9-]+\.ts\.net$') { throw 'Нужен точный HTTPS origin Tailscale без завершающего слеша.' }
+$lock = Enter-PilotLock $Root
+try {
+    Assert-PilotReady $Root
+    Assert-PilotStopped
+    foreach ($path in @((Join-Path $Root 'application-pilot.yml'),
+        'C:\Tools\Caddy\caddy.exe','C:\Program Files\Tailscale\tailscale.exe',
+        (Join-Path $PostgresBin 'pg_dump.exe'),(Join-Path $PostgresBin 'pg_restore.exe'),
+        (Join-Path $env:LOCALAPPDATA 'GuitarMentorAI/local-auth-unified.json'),
+        (Join-Path $env:LOCALAPPDATA 'GuitarMentorAI/pilot-database-password.txt'))) {
+        if (-not (Test-Path -LiteralPath $path)) { throw "Не найден файл: $path" }
+    }
+    foreach ($tool in 'git.exe','java.exe','node.exe','npm.cmd') { $null = Get-Command $tool -ErrorAction Stop }
+    $statePath = Join-Path $Root 'release-state.json'
+    if (-not (Test-Path -LiteralPath $statePath)) {
+        $release = Get-PilotRelease $Root $InitialRelease
+        Write-PilotJson (Join-Path $release 'pilot-release.json') (New-PilotManifest $release $null)
+        Write-PilotJson $statePath @{ current=$InitialRelease; previous=$null; lastBackup=$null }
+    }
+    $state = Read-PilotJson $statePath
+    $null = Test-PilotRelease (Get-PilotRelease $Root $state.current)
+    $installation = Join-Path $Root ("tools/" + [DateTime]::UtcNow.ToString('yyyyMMdd-HHmmss') + '-' + [guid]::NewGuid().ToString('N').Substring(0,8))
+    $null = New-Item -ItemType Directory -Path $installation -Force
+    foreach ($name in 'Pilot.ps1','Pilot.Common.ps1') { Copy-Item -LiteralPath (Join-Path $PSScriptRoot $name) -Destination $installation }
+    Write-PilotJson (Join-Path $Root 'pilot-tools.json') @{
+        origin=$Origin; postgresBin=$PostgresBin
+        caddy='C:\Tools\Caddy\caddy.exe'; tailscale='C:\Program Files\Tailscale\tailscale.exe'
+    }
+    $shell = New-Object -ComObject WScript.Shell
+    $desktop = [Environment]::GetFolderPath('Desktop')
+    $pwsh = [Environment]::ProcessPath
+    foreach ($item in @(
+        @{file='Start-Pilot.ps1'; mode='Start'; title='Guitar Mentor — для друзей'},
+        @{file='Update-Pilot.ps1'; mode='Update'; title='Обновить Guitar Mentor'},
+        @{file='Rollback-Pilot.ps1'; mode='Rollback'; title='Вернуть предыдущую версию Guitar Mentor'})) {
+        $entry = Join-Path $Root $item.file
+        if (Test-Path -LiteralPath $entry) { Copy-Item -LiteralPath $entry -Destination "$entry.$([guid]::NewGuid().ToString('N')).bak" }
+        $scriptPath = (Join-Path $installation 'Pilot.ps1').Replace("'","''")
+        $rootLiteral = $Root.Replace("'","''")
+        "& '$scriptPath' -Mode $($item.mode) -Root '$rootLiteral'" | Set-Content -LiteralPath $entry -Encoding utf8
+        $shortcut = $shell.CreateShortcut((Join-Path $desktop ($item.title + '.lnk')))
+        $shortcut.TargetPath = $pwsh
+        $shortcut.Arguments = '-NoProfile -File "' + $entry + '"'
+        $shortcut.WorkingDirectory = $Root
+        $shortcut.Save()
+    }
+    Write-Host 'Готово: ярлыки запуска, обновления и возврата созданы. Текущая версия сохранена; сайт не запущен.'
+} finally { $lock.Dispose() }
