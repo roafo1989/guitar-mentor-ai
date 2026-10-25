@@ -62,7 +62,7 @@ async function restoreProfile(): Promise<void> {
     const hasGuitar = learnerStore.learner?.instruments.some(
       instrument => instrument.instrumentCode === 'ACOUSTIC_GUITAR',
     ) ?? false;
-    const next = await resolveHomeSummary(hasGuitar ? id : null, window.localStorage);
+    const next = await resolveHomeSummary(hasGuitar ? id : null, window.localStorage, () => active && seq === generation && (!secureUi || auth.actor?.accountId === actorId));
     if (!active || seq !== generation || learnerStore.learner?.id !== id || (secureUi && auth.actor?.accountId !== actorId)) return;
     summary.value = next;
   } catch (cause) {
