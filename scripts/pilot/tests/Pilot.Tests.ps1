@@ -43,6 +43,40 @@ try {
     Assert (Test-Path (Join-Path $root 'operation.lock')) 'stale lock file is harmless after handle close'
     Must-Throw { Get-PilotRelease $root '../escape' } 'path traversal blocked'
 
+    Assert (-not (Test-PilotFilesEnabled @{})) 'existing installations keep files disabled until requested'
+    $disabledArgs = @(Get-PilotAppArguments $root (Join-Path $root 'release') @{origin='https://example.tail.ts.net'})
+    Assert ($disabledArgs -contains '--guitar-mentor.library.enabled=false') 'legacy configuration remains compatible'
+    $fakeProbe = Join-Path $root 'ffprobe.exe'
+    $null = New-Item -ItemType File -Path $fakeProbe
+    $enabledArgs = @(Get-PilotAppArguments $root (Join-Path $root 'release') @{
+        origin='https://example.tail.ts.net'; filesEnabled=$true; ffprobe=$fakeProbe
+    })
+    Assert ($enabledArgs -contains '--guitar-mentor.submissions.enabled=true' -and $enabledArgs -contains '--guitar-mentor.library.enabled=true') 'explicit opt-in enables both upload services'
+    Assert ($enabledArgs -contains "--guitar-mentor.library.storage-path=$($root.Replace('\','/'))/data/library") 'library persists outside release directory'
+    Assert ($enabledArgs -contains '--guitar-mentor.library.max-account-bytes=209715200') 'public library has per-account quota'
+    Must-Throw { Get-PilotAppArguments $root $root @{origin='https://example.tail.ts.net';filesEnabled=$true;ffprobe='missing'} } 'missing audio processor blocks enabling files'
+    if ($IsWindows) {
+        $keyDirectory = Join-Path $root 'key-fixture'
+        $key1 = Get-PilotLibraryKey -Create -Directory $keyDirectory
+        $key2 = Get-PilotLibraryKey -Create -Directory $keyDirectory
+        Assert ($key1 -eq $key2 -and $key1.Length -eq 64) 'pilot key stable across repeated setup under Windows DPAPI'
+        Assert ((Get-Content (Join-Path $keyDirectory 'pilot-library-cursor.txt') -Raw) -ne $key1) 'key is stored encrypted'
+    }
+    $null = New-Item -ItemType Directory -Force -Path (Join-Path $root 'data/library')
+    [IO.File]::WriteAllBytes((Join-Path $root 'data/library/file.pdf'),[byte[]](0,1,2,255,13,10))
+    [IO.File]::WriteAllText((Join-Path $root 'data/library/.staging-fixture'),'hidden bytes')
+    $dumpFixture = Join-Path $root 'backup-fixture.dump'
+    Backup-PilotMedia $root $dumpFixture
+    $zip = [IO.Compression.ZipFile]::OpenRead("$dumpFixture.media.zip")
+    try {
+        Assert (@($zip.Entries | Where-Object { $_.Name -eq '.staging-fixture' }).Count -eq 1) 'media archive includes hidden/staging files'
+        $entry = @($zip.Entries | Where-Object { $_.Name -eq 'file.pdf' })[0]
+        $stream = $entry.Open(); $memory = [IO.MemoryStream]::new()
+        try { $stream.CopyTo($memory); Assert ([Convert]::ToHexString($memory.ToArray()) -eq '000102FF0D0A') 'backup preserves exact binary media bytes' }
+        finally { $stream.Dispose(); $memory.Dispose() }
+    } finally { $zip.Dispose() }
+    Assert ((Read-PilotJson "$dumpFixture.files.json").mediaHash -eq (Get-FileHash "$dumpFixture.media.zip").Hash) 'backup sidecar pins media archive hash'
+
     $oldPath = Fixture 'old' 'create table example(id int);'
     $newPath = Fixture 'new' 'create table example(id int);'
     $changedPath = Fixture 'changed' 'create table example(id bigint);'

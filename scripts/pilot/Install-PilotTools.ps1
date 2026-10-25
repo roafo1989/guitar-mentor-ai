@@ -3,7 +3,8 @@ param(
     [string]$Root = 'D:\GuitarMentorPilot',
     [string]$InitialRelease = '20261025-143144',
     [string]$Origin = 'https://guitar-mentor.tail3b8201.ts.net',
-    [string]$PostgresBin = 'C:\Program Files\PostgreSQL\17\bin'
+    [string]$PostgresBin = 'C:\Program Files\PostgreSQL\17\bin',
+    [switch]$EnableFiles
 )
 $ErrorActionPreference = 'Stop'
 . (Join-Path $PSScriptRoot 'Pilot.Common.ps1')
@@ -24,6 +25,22 @@ try {
         if (-not (Test-Path -LiteralPath $path)) { throw "Не найден файл: $path" }
     }
     foreach ($tool in 'git.exe','java.exe','node.exe','npm.cmd') { $null = Get-Command $tool -ErrorAction Stop }
+    $configPath = Join-Path $Root 'pilot-tools.json'
+    $oldConfig = if (Test-Path -LiteralPath $configPath) { Read-PilotJson $configPath } else { @{} }
+    $filesEnabled = $EnableFiles.IsPresent -or (Test-PilotFilesEnabled $oldConfig)
+    $ffprobe = $null
+    if ($filesEnabled) {
+        $command = Get-Command ffprobe.exe -ErrorAction SilentlyContinue
+        if ($command) { $ffprobe = $command.Source }
+        elseif ($oldConfig.ContainsKey('ffprobe') -and (Test-Path -LiteralPath $oldConfig.ffprobe)) { $ffprobe = $oldConfig.ffprobe }
+        else { throw 'Нужен ffprobe.exe для обработки аудио. Установите FFmpeg/ffprobe и повторите установку с -EnableFiles.' }
+        Invoke-PilotTool $ffprobe @('-version') $Root
+        $key = Get-PilotLibraryKey -Create
+        $key = $null
+        foreach ($name in 'attempts','scores','library') {
+            $null = New-Item -ItemType Directory -Force -Path (Join-Path $Root "data/$name")
+        }
+    }
     $statePath = Join-Path $Root 'release-state.json'
     if (-not (Test-Path -LiteralPath $statePath)) {
         $release = Get-PilotRelease $Root $InitialRelease
@@ -35,9 +52,10 @@ try {
     $installation = Join-Path $Root ("tools/" + [DateTime]::UtcNow.ToString('yyyyMMdd-HHmmss') + '-' + [guid]::NewGuid().ToString('N').Substring(0,8))
     $null = New-Item -ItemType Directory -Path $installation -Force
     foreach ($name in 'Pilot.ps1','Pilot.Common.ps1') { Copy-Item -LiteralPath (Join-Path $PSScriptRoot $name) -Destination $installation }
-    Write-PilotJson (Join-Path $Root 'pilot-tools.json') @{
+    Write-PilotJson $configPath @{
         origin=$Origin; postgresBin=$PostgresBin
         caddy='C:\Tools\Caddy\caddy.exe'; tailscale='C:\Program Files\Tailscale\tailscale.exe'
+        filesEnabled=$filesEnabled; ffprobe=$ffprobe
     }
     $shell = New-Object -ComObject WScript.Shell
     $desktop = [Environment]::GetFolderPath('Desktop')
@@ -58,4 +76,5 @@ try {
         $shortcut.Save()
     }
     Write-Host 'Готово: ярлыки запуска, обновления и возврата созданы. Текущая версия сохранена; сайт не запущен.'
+    if ($filesEnabled) { Write-Host 'Загрузки и библиотека включены. Файлы: data/attempts, data/scores, data/library.' }
 } finally { $lock.Dispose() }

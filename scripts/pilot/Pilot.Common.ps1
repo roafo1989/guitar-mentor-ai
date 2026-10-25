@@ -156,10 +156,35 @@ function Unlock-PilotSecret([string]$Ciphertext) {
     [Net.NetworkCredential]::new('', (ConvertTo-SecureString $Ciphertext.Trim())).Password
 }
 
-function Get-PilotEnvironment {
+function Test-PilotFilesEnabled([hashtable]$Config) {
+    $Config.ContainsKey('filesEnabled') -and $Config.filesEnabled -is [bool] -and $Config.filesEnabled
+}
+
+function Get-PilotLibraryKey([switch]$Create,
+    [string]$Directory = (Join-Path $env:LOCALAPPDATA 'GuitarMentorAI')) {
+    $path = Join-Path $Directory 'pilot-library-cursor.txt'
+    if (-not (Test-Path -LiteralPath $path)) {
+        if (-not $Create) { throw 'Нет ключа библиотеки пилота. Повторите установку с -EnableFiles.' }
+        $null = New-Item -ItemType Directory -Force -Path $Directory
+        $plain = [Convert]::ToHexString([Security.Cryptography.RandomNumberGenerator]::GetBytes(32))
+        try {
+            $encrypted = ConvertTo-SecureString $plain -AsPlainText -Force | ConvertFrom-SecureString
+            $stream = [IO.File]::Open($path,'CreateNew','Write','None')
+            try {
+                $bytes = [Text.Encoding]::UTF8.GetBytes($encrypted)
+                $stream.Write($bytes,0,$bytes.Length)
+            } finally { $stream.Dispose() }
+        } finally { $plain = $null }
+    }
+    $value = Unlock-PilotSecret (Get-Content -LiteralPath $path -Raw)
+    if ($value.Length -lt 32) { throw 'Ключ библиотеки повреждён. Не удаляйте файл; требуется разбор.' }
+    return $value
+}
+
+function Get-PilotEnvironment([hashtable]$Config) {
     $directory = Join-Path $env:LOCALAPPDATA 'GuitarMentorAI'
     $settings = Read-PilotJson (Join-Path $directory 'local-auth-unified.json')
-    @{
+    $environment = @{
         SPRING_DATASOURCE_PASSWORD = Unlock-PilotSecret (Get-Content -LiteralPath (Join-Path $directory 'pilot-database-password.txt') -Raw)
         GUITAR_MENTOR_OIDC_CLIENT_ID = $settings.clientId
         GUITAR_MENTOR_OIDC_CLIENT_SECRET = Unlock-PilotSecret $settings.clientSecret
@@ -171,6 +196,31 @@ function Get-PilotEnvironment {
         GUITAR_MENTOR_SMTP_AUTH = 'true'
         GUITAR_MENTOR_SMTP_STARTTLS = 'true'
     }
+    if (Test-PilotFilesEnabled $Config) {
+        $environment.GUITAR_MENTOR_LIBRARY_CURSOR_SECRET = Get-PilotLibraryKey
+    }
+    return $environment
+}
+
+function Backup-PilotMedia([string]$Root, [string]$DatabaseBackup) {
+    $data = Join-Path $Root 'data'
+    if (-not (Test-Path -LiteralPath $data)) { throw 'Нет каталога файлов пилота. Резервное копирование прервано.' }
+    $archive = "$DatabaseBackup.media.zip"
+    # The app is stopped under the shared operation lock. Include hidden/staging
+    # files as well; Compress-Archive silently omits some of them.
+    $links = @(Get-ChildItem -LiteralPath $data -Recurse -Force | Where-Object { $_.Attributes -band [IO.FileAttributes]::ReparsePoint })
+    if ((Get-Item -LiteralPath $data).Attributes -band [IO.FileAttributes]::ReparsePoint -or $links.Count) {
+        throw 'Каталог файлов содержит ссылку/reparse point. Архивирование остановлено.'
+    }
+    [IO.Compression.ZipFile]::CreateFromDirectory($data,$archive)
+    $zip = [IO.Compression.ZipFile]::OpenRead($archive)
+    try { $count = $zip.Entries.Count } finally { $zip.Dispose() }
+    Write-PilotJson "$DatabaseBackup.files.json" @{
+        databaseBackup=$DatabaseBackup; mediaBackup=$archive
+        mediaHash=(Get-FileHash -LiteralPath $archive -Algorithm SHA256).Hash
+        entries=$count; createdUtc=[DateTime]::UtcNow.ToString('o')
+    }
+    Write-Host "Резервная копия файлов: $archive"
 }
 
 function Backup-PilotDatabase([string]$Root, [hashtable]$Config) {
@@ -186,12 +236,22 @@ function Backup-PilotDatabase([string]$Root, [hashtable]$Config) {
         if ((Get-Item -LiteralPath $path).Length -eq 0) { throw 'Пустая резервная копия.' }
         # TOC readability is checked; a real restore is a separate acceptance test (#40).
         Invoke-PilotTool (Join-Path $Config.postgresBin 'pg_restore.exe') @('--list',"--file=$path.toc",$path) $Root
+        # Preserve any files already present even if a later configuration has
+        # disabled new uploads. A file backup failure blocks version switching.
+        if ((Test-PilotFilesEnabled $Config) -or (Test-Path -LiteralPath (Join-Path $Root 'data'))) {
+            Backup-PilotMedia $Root $path
+        }
         Write-Host "Резервная копия: $path"
         return $path
     } finally { $credentials.Clear() }
 }
 
 function Get-PilotAppArguments([string]$Root, [string]$Release, [hashtable]$Config) {
+    $files = (Test-PilotFilesEnabled $Config).ToString().ToLowerInvariant()
+    $data = (Join-Path $Root 'data').Replace('\','/')
+    if ($files -eq 'true' -and (-not $Config.ffprobe -or -not (Test-Path -LiteralPath $Config.ffprobe))) {
+        throw 'Не найден ffprobe для обработки записей. Повторите установку -EnableFiles после установки ffprobe.'
+    }
     @('-jar', (Join-Path $Release 'app.jar'),
         '--spring.profiles.active=secure,local-auth',
         "--spring.config.additional-location=file:$($Root.Replace('\','/'))/application-pilot.yml",
@@ -200,7 +260,15 @@ function Get-PilotAppArguments([string]$Root, [string]$Release, [hashtable]$Conf
         '--spring.datasource.username=guitar_mentor_pilot',
         '--guitar-mentor.security.enabled=true','--guitar-mentor.local-auth.unified-local=false',
         "--guitar-mentor.local-auth.public-origin=$($Config.origin)",
-        '--guitar-mentor.submissions.enabled=false','--guitar-mentor.library.enabled=false')
+        "--guitar-mentor.submissions.enabled=$files","--guitar-mentor.library.enabled=$files",
+        "--guitar-mentor.submissions.storage-path=$data/attempts",
+        "--guitar-mentor.submissions.score-storage-path=$data/scores",
+        "--guitar-mentor.library.storage-path=$data/library",
+        '--spring.servlet.multipart.max-file-size=20MB','--spring.servlet.multipart.max-request-size=32MB',
+        '--guitar-mentor.library.max-upload-bytes=20971520',
+        '--guitar-mentor.library.max-account-bytes=209715200',
+        '--guitar-mentor.library.max-account-files=100','--guitar-mentor.library.max-files-per-material=5')
+    if ($files -eq 'true') { "--guitar-mentor.submissions.ffprobe-command=$($Config.ffprobe)" }
 }
 
 function Start-PilotChild([string]$File, [string[]]$Arguments, [string]$Directory,
@@ -287,7 +355,7 @@ http://:8090 {
     Invoke-PilotTool $Config.caddy @('validate','--config',$gateway,'--adapter','caddyfile') $Root
     $app = $null; $proxy = $null; $credentials = @{}
     try {
-        $credentials = Get-PilotEnvironment
+        $credentials = Get-PilotEnvironment $Config
         $app = Start-PilotChild (Get-Command java.exe -ErrorAction Stop).Source `
             (Get-PilotAppArguments $Root $release $Config) $Root $credentials "$run-app"
         $credentials.Clear()
