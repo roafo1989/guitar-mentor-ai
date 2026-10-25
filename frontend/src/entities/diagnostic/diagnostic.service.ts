@@ -54,6 +54,10 @@ export const diagnosticService = {
     return apiRequest(baseUrl(learnerId),
       { method: 'POST', body: JSON.stringify({ instrumentCode }) }, validSession);
   },
+  current(learnerId: string, instrumentCode: string) {
+    return apiRequest(baseUrl(learnerId) + '/current?instrumentCode=' + encodeURIComponent(instrumentCode),
+      { cache: 'no-store' }, validSession, true);
+  },
   get(learnerId: string, sessionId: string) {
     return apiRequest(baseUrl(learnerId) + '/' + encodeURIComponent(sessionId), undefined, validSession);
   },
