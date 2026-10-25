@@ -185,4 +185,50 @@ class NextLessonPostgresIntegrationTest {
             service.history(learner,"ACOUSTIC_GUITAR",1,null).items().getFirst().sessionId());
     }
 
+    @Test void historyKeysetHandlesMoreThanFortyTiedTimestampsWithoutDuplicates() {
+        var assigned=Timestamp.from(Instant.parse("2026-10-01T12:00:00Z"));
+        for(int i=0;i<45;i++){
+            UUID historicalSession=UUID.randomUUID(),historicalTask=UUID.randomUUID();
+            jdbc.update("INSERT INTO diagnostic_sessions(id,instrument_profile_id,status,created_at,updated_at,version) VALUES(?,?,'ARCHIVED',?,?,0)",
+                historicalSession,profile,assigned,assigned);
+            jdbc.update("INSERT INTO diagnostic_tasks(id,diagnostic_session_id,exercise_id,assigned_at) VALUES(?,?,?,?)",
+                historicalTask,historicalSession,EXERCISE,assigned);
+        }
+        java.util.Set<UUID> seen=new java.util.HashSet<>();
+        String cursor=null;int page=0;
+        do{
+            var rows=service.history(learner,"ACOUSTIC_GUITAR",20,cursor);
+            assertTrue(rows.items().size()<=20);
+            for(var item:rows.items()) assertTrue(seen.add(item.taskId()),"Duplicate across keyset pages");
+            cursor=rows.nextCursor();page++;
+            assertTrue(page<=4,"Keyset cursor did not advance");
+        }while(cursor!=null);
+        assertEquals(46,seen.size());
+        assertEquals(3,page);
+    }
+
+    @Test void diagnosticProbeCannotBeSelectedAsNextLearningRepertoire() {
+        var codes=jdbc.query("""
+            SELECT code,version FROM exercises
+            WHERE is_current=true AND content_kind='DIAGNOSTIC_PROBE' LIMIT 1
+            """,(rs,n)->new String[]{rs.getString(1),rs.getString(2)});
+        org.junit.jupiter.api.Assumptions.assumeFalse(codes.isEmpty(),"No published probe fixture");
+        String[] probe=codes.getFirst();
+        code("RESOURCE_NOT_FOUND",()->service.start(learner,session,task,
+            new NextLessonService.Request(UUID.randomUUID(),2L,probe[0],probe[1])));
+        assertEquals("TASK_ASSIGNED",jdbc.queryForObject(
+            "SELECT status FROM diagnostic_sessions WHERE id=?",String.class,session));
+    }
+
+    @Test void featureDisabledAndMalformedRequestFailWithoutWrites() {
+        var disabled=new NextLessonService(null,null,null,null,null,null,null,false);
+        code("LEARNING_DISABLED",()->disabled.start(learner,session,task,command(UUID.randomUUID())));
+        code("INVALID_NEXT_LESSON_REQUEST",()->service.start(learner,session,task,
+            new NextLessonService.Request(null,2L,"GM-EB01","0.8B")));
+        code("INVALID_NEXT_LESSON_REQUEST",()->service.start(learner,session,task,
+            new NextLessonService.Request(UUID.randomUUID(),-1L,"GM-EB01","0.8B")));
+        assertEquals(0,jdbc.queryForObject(
+            "SELECT count(*) FROM lesson_transitions WHERE learner_id=?",Integer.class,learner));
+    }
+
 }
