@@ -107,9 +107,9 @@ class NextLessonPostgresIntegrationTest {
         // Fail only THIS source's insert after archive/target flush.
         String id=task.toString();
         String function="next_lesson_injected_failure";
-        jdbc.execute("CREATE OR REPLACE FUNCTION "+function+"() RETURNS trigger LANGUAGE plpgsql AS $ BEGIN "
+        jdbc.execute("CREATE OR REPLACE FUNCTION "+function+"() RETURNS trigger LANGUAGE plpgsql AS $inject$ BEGIN "
             +"IF NEW.source_task_id='"+id+"'::uuid THEN RAISE EXCEPTION 'test injection'; END IF; "
-            +"RETURN NEW; END $");
+            +"RETURN NEW; END $inject$");
         jdbc.execute("CREATE TRIGGER next_lesson_injected_failure_trigger BEFORE INSERT ON lesson_transitions "
             +"FOR EACH ROW EXECUTE FUNCTION "+function+"()");
         try {
