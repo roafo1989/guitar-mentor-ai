@@ -85,6 +85,15 @@ test('#163 mounted setup: latest detail wins; upload/delete release busy; accoun
     resolveB(b);await pB;
     resolveA(a);await pA;
     assert.equal(binding.selected.value.title,'Bravo','older detail response cannot overwrite newer selection');
+    // The primary workflow is file first: suggest title from the original filename.
+    binding.pickFiles({target:{files:[{name:'Ветер перемен.live.gpx',size:5,lastModified:1}]}});
+    assert.equal(binding.title.value,'Ветер перемен.live');
+    binding.pickFiles({target:{files:[{name:'Yesterday.pdf',size:5,lastModified:2}]}});
+    assert.equal(binding.title.value,'Yesterday','automatic suggestion follows selection until manually edited');
+    binding.title.value='My own title';
+    binding.titleEditedByUser.value=true;
+    binding.pickFiles({target:{files:[{name:'Other.gp5',size:5,lastModified:3}]}});
+    assert.equal(binding.title.value,'My own title','file changes must preserve manual title');
     binding.title.value='New material';
     binding.files.value=[{name:'sample.pdf',size:5,lastModified:1}];
     await binding.upload();

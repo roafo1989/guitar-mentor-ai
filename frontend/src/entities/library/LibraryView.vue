@@ -16,6 +16,7 @@ const busy = ref(false);
 const error = ref('');
 const notice = ref('');
 const title = ref('');
+const titleEditedByUser = ref(false);
 const author = ref('');
 const type = ref<MaterialType>('COMPOSITION');
 const files = ref<File[]>([]);
@@ -47,6 +48,7 @@ function clearPrivate(): void {
   notice.value = '';
   files.value = [];
   title.value = '';
+  titleEditedByUser.value = false;
   author.value = '';
   type.value = 'COMPOSITION';
   editTitle.value = '';
@@ -101,9 +103,18 @@ async function load(nextCursor: string | null, previous: (string | null)[]): Pro
     if (active && ticket === generation) loading.value = false;
   }
 }
+function nameFromFile(filename: string): string {
+  // Keep the actual human-readable title; drop only the last extension.
+  const basename = filename.replace(/^.*[\\/]/, '');
+  return basename.replace(/\.[^.]+$/, '').trim().slice(0, 150);
+}
 function pickFiles(event: Event): void {
   const input = event.target as HTMLInputElement;
   files.value = Array.from(input.files ?? []);
+  // If the title was manually edited, never overwrite it when files change.
+  if (files.value.length > 0 && !titleEditedByUser.value) {
+    title.value = nameFromFile(files.value[0].name);
+  }
   // upload() retains its key for identical retry payloads.
   error.value = ''; notice.value = '';
 }
@@ -130,7 +141,7 @@ async function upload(): Promise<void> {
     const saved = await libraryService.upload(metadata(), files.value, pendingKey);
     if (!active || ticket !== generation || auth.actor?.accountId !== owner) return;
     notice.value = t('library.uploaded');
-    title.value = ''; author.value = ''; type.value = 'COMPOSITION';
+    title.value = ''; titleEditedByUser.value = false; author.value = ''; type.value = 'COMPOSITION';
     files.value = []; if (fileInput.value) fileInput.value.value = '';
     pendingKey = null; lastUploadFingerprint = '';
     uploadOpen.value = false;
@@ -332,20 +343,6 @@ function onPageKeydown(event: KeyboardEvent): void {
         <p class="library-muted">{{ t('library.privateNote') }}</p>
         <p v-if="error" class="dialog-error" role="alert">{{ error }}</p>
         <form @submit.prevent="upload">
-          <label class="library-field">{{ t('library.name') }}
-            <input v-model="title" type="text" required maxlength="150" :disabled="busy" />
-          </label>
-          <label class="library-field">{{ t('library.type') }}
-            <select v-model="type" :disabled="busy">
-              <option value="COMPOSITION">{{ t('library.types.COMPOSITION') }}</option>
-              <option value="ETUDE">{{ t('library.types.ETUDE') }}</option>
-              <option value="EXERCISE">{{ t('library.types.EXERCISE') }}</option>
-              <option value="OTHER">{{ t('library.types.OTHER') }}</option>
-            </select>
-          </label>
-          <label class="library-field">{{ t('library.author') }}
-            <input v-model="author" type="text" maxlength="150" :disabled="busy" />
-          </label>
           <div class="library-field">
             <span>{{ t('library.files') }}</span>
             <label class="library-file-picker">
@@ -359,6 +356,21 @@ function onPageKeydown(event: KeyboardEvent): void {
               <li v-for="(file,index) in files" :key="index">{{ file.name }} · {{ (file.size / 1024 / 1024).toFixed(2) }} MB</li>
             </ul>
           </div>
+
+          <label class="library-field">{{ t('library.type') }}
+            <select v-model="type" :disabled="busy">
+              <option value="COMPOSITION">{{ t('library.types.COMPOSITION') }}</option>
+              <option value="ETUDE">{{ t('library.types.ETUDE') }}</option>
+              <option value="EXERCISE">{{ t('library.types.EXERCISE') }}</option>
+              <option value="OTHER">{{ t('library.types.OTHER') }}</option>
+            </select>
+          </label>
+          <label class="library-field">{{ t('library.author') }}
+            <input v-model="author" type="text" maxlength="150" :disabled="busy" />
+          </label>
+          <label class="library-field">{{ t('library.name') }}
+            <input v-model="title" type="text" required maxlength="150" :disabled="busy" @input="titleEditedByUser=true" />
+          </label>
           <div v-if="busy" class="library-progress" role="status"><progress />{{ t('library.working') }}</div>
           <div class="dialog-footer">
             <button type="button" class="library-quiet" :disabled="busy" @click="closeUpload">{{ t('library.cancel') }}</button>

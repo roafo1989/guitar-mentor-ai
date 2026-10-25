@@ -109,6 +109,26 @@ if ([string]::IsNullOrWhiteSpace($env:GUITAR_MENTOR_ENABLE_UPLOADS)) {
 }
 $env:GUITAR_MENTOR_BIND_ADDRESS = '127.0.0.1'
 $env:GUITAR_MENTOR_PUBLIC_ORIGIN = 'https://guitar-mentor'
+# #164: The private library needs a stable >=32-byte HMAC cursor key.
+# Generate exactly once using the OS CSPRNG, encrypt under Windows DPAPI for this user
+# and persist outside Git. Keep the same key on subsequent local launches; otherwise
+# previously issued pagination cursors become invalid on every restart.
+if ([string]::IsNullOrWhiteSpace($env:GUITAR_MENTOR_LIBRARY_CURSOR_SECRET)) {
+    if (-not $conf.PSObject.Properties['libraryCursorSecret'] -or
+        [string]::IsNullOrWhiteSpace([string]$conf.libraryCursorSecret)) {
+        $key = [Convert]::ToHexString(
+            [System.Security.Cryptography.RandomNumberGenerator]::GetBytes(32))
+        $cipher = ConvertTo-SecureString -String $key -AsPlainText -Force |
+            ConvertFrom-SecureString
+        $conf | Add-Member -NotePropertyName libraryCursorSecret -NotePropertyValue $cipher -Force
+        $conf | ConvertTo-Json | Set-Content -LiteralPath $settingsPath -Encoding utf8
+    }
+    $env:GUITAR_MENTOR_LIBRARY_CURSOR_SECRET = UnwrapSecret ([string]$conf.libraryCursorSecret)
+}
+if ([string]::IsNullOrWhiteSpace($env:GUITAR_MENTOR_LIBRARY_ENABLED)) {
+    # Only on the protected local workstation. Never enable by default for public deployments.
+    $env:GUITAR_MENTOR_LIBRARY_ENABLED = 'true'
+}
 # The accepted Light Minimal shell (#148) and Home (#149) are the default UI.
 # Developers can explicitly opt out with $env:VITE_GUITAR_MENTOR_LIGHT_MINIMAL = 'false'.
 # Vite reads the flag when its process starts; restarting Vite is necessary.

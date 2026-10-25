@@ -62,6 +62,10 @@ jobs:
           SPRING_DATASOURCE_USERNAME: guitar_mentor_app
           SPRING_DATASOURCE_PASSWORD: ci_only_password
           GUITAR_MENTOR_TEST_POSTGRES: 'true'
+          # Many @SpringBootTest contexts coexist in the full regression suite.
+          # Keep pools small to avoid exhausting the CI PostgreSQL connection limit.
+          SPRING_DATASOURCE_HIKARI_MAXIMUM_POOL_SIZE: '2'
+          SPRING_DATASOURCE_HIKARI_MINIMUM_IDLE: '0'
         run: ./mvnw --batch-mode verify
       - name: Ensure FFprobe is present for real audio-duration verification
         run: |
