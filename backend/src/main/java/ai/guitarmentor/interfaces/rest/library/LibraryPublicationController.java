@@ -116,7 +116,7 @@ public class LibraryPublicationController {
                 +"|"+a.rightsEvidence()+"|"+a.attribution());
         }
         Collections.sort(normalized);
-        byte[] body=(material+"|"+revision+"|"+String.join("\n",normalized))
+        byte[] body=(material+"|"+revision+"|"+String.join("\n",normalized)+"|"+String.join(",",normalizedTags(payload.tags())))
             .getBytes(StandardCharsets.UTF_8);
         try {return HexFormat.of().formatHex(
             java.security.MessageDigest.getInstance("SHA-256").digest(body));}
