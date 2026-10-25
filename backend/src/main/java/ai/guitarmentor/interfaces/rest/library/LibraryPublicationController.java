@@ -35,8 +35,9 @@ public class LibraryPublicationController {
     public record PublishRequest(@com.fasterxml.jackson.annotation.JsonAlias("assetRights") List<AssetRight> assets) {}
     public record AssetSnapshot(UUID id,String originalName,String format,long byteSize,String sha256,
             String provenance,String rightsBasis,String rightsEvidence,String attribution,String downloadUrl) {}
+    @com.fasterxml.jackson.annotation.JsonInclude(com.fasterxml.jackson.annotation.JsonInclude.Include.NON_NULL)
     public record Publication(UUID id,UUID materialId,UUID ownerAccountId,long version,
-            String title,String type,String author,String state,List<AssetSnapshot> assets) {}
+            String title,String type,String author,String state,long revision,List<AssetSnapshot> assets) {}
     public record HideRequest(String reason) {}
 
     private CurrentActor actor(HttpServletRequest request) {
@@ -74,10 +75,11 @@ public class LibraryPublicationController {
                 (String)a.get("sha256"),(String)a.get("provenance"),
                 (String)a.get("rights_basis"),includePrivateEvidence?(String)a.get("rights_evidence"):null,
                 (String)a.get("attribution"),"PUBLISHED".equals(row.get("state"))?filePath(id,(UUID)a.get("asset_id")):null)).toList();
-        return new Publication(id,(UUID)row.get("material_id"),
-            (UUID)row.get("owner_account_id"),((Number)row.get("version")).longValue(),
+        return new Publication(id,includePrivateEvidence?(UUID)row.get("material_id"):null,
+            includePrivateEvidence?(UUID)row.get("owner_account_id"):null,((Number)row.get("version")).longValue(),
             (String)row.get("title"),(String)row.get("material_type"),
-            (String)row.get("author"),(String)row.get("state"),files);
+            (String)row.get("author"),(String)row.get("state"),
+            ((Number)row.get("publication_revision")).longValue(),files);
     }
 
 
@@ -261,7 +263,8 @@ public class LibraryPublicationController {
         return ResponseEntity.noContent().cacheControl(CacheControl.noStore()).build();
     }
 
-    @PostMapping("/api/v1/community/publications/{publicationId}/hide")
+    @PostMapping({"/api/v1/community/publications/{publicationId}/hide",
+        "/api/v1/admin/catalog/publications/{publicationId}/hide"})
     @Transactional
     public ResponseEntity<Void> hide(HttpServletRequest request,
             @PathVariable UUID publicationId,@RequestBody HideRequest payload) {
