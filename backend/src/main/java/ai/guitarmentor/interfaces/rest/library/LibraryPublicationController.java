@@ -99,7 +99,7 @@ public class LibraryPublicationController {
         for(String raw:supplied) {
             if(raw==null) throw new Failure(400,"PUBLICATION_INVALID_TAGS");
             String tag=raw.strip().toLowerCase(Locale.ROOT);
-            if(!tag.matches("[\\\\p{L}\\\\p{N}][\\\\p{L}\\\\p{N} _-]{0,39}"))
+            if(!tag.matches("[\\p{L}\\p{N}][\\p{L}\\p{N} _-]{0,39}"))
                 throw new Failure(400,"PUBLICATION_INVALID_TAGS");
             tags.add(tag);
         }
