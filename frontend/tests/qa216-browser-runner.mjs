@@ -58,8 +58,19 @@ try {
  assert.equal(posts.length,1,'Exactly one POST should occur');
  const command=JSON.parse(posts[0].body);
  assert.equal(command.exerciseVersion,'0.8B');assert.equal(command.expectedVersion,2);
+
  assert.match(command.requestId,/^[0-9a-f-]{36}$/i);
- console.log('PASS: Chrome 360px catalogue filter, preview, explicit start, one pinned POST, navigation');
+ await evaluate("window.__qa216Router.push('/lessons')");
+ const historyReady=await evaluate(`new Promise(resolve=>{let i=0;const timer=setInterval(()=>{
+ if(document.querySelector('ol li')?.textContent.includes('Evening Blues')){clearInterval(timer);resolve(true);}
+ else if(++i>100){clearInterval(timer);resolve(false);}},50);})`);
+ assert.ok(historyReady,'Read-only history should display the previously assigned exercise');
+ const noHistoryWrites=await evaluate("window.__qa216Calls.filter(x=>x.method==='POST').length");
+ assert.equal(noHistoryWrites,1,'Viewing history must not create another session');
+ await cdp('Emulation.setDeviceMetricsOverride',{width:180,height:410,deviceScaleFactor:1,mobile:false});
+ const zoomWidth=await evaluate("({layout:innerWidth,scroll:document.documentElement.scrollWidth})");
+ assert.ok(zoomWidth.scroll<=zoomWidth.layout,'History overflows at effective 200% reflow: '+JSON.stringify(zoomWidth));
+ console.log('PASS: Chrome picker, one pinned POST, history read-only, 360px and 200% effective reflow');
 } finally {
  socket?.close();browser?.kill('SIGTERM');
  await server.close();await rm(dir,{recursive:true,force:true});
