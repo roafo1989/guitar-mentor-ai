@@ -13,9 +13,24 @@ export const useLearnerStore = defineStore('learner', () => {
   // Keep structured failure; views translate it at render time (including locale switches).
   const error = ref<ApiFailure | null>(null);
   let generation = 0;
+  let sessionActor = auth.actor;
+  let inFlight: Promise<void> | null = null;
+  let inFlightId: string | null = null;
+  function syncActor(): void {
+    if (!secureUi || sessionActor === auth.actor) return;
+    sessionActor = auth.actor;
+    ++generation;
+    inFlight = null;
+    inFlightId = null;
+    learner.value = null;
+    busy.value = false;
+    error.value = null;
+  }
 
   async function execute(action: () => Promise<Learner>): Promise<boolean> {
     const current = ++generation;
+    inFlight = null;
+    inFlightId = null;
     busy.value = true;
     error.value = null;
     try {
@@ -34,31 +49,38 @@ export const useLearnerStore = defineStore('learner', () => {
     }
   }
 
-  async function restore(): Promise<void> {
-    if (secureUi) learner.value = null;
-    const id = secureUi ? auth.actor?.learnerId : window.localStorage.getItem(storageKey);
-    if (!id) { error.value = null; return; }
+  function restore(): Promise<void> {
+    syncActor();
+    const actor = auth.actor;
+    const id = secureUi ? actor?.learnerId : window.localStorage.getItem(storageKey);
+    if (!id) { ++generation; inFlight = null; inFlightId = null; busy.value = false; error.value = null; if (secureUi) learner.value = null; return Promise.resolve(); }
+    if (inFlight && inFlightId === id) return inFlight;
+    if (learner.value && learner.value.id !== id) learner.value = null;
     const current = ++generation;
     busy.value = true;
     error.value = null;
-    try {
-      const loaded = await learnerService.get(id);
-      if (current !== generation || (secureUi ? auth.actor?.learnerId !== id : window.localStorage.getItem(storageKey) !== id)) return;
-      if (secureUi && loaded.id !== id) throw new Error('RESOURCE_NOT_FOUND');
-      learner.value = loaded;
-    } catch (cause) {
-      if (current !== generation || (secureUi ? auth.actor?.learnerId !== id : window.localStorage.getItem(storageKey) !== id)) return;
-      if (cause instanceof Error && cause.name === 'AbortError') return;
-      if (isHttp(cause, 404)) {
-        // Only a failed learner GET may forget this learner. No other key is touched.
-        window.localStorage.removeItem(storageKey);
-        learner.value = null;
-      } else {
-        error.value = asApiFailure(cause);
+    inFlightId = id;
+    const valid = () => current === generation && (!secureUi || auth.actor === actor) &&
+      (secureUi ? auth.actor?.learnerId === id : window.localStorage.getItem(storageKey) === id);
+    const request = (async () => {
+      try {
+        const loaded = await learnerService.get(id);
+        if (!valid()) return;
+        if (secureUi && loaded.id !== id) throw new Error('RESOURCE_NOT_FOUND');
+        learner.value = loaded;
+      } catch (cause) {
+        if (!valid() || (cause instanceof Error && cause.name === 'AbortError')) return;
+        if (isHttp(cause, 404)) {
+          if (!secureUi) window.localStorage.removeItem(storageKey);
+          else error.value = asApiFailure(cause);
+          learner.value = null;
+        } else error.value = asApiFailure(cause);
+      } finally {
+        if (valid()) { busy.value = false; inFlight = null; inFlightId = null; }
       }
-    } finally {
-      if (current === generation) busy.value = false;
-    }
+    })();
+    inFlight = request;
+    return request;
   }
 
   async function create(data: CreateLearnerRequest): Promise<boolean> {
@@ -73,6 +95,9 @@ export const useLearnerStore = defineStore('learner', () => {
 
   function clearLocalSelection(): void {
     ++generation;
+    sessionActor = auth.actor;
+    inFlight = null;
+    inFlightId = null;
     busy.value = false;
     learner.value = null;
     error.value = null;
