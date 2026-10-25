@@ -32,7 +32,11 @@ public class CommunityPublicationSearchController {
     private static final String SQL="""
         SELECT p.id,p.title,p.author,p.material_type,p.version,p.created_at,
           COALESCE((SELECT array_agg(t.tag ORDER BY t.tag)
-            FROM library_publication_tags t WHERE t.publication_id=p.id), ARRAY[]::text[]) AS tags
+            FROM library_publication_tags t WHERE t.publication_id=p.id), ARRAY[]::text[]) AS tags,
+          EXISTS(SELECT 1 FROM library_publication_assets a
+            JOIN library_assets source ON source.id=a.asset_id
+              AND source.material_id=p.material_id AND source.object_key=a.object_key
+            WHERE a.publication_id=p.id AND a.format IN ('MP3','WAV','OGG','M4A','WEBM')) AS has_audio
         FROM library_publications p
         JOIN library_materials m ON m.id=p.material_id AND m.state='READY'
         WHERE p.state='PUBLISHED'
@@ -44,6 +48,8 @@ public class CommunityPublicationSearchController {
              WHERE t.publication_id=p.id AND t.tag IN (:tags)))
           AND (:audio=false OR EXISTS(
              SELECT 1 FROM library_publication_assets a
+             JOIN library_assets source ON source.id=a.asset_id
+               AND source.material_id=p.material_id AND source.object_key=a.object_key
              WHERE a.publication_id=p.id AND a.format IN ('MP3','WAV','OGG','M4A','WEBM')))
           AND (CAST(:before AS timestamptz) IS NULL OR (p.created_at,p.id)<(CAST(:before AS timestamptz),CAST(:before_id AS uuid)))
         ORDER BY p.created_at DESC,p.id DESC LIMIT :max
@@ -162,7 +168,7 @@ public class CommunityPublicationSearchController {
             return new Summary((UUID)row.get("id"),(String)row.get("title"),
                 (String)row.get("author"),(String)row.get("material_type"),
                 ((Number)row.get("version")).longValue(),timestamp(row.get("created_at")),
-                values,false,
+                values,Boolean.TRUE.equals(row.get("has_audio")),
                 "/api/v1/community/publications/"+row.get("id"));
         }).toList();
         String next=null;
