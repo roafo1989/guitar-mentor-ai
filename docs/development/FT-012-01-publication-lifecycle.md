@@ -16,20 +16,22 @@ Only **explicitly uploaded** personal `library_materials` with original assets c
 
 | HTTP method and endpoint | Access | Contract |
 | --- | --- | --- |
-| POST `/api/v1/library/materials/{materialId}/publications` | Material owner | Header `If-Match: "revision"` and JSON `{"assets":[{"assetId":"UUID","provenance":"CREATED","rightsBasis":"OWN_WORK","rightsEvidence":"..."}]}`; exactly one attestation per material asset; 201 with snapshot + Location |
+| POST `/api/v1/library/materials/{materialId}/publications` | Material owner | Headers `If-Match: "revision"` and `Idempotency-Key: UUID`; JSON `{"assetRights":[{"assetId":"UUID","basis":"OWN_WORK","evidence":"...","attribution":"..."}]}` (also accepts `assets` with `provenance`, `rightsBasis`, `rightsEvidence`); exactly one attestation per material asset; 201 with snapshot + Location, identical retry 200 |
 | GET `/api/v1/library/materials/{materialId}/publications` | Material owner | All publication versions/history; PRIVATE metadata restricted |
-| POST `/api/v1/library/materials/{materialId}/publications/{publicationId}/withdraw` | Material owner | 204, immediately closes public detail and bytes |
+| POST `/api/v1/library/materials/{materialId}/publications/{publicationId}/withdraw` | Material owner | Header `If-Match: "publicationRevision"` required; 200 with state WITHDRAWN, idempotent repeated request, immediately closes public detail and bytes |
 | GET `/api/v1/community/publications/{publicationId}` | Authenticated admitted | 200 only for active `PUBLISHED` + material `READY`; 404 otherwise |
 | GET/HEAD `/api/v1/community/publications/{publicationId}/files/{assetId}/content` | Authenticated admitted | Byte-exact attached original; `Content-Disposition: attachment`, no-store/nosniff; only asset in this publication and still present in private store |
-| POST `/api/v1/community/publications/{publicationId}/hide` | Operator `OWNER` | JSON `{"reason":"..."}` (8–500 chars); 204 and immutable audit; not a DELETE |
+| POST `/api/v1/community/publications/{publicationId}/hide` | Operator `OWNER` | Header `If-Match: "publicationRevision"` required, JSON `{"reason":"..."}` (8–500 chars); 200 with HIDDEN state and immutable audit; repeated HIDE does not duplicate audit; not a DELETE |
+
+Publication identity is a UUID; user-controlled source IDs and storage keys are not shown to other users. Permission evidence is visible only to the owner; published attribution remains visible. Material deletion revokes publication in the same transaction before queued physical cleanup.
 
 Rights basis: `OWN_WORK`, `LICENSE`, `PUBLIC_DOMAIN`, `PERMISSION`. Provenance: `CREATED`, `LICENSED`, `PUBLIC_DOMAIN`, `PERMISSION`. Evidence must be 8–500 characters. Unsupported/missing/duplicate asset IDs, missing proof, or unknown rights fail with 400. Rights evidence is user-supplied assertion, not automatic license verification.
 
 ## Rejection and behavior
 - Invalid, missing rights: `400 PUBLICATION_INVALID_RIGHTS`.
-- Missing `If-Match`: `428 PUBLICATION_PRECONDITION_REQUIRED`; stale revision: `412 LIBRARY_REVISION_CONFLICT`.
+- Missing `If-Match`: `428 PUBLICATION_PRECONDITION_REQUIRED`; stale draft revision: `412 LIBRARY_REVISION_CONFLICT`; stale publication revision: `412 PUBLICATION_REVISION_CONFLICT`.
 - Attempt to publish another user's draft: `404 LIBRARY_MATERIAL_NOT_FOUND`.
-- Existing active publication: `409 PUBLICATION_ALREADY_ACTIVE`.
+- Existing active publication: `409 PUBLICATION_ALREADY_ACTIVE`; changed replay key payload: `409 PUBLICATION_IDEMPOTENCY_CONFLICT`; missing key: `428 PUBLICATION_IDEMPOTENCY_REQUIRED`.
 - Not found, withdrawn, hidden, removed content: `404 PUBLICATION_NOT_FOUND`.
 - Not system owner moderator: `403 PUBLICATION_MODERATION_FORBIDDEN`.
 - Missing operator reason: `400 PUBLICATION_INVALID_REASON`.
