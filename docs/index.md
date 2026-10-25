@@ -1,5 +1,7 @@
 # Guitar Mentor AI — документация
 
+**25.10.2026, вечер — [сверка всех118 карточек](project/board-audit-2026-10-25-night.md):** 98 задач/16 стори/4 эпика,65completed. Обновлены216/166/39, классификация222/224, добавлен учёт226 для PR225. Коллизия V29 между PR217/218 — blocker интеграции. Это актуальный срез статусов, не новая приёмка.
+
 **25.10.2026 — ручное продолжение занятий:** [#216: готовность и порядок](project/LESSON-NEXT-READINESS-2026-10-25.md), [Full-контракт](specifications/LESSON-NEXT-01-manual-next-lesson.md), [ADR0005](adr/0005-manual-lesson-transition.md), [24TC](testing/TC-LESSON-NEXT-01.md). БТ0.22/ТЗ0.32, FT-003-11; Оценка/В очереди, без начала кода. #24 сохраняет персональное планирование отдельно.
 
 - [#195: Full-анализ личного импортированного архива](project/CAT195-ANALYSIS-2026-10-25.md) — [ТЗ](specifications/CAT-LOCAL-03-private-archive-ui.md), [24TC](testing/TC-CAT195-private-archive-ui.md); передано на оценку, код не начат.
