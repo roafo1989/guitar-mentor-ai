@@ -19,7 +19,7 @@ const loading = ref(true), pending = ref(false), error = ref(''), search = ref('
 const exercises = ref<Exercise[]>([]), selected = ref<Exercise | null>(null);
 const source = ref<{ learner: string; session: string; task: string; version: number; exerciseCode: string } | null>(null);
 let seq = 0;
-let pendingRequest: { key: string; code: string; version: string } | null = null;
+const pendingRequest = ref<{ key: string; code: string; version: string } | null>(null);
 const page = ref(0);
 const filtered = computed(() => exercises.value.filter(e => e.contentKind === 'LEARNING_REPERTOIRE'
   && (e.title + ' ' + e.code).toLocaleLowerCase().includes(search.value.toLocaleLowerCase())));
@@ -56,12 +56,12 @@ async function load(): Promise<void> {
 async function begin(): Promise<void> {
   const s = source.value, e = selected.value, actor = auth.actor, id = seq;
   if (!s || !e || pending.value) return;
-  if (pendingRequest && (pendingRequest.code !== e.code || pendingRequest.version !== e.version)) {
+  if (pendingRequest.value && (pendingRequest.value.code !== e.code || pendingRequest.value.version !== e.version)) {
     error.value = t('lessonNext.uncertain'); return;
   }
-  if (s.exerciseCode === e.code && !pendingRequest && !window.confirm(t('lessonNext.confirmRepeat'))) return;
-  if (!pendingRequest) pendingRequest = { key: crypto.randomUUID(), code: e.code, version: e.version };
-  const request = pendingRequest;
+  if (s.exerciseCode === e.code && !pendingRequest.value && !window.confirm(t('lessonNext.confirmRepeat'))) return;
+  if (!pendingRequest) pendingRequest.value = { key: crypto.randomUUID(), code: e.code, version: e.version };
+  const request = pendingRequest.value;
   pending.value = true; error.value = '';
   try {
     await diagnosticService.nextLesson(s.learner, s.session, s.task,
@@ -72,7 +72,7 @@ async function begin(): Promise<void> {
     const current = await diagnosticService.current(s.learner, 'ACOUSTIC_GUITAR');
     if (id !== seq || (secureUi && auth.actor !== actor) || !current) return;
     window.localStorage.setItem(diagnosticSelectionKey(s.learner), current.id);
-    pendingRequest = null;
+    pendingRequest.value = null;
     await router.replace('/diagnostics');
   } catch (cause) {
     if (id === seq && (!secureUi || auth.actor === actor))
@@ -81,7 +81,7 @@ async function begin(): Promise<void> {
   } finally { if (id === seq && (!secureUi || auth.actor === actor)) pending.value = false; }
 }
 watch(() => auth.actor, () => {
-  ++seq; source.value = null; selected.value = null; exercises.value = []; pendingRequest = null; pending.value = false;
+  ++seq; source.value = null; selected.value = null; exercises.value = []; pendingRequest.value = null; pending.value = false;
   if (auth.actor || !secureUi) void load();
 });
 onMounted(load);
