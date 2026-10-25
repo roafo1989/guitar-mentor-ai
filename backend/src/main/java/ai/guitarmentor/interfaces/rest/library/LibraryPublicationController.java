@@ -32,7 +32,11 @@ public class LibraryPublicationController {
         this.jdbc=jdbc;this.storage=storage;this.enabled=enabled;
     }
     public record AssetRight(UUID assetId,String provenance, @com.fasterxml.jackson.annotation.JsonAlias("basis") String rightsBasis, @com.fasterxml.jackson.annotation.JsonAlias("evidence") String rightsEvidence, String attribution) { public AssetRight(UUID id,String p,String b,String e){ this(id,p,b,e,""); } }
-    public record PublishRequest(@com.fasterxml.jackson.annotation.JsonAlias("assetRights") List<AssetRight> assets) {}
+    public record PublishRequest(
+        @com.fasterxml.jackson.annotation.JsonAlias("assetRights") List<AssetRight> assets,
+        List<String> tags) {
+        public PublishRequest(List<AssetRight> assets) {this(assets,List.of());}
+    }
     public record AssetSnapshot(UUID id,String originalName,String format,long byteSize,String sha256,
             String provenance,String rightsBasis,String rightsEvidence,String attribution,String downloadUrl) {}
     @com.fasterxml.jackson.annotation.JsonInclude(com.fasterxml.jackson.annotation.JsonInclude.Include.NON_NULL)
@@ -88,6 +92,20 @@ public class LibraryPublicationController {
         try {return UUID.fromString(raw);}
         catch(IllegalArgumentException ex){throw new Failure(400,"PUBLICATION_INVALID_IDEMPOTENCY_KEY");}
     }
+    private static List<String> normalizedTags(List<String> supplied) {
+        if(supplied==null) return List.of();
+        if(supplied.size()>10) throw new Failure(400,"PUBLICATION_INVALID_TAGS");
+        java.util.TreeSet<String> tags=new java.util.TreeSet<>();
+        for(String raw:supplied) {
+            if(raw==null) throw new Failure(400,"PUBLICATION_INVALID_TAGS");
+            String tag=raw.strip().toLowerCase(Locale.ROOT);
+            if(!tag.matches("[\\\\p{L}\\\\p{N}][\\\\p{L}\\\\p{N} _-]{0,39}"))
+                throw new Failure(400,"PUBLICATION_INVALID_TAGS");
+            tags.add(tag);
+        }
+        return List.copyOf(tags);
+    }
+
     private static String fingerprint(UUID material,long revision,PublishRequest payload) {
         if(payload==null || payload.assets()==null || payload.assets().isEmpty())
             throw new Failure(400,"PUBLICATION_INVALID_RIGHTS");
@@ -203,6 +221,10 @@ public class LibraryPublicationController {
                 .param("basis",right.rightsBasis())
                 .param("evidence",right.rightsEvidence().trim())
                 .param("attribution",right.attribution()==null?"":right.attribution().trim()).update();
+        }
+        for(String tag:normalizedTags(payload.tags())) {
+            jdbc.sql("INSERT INTO library_publication_tags(publication_id,tag) VALUES(:id,:tag)")
+                .param("id",pub).param("tag",tag).update();
         }
         audit(pub,owner,"PUBLISH",null);
         var item=jdbc.sql("SELECT * FROM library_publications WHERE id=:id")
