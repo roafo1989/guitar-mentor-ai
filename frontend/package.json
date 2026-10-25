@@ -11,7 +11,8 @@
     "test:intake": "node --experimental-strip-types --test tests/intake-navigation.test.mjs tests/diagnostic-component.test.mjs tests/evidence-panel.component.test.mjs tests/exercise-preview-contract.test.mjs tests/exercise-preview-mounted.test.mjs tests/diagnostic-probe-contract.test.mjs tests/score-reader-contract.test.mjs tests/learning-presentation.test.mjs",
     "test:tuner": "node --experimental-strip-types --test src/shared/tuner/*.test.mjs",
     "test:browser": "node tests/qa126-browser-runner.mjs",
-    "test:score-browser": "node tests/score-reader-browser-runner.mjs"
+    "test:score-browser": "node tests/score-reader-browser-runner.mjs",
+    "test:lesson-browser": "node tests/qa216-browser-runner.mjs"
   },
   "dependencies": {
     "pinia": "^3.0.3",

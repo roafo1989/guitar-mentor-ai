@@ -1,0 +1,77 @@
+<!doctype html><html lang="ru"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1"></head><body>
+<div id="app"></div>
+<script type="module">
+import { createApp, h } from 'vue';
+import { createPinia } from 'pinia';
+import { createRouter, createMemoryHistory, RouterView } from 'vue-router';
+import { i18n } from './src/core/i18n.ts';
+import { useLearnerStore } from './src/stores/learner.store.ts';
+import NextLessonView from './src/entities/diagnostic/NextLessonView.vue';
+import LessonHistoryView from './src/entities/diagnostic/LessonHistoryView.vue';
+import './src/assets/design-tokens.css';
+import './src/assets/main.css';
+import './src/assets/light-minimal.css';
+
+const learner='aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa';
+const oldSession='bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb';
+const newSession='cccccccc-cccc-4ccc-8ccc-cccccccccccc';
+const oldTask='dddddddd-dddd-4ddd-8ddd-dddddddddddd';
+const newTask='eeeeeeee-eeee-4eee-8eee-eeeeeeeeeeee';
+const transition='ffffffff-ffff-4fff-8fff-ffffffffffff';
+const now='2026-10-25T10:00:00Z';
+const exercise={code:'GM-EB01',version:'0.8B',title:'Evening Blues',styleCode:'BLUES',
+  difficulty:'INTERMEDIATE',bpm:84,measures:12,meter:'4/4',author:'Guitar Mentor',
+  license:'CC BY 4.0',reviewStatus:'APPROVED',description:'Fingerstyle blues',
+  scoreUrl:'/sample.musicxml',eventsUrl:'/sample.json',previewAudioUrl:null,previewPdfUrl:null,
+  skillCodes:[],contentKind:'LEARNING_REPERTOIRE'};
+const probe={...exercise,code:'GM-DIAG-01',title:'Diagnostic probe',contentKind:'DIAGNOSTIC_PROBE'};
+const makeSession=(id,status='TASK_ASSIGNED')=>({id,status,instrumentCode:'ACOUSTIC_GUITAR',
+  createdAt:now,updatedAt:now,availableActions:['VIEW_TASK']});
+const makeTask=(id,sessionId)=>({id,sessionId,assignedAt:now,exercise});
+let current=makeSession(oldSession);
+window.__qa216Calls=[];
+window.__qa216Ready=false;
+window.confirm=()=>true;
+window.fetch=async (url,init={})=>{
+  const u=new URL(typeof url==='string'?url:url.url,location.href);
+  const method=init.method||'GET';
+  window.__qa216Calls.push({path:u.pathname,method,body:init.body||null});
+  const respond=(body,status=200)=>new Response(JSON.stringify(body),{status,headers:{'Content-Type':'application/json'}});
+  if(u.pathname.endsWith('/next-lesson') && method==='POST'){
+    const request=JSON.parse(init.body);
+    if(request.exerciseCode!=='GM-EB01'||request.exerciseVersion!=='0.8B'||request.expectedVersion!==2)
+      return respond({code:'INVALID_NEXT_LESSON_REQUEST'},400);
+    current=makeSession(newSession);
+    return respond({transitionId:transition,sourceSessionId:oldSession,sourceTaskId:oldTask,
+      session:current,task:makeTask(newTask,newSession)},201);
+  }
+  if(u.pathname.endsWith('/diagnostic-sessions/current'))return respond(current);
+  if(u.pathname.endsWith('/diagnostic-sessions/'+oldSession))return respond(makeSession(oldSession));
+  if(u.pathname.endsWith('/diagnostic-sessions/'+newSession))return respond(makeSession(newSession));
+  if(u.pathname.endsWith('/diagnostic-sessions/'+oldSession+'/tasks'))return respond(makeTask(oldTask,oldSession));
+  if(u.pathname.endsWith('/diagnostic-sessions/'+newSession+'/tasks'))return respond(makeTask(newTask,newSession));
+  if(u.pathname.endsWith('/tasks/'+oldTask+'/learning'))
+    return respond({taskId:oldTask,taskState:'COMPLETED_BY_LEARNER',version:2,
+      nextStepAvailability:'MANUAL_SELECTION',availableActions:[],latestAttemptId:null,
+      assessmentState:'NO_ATTEMPT',latestAssessmentId:null,latestDecision:null,nextLesson:null});
+  if(u.pathname==='/api/v1/exercises')return respond([exercise,probe]);
+  if(u.pathname.endsWith('/lessons'))return respond({items:[{
+    sessionId:oldSession,taskId:oldTask,exerciseCode:'GM-EB01',exerciseVersion:'0.8B',
+    title:'Evening Blues',assignedAt:now,taskState:'COMPLETED_BY_LEARNER',isCurrent:false
+  }],nextCursor:null});
+  return respond({code:'RESOURCE_NOT_FOUND'},404);
+};
+const router=createRouter({history:createMemoryHistory(),routes:[
+  {path:'/lessons/new',component:NextLessonView},
+  {path:'/lessons',component:LessonHistoryView},
+  {path:'/diagnostics',component:{render:()=>h('h1',{id:'current-marker'},'Current lesson')}},
+]});
+const app=createApp({render:()=>h(RouterView)});
+const pinia=createPinia();app.use(pinia);app.use(i18n);app.use(router);
+const store=useLearnerStore(pinia);
+store.learner={id:learner,displayName:'QA Student',instruments:[{instrumentCode:'ACOUSTIC_GUITAR'}]};
+await router.push('/lessons/new');await router.isReady();
+app.mount('#app');
+window.__qa216Router=router;
+window.__qa216Ready=true;
+</script></body></html>

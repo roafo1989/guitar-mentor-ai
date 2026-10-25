@@ -45,5 +45,5 @@ jobs:
           VITE_GUITAR_MENTOR_LIGHT_MINIMAL: 'true'
       - name: Real Chrome isolated PDF score reader
         run: npm run test:score-browser
-      - name: Real Chrome keyboard and responsive UI smoke
+      - name: Real Chrome next-lesson picker smoke (mocked backend)\n        run: npm run test:lesson-browser\n      - name: Real Chrome keyboard and responsive UI smoke
         run: npm run test:browser
