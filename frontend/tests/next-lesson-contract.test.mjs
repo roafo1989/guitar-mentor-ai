@@ -92,3 +92,13 @@ test('#216: UI exposes history, manual picker and both locales', () => {
       assert.ok(messages.lessonNext[key],'missing '+locale+'.lessonNext.'+key);
   }
 });
+
+
+test('#216 regression: current history entry opens workspace and archived stays read-only', () => {
+  const history=file('../src/entities/diagnostic/LessonHistoryView.vue');
+  assert.match(history, /item\.isCurrent \? '\/diagnostics' : '\/lessons\/' \+ item\.sessionId/);
+  assert.match(history, /session\.status !== 'ARCHIVED'/);
+  assert.match(history, /await router\.replace\('\/diagnostics'\)/);
+  assert.match(history, /const task = await diagnosticService\.currentTask/);
+  assert.ok(history.indexOf("if (session.status !== 'ARCHIVED')") < history.indexOf('const task = await diagnosticService.currentTask'));
+});

@@ -14,18 +14,35 @@ let browser,socket;
 try {
   await vite.listen();
   const port=vite.httpServer.address().port;
-  browser=spawn(chrome,['--headless=new','--no-sandbox','--disable-gpu',
-    '--disable-dev-shm-usage','--remote-allow-origins=*',
-    '--remote-debugging-port=0','--user-data-dir='+temp,'about:blank'],{stdio:'ignore'});
+  // CI runners can be temporarily resource-constrained. Retry browser startup,
+  // but never skip the real PDF rendering assertions below.
   let debugPort;
-  for(let n=0;n<300;n++){
-    try {
-      debugPort=Number((await readFile(path.join(temp,'DevToolsActivePort'),'utf8')).split('\n')[0]);
-      if(debugPort)break;
-    }catch{}
-    await new Promise(resolve=>setTimeout(resolve,100));
+  let startupDetails = '';
+  for (let attempt = 1; attempt <= 2 && !debugPort; attempt++) {
+    const profile = path.join(temp, 'chrome-' + attempt);
+    browser = spawn(chrome, ['--headless=new', '--no-sandbox', '--disable-gpu',
+      '--disable-dev-shm-usage', '--remote-allow-origins=*',
+      '--remote-debugging-port=0', '--user-data-dir=' + profile, 'about:blank'],
+      {stdio: ['ignore', 'ignore', 'pipe']});
+    let stderr = '';
+    browser.stderr?.on('data', chunk => { stderr = (stderr + chunk.toString()).slice(-4000); });
+    let exited = false;
+    browser.once('exit', () => { exited = true; });
+    for (let n = 0; n < 450; n++) {
+      try {
+        debugPort = Number((await readFile(path.join(profile, 'DevToolsActivePort'), 'utf8')).split('\n')[0]);
+        if (debugPort) break;
+      } catch {}
+      if (exited) break;
+      await new Promise(resolve => setTimeout(resolve, 100));
+    }
+    if (!debugPort) {
+      startupDetails += 'Attempt ' + attempt + ': exited=' + exited
+        + ', exitCode=' + browser.exitCode + ', stderr=' + stderr + '\n';
+      if (browser.exitCode === null) browser.kill('SIGTERM');
+    }
   }
-  assert.ok(debugPort,'Chrome debugging socket never started');
+  assert.ok(debugPort, 'Chrome debugging socket never started. ' + startupDetails);
   const tabs=await(await fetch('http://127.0.0.1:'+debugPort+'/json')).json();
   const tab=tabs.find(x=>x.type==='page');
   assert.ok(tab?.webSocketDebuggerUrl);
