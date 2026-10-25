@@ -170,7 +170,8 @@ public class LibraryMaterialController {
                 """).param("id",id).query(UUID.class).list();
             for(UUID pub:active) {
                 jdbc.sql("""
-                    UPDATE library_publications SET state='WITHDRAWN',ended_at=now()
+                    UPDATE library_publications SET state='WITHDRAWN',ended_at=now(),
+                        publication_revision=publication_revision+1
                     WHERE id=:pub AND state='PUBLISHED'
                     """).param("pub",pub).update();
                 jdbc.sql("""
