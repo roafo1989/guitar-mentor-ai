@@ -187,6 +187,10 @@ async function download(file: LibraryMaterial['files'][number]): Promise<void> {
       <p>{{ t('library.subtitle') }}</p>
     </header>
     <p v-if="error" class="library-error" role="alert">{{ error }}</p>
+    <div v-if="busy" class="library-progress" role="status" aria-live="polite">
+      <progress aria-label="Uploading or updating material" />
+      <span>{{ t('library.working') }}</span>
+    </div>
     <p v-if="notice" class="library-success" role="status">{{ notice }}</p>
     <div class="library-layout">
       <section class="library-panel" aria-labelledby="library-upload-heading">
@@ -305,6 +309,7 @@ async function download(file: LibraryMaterial['files'][number]): Promise<void> {
 .library-item:hover{background:#eaf5f1!important}.library-item small{color:#647787}
 .library-pagination{justify-content:flex-end;margin-top:18px}.library-detail{margin-top:20px}
 .library-download{display:flex;align-items:center;justify-content:space-between;gap:12px;flex-wrap:wrap;border-bottom:1px solid #e3ebeb;padding:10px 0;overflow-wrap:anywhere}
+.library-progress{display:flex;align-items:center;gap:12px;margin:10px 0}.library-progress progress{width:140px;max-width:40vw;height:7px}
 .library-error,.library-success{padding:12px 15px;border-radius:9px;margin:12px 0;background:#fff1f0;color:#7a2424}
 .library-success{background:#eef8f2;color:#1d684e}.library-confirm{margin-top:20px;border:1px solid #e5c4c4;border-radius:10px;padding:14px}
 @media(max-width:760px){.library-layout{grid-template-columns:1fr}.library-page{padding:24px 14px 55px}.library-panel{padding:18px}}
