@@ -82,13 +82,16 @@ class LibraryPublicationHttpPostgresTest {
         String id=card.path("id").asText();
         String asset=card.path("files").get(0).path("id").asText();
         String publishPath=BASE+"/"+id+"/publications";
+        String publicationIdempotency=UUID.randomUUID().toString();
+
         String rights=JSON.writeValueAsString(Map.of("assets",java.util.List.of(
             Map.of("assetId",asset,"rightsBasis","OWN_WORK",
                 "provenance","CREATED","rightsEvidence","My own original score, I authorize sharing."))));
 
         mvc.perform(MockMvcRequestBuilders.post(publishPath).with(login("pub-a"))
             .sessionAttr("guitarMentorAccessVersion",0L)
-            .header("If-Match","\"1\"").contentType("application/json").content(rights))
+            .header("If-Match","\"1\"").header("Idempotency-Key",publicationIdempotency)
+            .contentType("application/json").content(rights))
             .andExpect(status().isForbidden()); // CSRF
         mvc.perform(MockMvcRequestBuilders.post(publishPath).with(login("pub-b")).with(csrf())
             .sessionAttr("guitarMentorAccessVersion",0L)
