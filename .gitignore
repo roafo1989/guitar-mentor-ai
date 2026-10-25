@@ -52,3 +52,6 @@ uploads/
 # Private uploaded test recordings (never commit)
 /backend/.local-media/
 /.local-media/
+
+# Local #216 acceptance reports (may contain project or test data)
+.qa-local/
