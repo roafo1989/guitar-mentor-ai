@@ -37,6 +37,7 @@ class LibraryPublicationPostgresTest {
     @Autowired JdbcClient jdbc;
     @Autowired LibraryObjectStore storage;
     @Autowired LibraryPublicationController publications;
+    @Autowired CommunityPublicationSearchController search;
     @Autowired LibraryMaterialController materials;
 
     private UUID newAccount(String role) {
@@ -75,6 +76,61 @@ class LibraryPublicationPostgresTest {
         return assertThrows(RuntimeException.class,operation::run).getMessage();
     }
     interface Executable {void run() throws Exception;}
+
+    @Test void sharedSearchFilterScopedPaginationAndRevocation() throws Exception {
+        UUID alice=newAccount("LEARNER"),bob=newAccount("LEARNER");
+        var privateDraft=material(alice,"Secret guitar draft");
+        var f1=material(alice,"Yesterday Blues");
+        var f2=material(alice,"Yesterday Rock");
+        var f3=material(bob,"Other piece");
+        var firstRights=new LibraryPublicationController.PublishRequest(
+            rights(f1.asset()).assets(),List.of("Blues","Fingerstyle"));
+        var secondRights=new LibraryPublicationController.PublishRequest(
+            rights(f2.asset()).assets(),List.of("Rock","fingerstyle"));
+        UUID pub1=publications.publish(req(alice,"LEARNER"),f1.material(),"\"1\"",firstRights).getBody().id();
+        UUID pub2=publications.publish(req(alice,"LEARNER"),f2.material(),"\"1\"",secondRights).getBody().id();
+        publications.publish(req(bob,"LEARNER"),f3.material(),"\"1\"",rights(f3.asset()));
+        assertEquals(3,search.search(req(bob,"LEARNER"),null,null,null,false,20,null)
+            .getBody().items().size(),"foreign PUBLISHED is visible to admitted actor");
+        assertEquals(2,search.search(req(bob,"LEARNER"),"YESTERDAY","composition",null,false,20,null)
+            .getBody().items().size());
+        var blues=search.search(req(bob,"LEARNER"),"Yesterday","COMPOSITION",
+            List.of("blues"),false,20,null).getBody();
+        assertEquals(1,blues.items().size());
+        assertEquals(pub1,blues.items().getFirst().id());
+        assertEquals(List.of("blues","fingerstyle"),blues.items().getFirst().tags());
+        assertEquals(2,search.search(req(bob,"LEARNER"),"yesterday",null,
+            List.of("rock","blues"),false,20,null).getBody().items().size(),
+            "OR among tags, AND with q");
+        assertTrue(search.search(req(bob,"LEARNER"),"Secret guitar draft",null,null,
+            false,20,null).getBody().items().isEmpty());
+        assertTrue(search.search(req(bob,"LEARNER"),null,null,null,true,20,null)
+            .getBody().items().isEmpty(),"no audio-format assets exist yet (#167)");
+        var page1=search.search(req(bob,"LEARNER"),"Yesterday",null,null,false,1,null).getBody();
+        assertEquals(1,page1.items().size());
+        assertNotNull(page1.nextCursor());
+        var page2=search.search(req(bob,"LEARNER"),"Yesterday",null,null,
+            false,1,page1.nextCursor()).getBody();
+        assertEquals(1,page2.items().size());
+        assertNotEquals(page1.items().getFirst().id(),page2.items().getFirst().id());
+        assertNull(page2.nextCursor());
+        assertEquals("PUBLICATION_SEARCH_INVALID_CURSOR",
+            code(()->search.search(req(bob,"LEARNER"),"Yesterday","ETUDE",null,
+                false,1,page1.nextCursor())));
+        assertEquals("PUBLICATION_SEARCH_INVALID_CURSOR",
+            code(()->search.search(req(bob,"LEARNER"),"Yesterday",null,null,
+                false,1,page1.nextCursor()+"tamper")));
+        assertEquals("PUBLICATION_SEARCH_INVALID_FILTER",
+            code(()->search.search(req(bob,"LEARNER"),null,"BOGUS",null,false,20,null)));
+        assertEquals(200,publications.withdraw(req(alice,"LEARNER"),f1.material(),pub1)
+            .getStatusCode().value());
+        var after=search.search(req(bob,"LEARNER"),"Yesterday",null,null,false,20,null)
+            .getBody().items();
+        assertEquals(1,after.size());
+        assertEquals(pub2,after.getFirst().id());
+        assertEquals("PUBLICATION_NOT_FOUND",
+            code(()->publications.publishedDetail(req(bob,"LEARNER"),pub1)));
+    }
 
     @Test void explicitPublishOnlyAndWithdrawImmediatelyStopsForeignDownload() throws Exception {
         UUID alice=newAccount("LEARNER"),bob=newAccount("LEARNER");
