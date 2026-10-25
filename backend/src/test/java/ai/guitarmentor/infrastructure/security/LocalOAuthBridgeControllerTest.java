@@ -26,7 +26,7 @@ class LocalOAuthBridgeControllerTest {
     void onlyShortHttpsOriginMayStartAFlow() {
         var bridge = new LocalOAuthBridge();
         var controller = new LocalOAuthBridgeController(bridge, mock(ActorRepository.class),
-                mock(GoogleLinkService.class), true);
+                mock(GoogleLinkService.class), true, "https://guitar-mentor");
         var req = new MockHttpServletRequest();
         req.addHeader("Origin", "http://localhost:5173");
         assertEquals(403, controller.start(req).getStatusCode().value());
@@ -39,10 +39,23 @@ class LocalOAuthBridgeControllerTest {
     }
 
     @Test
+    void devOriginIsAllowedButOldOriginIsRejected() {
+        var bridge = new LocalOAuthBridge();
+        var controller = new LocalOAuthBridgeController(bridge, mock(ActorRepository.class),
+                mock(GoogleLinkService.class), true, "https://guitar-mentor-dev");
+        var req = request();
+        assertEquals(403, controller.start(req).getStatusCode().value());
+        req.setServerName("guitar-mentor-dev");
+        req.removeHeader("Origin");
+        req.addHeader("Origin", "https://guitar-mentor-dev");
+        assertEquals(200, controller.start(req).getStatusCode().value());
+    }
+
+    @Test
     void completedGoogleLoginRotatesSessionAndSavesOnlyServerVerifiedIdentity() throws Exception {
         var bridge = new LocalOAuthBridge();
         var actors = mock(ActorRepository.class);
-        var controller = new LocalOAuthBridgeController(bridge, actors, mock(GoogleLinkService.class), true);
+        var controller = new LocalOAuthBridgeController(bridge, actors, mock(GoogleLinkService.class), true, "https://guitar-mentor");
         var req = request();
         String oldId = req.getSession(true).getId();
         var oidc = mock(OidcUser.class);
@@ -72,7 +85,7 @@ class LocalOAuthBridgeControllerTest {
     void stolenTicketCannotLogInDifferentHttpsSession() {
         var bridge = new LocalOAuthBridge();
         var controller = new LocalOAuthBridgeController(bridge, mock(ActorRepository.class),
-                mock(GoogleLinkService.class), true);
+                mock(GoogleLinkService.class), true, "https://guitar-mentor");
         var validSession = request();
         String nonce = bridge.begin(validSession.getSession(true).getId(),false);
         var ticket = bridge.complete(nonce,
