@@ -137,7 +137,12 @@
 }
 .tuner-microphone.is-live .tuner-microphone-icon{border-color:#96e7ca}
 .tuner-microphone.is-live .tuner-microphone-icon:after{border-color:#96e7ca}
-.tuner-controls{display:flex;justify-content:center;margin-top:9px}
+.tuner-controls{display:flex;justify-content:flex-start;margin:12px 0 4px}
+/* The primary action lives immediately under the title, not below the tall fretboard. */
+@media(max-width:600px){
+  .tuner-controls{margin:12px 0 8px}
+  .tuner-action{width:100%;min-height:46px}
+}
 .tuner-action{
   min-height:44px;width:min(100%,200px);border-radius:10px;padding:9px 15px;
   background:#eab46b;border:1px solid #ffce8c;color:#17222e;
