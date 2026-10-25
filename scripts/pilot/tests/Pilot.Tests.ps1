@@ -188,6 +188,7 @@ if ($env:VITE_GUITAR_MENTOR_OAUTH_BRIDGE -ne 'false') { exit 22 }
                     $script:testData = $Arguments[1]
                     $null = New-Item -ItemType Directory -Path $script:testData
                     Assert ($Arguments -contains '--auth-host=scram-sha-256') 'test cluster requires password on loopback'
+                    Assert ($Arguments -contains '--builtin-locale=C.UTF-8' -and $Arguments -contains '--locale-provider=builtin') 'test cluster uses PostgreSQL 17 Unicode case mapping independent of Windows locale'
                 }
                 'pg_ctl.exe' {
                     if ($Arguments[-1] -eq 'start') {
