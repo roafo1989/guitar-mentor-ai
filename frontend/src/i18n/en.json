@@ -762,6 +762,7 @@
     "mediaExpired": "Media expired",
     "pages": "Catalog pages",
     "previous": "Previous",
-    "successor": "Open the next lesson"
+    "successor": "Open the next lesson",
+    "currentMarker": "Current"
   }
 }
