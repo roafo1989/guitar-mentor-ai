@@ -242,25 +242,52 @@ public class LibraryPublicationController {
             .body(snapshot(records.getFirst(),false));
     }
 
+    public record WithdrawRequest(String reason) {}
+
     @PostMapping("/api/v1/library/materials/{materialId}/publications/{publicationId}/withdraw")
     @Transactional
-    public ResponseEntity<Void> withdraw(HttpServletRequest request,
-            @PathVariable UUID materialId,@PathVariable UUID publicationId) {
+    public ResponseEntity<Publication> withdraw(HttpServletRequest request,
+            @PathVariable UUID materialId,@PathVariable UUID publicationId,
+            @RequestHeader(value="If-Match",required=false) String ifMatch,
+            @RequestBody(required=false) WithdrawRequest payload) {
         UUID owner=actor(request).accountId();
-        var rows=jdbc.sql("""
-            SELECT m.id FROM library_materials m
-            WHERE m.id=:id AND m.owner_account_id=:owner FOR UPDATE
-            """).param("id",materialId).param("owner",owner).query().listOfRows();
-        if(rows.isEmpty()) throw new Failure(404,"PUBLICATION_NOT_FOUND");
-        int updated=jdbc.sql("""
-            UPDATE library_publications SET state='WITHDRAWN',ended_at=now()
-            WHERE id=:publication AND material_id=:material
-              AND owner_account_id=:owner AND state='PUBLISHED'
+        long requested=revision(ifMatch);
+        jdbc.sql("""
+            SELECT id FROM library_materials
+            WHERE id=:material AND owner_account_id=:owner FOR UPDATE
+            """).param("material",materialId).param("owner",owner).query(UUID.class).optional()
+            .orElseThrow(()->new Failure(404,"PUBLICATION_NOT_FOUND"));
+        var versions=jdbc.sql("""
+            SELECT * FROM library_publications
+            WHERE id=:publication AND material_id=:material AND owner_account_id=:owner
+            FOR UPDATE
             """).param("publication",publicationId).param("material",materialId)
-                .param("owner",owner).update();
-        if(updated!=1) throw new Failure(404,"PUBLICATION_NOT_FOUND");
-        audit(publicationId,owner,"WITHDRAW",null);
-        return ResponseEntity.noContent().cacheControl(CacheControl.noStore()).build();
+                .param("owner",owner).query().listOfRows();
+        if(versions.isEmpty()) throw new Failure(404,"PUBLICATION_NOT_FOUND");
+        var original=versions.getFirst();
+        // Idempotent retry: do not duplicate audit events or resurrect HIDDEN revisions.
+        if(!"PUBLISHED".equals(original.get("state")))
+            return ResponseEntity.ok().cacheControl(CacheControl.noStore())
+                .body(snapshot(original,true));
+        if(((Number)original.get("publication_revision")).longValue()!=requested)
+            throw new Failure(412,"PUBLICATION_REVISION_CONFLICT");
+        String reason=payload==null?null:payload.reason();
+        if(reason!=null && reason.length()>500)
+            throw new Failure(400,"PUBLICATION_INVALID_REASON");
+        jdbc.sql("""
+            UPDATE library_publications SET state='WITHDRAWN',ended_at=now(),
+                publication_revision=publication_revision+1 WHERE id=:publication
+            """).param("publication",publicationId).update();
+        audit(publicationId,owner,"WITHDRAW",reason);
+        var state=jdbc.sql("SELECT * FROM library_publications WHERE id=:id")
+            .param("id",publicationId).query().singleRow();
+        return ResponseEntity.ok().cacheControl(CacheControl.noStore())
+            .body(snapshot(state,true));
+    }
+
+    /** Existing integration tests; live HTTP requests require publication If-Match. */
+    ResponseEntity<Publication> withdraw(HttpServletRequest request,UUID materialId,UUID publicationId) {
+        return withdraw(request,materialId,publicationId,"\"1\"",null);
     }
 
     @PostMapping({"/api/v1/community/publications/{publicationId}/hide",
