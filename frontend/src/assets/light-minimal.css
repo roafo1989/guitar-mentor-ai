@@ -173,3 +173,78 @@
   display:block;width:18px;height:18px;object-fit:contain;flex-shrink:0;
 }
 .app-shell[data-ui="light-minimal"] .icon-credits a {text-decoration:underline;text-underline-offset:2px}
+
+
+/* #222 Diagnostic intake — extend the shared light-minimal design language. */
+.app-shell[data-ui="light-minimal"] .evidence-intake {
+  width:100%; min-width:0; box-sizing:border-box; padding:clamp(16px,3vw,32px);
+}
+.app-shell[data-ui="light-minimal"] .evidence-intake > div {min-width:0}
+.app-shell[data-ui="light-minimal"] .evidence-intake h3 {font-size:clamp(19px,2vw,23px);margin:4px 0 7px;letter-spacing:-.02em}
+.app-shell[data-ui="light-minimal"] .evidence-intake h4 {margin-top:26px}
+.app-shell[data-ui="light-minimal"] .evidence-intake .hint {color:var(--gm-muted);line-height:1.55}
+.app-shell[data-ui="light-minimal"] .evidence-form {
+  max-width:780px; width:100%; min-width:0; box-sizing:border-box;
+  display:flex;flex-direction:column;gap:12px;margin:22px 0 30px;
+}
+.app-shell[data-ui="light-minimal"] .evidence-form > label {
+  display:block;margin:8px 0 -6px;font-weight:650;font-size:14px;color:var(--gm-text);
+}
+.app-shell[data-ui="light-minimal"] .evidence-form > input:not([type=file]),
+.app-shell[data-ui="light-minimal"] .evidence-form > textarea {
+  width:100%; min-width:0; box-sizing:border-box; padding:12px 14px;
+  font:inherit;font-size:15px;color:var(--gm-text); background:var(--gm-surface);
+  border:1px solid var(--gm-control-border);border-radius:var(--gm-radius-sm);
+  transition:border-color .15s,box-shadow .15s;
+}
+.app-shell[data-ui="light-minimal"] .evidence-form > input:not([type=file]) {min-height:46px}
+.app-shell[data-ui="light-minimal"] .evidence-form > textarea {resize:vertical;min-height:88px}
+.app-shell[data-ui="light-minimal"] .evidence-form > :is(input,textarea):focus-visible {
+  border-color:var(--gm-primary);box-shadow:0 0 0 3px #28776d20;
+}
+.app-shell[data-ui="light-minimal"] .evidence-file-picker {
+  position:relative;display:flex;flex-wrap:wrap;align-items:center;gap:10px;
+  min-width:0;padding:12px;border:1px dashed #a9c9c0;
+  border-radius:var(--gm-radius-md);background:#f9fbfa;
+}
+.app-shell[data-ui="light-minimal"] .evidence-file-input {
+  position:absolute;width:1px;height:1px;opacity:0;overflow:hidden;clip-path:inset(50%);
+}
+.app-shell[data-ui="light-minimal"] .evidence-file-trigger {
+  display:inline-flex;align-items:center;justify-content:center;min-height:42px;
+  padding:8px 14px;background:#fff;color:var(--gm-primary);cursor:pointer;
+  border:1px solid var(--gm-primary);border-radius:var(--gm-radius-sm);
+  font-size:14px;font-weight:650;
+}
+.app-shell[data-ui="light-minimal"] .evidence-file-input:focus-visible + .evidence-file-trigger {
+  outline:3px solid var(--gm-focus);outline-offset:3px;
+}
+.app-shell[data-ui="light-minimal"] .evidence-file-input:disabled + .evidence-file-trigger {
+  opacity:.5;cursor:not-allowed;
+}
+.app-shell[data-ui="light-minimal"] .evidence-file-trigger:hover {background:#e7f2ef}
+.app-shell[data-ui="light-minimal"] .evidence-file-name {
+  min-width:0;overflow-wrap:anywhere;color:var(--gm-muted);font-size:13px;
+}
+.app-shell[data-ui="light-minimal"] .evidence-form .microphone-recorder {
+  min-width:0;box-sizing:border-box;padding:18px;
+  background:#f4f8f6;border:1px solid var(--gm-border);
+  border-radius:var(--gm-radius-md);
+}
+.app-shell[data-ui="light-minimal"] .evidence-form .recorder-button {
+  min-height:42px;border-radius:var(--gm-radius-sm);
+}
+.app-shell[data-ui="light-minimal"] .evidence-form .action-button {
+  align-self:flex-start;min-height:44px;padding:10px 22px;border-radius:var(--gm-radius-sm);
+}
+.app-shell[data-ui="light-minimal"] .evidence-intake .attempt-card {
+  max-width:780px;min-width:0;box-sizing:border-box;border-color:var(--gm-border);
+  background:#f9fbfa;border-radius:var(--gm-radius-md);padding:16px;
+}
+@media(max-width:480px) {
+  .app-shell[data-ui="light-minimal"] .evidence-intake {padding:16px}
+  .app-shell[data-ui="light-minimal"] .evidence-form {gap:10px}
+  .app-shell[data-ui="light-minimal"] .evidence-file-picker {align-items:stretch;flex-direction:column}
+  .app-shell[data-ui="light-minimal"] .evidence-file-trigger {width:100%;box-sizing:border-box}
+  .app-shell[data-ui="light-minimal"] .evidence-form .action-button {width:100%;align-self:stretch}
+}
