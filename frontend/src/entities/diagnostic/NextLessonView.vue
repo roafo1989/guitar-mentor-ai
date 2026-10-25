@@ -60,7 +60,7 @@ async function begin(): Promise<void> {
     error.value = t('lessonNext.uncertain'); return;
   }
   if (s.exerciseCode === e.code && !pendingRequest.value && !window.confirm(t('lessonNext.confirmRepeat'))) return;
-  if (!pendingRequest) pendingRequest.value = { key: crypto.randomUUID(), code: e.code, version: e.version };
+  if (!pendingRequest.value) pendingRequest.value = { key: crypto.randomUUID(), code: e.code, version: e.version };
   const request = pendingRequest.value;
   pending.value = true; error.value = '';
   try {
