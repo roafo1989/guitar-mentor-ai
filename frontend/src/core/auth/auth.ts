@@ -29,6 +29,7 @@ export function installAuthenticatedFetch(onSessionLost: () => void): void {
     if (path.origin !== window.location.origin || !path.pathname.startsWith('/api/')) {
       return nativeFetch(input, init);
     }
+    const requestActor = auth.actor;
     const method = (init?.method || (input instanceof Request ? input.method : 'GET')).toUpperCase();
     if (!['GET', 'HEAD', 'OPTIONS', 'TRACE'].includes(method) && !csrf) {
       await refreshCsrf();
@@ -42,7 +43,7 @@ export function installAuthenticatedFetch(onSessionLost: () => void): void {
       path.pathname === '/api/v1/me' ||
       (await response.clone().json().catch(() => null))?.code === 'ACCOUNT_NOT_ADMITTED'
     );
-    if (response.status === 401 || accountDenied) {
+    if ((response.status === 401 || accountDenied) && auth.actor === requestActor) {
       clearActor();
       auth.expired = true;
       resetPersonalState();
