@@ -322,6 +322,14 @@ http://:8090 {
     }
 }
 
+function Checkout-PilotSource([string]$Git, [string]$Source) {
+    # Windows Git commonly inherits core.autocrlf=true. Preserve the repository
+    # bytes for source-contract tests and Flyway checksums. Only this checkout
+    # is affected; do not change the user's global Git settings or dev worktree.
+    Invoke-PilotTool $Git @('-c','core.autocrlf=false','-c','core.eol=lf',
+        'checkout','--detach','FETCH_HEAD') $Source
+}
+
 function Build-PilotRelease([string]$Root) {
     $id = [DateTime]::UtcNow.ToString('yyyyMMdd-HHmmss') + '-' + [guid]::NewGuid().ToString('N').Substring(0,8)
     $source = Join-Path $Root "builds/$id"
@@ -329,7 +337,7 @@ function Build-PilotRelease([string]$Root) {
     $git = (Get-Command git.exe -ErrorAction Stop).Source
     Invoke-PilotTool $git @('init','--quiet') $source
     Invoke-PilotTool $git @('fetch','--depth=1',$script:PilotRepository,'refs/heads/main') $source
-    Invoke-PilotTool $git @('checkout','--detach','FETCH_HEAD') $source
+    Checkout-PilotSource $git $source
     # Read the fetched object locally, without another network race against main.
     $commit = (Get-Content -LiteralPath (Join-Path $source '.git/FETCH_HEAD') -Raw).Split("`t")[0].Trim()
     if ($commit -notmatch '^[a-f0-9]{40}$') { throw 'Не определён точный коммит main.' }
