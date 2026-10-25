@@ -1,4 +1,7 @@
 import test from 'node:test';
+import { readFileSync } from 'node:fs';
+import { fileURLToPath } from 'node:url';
+import { dirname, resolve } from 'node:path';
 import assert from 'node:assert/strict';
 import { isPage, isDetail, validQuery, safeFileName, DEFAULT_QUERY, LIMIT, MAX_OFFSET } from '../src/entities/music-archive/music-archive.service.ts';
 const work={id:'abc',title:'Yesterday',artist:'The Beatles',identityStatus:'CANDIDATE'};
@@ -26,4 +29,21 @@ test('detail requires consistent identity and unavailable originals',()=>{
 test('file name sanitized to basename without control characters',()=>{
  assert.equal(safeFileName('D:\\secret\\Yesterday.gpx'),'Yesterday.gpx');
  assert.equal(safeFileName('/private/file\u0000.gp'),'file.gp');
+});
+
+test('private archive stays visible in primary navigation and both routes coexist',()=>{
+ const root=resolve(dirname(fileURLToPath(import.meta.url)),'..');
+ const shell=readFileSync(resolve(root,'src/App.vue'),'utf8');
+ const routes=readFileSync(resolve(root,'src/router/index.ts'),'utf8');
+ const view=readFileSync(resolve(root,'src/entities/music-archive/MusicArchiveView.vue'),'utf8');
+ assert.match(shell,/<RouterLink v-if="auth.actor" to="\/music-archive" @click="closeMenu\(\)"/);
+ assert.match(shell,/to="\/library"/);
+ assert.match(routes,/name: 'music-archive'/);
+ assert.match(routes,/name: 'library'/);
+ assert.match(view,/archive-empty/);
+ assert.match(view,/archive-button archive-primary/);
+ assert.match(view,/archive-input-wrap/);
+ const packageJson=JSON.parse(readFileSync(resolve(root,'package.json'),'utf8'));
+ assert.match(packageJson.scripts.test,/private-library\.test\.mjs/);
+ assert.match(packageJson.scripts.test,/music-archive\.test\.mjs/);
 });
