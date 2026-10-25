@@ -149,3 +149,71 @@ test('App header never uses account ID as avatar fallback and owns route indepen
   assert.match(source, /headerInitial/);
   assert.doesNotMatch(source, /displayName\s*\|\|\s*auth\.actor\?\.accountId/);
 });
+
+test('logout then immediate re-login of same account rejects prior pending response', async () => {
+  const oldRequest = deferred(), newRequest = deferred();
+  let calls = 0;
+  const h = harness(() => [oldRequest, newRequest][calls++].promise);
+  await h.use(async () => {
+    h.auth.actor = actor('A', 'learner-A');
+    const oldPromise = h.store.restore();
+    h.auth.actor = null;
+    h.store.clearLocalSelection();
+    h.auth.actor = actor('A', 'learner-A');
+    const newPromise = h.store.restore();
+    oldRequest.resolve(profile('learner-A', 'Stale Alice'));
+    await oldPromise;
+    assert.equal(h.store.learner.value, null);
+    assert.equal(h.store.busy.value, true);
+    newRequest.resolve(profile('learner-A', 'Current Alice'));
+    await newPromise;
+    assert.equal(h.store.learner.value.displayName, 'Current Alice');
+    assert.equal(h.store.busy.value, false);
+  });
+});
+
+test('late failed response from previous account does not override new profile or error', async () => {
+  const oldRequest = deferred();
+  let calls = 0;
+  const h = harness(() => ++calls === 1 ? oldRequest.promise : Promise.resolve(profile('learner-B', 'Bob')));
+  await h.use(async () => {
+    h.auth.actor = actor('A', 'learner-A');
+    const oldPromise = h.store.restore();
+    h.auth.actor = actor('B', 'learner-B');
+    await h.store.restore();
+    oldRequest.reject(new ApiFailure('HTTP', 500));
+    await oldPromise;
+    assert.equal(h.store.learner.value.displayName, 'Bob');
+    assert.equal(h.store.error.value, null);
+    assert.equal(h.store.busy.value, false);
+  });
+});
+
+test('matching ID is required; successful payload cannot replace header with another learner', async () => {
+  const h = harness(async () => profile('learner-B', 'Bob'));
+  h.auth.actor = actor('A', 'learner-A');
+  await h.use(() => h.store.restore());
+  assert.equal(h.store.learner.value, null);
+  assert.equal(h.store.error.value.kind, 'INVALID_RESPONSE');
+});
+
+test('explicit logout clears profile immediately without waiting for GET', async () => {
+  const h = harness(async () => profile('learner-A', 'Alice'));
+  h.auth.actor = actor('A', 'learner-A');
+  await h.use(async () => {
+    await h.store.restore();
+    h.auth.actor = null;
+    h.store.clearLocalSelection();
+    assert.equal(h.store.learner.value, null);
+    assert.equal(h.store.error.value, null);
+    assert.equal(h.store.busy.value, false);
+  });
+});
+
+test('header avatar derives only from nonblank display name and has a neutral fallback', () => {
+  const source = readFileSync(new URL('../src/App.vue', import.meta.url), 'utf8');
+  assert.match(source, /displayName\?\.trim\(\)/);
+  assert.match(source, /headerInitial \|\| '◯'/);
+  assert.doesNotMatch(source, /auth\.actor\?\.accountId \|\|/);
+  assert.match(source, /locale === 'ru'/);
+});
