@@ -53,3 +53,16 @@ test('#163 translations cover all visible states', () => {
     for (const key of ['COMPOSITION','ETUDE','EXERCISE','OTHER']) assert.ok(locale.types[key]);
   }
 });
+
+test('#163 complete account switch clears private edit values and native file selection', () => {
+  assert.match(view, /editTitle\.value = '';/);
+  assert.match(view, /editAuthor\.value = '';/);
+  assert.match(view, /editType\.value = 'COMPOSITION';/);
+  assert.match(view, /fileInput\.value\) fileInput\.value\.value = '';/);
+  assert.match(view, /auth\.actor\?\.accountId === owner\)/);
+});
+test('#163 stale download is not written after logout or identity switch', () => {
+  assert.match(service, /stillAuthorized: \(\) => boolean/);
+  assert.match(service, /if \(!stillAuthorized\(\)\) return;/);
+  assert.match(view, /\(\) => active && ticket === generation && auth\.actor\?\.accountId === owner/);
+});
