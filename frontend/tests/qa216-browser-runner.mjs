@@ -2,11 +2,26 @@ import assert from 'node:assert/strict';
 import { spawn, spawnSync } from 'node:child_process';
 import { mkdtemp, readFile, rm } from 'node:fs/promises';
 import os from 'node:os';
+import { existsSync } from 'node:fs';
 import path from 'node:path';
 import { createServer } from 'vite';
 
-const chrome=['google-chrome','chromium','chromium-browser'].find(x =>
-  spawnSync('which',[x],{stdio:'ignore'}).status===0);
+const chromeCandidates = [
+  process.env.CHROME_PATH,
+  process.env.CHROME_BIN,
+  ...(process.platform === 'win32' ? [
+    path.join(process.env.PROGRAMFILES || 'C:\\Program Files', 'Google', 'Chrome', 'Application', 'chrome.exe'),
+    path.join(process.env['PROGRAMFILES(X86)'] || 'C:\\Program Files (x86)', 'Google', 'Chrome', 'Application', 'chrome.exe'),
+    path.join(process.env.LOCALAPPDATA || '', 'Google', 'Chrome', 'Application', 'chrome.exe'),
+    path.join(process.env.PROGRAMFILES || 'C:\\Program Files', 'Microsoft', 'Edge', 'Application', 'msedge.exe'),
+    path.join(process.env['PROGRAMFILES(X86)'] || 'C:\\Program Files (x86)', 'Microsoft', 'Edge', 'Application', 'msedge.exe'),
+  ] : []),
+  'google-chrome', 'chromium', 'chromium-browser', 'chrome', 'msedge',
+];
+const chrome = chromeCandidates.find(candidate => candidate && (
+  existsSync(candidate) ||
+  spawnSync(process.platform === 'win32' ? 'where.exe' : 'which', [candidate], {stdio:'ignore'}).status === 0
+));
 assert.ok(chrome,'Chrome required for real next-lesson browser QA');
 const dir=await mkdtemp(path.join(os.tmpdir(),'qa216-'));
 const server=await createServer({server:{host:'127.0.0.1',port:0}});
