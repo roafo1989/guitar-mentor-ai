@@ -19,7 +19,7 @@ try {
         Start { Invoke-PilotRuntime $Root $state.current $config -Publish }
         Update {
             Write-Host 'Получение main, тесты и сборка. Рабочая папка разработки не используется.'
-            $target = Build-PilotRelease $Root
+            $target = Build-PilotRelease $Root $config
             Switch-PilotRelease $Root $config $state $target
             Write-Host "Обновление завершено: $target. Запустите ярлык «Guitar Mentor — для друзей»."
         }

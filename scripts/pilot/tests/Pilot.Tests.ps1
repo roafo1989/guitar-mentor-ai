@@ -174,6 +174,57 @@ if ($env:VITE_GUITAR_MENTOR_OAUTH_BRIDGE -ne 'false') { exit 22 }
     $before = $script:backups
     Must-Throw { Switch-PilotRelease $root $config $state 'changed' -Rollback } 'schema-changing rollback refused before DB work'
     Assert ($before -eq $script:backups) 'refused rollback does not touch DB'
+
+    # Exercise the temporary cluster lifecycle and failure cleanup without
+    # touching any real database. A separate Windows CI step runs real initdb,
+    # pg_ctl and Maven against the actual project, using the same function.
+    & {
+        $bin = Join-Path $root 'fake-postgres-bin'
+        $null = New-Item -ItemType Directory -Path $bin
+        foreach ($name in 'initdb.exe','pg_ctl.exe') { $null = New-Item -ItemType File -Path (Join-Path $bin $name) }
+        function Invoke-PilotTool($File,$Arguments,$Directory,$Environment=@{}) {
+            switch ([IO.Path]::GetFileName($File)) {
+                'initdb.exe' {
+                    $script:testData = $Arguments[1]
+                    $null = New-Item -ItemType Directory -Path $script:testData
+                    Assert ($Arguments -contains '--auth-host=scram-sha-256') 'test cluster requires password on loopback'
+                }
+                'pg_ctl.exe' {
+                    if ($Arguments[-1] -eq 'start') {
+                        if ($script:backendFailure -eq 'start') { throw 'start fixture failure' }
+                        $null = New-Item -ItemType File -Path (Join-Path $script:testData 'postmaster.pid')
+                    } else {
+                        $script:testStops++
+                        if ($script:backendFailure -eq 'stop') { throw 'stop fixture failure' }
+                        Remove-Item -LiteralPath (Join-Path $script:testData 'postmaster.pid')
+                    }
+                }
+                'mvnw.cmd' {
+                    $script:testMaven++
+                    Assert ($Environment.SPRING_DATASOURCE_URL -match '^jdbc:postgresql://127\.0\.0\.1:\d+/postgres$') 'Maven receives only temporary loopback database'
+                    Assert ($Environment.SPRING_DATASOURCE_USERNAME -eq 'gm_build_test') 'Maven never uses pilot/dev role'
+                    Assert ($Environment.SPRING_DATASOURCE_PASSWORD.Length -eq 64) 'test credential generated separately'
+                    Assert ($Environment.GUITAR_MENTOR_TEST_POSTGRES -eq 'true') 'PostgreSQL integration tests enabled'
+                    Assert ($Arguments -contains 'verify' -and $Arguments -notcontains '-DskipTests') 'Maven tests not bypassed'
+                    if ($script:backendFailure -eq 'maven') { throw 'Maven fixture failure' }
+                }
+                default { throw "Unexpected test command: $File" }
+            }
+        }
+        foreach ($failure in 'none','maven','start','stop') {
+            $script:backendFailure=$failure; $script:testStops=0; $script:testMaven=0
+            if ($failure -eq 'none') { Invoke-PilotBackendBuild $root $bin }
+            else { Must-Throw { Invoke-PilotBackendBuild $root $bin } "temporary cluster propagates $failure failure" }
+            $clusterRoot = Split-Path $script:testData -Parent
+            if ($failure -eq 'stop') {
+                Assert (Test-Path -LiteralPath $script:testData) 'never delete files below a running PostgreSQL'
+                Remove-Item -LiteralPath $clusterRoot -Recurse -Force # fake process, fixture cleanup only
+            } else { Assert (-not (Test-Path -LiteralPath $clusterRoot)) 'temporary test database and password file removed'
+            }
+            if ($failure -eq 'start') { Assert ($script:testMaven -eq 0) 'Maven never falls back to default DB if cluster startup fails' }
+            else { Assert ($script:testStops -eq 1) 'temporary server stopped after Maven, including failed tests' }
+        }
+    }
     Write-Host "PASS: $script:count assertions. Real Windows/DPAPI/PostgreSQL/Funnel acceptance is separate."
 } finally {
     foreach ($name in 'SPRING_PROFILES_ACTIVE','GUITAR_MENTOR_ENABLE_UPLOADS','PGPASSWORD','VITE_GUITAR_MENTOR_OAUTH_BRIDGE') {

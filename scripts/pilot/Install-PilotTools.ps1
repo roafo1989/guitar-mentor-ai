@@ -18,6 +18,7 @@ try {
     foreach ($path in @((Join-Path $Root 'application-pilot.yml'),
         'C:\Tools\Caddy\caddy.exe','C:\Program Files\Tailscale\tailscale.exe',
         (Join-Path $PostgresBin 'pg_dump.exe'),(Join-Path $PostgresBin 'pg_restore.exe'),
+        (Join-Path $PostgresBin 'initdb.exe'),(Join-Path $PostgresBin 'pg_ctl.exe'),
         (Join-Path $env:LOCALAPPDATA 'GuitarMentorAI/local-auth-unified.json'),
         (Join-Path $env:LOCALAPPDATA 'GuitarMentorAI/pilot-database-password.txt'))) {
         if (-not (Test-Path -LiteralPath $path)) { throw "Не найден файл: $path" }

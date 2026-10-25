@@ -330,7 +330,62 @@ function Checkout-PilotSource([string]$Git, [string]$Source) {
         'checkout','--detach','FETCH_HEAD') $Source
 }
 
-function Build-PilotRelease([string]$Root) {
+function Invoke-PilotBackendBuild([string]$Backend, [string]$PostgresBin) {
+    # A new cluster, not just a schema in the user's dev/pilot database. Never
+    # decrypt real credentials here. initdb/pg_ctl ship with PostgreSQL for Windows.
+    foreach ($name in 'initdb.exe','pg_ctl.exe') {
+        if (-not (Test-Path -LiteralPath (Join-Path $PostgresBin $name))) { throw "Не найден $name в $PostgresBin" }
+    }
+    $temporary = Join-Path ([IO.Path]::GetTempPath()) ('gm-build-db-' + [guid]::NewGuid().ToString('N'))
+    $null = New-Item -ItemType Directory -Path $temporary
+    $data = Join-Path $temporary 'data'
+    $passwordFile = Join-Path $temporary 'password.txt'
+    $password = [Convert]::ToHexString([Security.Cryptography.RandomNumberGenerator]::GetBytes(32))
+    $credentials = @{}
+    $probe = [Net.Sockets.TcpListener]::new([Net.IPAddress]::Loopback,0)
+    try {
+        $probe.Start()
+        $port = ([Net.IPEndPoint]$probe.LocalEndpoint).Port
+    } finally { $probe.Stop() }
+    # A port race fails pg_ctl startup; it never redirects tests to port 5432.
+    try {
+        [IO.File]::WriteAllText($passwordFile, $password + "`n")
+        Write-Host 'Подготовка отдельного временного PostgreSQL для Java-тестов.'
+        Invoke-PilotTool (Join-Path $PostgresBin 'initdb.exe') @(
+            '--pgdata',$data,'--username=gm_build_test','--encoding=UTF8','--locale=C',
+            '--auth-local=trust','--auth-host=scram-sha-256',"--pwfile=$passwordFile") $Backend
+        Remove-Item -LiteralPath $passwordFile
+        Invoke-PilotTool (Join-Path $PostgresBin 'pg_ctl.exe') @('-D',$data,'-l',
+            (Join-Path $temporary 'postgres.log'),'-o',"-h 127.0.0.1 -p $port",'-w','-t','30','start') $Backend
+        $credentials = @{
+            SPRING_DATASOURCE_URL = "jdbc:postgresql://127.0.0.1:$port/postgres"
+            SPRING_DATASOURCE_USERNAME = 'gm_build_test'
+            SPRING_DATASOURCE_PASSWORD = $password
+            SPRING_DATASOURCE_HIKARI_MAXIMUM_POOL_SIZE = '2'
+            SPRING_DATASOURCE_HIKARI_MINIMUM_IDLE = '0'
+            GUITAR_MENTOR_TEST_POSTGRES = 'true'
+            GUITAR_MENTOR_SECURITY_ENABLED = 'false' # isolated synthetic test cluster only
+        }
+        Invoke-PilotTool (Join-Path $Backend 'mvnw.cmd') @('--batch-mode','verify') $Backend $credentials
+    } finally {
+        $credentials.Clear()
+        $password = $null
+        if (Test-Path -LiteralPath $passwordFile) { Remove-Item -LiteralPath $passwordFile }
+        $stopped = $true
+        if (Test-Path -LiteralPath (Join-Path $data 'postmaster.pid')) {
+            try {
+                Invoke-PilotTool (Join-Path $PostgresBin 'pg_ctl.exe') @('-D',$data,'-m','fast','-w','-t','30','stop') $Backend
+            } catch {
+                $stopped = $false
+                Write-Warning "Не удалось остановить временный тестовый PostgreSQL. Его файлы сохранены: $temporary"
+            }
+        }
+        if ($stopped) { Remove-Item -LiteralPath $temporary -Recurse -Force }
+        else { throw "Сборка остановлена: временный тестовый PostgreSQL ещё работает ($temporary)." }
+    }
+}
+
+function Build-PilotRelease([string]$Root, [hashtable]$Config) {
     $id = [DateTime]::UtcNow.ToString('yyyyMMdd-HHmmss') + '-' + [guid]::NewGuid().ToString('N').Substring(0,8)
     $source = Join-Path $Root "builds/$id"
     $null = New-Item -ItemType Directory -Force -Path $source
@@ -350,7 +405,7 @@ function Build-PilotRelease([string]$Root) {
         Invoke-PilotTool $npm @('run',$suite) $frontend $flags
     }
     $backend = Join-Path $source 'backend'
-    Invoke-PilotTool (Join-Path $backend 'mvnw.cmd') @('--batch-mode','verify') $backend
+    Invoke-PilotBackendBuild $backend $Config.postgresBin
     $jars = @(Get-ChildItem -LiteralPath (Join-Path $backend 'target') -Filter '*.jar' -File)
     if ($jars.Count -ne 1) { throw 'Ожидался один собранный backend JAR.' }
     $release = Get-PilotRelease $Root $id
