@@ -8,10 +8,12 @@ import java.util.UUID;
 public final class LearningDtos {
     private LearningDtos() {}
 
+    public record NextLessonLink(UUID sessionId, UUID taskId) {}
+
     public record LearningView(UUID taskId, String taskState, long version,
             List<String> availableActions, UUID latestAttemptId, String assessmentState,
             UUID latestAssessmentId, DecisionView latestDecision,
-            String nextStepAvailability) {}
+            String nextStepAvailability, NextLessonLink nextLesson) {}
 
     public record CriterionResultView(String criterionCode, String skillCode, String label,
             String observableResult, String status, String outcome, String reasonCode,

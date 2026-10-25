@@ -48,6 +48,15 @@ public class LearningRepository {
             (rs,n)->rs.getObject(1,UUID.class),taskId).stream().findFirst();
     }
 
+    public Optional<NextLessonLink> successorLink(UUID sourceTaskId) {
+        return jdbc.query("""
+            SELECT t.diagnostic_session_id,t.id FROM lesson_transitions tr
+            JOIN diagnostic_tasks t ON t.id=tr.target_task_id
+            WHERE tr.source_task_id=?
+            """,(rs,n)->new NextLessonLink(rs.getObject(1,UUID.class),rs.getObject(2,UUID.class)),
+            sourceTaskId).stream().findFirst();
+    }
+
     public void initialize(UUID taskId) {
         jdbc.update("""
             INSERT INTO task_learning_state(task_id,state,version,updated_at)
