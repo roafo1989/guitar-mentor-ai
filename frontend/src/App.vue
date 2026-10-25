@@ -125,7 +125,7 @@ onBeforeUnmount(() => { unsubscribeMetronome?.(); closeMetronome(); });
           <RouterLink to="/onboarding" @click="closeMenu()">{{ t('app.onboarding') }}</RouterLink>
           <RouterLink to="/diagnostics" @click="closeMenu()">{{ locale === 'ru' ? 'Занятие' : 'Practice' }}</RouterLink>
           <RouterLink to="/library" @click="closeMenu()">{{ t('library.nav') }}</RouterLink>
-          <RouterLink v-if="!lightMinimal && auth.actor" to="/music-archive" @click="closeMenu()">{{ t('musicArchive.nav') }}</RouterLink>
+          <RouterLink v-if="auth.actor" to="/music-archive" @click="closeMenu()">{{ t('musicArchive.nav') }}</RouterLink>
         </nav>
         <RouterLink
           v-if="!lightMinimal && learnerStore.learner && (auth.actor || localPrototype)"
@@ -177,7 +177,6 @@ onBeforeUnmount(() => { unsubscribeMetronome?.(); closeMetronome(); });
           </button>
           <div v-if="accountMenuOpen" id="gm-account-menu" class="header-account-popover">
             <RouterLink to="/profile" @click="closeAccountMenu()">{{ t('app.profile') }}</RouterLink>
-            <RouterLink v-if="auth.actor" to="/music-archive" @click="closeAccountMenu()">{{ t('musicArchive.nav') }}</RouterLink>
             <label class="language-picker header-account-locale">
               <span>{{ t('app.language') }}</span>
               <select v-model="locale" :aria-label="t('app.language')">
