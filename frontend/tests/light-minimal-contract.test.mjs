@@ -21,11 +21,11 @@ test('#148 navigation discloses real routes and remains keyboard-operable', asyn
   const [app, router] = await Promise.all([file('../src/App.vue'), file('../src/router/index.ts')]);
   assert.match(app, /<RouterLink to="\/" class="brand"/, 'brand remains Home link');
   assert.doesNotMatch(app, /to="\/" @click="closeMenu\(\)"/, 'Home is not duplicated in header navigation');
-  for (const path of ['/profile', '/onboarding', '/diagnostics']) {
+  for (const path of ['/profile', '/onboarding', '/diagnostics', '/library']) {
     assert.ok(router.includes("path: '" + path + "'"), 'real router path: ' + path);
     assert.ok(app.includes('to="' + path + '"'), 'navigable header route: ' + path);
   }
-  assert.doesNotMatch(app, /to="\/library"/);
+  assert.match(app, /to="\/library"/); // #163: private library route is now implemented.
   assert.match(app, /:aria-expanded="menuOpen"/);
   assert.match(app, /:aria-controls="menuId"/);
   assert.match(app, /event\.key (?:===|!==) 'Escape'/);
