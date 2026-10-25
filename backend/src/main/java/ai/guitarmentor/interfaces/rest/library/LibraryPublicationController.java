@@ -293,25 +293,50 @@ public class LibraryPublicationController {
     @PostMapping({"/api/v1/community/publications/{publicationId}/hide",
         "/api/v1/admin/catalog/publications/{publicationId}/hide"})
     @Transactional
-    public ResponseEntity<Void> hide(HttpServletRequest request,
-            @PathVariable UUID publicationId,@RequestBody HideRequest payload) {
+    public ResponseEntity<Publication> hide(HttpServletRequest request,
+            @PathVariable UUID publicationId,
+            @RequestHeader(value="If-Match",required=false) String ifMatch,
+            @RequestBody HideRequest payload) {
         CurrentActor moderator=actor(request);
-        if(!"OWNER".equals(moderator.role())) throw new Failure(403,"PUBLICATION_MODERATION_FORBIDDEN");
+        if(!"OWNER".equals(moderator.role()))
+            throw new Failure(403,"PUBLICATION_MODERATION_FORBIDDEN");
+        long expected=revision(ifMatch);
         String reason=payload==null?null:payload.reason();
         if(reason==null || reason.trim().length()<8 || reason.length()>500)
             throw new Failure(400,"PUBLICATION_INVALID_REASON");
-        var materialIds=jdbc.sql("""
+        // Serialize with the owner DELETE and WITHDRAW operations.
+        UUID material=jdbc.sql("""
             SELECT m.id FROM library_publications p JOIN library_materials m ON m.id=p.material_id
             WHERE p.id=:id FOR UPDATE OF m
-            """).param("id",publicationId).query(UUID.class).list();
-        if(materialIds.isEmpty()) throw new Failure(404,"PUBLICATION_NOT_FOUND");
-        int updated=jdbc.sql("""
-            UPDATE library_publications SET state='HIDDEN',ended_at=now()
+            """).param("id",publicationId).query(UUID.class).optional()
+            .orElseThrow(()->new Failure(404,"PUBLICATION_NOT_FOUND"));
+        var rows=jdbc.sql("""
+            SELECT * FROM library_publications WHERE id=:id FOR UPDATE
+            """).param("id",publicationId).query().listOfRows();
+        if(rows.isEmpty()) throw new Failure(404,"PUBLICATION_NOT_FOUND");
+        var old=rows.getFirst();
+        if("HIDDEN".equals(old.get("state")))
+            return ResponseEntity.ok().cacheControl(CacheControl.noStore())
+                .body(snapshot(old,false)); // repeat never duplicates audit
+        if(!"PUBLISHED".equals(old.get("state")))
+            throw new Failure(404,"PUBLICATION_NOT_FOUND");
+        if(((Number)old.get("publication_revision")).longValue()!=expected)
+            throw new Failure(412,"PUBLICATION_REVISION_CONFLICT");
+        jdbc.sql("""
+            UPDATE library_publications
+            SET state='HIDDEN',ended_at=now(),publication_revision=publication_revision+1
             WHERE id=:id AND state='PUBLISHED'
             """).param("id",publicationId).update();
-        if(updated!=1) throw new Failure(404,"PUBLICATION_NOT_FOUND");
         audit(publicationId,moderator.accountId(),"HIDE",reason.trim());
-        return ResponseEntity.noContent().cacheControl(CacheControl.noStore()).build();
+        var current=jdbc.sql("SELECT * FROM library_publications WHERE id=:id")
+            .param("id",publicationId).query().singleRow();
+        return ResponseEntity.ok().cacheControl(CacheControl.noStore())
+            .body(snapshot(current,false));
+    }
+
+    /** Direct service regression tests; HTTP requires If-Match. */
+    ResponseEntity<Publication> hide(HttpServletRequest request,UUID id,HideRequest payload) {
+        return hide(request,id,"\"1\"",payload);
     }
 
     @RequestMapping(path="/api/v1/community/publications/{publicationId}/files/{assetId}/content",
