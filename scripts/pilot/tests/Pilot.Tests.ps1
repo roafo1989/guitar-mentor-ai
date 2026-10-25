@@ -72,6 +72,37 @@ if ($env:VITE_GUITAR_MENTOR_OAUTH_BRIDGE -ne 'false') { exit 22 }
     $info = New-PilotProcessInfo $pwsh @() $root @{ SPRING_DATASOURCE_PASSWORD='child-only-test' }
     Assert ($info.Environment['SPRING_DATASOURCE_PASSWORD'] -eq 'child-only-test') 'credentials passed only in child environment'
     Assert (-not $info.Environment.ContainsKey('PGPASSWORD')) 'database credential removed from unrelated child'
+
+    # Regression from the real Windows pilot: inherited autocrlf=true broke
+    # score-reader-contract's LF-sensitive source assertion before deployment.
+    # Use actual Git repositories, not a mock of the checkout command.
+    $git = (Get-Command git -ErrorAction Stop).Source
+    $seed = Join-Path $root 'git seed'
+    $null = New-Item -ItemType Directory -Path $seed
+    Invoke-PilotTool $git @('init','--quiet') $seed
+    [IO.File]::WriteAllText((Join-Path $seed 'source.vue'), "await restoreSession();`n    return;`n")
+    Invoke-PilotTool $git @('-c','core.autocrlf=false','add','source.vue') $seed
+    Invoke-PilotTool $git @('-c','user.name=Pilot Test','-c','user.email=pilot-test@example.invalid',
+        'commit','--quiet','-m','LF fixture') $seed
+    foreach ($kind in 'control','fixed') {
+        $checkout = Join-Path $root "git $kind"
+        $null = New-Item -ItemType Directory -Path $checkout
+        Invoke-PilotTool $git @('init','--quiet') $checkout
+        Invoke-PilotTool $git @('config','--local','core.autocrlf','true') $checkout
+        Invoke-PilotTool $git @('fetch','--quiet','--depth=1',$seed,'HEAD') $checkout
+        if ($kind -eq 'control') {
+            Invoke-PilotTool $git @('checkout','--quiet','--detach','FETCH_HEAD') $checkout
+        } else { Checkout-PilotSource $git $checkout }
+        $content = [IO.File]::ReadAllText((Join-Path $checkout 'source.vue'))
+        if ($kind -eq 'control') {
+            Assert ($content.Contains("`r`n")) 'control reproduces inherited Windows CRLF checkout'
+            Assert ($content -notmatch 'await restoreSession\(\);\n    return;') 'control reproduces reported contract failure'
+        } else {
+            Assert (-not $content.Contains("`r")) 'release checkout preserves LF despite autocrlf=true'
+            Assert ($content -match 'await restoreSession\(\);\n    return;') 'reported source contract passes with release checkout'
+            Assert (([IO.File]::ReadAllText((Join-Path $checkout '.git/config'))) -match 'autocrlf = true') 'local user Git setting not rewritten'
+        }
+    }
     if ($IsWindows) {
         $cmd = Join-Path $root 'native wrapper.cmd'
         '@exit /b 19' | Set-Content $cmd

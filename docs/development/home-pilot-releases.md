@@ -109,6 +109,8 @@ restore остаются отдельными пунктами #40.
 - Активная конфигурация Tailscale Serve/Funnel блокирует локальную проверку:
   скрипт не сбрасывает чужой туннель. До начала smoke она должна быть пустой.
 - `main` fetch фиксируется в один SHA, npm использует lockfile через `npm ci`.
+  Checkout сохраняет LF из репозитория даже при Windows `core.autocrlf=true`;
+  глобальные настройки Git и рабочая папка разработчика не меняются.
   Выполняются frontend `test`, `test:intake`, `test:tuner`, `build` и backend
   `mvnw.cmd --batch-mode verify` без `-DskipTests`.
 - PostgreSQL integration tests, требующие `GUITAR_MENTOR_TEST_POSTGRES=true`,

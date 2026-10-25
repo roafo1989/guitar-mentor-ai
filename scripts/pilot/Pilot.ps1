@@ -32,7 +32,11 @@ try {
 } catch {
     $failed = $true
     Write-Host "Ошибка: $($_.Exception.Message)" -ForegroundColor Red
-    Write-Host 'Не повторяйте обновление при наличии pending-update.json. Сначала разберите восстановление по инструкции.'
+    if (Test-Path -LiteralPath (Join-Path $Root 'pending-update.json')) {
+        Write-Host 'Обновление прервано после подготовки БД. Сначала разберите восстановление по pending-update.json и инструкции.'
+    } elseif ($Mode -ne 'Start') {
+        Write-Host 'Операция не завершена. Текущую версию можно запустить обычным ярлыком.'
+    }
 } finally {
     if ($null -ne $lock) { $lock.Dispose() }
     if ($Mode -ne 'Start' -or $failed) { $null = Read-Host 'Нажмите Enter, чтобы закрыть окно' }
