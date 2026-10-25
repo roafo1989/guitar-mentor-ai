@@ -33,7 +33,7 @@ const homeDescription = computed(() => {
   return t('home.light.descriptions.' + summary.value.step);
 });
 const visibleSections = computed(() => sections.filter(section =>
-  section.key === 'profile' || (section.key === 'onboarding' ? hasInstrument.value : hasInstrument.value && summary.value?.step !== 'profile'),
+  section.key === 'library' || section.key === 'profile' || (section.key === 'onboarding' ? hasInstrument.value : hasInstrument.value && summary.value?.step !== 'profile'),
 ));
 
 const recoveryMessage = computed(() => recoveryError.value ? t(apiFailureKey(recoveryError.value)) : '');
@@ -41,6 +41,7 @@ const sections = [
   { key: 'profile', to: '/profile', number: '01', icon: 'M12 12a4 4 0 1 0 0-8 4 4 0 0 0 0 8ZM4 21v-2a6 6 0 0 1 6-6h4a6 6 0 0 1 6 6v2' },
   { key: 'onboarding', to: '/onboarding', number: '02', icon: 'M8 4H5a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2V6a2 2 0 0 0-2-2h-3M8 2h8v5H8ZM7 12h10M7 17h7' },
   { key: 'diagnostics', to: '/diagnostics', number: '03', icon: 'M4 14v-4M8 19V5M12 22V2M16 17V7M20 14v-4' },
+  { key: 'library', to: '/library', number: '04', icon: 'M4 3h16v18H4zM8 7h8M8 12h8M8 17h5' },
 ] as const;
 
 async function restoreProfile(): Promise<void> {
@@ -133,8 +134,8 @@ onMounted(restoreProfile);
             </svg>
             <span>{{ section.number }}</span>
           </div>
-          <h3>{{ t('app.' + section.key) }}</h3>
-          <p>{{ t('home.sections.' + section.key) }}</p>
+          <h3>{{ section.key === 'library' ? t('library.nav') : t('app.' + section.key) }}</h3>
+          <p>{{ section.key === 'library' ? t('library.homeDescription') : t('home.sections.' + section.key) }}</p>
           <span class="home-card-link">{{ t('home.open') }} <span aria-hidden="true">→</span></span>
         </RouterLink>
       </div>
@@ -160,7 +161,7 @@ button.home-primary { border: 0; font: inherit; cursor: pointer; }
 .home-instrument-style { color: #3d695f; margin: 0; font-size: 14px; }
 .home-instrument-note { border-top: 1px solid #d5e6e0; padding-top: 18px; margin: 22px 0 0; color: #5c6b7e; font-size: 14px; line-height: 1.6; }
 .home-recovery { display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 12px; }
-.home-cards { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 18px; }
+.home-cards { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 18px; }
 .home-card { display: flex; flex-direction: column; padding: 26px; background: white; border: 1px solid #e0e6ed; border-radius: 14px; text-decoration: none; box-shadow: 0 5px 25px rgba(25,42,64,.03); }
 .home-card:hover { border-color: #7daba1; box-shadow: 0 5px 25px rgba(25,42,64,.08); }
 .home-card-top { display: flex; align-items: center; justify-content: space-between; color: #3d786e; margin-bottom: 22px; }
