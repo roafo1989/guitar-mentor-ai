@@ -16,7 +16,7 @@ const id = (v: unknown): v is string => str(v) && !!v.trim() && v.length <= 64 &
 const nullable = (v: unknown): v is string|null => v === null || str(v);
 const work = (v: unknown): v is Work => obj(v) && id(v.id) && str(v.title) && str(v.artist) && str(v.identityStatus);
 const arrangement = (v: unknown): v is Arrangement => obj(v) && id(v.id) && str(v.name) && str(v.identityStatus) && str(v.parserStatus) && ['tempo','timeSignatures','instruments','trackCount','measureCount','noteCount'].every(k=>nullable(v[k]));
-const file = (v: unknown): v is SourceFile => obj(v) && id(v.id) && str(v.name) && str(v.format) && Number.isSafeInteger(v.sizeBytes) && (v.sizeBytes as number)>=0 && str(v.rightsStatus) && str(v.parserStatus) && v.originalAvailability === 'UNAVAILABLE';
+const file = (v: unknown): v is SourceFile => obj(v) && id(v.id) && str(v.name) && str(v.format) && typeof v.sizeBytes === 'number' && Number.isSafeInteger(v.sizeBytes) && (v.sizeBytes as number)>=0 && str(v.rightsStatus) && str(v.parserStatus) && v.originalAvailability === 'UNAVAILABLE';
 export function validQuery(q: CatalogQuery): boolean {
   return q.q.length<=150 && !/[\x00-\x1f\x7f-\x9f]/.test(q.q) && ['','gp','gp3','gp4','gp5','gpx','pdf'].includes(q.format) && ['','PARSED','METADATA_ONLY'].includes(q.parserStatus) && ['title','artist','title_desc'].includes(q.sort);
 }
@@ -24,7 +24,7 @@ export function safeFileName(name: string): string {
   return name.replace(/[\x00-\x1f\x7f-\x9f]/g,'').split(/[\\/]/).pop() || '';
 }
 export function isPage(v: unknown, offset: number): v is WorkPage {
-  return obj(v) && v.limit===LIMIT && v.offset===offset && Array.isArray(v.items) && v.items.length<=LIMIT && v.items.every(work) && (v.nextOffset===null || (Number.isSafeInteger(v.nextOffset) && v.nextOffset===offset+LIMIT));
+  return obj(v) && v.limit===LIMIT && v.offset===offset && Array.isArray(v.items) && v.items.length<=LIMIT && v.items.every(work) && (v.nextOffset===null || (typeof v.nextOffset === 'number' && Number.isSafeInteger(v.nextOffset) && v.nextOffset===offset+LIMIT));
 }
 export function isDetail(v: unknown, expectedId: string): v is WorkDetail {
   if (!obj(v) || !work(v.work) || v.work.id!==expectedId || !Array.isArray(v.arrangements)) return false;
