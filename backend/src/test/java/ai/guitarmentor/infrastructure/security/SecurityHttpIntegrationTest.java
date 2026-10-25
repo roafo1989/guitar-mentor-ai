@@ -99,6 +99,39 @@ class SecurityHttpIntegrationTest {
     }
 
     @Test
+    void nextLessonAndHistoryDenyForeignActorEvenWithValidCsrf() throws Exception {
+        activeA();
+        var principal = oidcLogin().idToken(t -> t.claim("iss", "https://issuer.example").subject("user-a"));
+        String foreign = "/api/v1/learners/" + learnerB;
+        String session = "/diagnostic-sessions/" + UUID.randomUUID();
+        String next = foreign + session + "/tasks/" + UUID.randomUUID() + "/next-lesson";
+        mvc.perform(get(foreign + "/lessons?instrumentCode=ACOUSTIC_GUITAR")
+                .with(principal).sessionAttr("guitarMentorAccessVersion", 0L))
+            .andExpect(status().isNotFound());
+        mvc.perform(get(foreign + "/lessons/" + UUID.randomUUID())
+                .with(principal).sessionAttr("guitarMentorAccessVersion", 0L))
+            .andExpect(status().isNotFound());
+        mvc.perform(post(next).with(principal).with(csrf())
+                .sessionAttr("guitarMentorAccessVersion", 0L)
+                .contentType(MediaType.APPLICATION_JSON)
+                .content("{}"))
+            .andExpect(status().isNotFound());
+    }
+
+    @Test
+    void nextLessonMutationRequiresCsrfForOwnLearner() throws Exception {
+        activeA();
+        var principal = oidcLogin().idToken(t -> t.claim("iss", "https://issuer.example").subject("user-a"));
+        String next = "/api/v1/learners/" + learnerA
+            + "/diagnostic-sessions/" + UUID.randomUUID()
+            + "/tasks/" + UUID.randomUUID() + "/next-lesson";
+        mvc.perform(post(next).with(principal)
+                .sessionAttr("guitarMentorAccessVersion", 0L)
+                .contentType(MediaType.APPLICATION_JSON).content("{}"))
+            .andExpect(status().isForbidden());
+    }
+
+    @Test
     void knownActorIsResolvedForMeButUnknownActorFailsClosed() throws Exception {
         activeA();
         var principal = oidcLogin().idToken(t -> t.claim("iss", "https://issuer.example").subject("user-a"));

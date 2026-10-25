@@ -24,7 +24,9 @@ export async function resolveCurrentDiagnostic(
       const session = await diagnosticService.get(learnerId, selected);
       verify();
       if (storage.getItem(key) !== selected) return resolveCurrentDiagnostic(learnerId, storage, isCurrent);
-      return session;
+      if (session.status !== 'ARCHIVED') return session;
+      // Keep the last verified selection until authoritative current succeeds.
+      // A network error is not proof that the archived session has no successor.
     } catch (cause) {
       verify();
       if (!isHttp(cause, 404)) throw cause;
@@ -37,5 +39,6 @@ export async function resolveCurrentDiagnostic(
   verify();
   if (storage.getItem(key) !== expected) return resolveCurrentDiagnostic(learnerId, storage, isCurrent);
   if (current) storage.setItem(key, current.id);
+  else if (selected && storage.getItem(key) === selected) storage.removeItem(key);
   return current;
 }

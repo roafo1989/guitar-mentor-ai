@@ -139,7 +139,7 @@ class LearningPostgresIntegrationTest {
         var first=service.decide(learner,session,task,cmd);
         assertFalse(first.replay());
         assertEquals("COMPLETED_BY_LEARNER",first.result().taskState());
-        assertEquals("NOT_IMPLEMENTED",first.result().nextStepAvailability());
+        assertEquals("MANUAL_SELECTION",first.result().nextStepAvailability());
         assertEquals(1,first.result().version());
         var replay=service.decide(learner,session,task,cmd);
         assertTrue(replay.replay());

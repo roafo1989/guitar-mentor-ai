@@ -71,6 +71,22 @@ public class DiagnosticSession {
         updatedAt = Instant.now();
     }
 
+    /** Technical history state; never changes the old task's pedagogical outcome. */
+    public void archive() {
+        if (status != DiagnosticStatus.TASK_ASSIGNED)
+            throw new IllegalStateException("Only assigned sessions can be archived");
+        status = DiagnosticStatus.ARCHIVED;
+        updatedAt = Instant.now();
+    }
+
+    /** Internal successor creation; bypasses intake but preserves one task per session. */
+    public void prepareNextLearningTask() {
+        if (status != DiagnosticStatus.COLLECTING_EVIDENCE)
+            throw new IllegalStateException("New session already initialized");
+        status = DiagnosticStatus.READY_FOR_TASK;
+        updatedAt = Instant.now();
+    }
+
     public UUID getId() { return id; }
     public InstrumentProfile getInstrumentProfile() { return instrumentProfile; }
     public DiagnosticStatus getStatus() { return status; }

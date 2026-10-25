@@ -17,8 +17,8 @@ class LocalOAuthBridgeControllerTest {
     private MockHttpServletRequest request() {
         var req = new MockHttpServletRequest();
         req.setScheme("https");
-        req.setServerName("guitar-mentor");
-        req.addHeader("Origin", "https://guitar-mentor");
+        req.setServerName("guitar-mentor-dev");
+        req.addHeader("Origin", "https://guitar-mentor-dev");
         return req;
     }
 
@@ -26,7 +26,7 @@ class LocalOAuthBridgeControllerTest {
     void onlyShortHttpsOriginMayStartAFlow() {
         var bridge = new LocalOAuthBridge();
         var controller = new LocalOAuthBridgeController(bridge, mock(ActorRepository.class),
-                mock(GoogleLinkService.class), true, "https://guitar-mentor");
+                mock(GoogleLinkService.class), true, "https://guitar-mentor-dev");
         var req = new MockHttpServletRequest();
         req.addHeader("Origin", "http://localhost:5173");
         assertEquals(403, controller.start(req).getStatusCode().value());
@@ -43,7 +43,10 @@ class LocalOAuthBridgeControllerTest {
         var bridge = new LocalOAuthBridge();
         var controller = new LocalOAuthBridgeController(bridge, mock(ActorRepository.class),
                 mock(GoogleLinkService.class), true, "https://guitar-mentor-dev");
-        var req = request();
+        var req = new MockHttpServletRequest();
+        req.setScheme("https");
+        req.setServerName("guitar-mentor");
+        req.addHeader("Origin", "https://guitar-mentor");
         assertEquals(403, controller.start(req).getStatusCode().value());
         req.setServerName("guitar-mentor-dev");
         req.removeHeader("Origin");
@@ -55,7 +58,7 @@ class LocalOAuthBridgeControllerTest {
     void completedGoogleLoginRotatesSessionAndSavesOnlyServerVerifiedIdentity() throws Exception {
         var bridge = new LocalOAuthBridge();
         var actors = mock(ActorRepository.class);
-        var controller = new LocalOAuthBridgeController(bridge, actors, mock(GoogleLinkService.class), true, "https://guitar-mentor");
+        var controller = new LocalOAuthBridgeController(bridge, actors, mock(GoogleLinkService.class), true, "https://guitar-mentor-dev");
         var req = request();
         String oldId = req.getSession(true).getId();
         var oidc = mock(OidcUser.class);
@@ -85,7 +88,7 @@ class LocalOAuthBridgeControllerTest {
     void stolenTicketCannotLogInDifferentHttpsSession() {
         var bridge = new LocalOAuthBridge();
         var controller = new LocalOAuthBridgeController(bridge, mock(ActorRepository.class),
-                mock(GoogleLinkService.class), true, "https://guitar-mentor");
+                mock(GoogleLinkService.class), true, "https://guitar-mentor-dev");
         var validSession = request();
         String nonce = bridge.begin(validSession.getSession(true).getId(),false);
         var ticket = bridge.complete(nonce,

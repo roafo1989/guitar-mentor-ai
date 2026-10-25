@@ -1,0 +1,23 @@
+sequenceDiagram
+    participant U as Ученик
+    participant V as Vue
+    participant J as Java API
+    participant D as PostgreSQL
+    U->>V: Выбрать следующее задание
+    V->>J: GET state и каталог
+    J-->>V: Terminal state и доступные Exercise
+    U->>V: Preview и Начать занятие
+    V->>J: POST next с requestId и version
+    J->>D: Lock learner, source session, learning state
+    alt Exact replay
+        D-->>J: Сохранённый transition
+    else Terminal и допустимая версия
+        J->>D: ARCHIVED source + новая session/task + transition
+        D-->>J: Commit
+    else Ошибка или конфликт
+        D-->>J: Без изменений либо rollback
+    end
+    J-->>V: Результат или безопасный конфликт
+    V->>J: GET server current
+    J-->>V: Фактическое текущее занятие
+    V-->>U: Новое занятие и ссылка на историю

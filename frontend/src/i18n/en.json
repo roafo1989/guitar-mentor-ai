@@ -742,5 +742,29 @@
     "searchPlaceholder": "For example, Yesterday or The Beatles",
     "emptyTitle": "No works here yet",
     "noMatchesTitle": "No matching works"
+  },
+  "lessonNext": {
+    "choose": "Choose next lesson",
+    "history": "Lesson history",
+    "search": "Search by title or code",
+    "noCompleted": "Complete the current lesson first",
+    "empty": "No learning exercises available",
+    "noMatches": "No matches found",
+    "preview": "Preview",
+    "start": "Start lesson",
+    "readOnly": "Archived lesson — read-only",
+    "emptyHistory": "No lesson history yet",
+    "more": "Load more",
+    "current": "Return to current lesson",
+    "attempts": "Attempts",
+    "decisions": "Learner decisions",
+    "evidence": "Results and feedback",
+    "mediaExpired": "Media expired",
+    "pages": "Catalog pages",
+    "previous": "Previous",
+    "successor": "Open the next lesson",
+    "currentMarker": "Current",
+    "confirmRepeat": "Restart this exercise as a new lesson? Previous attempts stay in history.",
+    "uncertain": "The previous request has not been confirmed. Retry the same request or return to the current lesson."
   }
 }

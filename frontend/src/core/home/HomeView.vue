@@ -14,9 +14,10 @@ const summary = ref<HomeSummary | null>(null);
 const recoveryError = ref<ApiFailure | null>(null);
 const primaryTarget = computed(() =>
   summary.value?.step === 'profile' ? '/profile'
-    : summary.value?.step === 'onboarding' ? '/onboarding' : '/diagnostics');
+    : summary.value?.step === 'onboarding' ? '/onboarding' : summary.value?.step === 'result' ? '/lessons/new' : '/diagnostics');
 const primaryLabel = computed(() => {
   if (recoveryError.value) return t('home.retry');
+  if (summary.value?.step === 'result') return t('lessonNext.choose');
   if (!summary.value) return t('home.start');
   return t('home.next.' + summary.value.step);
 });
