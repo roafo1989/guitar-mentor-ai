@@ -130,6 +130,32 @@ public class LibraryMaterialController {
         return get(request,id);
     }
 
+    /**
+     * Owner-scoped, revision-checked and transactional soft-delete.
+     * No file operation in HTTP transaction; durable worker physically removes bytes.
+     * Tombstone stays in DB so old upload idempotency keys cannot resurrect a deleted card.
+     */
+    @DeleteMapping("/{id}")
+    @Transactional
+    public ResponseEntity<Deleting> delete(HttpServletRequest request,@PathVariable UUID id,
+            @RequestHeader(value="If-Match",required=false) String ifMatch) {
+        UUID account=owner(request);
+        // Require a revision even for replay: this prevents blind destructive requests.
+        long revision=parseRevision(ifMatch);
+        var current=repository.findIncludingDeleting(account,id)
+                .orElseThrow(()->new ApiError(404,"LIBRARY_MATERIAL_NOT_FOUND"));
+        if ("DELETING".equals(current.state()))
+            return ResponseEntity.accepted().cacheControl(CacheControl.noStore())
+                .body(new Deleting(id,"DELETING"));
+        if (current.revision()!=revision)
+            throw new ApiError(412,"LIBRARY_REVISION_CONFLICT");
+        if (repository.markDeleting(account,id,revision)!=1)
+            throw new ApiError(412,"LIBRARY_REVISION_CONFLICT");
+        repository.queueDeletion(id);
+        return ResponseEntity.accepted().cacheControl(CacheControl.noStore())
+            .body(new Deleting(id,"DELETING"));
+    }
+
     private String text(Object node,boolean nullable) {
         if(node==null && nullable) return null;
         if(!(node instanceof String valueRaw))
