@@ -123,13 +123,18 @@ class LibraryPublicationPostgresTest {
     @Test void snapshotDoesNotChangeOnEditAndNextPublishGetsNewVersion() throws Exception {
         UUID alice=newAccount("LEARNER"),bob=newAccount("LEARNER");
         var f=material(alice,"First title");
-        UUID v1=publications.publish(req(alice,"LEARNER"),f.material(),"\"1\"",rights(f.asset()))
+        var attributed=new LibraryPublicationController.PublishRequest(List.of(
+            new LibraryPublicationController.AssetRight(f.asset(),"CREATED","OWN_WORK",
+                "Written and arranged by the submitting artist.","Credit: Test Composer")));
+        UUID v1=publications.publish(req(alice,"LEARNER"),f.material(),"\"1\"",attributed)
             .getBody().id();
         var changed=materials.edit(req(alice,"LEARNER"),f.material(),"\"1\"",
             Map.of("title","Changed private draft"));
         assertEquals(200,changed.getStatusCode().value());
         assertEquals("First title",publications.publishedDetail(req(bob,"LEARNER"),v1)
             .getBody().title());
+        assertEquals("Credit: Test Composer",publications.publishedDetail(req(bob,"LEARNER"),v1)
+            .getBody().assets().getFirst().attribution());
         assertEquals("LIBRARY_REVISION_CONFLICT",
             code(()->publications.publish(req(alice,"LEARNER"),f.material(),"\"1\"",rights(f.asset()))));
         publications.withdraw(req(alice,"LEARNER"),f.material(),v1);
