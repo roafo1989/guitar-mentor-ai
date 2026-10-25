@@ -11,23 +11,31 @@ export function diagnosticSelectionKey(learnerId: string): string {
 export async function resolveCurrentDiagnostic(
   learnerId: string,
   storage: Pick<Storage, 'getItem' | 'removeItem' | 'setItem'>,
+  isCurrent: () => boolean = () => true,
 ): Promise<DiagnosticSession | null> {
+  const verify = () => {
+    if (!isCurrent()) throw Object.assign(new Error('Stale diagnostic restore'), { name: 'AbortError' });
+  };
+  verify();
   const key = diagnosticSelectionKey(learnerId);
   const selected = storage.getItem(key);
   if (selected) {
     try {
       const session = await diagnosticService.get(learnerId, selected);
-      if (storage.getItem(key) !== selected) return resolveCurrentDiagnostic(learnerId, storage);
+      verify();
+      if (storage.getItem(key) !== selected) return resolveCurrentDiagnostic(learnerId, storage, isCurrent);
       return session;
     } catch (cause) {
+      verify();
       if (!isHttp(cause, 404)) throw cause;
-      if (storage.getItem(key) !== selected) return resolveCurrentDiagnostic(learnerId, storage);
+      if (storage.getItem(key) !== selected) return resolveCurrentDiagnostic(learnerId, storage, isCurrent);
       storage.removeItem(key);
     }
   }
   const expected = storage.getItem(key);
   const current = await diagnosticService.current(learnerId, GUITAR_INSTRUMENT);
-  if (storage.getItem(key) !== expected) return resolveCurrentDiagnostic(learnerId, storage);
+  verify();
+  if (storage.getItem(key) !== expected) return resolveCurrentDiagnostic(learnerId, storage, isCurrent);
   if (current) storage.setItem(key, current.id);
   return current;
 }
