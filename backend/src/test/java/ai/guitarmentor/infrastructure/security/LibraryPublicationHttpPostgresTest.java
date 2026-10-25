@@ -95,12 +95,14 @@ class LibraryPublicationHttpPostgresTest {
             .andExpect(status().isForbidden()); // CSRF
         mvc.perform(MockMvcRequestBuilders.post(publishPath).with(login("pub-b")).with(csrf())
             .sessionAttr("guitarMentorAccessVersion",0L)
-            .header("If-Match","\"1\"").contentType("application/json").content(rights))
+            .header("If-Match","\"1\"").header("Idempotency-Key",publicationIdempotency)
+            .contentType("application/json").content(rights))
             .andExpect(status().isNotFound());
         String published=mvc.perform(MockMvcRequestBuilders.post(publishPath)
             .with(login("pub-a")).with(csrf())
             .sessionAttr("guitarMentorAccessVersion",0L)
-            .header("If-Match","\"1\"").contentType("application/json").content(rights))
+            .header("If-Match","\"1\"").header("Idempotency-Key",publicationIdempotency)
+            .contentType("application/json").content(rights))
             .andExpect(status().isCreated())
             .andExpect(jsonPath("$.state").value("PUBLISHED"))
             .andReturn().getResponse().getContentAsString();
