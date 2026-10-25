@@ -175,8 +175,8 @@ test('#149 opt-in home layout is localized and does not fabricate learning data'
   assert.match(view, /:data-home-ui="lightMinimal/);
   assert.match(view, /hasAssignedWork/);
   assert.match(view, /visibleSections/);
-  assert.match(view, /watch\(\(\) => auth\.actor\?\.accountId/);
-  assert.match(view, /auth\.actor\?\.accountId !== actorId/);
+  assert.match(view, /watch\(\(\) => auth\.actor,/);
+  assert.match(view, /auth\.actor !== actor/);
   assert.doesNotMatch(view, /streak|mockProgress|fakeMinutes|Math\.random\(/i);
   for (const messages of [ru,en]) {
     for (const step of ['profile','onboarding','diagnostics','choose','lesson','result']) {
