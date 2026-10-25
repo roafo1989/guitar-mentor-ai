@@ -696,7 +696,7 @@
     "reset": "Reset",
     "format": "Format",
     "all": "All",
-    "parser": "Parser",
+    "parser": "Parsing status",
     "parsed": "Parsed file",
     "metadataOnly": "Metadata only",
     "sort": "Sort",
@@ -737,6 +737,10 @@
       "trackCount": "Tracks",
       "measureCount": "Measures",
       "noteCount": "Notes"
-    }
+    },
+    "eyebrow": "Collection",
+    "searchPlaceholder": "For example, Yesterday or The Beatles",
+    "emptyTitle": "No works here yet",
+    "noMatchesTitle": "No matching works"
   }
 }
