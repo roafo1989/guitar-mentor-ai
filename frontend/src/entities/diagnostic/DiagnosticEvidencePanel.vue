@@ -148,7 +148,7 @@ onBeforeUnmount(() => {
 <template>
   <!-- The intake form stays open. After moving to task selection, native <details>
        starts closed but keeps the saved evidence available on click or keyboard. -->
-  <details class="homework-panel evidence-details" :open="props.allowUpload">
+  <details class="homework-panel evidence-details evidence-intake" :open="props.allowUpload">
     <summary id="evidence-toggle" class="evidence-summary"
       :style="props.allowUpload ? { display: 'none' } : undefined">
       {{ t('evidence.heading') }} ({{ entries.length }})
@@ -160,15 +160,19 @@ onBeforeUnmount(() => {
     <template v-else>
       <p v-if="props.allowUpload && !capabilities?.enabled" class="hint">{{ t('evidence.disabled') }}</p>
       <form v-if="props.allowUpload && capabilities?.enabled && entries.length < capabilities.maxItems"
-        class="homework-form" @submit.prevent="submit">
+        class="homework-form evidence-form" @submit.prevent="submit">
         <label for="evidence-title">{{ t('evidence.title') }}</label>
         <input id="evidence-title" v-model="title" required maxlength="200"
           :disabled="uploading" :placeholder="t('evidence.titleExample')" />
         <label for="evidence-composer">{{ t('evidence.composer') }}</label>
         <input id="evidence-composer" v-model="composer" maxlength="200" :disabled="uploading" />
         <label for="evidence-audio">{{ t('evidence.audio') }}</label>
-        <input id="evidence-audio" ref="audioInput" type="file"
-          accept=".mp3,.wav,.ogg,.webm,.m4a" :disabled="uploading || recordingActive" @change="onAudioInput" />
+        <div class="evidence-file-picker">
+          <input id="evidence-audio" ref="audioInput" class="evidence-file-input" type="file"
+            accept=".mp3,.wav,.ogg,.webm,.m4a" :disabled="uploading || recordingActive" @change="onAudioInput" />
+          <label class="evidence-file-trigger" for="evidence-audio">{{ t('evidence.audio') }}</label>
+          <span class="evidence-file-name" aria-live="polite">{{ audio?.name || 'MP3 · WAV · OGG · WebM · M4A' }}</span>
+        </div>
         <MicrophoneRecorder :disabled="uploading" :max-bytes="capabilities.maxAudioBytes"
           @active="recordingActive = $event" @recorded="onRecorded" />
         <div v-if="preview" class="recorded-preview">
@@ -179,8 +183,12 @@ onBeforeUnmount(() => {
           </button>
         </div>
         <label for="evidence-score">{{ t('evidence.score') }}</label>
-        <input id="evidence-score" ref="scoreInput" type="file"
-          accept=".pdf,.jpg,.jpeg,.png" :disabled="uploading" @change="onScoreInput" />
+        <div class="evidence-file-picker">
+          <input id="evidence-score" ref="scoreInput" class="evidence-file-input" type="file"
+            accept=".pdf,.jpg,.jpeg,.png" :disabled="uploading" @change="onScoreInput" />
+          <label class="evidence-file-trigger" for="evidence-score">{{ t('evidence.score') }}</label>
+          <span class="evidence-file-name" aria-live="polite">{{ score?.name || 'PDF · JPG · PNG' }}</span>
+        </div>
         <p class="hint">{{ t('evidence.limits') }}</p>
         <label for="evidence-comment">{{ t('evidence.comment') }}</label>
         <textarea id="evidence-comment" v-model="comment" rows="2" maxlength="2000"
