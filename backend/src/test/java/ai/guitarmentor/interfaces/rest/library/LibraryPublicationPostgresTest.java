@@ -102,14 +102,14 @@ class LibraryPublicationPostgresTest {
         assertEquals("no-store",content.getHeaders().getCacheControl());
         assertEquals("PUBLICATION_ALREADY_ACTIVE",code(()->publications.publish(
             req(alice,"LEARNER"),f.material(),"\"1\"",rights(f.asset()))));
-        assertEquals(204,publications.withdraw(req(alice,"LEARNER"),f.material(),pub)
+        assertEquals(200,publications.withdraw(req(alice,"LEARNER"),f.material(),pub)
             .getStatusCode().value());
         assertEquals("PUBLICATION_NOT_FOUND",
             code(()->publications.publishedDetail(req(bob,"LEARNER"),pub)));
         assertEquals("PUBLICATION_NOT_FOUND",
             code(()->publications.publishedContent(req(bob,"LEARNER"),pub,f.asset())));
-        assertEquals("PUBLICATION_NOT_FOUND",
-            code(()->publications.withdraw(req(alice,"LEARNER"),f.material(),pub)));
+        assertEquals("WITHDRAWN",
+            publications.withdraw(req(alice,"LEARNER"),f.material(),pub).getBody().state());
         var history=publications.ownerHistory(req(alice,"LEARNER"),f.material()).getBody();
         assertEquals(1,history.size());
         assertEquals("WITHDRAWN",history.getFirst().state());
