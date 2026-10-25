@@ -18,23 +18,33 @@ import org.springframework.beans.factory.annotation.Value;
 import org.springframework.http.CacheControl;
 import org.springframework.http.ResponseEntity;
 import org.springframework.transaction.annotation.Transactional;
+import org.springframework.jdbc.core.simple.JdbcClient;
 import org.springframework.web.bind.annotation.*;
 
 @RestController
 @RequestMapping("/api/v1/library/materials")
 public class LibraryMaterialController {
     private final LibraryMaterialRepository repository;
+    private final JdbcClient jdbc;
     private final byte[] cursorSecret;
     private final boolean enabled;
 
+    @org.springframework.beans.factory.annotation.Autowired
     public LibraryMaterialController(LibraryMaterialRepository repository,
+            JdbcClient jdbc,
             @Value("${guitar-mentor.library.cursor-secret:}") String secret,
             @Value("${guitar-mentor.library.enabled:false}") boolean enabled) {
         this.repository=repository;
+        this.jdbc=jdbc;
         this.cursorSecret=secret.getBytes(StandardCharsets.UTF_8);
         this.enabled=enabled;
         if(enabled && this.cursorSecret.length<32)
             throw new IllegalStateException("Library cursor secret must be at least 32 bytes");
+    }
+
+    /** Legacy direct-construction unit tests; live Spring injection always supplies JdbcClient. */
+    LibraryMaterialController(LibraryMaterialRepository repository,String secret,boolean enabled) {
+        this(repository,null,secret,enabled);
     }
 
     private UUID owner(HttpServletRequest request) {
@@ -151,6 +161,27 @@ public class LibraryMaterialController {
             throw new ApiError(412,"LIBRARY_REVISION_CONFLICT");
         if (repository.markDeleting(account,id,revision)!=1)
             throw new ApiError(412,"LIBRARY_REVISION_CONFLICT");
+        // #165: revoke shared access atomically with the tombstone and deletion intent.
+        // Publish/withdraw paths lock the same material row, preventing a race.
+        if(jdbc!=null) {
+            var active=jdbc.sql("""
+                SELECT id FROM library_publications
+                WHERE material_id=:id AND state='PUBLISHED' FOR UPDATE
+                """).param("id",id).query(UUID.class).list();
+            for(UUID pub:active) {
+                jdbc.sql("""
+                    UPDATE library_publications SET state='WITHDRAWN',ended_at=now(),
+                        publication_revision=publication_revision+1
+                    WHERE id=:pub AND state='PUBLISHED'
+                    """).param("pub",pub).update();
+                jdbc.sql("""
+                    INSERT INTO library_publication_events
+                      (id,publication_id,actor_account_id,action)
+                    VALUES(:event,:pub,:actor,'DELETE_WITHDRAW')
+                    """).param("event",UUID.randomUUID()).param("pub",pub)
+                    .param("actor",account).update();
+            }
+        }
         repository.queueDeletion(id);
         return ResponseEntity.accepted().cacheControl(CacheControl.noStore())
             .body(new Deleting(id,"DELETING"));
