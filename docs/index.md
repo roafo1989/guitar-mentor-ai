@@ -1,5 +1,7 @@
 # Guitar Mentor AI — документация
 
+- [#195: Full-анализ личного импортированного архива](project/CAT195-ANALYSIS-2026-10-25.md) — [ТЗ](specifications/CAT-LOCAL-03-private-archive-ui.md), [24TC](testing/TC-CAT195-private-archive-ui.md); передано на оценку, код не начат.
+
 - [Повторная сверка25.10.2026: Light Minimal завершён, библиотека и новая очередь](project/board-audit-2026-10-25-late.md).
 
 - [Полная сверка досок 25.10.2026: задачи, стори, эпики и зависимости](project/board-audit-2026-10-25.md).

@@ -1,0 +1,29 @@
+sequenceDiagram
+  actor U as Пользователь
+  participant V as Archive View и service
+  participant A as Authenticated fetch
+  participant C as API194
+  participant P as PostgreSQL
+  U->>V: Submit или первый вход
+  V->>V: Snapshot actor/query/sequence, abort прежних
+  V->>A: GET works, budget15s/2MiB
+  A->>C: Same-origin session
+  C->>P: SELECT WHERE owner_account_id=actor
+  P-->>C: Work page
+  C-->>A: 200 no-store или HTTP error
+  alt Actor сменился
+    A->>A: Не сбрасывать новую сессию старым401
+    A-->>V: Поздний ответ
+    V->>V: Игнорировать success/error/finally
+  else Тот же actor и актуальный sequence
+    A-->>V: Response
+    V->>V: Validate DTO, commit ready/empty/error
+  end
+  U->>V: Выбрать Work
+  V->>A: Один GET works/id
+  A->>C: Detail request
+  C->>P: Own Work, arrangements, private files
+  P-->>C: Metadata, UNAVAILABLE
+  C-->>A: Detail JSON
+  A-->>V: Validate и проверить selectedId/sequence
+  V-->>U: Все версии, без file actions

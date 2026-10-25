@@ -1,0 +1,8 @@
+flowchart TD
+  A["AuthGate и account menu"] --> B["MusicArchiveView: форма, список, detail"]
+  B --> C["Service: DTO, budget, generation"]
+  C --> D["Authenticated fetch: session guard"]
+  D --> E["MusicCatalogController194"]
+  E --> F["Repository: account scope"]
+  F --> G["PostgreSQL V27: metadata only"]
+  B -. "оригиналы недоступны" .-> H["196: отдельная поставка файлов"]
