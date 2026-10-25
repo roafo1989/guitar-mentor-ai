@@ -83,6 +83,8 @@ class LibraryPublicationPostgresTest {
         var f1=material(alice,"Yesterday Blues");
         var f2=material(alice,"Yesterday Rock");
         var f3=material(bob,"Other piece");
+        jdbc.sql("UPDATE library_materials SET author=:author WHERE id=:id")
+            .param("author","The Example Composer").param("id",f1.material()).update();
         var firstRights=new LibraryPublicationController.PublishRequest(
             rights(f1.asset()).assets(),List.of("Blues","Fingerstyle"));
         var secondRights=new LibraryPublicationController.PublishRequest(
@@ -94,6 +96,10 @@ class LibraryPublicationPostgresTest {
             .getBody().items().size(),"foreign PUBLISHED is visible to admitted actor");
         assertEquals(2,search.search(req(bob,"LEARNER"),"YESTERDAY","composition",null,false,20,null)
             .getBody().items().size());
+        assertEquals(1,search.search(req(bob,"LEARNER"),"example composer",null,null,false,20,null)
+            .getBody().items().size(),"q must search published author as well as title");
+        assertTrue(search.search(req(bob,"LEARNER"),"yester%",null,null,false,20,null)
+            .getBody().items().isEmpty(),"LIKE wildcards in user q must be treated literally");
         var blues=search.search(req(bob,"LEARNER"),"Yesterday","COMPOSITION",
             List.of("blues"),false,20,null).getBody();
         assertEquals(1,blues.items().size());
