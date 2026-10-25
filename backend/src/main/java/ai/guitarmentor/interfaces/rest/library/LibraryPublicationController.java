@@ -31,10 +31,10 @@ public class LibraryPublicationController {
             @Value("${guitar-mentor.library.enabled:false}") boolean enabled) {
         this.jdbc=jdbc;this.storage=storage;this.enabled=enabled;
     }
-    public record AssetRight(UUID assetId,String provenance,String rightsBasis,String rightsEvidence) {}
-    public record PublishRequest(List<AssetRight> assets) {}
+    public record AssetRight(UUID assetId,String provenance, @com.fasterxml.jackson.annotation.JsonAlias("basis") String rightsBasis, @com.fasterxml.jackson.annotation.JsonAlias("evidence") String rightsEvidence, String attribution) { public AssetRight(UUID id,String p,String b,String e){ this(id,p,b,e,""); } }
+    public record PublishRequest(@com.fasterxml.jackson.annotation.JsonAlias("assetRights") List<AssetRight> assets) {}
     public record AssetSnapshot(UUID id,String originalName,String format,long byteSize,String sha256,
-            String provenance,String rightsBasis,String rightsEvidence,String downloadUrl) {}
+            String provenance,String rightsBasis,String rightsEvidence,String attribution,String downloadUrl) {}
     public record Publication(UUID id,UUID materialId,UUID ownerAccountId,long version,
             String title,String type,String author,String state,List<AssetSnapshot> assets) {}
     public record HideRequest(String reason) {}
@@ -73,7 +73,7 @@ public class LibraryPublicationController {
                 (String)a.get("format"),((Number)a.get("byte_size")).longValue(),
                 (String)a.get("sha256"),(String)a.get("provenance"),
                 (String)a.get("rights_basis"),includePrivateEvidence?(String)a.get("rights_evidence"):null,
-                filePath(id,(UUID)a.get("asset_id")))).toList();
+                (String)a.get("attribution"),"PUBLISHED".equals(row.get("state"))?filePath(id,(UUID)a.get("asset_id")):null)).toList();
         return new Publication(id,(UUID)row.get("material_id"),
             (UUID)row.get("owner_account_id"),((Number)row.get("version")).longValue(),
             (String)row.get("title"),(String)row.get("material_type"),
