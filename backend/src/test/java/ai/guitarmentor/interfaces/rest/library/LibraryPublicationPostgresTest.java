@@ -133,6 +133,11 @@ class LibraryPublicationPostgresTest {
         assertEquals(pub2,after.getFirst().id());
         assertEquals("PUBLICATION_NOT_FOUND",
             code(()->publications.publishedDetail(req(bob,"LEARNER"),pub1)));
+        UUID moderator=newAccount("OWNER");
+        publications.hide(req(moderator,"OWNER"),pub2,
+            new LibraryPublicationController.HideRequest("Documented rights complaint"));
+        assertTrue(search.search(req(bob,"LEARNER"),"Yesterday",null,null,false,20,null)
+            .getBody().items().isEmpty(),"moderator HIDE must instantly remove the publication from search");
     }
 
     @Test void explicitPublishOnlyAndWithdrawImmediatelyStopsForeignDownload() throws Exception {
