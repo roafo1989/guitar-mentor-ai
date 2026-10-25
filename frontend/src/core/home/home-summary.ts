@@ -20,6 +20,7 @@ export const selectedSessionKey = diagnosticSelectionKey;
 export async function resolveHomeSummary(
   learnerId: string | null,
   storage: Pick<Storage, 'getItem' | 'removeItem' | 'setItem'>,
+  isCurrent: () => boolean = () => true,
 ): Promise<HomeSummary> {
   const simple = (step: HomeNextStep): HomeSummary =>
     ({ step, title: null, exerciseCode: null, exerciseVersion: null });
