@@ -343,17 +343,6 @@ function onPageKeydown(event: KeyboardEvent): void {
         <p class="library-muted">{{ t('library.privateNote') }}</p>
         <p v-if="error" class="dialog-error" role="alert">{{ error }}</p>
         <form @submit.prevent="upload">
-          <label class="library-field">{{ t('library.type') }}
-            <select v-model="type" :disabled="busy">
-              <option value="COMPOSITION">{{ t('library.types.COMPOSITION') }}</option>
-              <option value="ETUDE">{{ t('library.types.ETUDE') }}</option>
-              <option value="EXERCISE">{{ t('library.types.EXERCISE') }}</option>
-              <option value="OTHER">{{ t('library.types.OTHER') }}</option>
-            </select>
-          </label>
-          <label class="library-field">{{ t('library.author') }}
-            <input v-model="author" type="text" maxlength="150" :disabled="busy" />
-          </label>
           <div class="library-field">
             <span>{{ t('library.files') }}</span>
             <label class="library-file-picker">
@@ -367,6 +356,18 @@ function onPageKeydown(event: KeyboardEvent): void {
               <li v-for="(file,index) in files" :key="index">{{ file.name }} · {{ (file.size / 1024 / 1024).toFixed(2) }} MB</li>
             </ul>
           </div>
+
+          <label class="library-field">{{ t('library.type') }}
+            <select v-model="type" :disabled="busy">
+              <option value="COMPOSITION">{{ t('library.types.COMPOSITION') }}</option>
+              <option value="ETUDE">{{ t('library.types.ETUDE') }}</option>
+              <option value="EXERCISE">{{ t('library.types.EXERCISE') }}</option>
+              <option value="OTHER">{{ t('library.types.OTHER') }}</option>
+            </select>
+          </label>
+          <label class="library-field">{{ t('library.author') }}
+            <input v-model="author" type="text" maxlength="150" :disabled="busy" />
+          </label>
           <label class="library-field">{{ t('library.name') }}
             <input v-model="title" type="text" required maxlength="150" :disabled="busy" @input="titleEditedByUser=true" />
           </label>
