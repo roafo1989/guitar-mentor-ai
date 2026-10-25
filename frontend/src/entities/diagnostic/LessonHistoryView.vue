@@ -115,6 +115,8 @@ onBeforeUnmount(() => { ++generation; });
         <h3>{{ t('lessonNext.evidence') }}</h3>
         <ul><li v-for="entry in evidence" :key="entry.assessmentId + entry.criterionCode">
           {{ entry.criterionCode }} · {{ entry.status }} · {{ entry.outcome || '—' }}
+          <p v-if="entry.reasonCode">{{ entry.reasonCode }}</p>
+          <p v-if="entry.evidenceText">{{ entry.evidenceText }}</p>
         </li></ul>
         <button v-if="evidenceCursor" type="button" @click="moreEvidence">{{ t('lessonNext.more') }}</button>
       </section>
