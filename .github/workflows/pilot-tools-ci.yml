@@ -1,0 +1,19 @@
+name: Pilot release tools
+on:
+  pull_request:
+    paths:
+      - 'scripts/pilot/**'
+      - '.github/workflows/pilot-tools-ci.yml'
+  push:
+    branches: [main]
+    paths:
+      - 'scripts/pilot/**'
+      - '.github/workflows/pilot-tools-ci.yml'
+jobs:
+  release-safety:
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Parse scripts and exercise release failure paths
+        shell: pwsh
+        run: ./scripts/pilot/tests/Pilot.Tests.ps1
