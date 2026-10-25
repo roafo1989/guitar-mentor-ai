@@ -153,7 +153,8 @@ public class LibraryPublicationController {
         for(var right:payload.assets()) {
             if(right==null || right.assetId()==null || right.rightsBasis()==null
                     || !BASES.contains(right.rightsBasis())
-                    || right.provenance()==null || !PROVENANCES.contains(right.provenance())
+                    || (right.provenance()!=null && !PROVENANCES.contains(right.provenance()))
+                    || (right.attribution()!=null && right.attribution().length()>2000)
                     || right.rightsEvidence()==null || right.rightsEvidence().isBlank()
                     || right.rightsEvidence().trim().length()<8
                     || right.rightsEvidence().length()>500
@@ -172,10 +173,12 @@ public class LibraryPublicationController {
         UUID pub=UUID.randomUUID();
         jdbc.sql("""
             INSERT INTO library_publications
-              (id,material_id,owner_account_id,version,material_revision,title,material_type,author,state)
-            VALUES(:id,:material,:owner,:version,:revision,:title,:type,:author,'PUBLISHED')
+              (id,material_id,owner_account_id,version,material_revision,idempotency_key,
+               request_fingerprint,title,material_type,author,state)
+            VALUES(:id,:material,:owner,:version,:revision,:key,:fingerprint,:title,:type,:author,'PUBLISHED')
             """).param("id",pub).param("material",materialId).param("owner",owner)
             .param("version",latest+1).param("revision",currentRevision)
+            .param("key",key).param("fingerprint",signature)
             .param("title",material.get("title")).param("type",material.get("material_type"))
             .param("author",material.get("author")).update();
         for(var asset:assets) {
@@ -183,8 +186,8 @@ public class LibraryPublicationController {
             jdbc.sql("""
                 INSERT INTO library_publication_assets
                   (publication_id,asset_id,original_name,format,byte_size,sha256,object_key,
-                   provenance,rights_basis,rights_evidence)
-                VALUES(:publication,:id,:name,:format,:size,:sha,:key,:provenance,:basis,:evidence)
+                   provenance,rights_basis,rights_evidence,attribution)
+                VALUES(:publication,:id,:name,:format,:size,:sha,:key,:provenance,:basis,:evidence,:attribution)
                 """).param("publication",pub).param("id",asset.get("id"))
                 .param("name",asset.get("original_name")).param("format",asset.get("format"))
                 .param("size",asset.get("byte_size")).param("sha",asset.get("sha256"))
