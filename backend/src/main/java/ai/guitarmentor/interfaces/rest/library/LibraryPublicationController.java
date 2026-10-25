@@ -80,14 +80,52 @@ public class LibraryPublicationController {
             (String)row.get("author"),(String)row.get("state"),files);
     }
 
+
+    private static UUID idempotencyKey(String raw) {
+        if(raw==null) throw new Failure(428,"PUBLICATION_IDEMPOTENCY_REQUIRED");
+        try {return UUID.fromString(raw);}
+        catch(IllegalArgumentException ex){throw new Failure(400,"PUBLICATION_INVALID_IDEMPOTENCY_KEY");}
+    }
+    private static String fingerprint(UUID material,long revision,PublishRequest payload) {
+        if(payload==null || payload.assets()==null || payload.assets().isEmpty())
+            throw new Failure(400,"PUBLICATION_INVALID_RIGHTS");
+        List<String> normalized=new ArrayList<>();
+        for(AssetRight a:payload.assets()) {
+            if(a==null || a.assetId()==null) throw new Failure(400,"PUBLICATION_INVALID_RIGHTS");
+            normalized.add(a.assetId()+"|"+a.provenance()+"|"+a.rightsBasis()
+                +"|"+a.rightsEvidence()+"|"+a.attribution());
+        }
+        Collections.sort(normalized);
+        byte[] body=(material+"|"+revision+"|"+String.join("\n",normalized))
+            .getBytes(StandardCharsets.UTF_8);
+        try {return HexFormat.of().formatHex(
+            java.security.MessageDigest.getInstance("SHA-256").digest(body));}
+        catch(java.security.NoSuchAlgorithmException e){throw new IllegalStateException(e);}
+    }
+
     @PostMapping("/api/v1/library/materials/{materialId}/publications")
     @Transactional
     public ResponseEntity<Publication> publish(HttpServletRequest request,
             @PathVariable UUID materialId,
             @RequestHeader(value="If-Match",required=false) String ifMatch,
+            @RequestHeader(value="Idempotency-Key",required=false) String idempotency,
             @RequestBody PublishRequest payload) {
         UUID owner=actor(request).accountId();
         long currentRevision=revision(ifMatch);
+        UUID key=idempotencyKey(idempotency);
+        String signature=fingerprint(materialId,currentRevision,payload);
+        var previous=jdbc.sql("""
+            SELECT * FROM library_publications
+            WHERE owner_account_id=:owner AND idempotency_key=:key
+            """).param("owner",owner).param("key",key).query().listOfRows();
+        if(!previous.isEmpty()) {
+            var old=previous.getFirst();
+            if(!materialId.equals(old.get("material_id"))
+                    || !signature.equals(old.get("request_fingerprint")))
+                throw new Failure(409,"PUBLICATION_IDEMPOTENCY_CONFLICT");
+            return ResponseEntity.ok().cacheControl(CacheControl.noStore())
+                .body(snapshot(old,true));
+        }
         // Serialized with PATCH and DELETE on the material row; no uncommitted asset selection.
         var source=jdbc.sql("""
             SELECT id,owner_account_id,title,material_type,author,revision
@@ -159,6 +197,12 @@ public class LibraryPublicationController {
             .param("id",pub).query().singleRow();
         return ResponseEntity.created(java.net.URI.create(detailPath(pub)))
             .cacheControl(CacheControl.noStore()).body(snapshot(item,true));
+    }
+
+    /** Existing direct service tests; HTTP calls always require an explicit UUID key. */
+    ResponseEntity<Publication> publish(HttpServletRequest request,UUID materialId,
+            String ifMatch,PublishRequest payload) {
+        return publish(request,materialId,ifMatch,UUID.randomUUID().toString(),payload);
     }
 
     /** Owner can see own full history; another actor cannot enumerate it. */
