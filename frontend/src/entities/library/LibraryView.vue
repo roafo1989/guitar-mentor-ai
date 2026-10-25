@@ -10,6 +10,7 @@ const entries = ref<LibraryMaterial[]>([]);
 const selected = ref<LibraryMaterial | null>(null);
 const cursor = ref<string | null>(null);
 const history = ref<(string | null)[]>([]);
+const currentCursor = ref<string | null>(null);
 const loading = ref(false);
 const busy = ref(false);
 const error = ref('');
@@ -35,6 +36,7 @@ function clearPrivate(): void {
   selected.value = null;
   cursor.value = null;
   history.value = [];
+  currentCursor.value = null;
   error.value = '';
   notice.value = '';
   files.value = [];
@@ -75,6 +77,7 @@ async function load(nextCursor: string | null, previous: (string | null)[]): Pro
     entries.value = page.items;
     cursor.value = page.nextCursor;
     history.value = previous;
+    currentCursor.value = nextCursor;
     if (selected.value) selected.value = page.items.find(item => item.id === selected.value?.id) ?? null;
   } catch (cause) {
     if (active && ticket === generation) error.value = message(cause);
@@ -98,7 +101,7 @@ async function upload(): Promise<void> {
     error.value = t('library.metadata'); return;
   }
   const invalid = validateUpload(files.value);
-  if (invalid) { error.value = t('library.' + invalid); return; }
+  if (invalid) { error.value = t('library.' + (invalid === 'empty' ? 'emptyFiles' : invalid)); return; }
   const fingerprint = JSON.stringify(metadata()) + ':' + files.value.map(file => file.name + ':' + file.size + ':' + file.lastModified).join('|');
   if (pendingKey === null || fingerprint !== lastUploadFingerprint) {
     pendingKey = crypto.randomUUID(); lastUploadFingerprint = fingerprint;
@@ -236,7 +239,7 @@ async function download(file: LibraryMaterial['files'][number]): Promise<void> {
           <button type="button" class="library-secondary" :disabled="loading || busy || history.length === 0"
             @click="load(history[history.length-1] ?? null,history.slice(0,-1))">{{ t('library.previous') }}</button>
           <button type="button" class="library-secondary" :disabled="loading || busy || !cursor"
-            @click="load(cursor,[...history,history.length ? history[history.length-1] ?? null : null])">{{ t('library.next') }}</button>
+            @click="load(cursor,[...history,currentCursor])">{{ t('library.next') }}</button>
         </div>
       </section>
     </div>
