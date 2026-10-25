@@ -92,6 +92,9 @@ class LibraryPublicationPostgresTest {
         assertEquals("PUBLISHED",response.getBody().state());
         assertEquals("Private draft",publications.publishedDetail(req(bob,"LEARNER"),pub)
             .getBody().title());
+        assertNull(publications.publishedDetail(req(bob,"LEARNER"),pub)
+            .getBody().assets().getFirst().rightsEvidence(),
+            "Permission/legal evidence is private to the owner, not published as PII");
         var content=publications.publishedContent(req(bob,"LEARNER"),pub,f.asset());
         assertEquals(200,content.getStatusCode().value());
         var file=(org.springframework.core.io.FileSystemResource)content.getBody();
