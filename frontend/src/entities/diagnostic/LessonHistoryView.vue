@@ -135,3 +135,10 @@ onBeforeUnmount(() => { ++generation; });
     <RouterLink to="/diagnostics">{{ t('lessonNext.current') }}</RouterLink>
   </main>
 </template>
+
+<style scoped>
+.profile-page { min-width:0; overflow-wrap:anywhere; }
+ol { padding-inline-start:1.25rem; }
+li, .panel { min-width:0; overflow-wrap:anywhere; }
+button, a { max-width:100%; white-space:normal; overflow-wrap:anywhere; }
+</style>
