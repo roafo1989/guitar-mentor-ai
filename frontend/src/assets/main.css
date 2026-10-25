@@ -735,3 +735,12 @@ footer { text-align: center; font-size: 12px; padding: 24px; color: #8793a4; }
 @media(max-width:599px){.auth03-panel{padding:24px}}
 @media(max-width:360px){.auth03-brand{font-size:16px}.auth03-panel{padding:20px}.auth03-google{font-size:13px}}
 @media(prefers-reduced-motion:reduce){.auth03-panel * {animation:none!important;transition:none!important}}
+
+
+/* Reset/verification headings receive programmatic focus for screen readers.
+   Unlike an interactive control, the heading must not look like a text field. */
+.auth03-panel h1[tabindex="-1"]:focus,
+.auth03-panel h1[tabindex="-1"]:focus-visible {
+  outline: none;
+  box-shadow: none;
+}
