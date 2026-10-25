@@ -39,3 +39,8 @@ The disposable script was added remotely and has **not yet been run on the user'
 
 
 **Safety:** the local runner creates a fresh `qa216_<random>` database only after connecting to the `postgres` maintenance database on loopback. It never invokes `DROP` for DEV or PILOT; cleanup requires verification of the random marker on the database object. PostgreSQL tools and admin rights must already be available. This still does not run a V28-to-V29 migration of a *copy of existing PILOT data*, which remains an independent release gate.
+
+
+## One-command main integration
+
+Run on the clean feature branch: `pwsh -NoProfile -File .\scripts\qa216-finalize.ps1`. It fetches, fast-forwards feature, tries a standard three-way merge of main, and stops on conflicts without resolving them. If merge succeeds, it runs complete local browser and isolated PostgreSQL tests and pushes only the feature branch if >=8 PASS, 0 FAIL, and PostgreSQL PASS. It does not merge the PR into main, deploy or update PILOT, or close remaining release gates. Conflicts are reported in `.qa-local/216/finalize/conflicts.txt`.
