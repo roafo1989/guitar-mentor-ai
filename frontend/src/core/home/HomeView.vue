@@ -62,13 +62,13 @@ async function restoreProfile(): Promise<void> {
     const hasGuitar = learnerStore.learner?.instruments.some(
       instrument => instrument.instrumentCode === 'ACOUSTIC_GUITAR',
     ) ?? false;
-    const next = await resolveHomeSummary(hasGuitar ? id : null, window.localStorage, () => active && seq === generation && (!secureUi || auth.actor?.accountId === actorId));
+    const next = await resolveHomeSummary(hasGuitar ? id : null, window.localStorage, () => active && seq === generation && (!secureUi || auth.actor === actor));
     if (!active || seq !== generation || learnerStore.learner?.id !== id || (secureUi && auth.actor !== actor)) return;
     summary.value = next;
   } catch (cause) {
-    if (active && seq === generation && (!secureUi || auth.actor?.accountId === actorId) && !(cause instanceof Error && cause.name === 'AbortError')) recoveryError.value = asApiFailure(cause);
+    if (active && seq === generation && (!secureUi || auth.actor === actor) && !(cause instanceof Error && cause.name === 'AbortError')) recoveryError.value = asApiFailure(cause);
   } finally {
-    if (active && seq === generation && (!secureUi || auth.actor?.accountId === actorId)) loading.value = false;
+    if (active && seq === generation && (!secureUi || auth.actor === actor)) loading.value = false;
   }
 }
 function refreshForLearner(): void {
