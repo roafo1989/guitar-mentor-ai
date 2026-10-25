@@ -68,6 +68,39 @@ class DiagnosticSessionServiceTest {
     }
 
     @Test
+    void currentFindsExistingSessionWithoutCreatingAnything() {
+        when(learners.findById(learner.getId())).thenReturn(Optional.of(learner));
+        var existing = new DiagnosticSession(instrument);
+        when(sessions.findFirstByInstrumentProfile_IdAndStatusInOrderByCreatedAtDesc(
+                instrument.getId(), List.of(DiagnosticStatus.COLLECTING_EVIDENCE,
+                        DiagnosticStatus.READY_FOR_TASK, DiagnosticStatus.TASK_ASSIGNED)))
+                .thenReturn(Optional.of(existing));
+        var result = service.current(learner.getId(), "ACOUSTIC_GUITAR");
+        assertTrue(result.isPresent());
+        assertEquals(existing.getId(), result.orElseThrow().id());
+        org.mockito.Mockito.verify(sessions, org.mockito.Mockito.never()).saveAndFlush(any());
+    }
+
+    @Test
+    void currentReturnsEmptyWhenProfileOrSessionIsMissing() {
+        when(learners.findById(learner.getId())).thenReturn(Optional.of(learner));
+        assertTrue(service.current(learner.getId(), "PIANO").isEmpty());
+        when(sessions.findFirstByInstrumentProfile_IdAndStatusInOrderByCreatedAtDesc(
+                instrument.getId(), List.of(DiagnosticStatus.COLLECTING_EVIDENCE,
+                        DiagnosticStatus.READY_FOR_TASK, DiagnosticStatus.TASK_ASSIGNED)))
+                .thenReturn(Optional.empty());
+        assertTrue(service.current(learner.getId(), "ACOUSTIC_GUITAR").isEmpty());
+    }
+
+    @Test
+    void currentDoesNotReadSomeoneElsesProfile() {
+        var stranger = new Learner("Other");
+        when(learners.findById(stranger.getId())).thenReturn(Optional.of(stranger));
+        assertTrue(service.current(stranger.getId(), "ACOUSTIC_GUITAR").isEmpty());
+        org.mockito.Mockito.verifyNoInteractions(sessions);
+    }
+
+    @Test
     void finishedIntakeIsIdempotent() {
         var session = new DiagnosticSession(instrument);
         when(learners.findById(learner.getId())).thenReturn(Optional.of(learner));

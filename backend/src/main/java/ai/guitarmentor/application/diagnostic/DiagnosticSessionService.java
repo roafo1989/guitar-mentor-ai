@@ -49,6 +49,19 @@ public class DiagnosticSessionService {
         return new StartResult(toView(saved), true);
     }
 
+    /** Read-only lookup matching the idempotent start selection policy. */
+    @Transactional(readOnly = true)
+    public java.util.Optional<SessionView> current(UUID learnerId, String instrumentCode) {
+        var learner = learners.findById(learnerId)
+                .orElseThrow(() -> new EntityNotFoundException("Learner not found"));
+        var profile = learner.getInstrumentProfiles().stream()
+                .filter(p -> p.getInstrumentCode().equals(instrumentCode))
+                .findFirst();
+        if (profile.isEmpty()) return java.util.Optional.empty();
+        return sessions.findFirstByInstrumentProfile_IdAndStatusInOrderByCreatedAtDesc(
+                profile.get().getId(), ACTIVE_STATUSES).map(DiagnosticSessionService::toView);
+    }
+
     @Transactional(readOnly = true)
     public SessionView get(UUID learnerId, UUID sessionId) {
         return toView(ownedSession(learnerId, sessionId, false));

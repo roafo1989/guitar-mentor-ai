@@ -46,13 +46,13 @@ const sections = [
 
 async function restoreProfile(): Promise<void> {
   const seq = ++generation;
-  const actorId = auth.actor?.accountId ?? null;
+  const actor = auth.actor;
   loading.value = true;
   recoveryError.value = null;
   try {
     const previous = learnerStore.learner?.id;
     if (!learnerStore.learner) await learnerStore.restore();
-    if (!active || seq !== generation || (secureUi && auth.actor?.accountId !== actorId)) return;
+    if (!active || seq !== generation || (secureUi && auth.actor !== actor)) return;
     if (learnerStore.error) throw learnerStore.error;
     // No new session or assignment is created by the home screen.
     const id = learnerStore.learner?.id ?? null;
@@ -62,13 +62,13 @@ async function restoreProfile(): Promise<void> {
     const hasGuitar = learnerStore.learner?.instruments.some(
       instrument => instrument.instrumentCode === 'ACOUSTIC_GUITAR',
     ) ?? false;
-    const next = await resolveHomeSummary(hasGuitar ? id : null, window.localStorage);
-    if (!active || seq !== generation || learnerStore.learner?.id !== id || (secureUi && auth.actor?.accountId !== actorId)) return;
+    const next = await resolveHomeSummary(hasGuitar ? id : null, window.localStorage, () => active && seq === generation && (!secureUi || auth.actor === actor));
+    if (!active || seq !== generation || learnerStore.learner?.id !== id || (secureUi && auth.actor !== actor)) return;
     summary.value = next;
   } catch (cause) {
-    if (active && seq === generation && (!secureUi || auth.actor?.accountId === actorId) && !(cause instanceof Error && cause.name === 'AbortError')) recoveryError.value = asApiFailure(cause);
+    if (active && seq === generation && (!secureUi || auth.actor === actor) && !(cause instanceof Error && cause.name === 'AbortError')) recoveryError.value = asApiFailure(cause);
   } finally {
-    if (active && seq === generation && (!secureUi || auth.actor?.accountId === actorId)) loading.value = false;
+    if (active && seq === generation && (!secureUi || auth.actor === actor)) loading.value = false;
   }
 }
 function refreshForLearner(): void {
@@ -78,7 +78,7 @@ function refreshForLearner(): void {
 watch(() => learnerStore.learner?.id, (now, old) => {
   if (now !== old) refreshForLearner();
 });
-watch(() => auth.actor?.accountId, (now, old) => {
+watch(() => auth.actor, (now, old) => {
   if (!secureUi || now === old) return;
   ++generation; summary.value = null; recoveryError.value = null; loading.value = true;
   if (now) void restoreProfile();

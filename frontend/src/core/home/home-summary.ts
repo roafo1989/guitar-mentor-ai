@@ -1,8 +1,9 @@
-import { isHttp, ApiFailure } from '../../shared/api-failure';
+import { ApiFailure } from '../../shared/api-failure';
 import { diagnosticService } from '../../entities/diagnostic/diagnostic.service';
+import { resolveCurrentDiagnostic, diagnosticSelectionKey } from '../../entities/diagnostic/current-diagnostic';
 import { onboardingService } from '../../entities/onboarding/onboarding.service';
 import { LearningHttpError, learningService } from '../../entities/attempt/learning.service';
-import type { DiagnosticSession, DiagnosticTask } from '../../shared/model/diagnostic.model';
+import type { DiagnosticTask } from '../../shared/model/diagnostic.model';
 
 export type HomeNextStep = 'profile' | 'onboarding' | 'diagnostics' | 'choose' | 'lesson' | 'result';
 export interface HomeSummary {
@@ -14,37 +15,20 @@ export interface HomeSummary {
 
 // The selection is intentionally local to this browser. Do not infer from its
 // absence that no server-side diagnostic sessions exist.
-export function selectedSessionKey(learnerId: string): string {
-  return 'guitar-mentor.diagnostic.' + learnerId + '.ACOUSTIC_GUITAR';
-}
+export const selectedSessionKey = diagnosticSelectionKey;
 
 export async function resolveHomeSummary(
   learnerId: string | null,
-  storage: Pick<Storage, 'getItem' | 'removeItem'>,
+  storage: Pick<Storage, 'getItem' | 'removeItem' | 'setItem'>,
+  isCurrent: () => boolean = () => true,
 ): Promise<HomeSummary> {
   const simple = (step: HomeNextStep): HomeSummary =>
     ({ step, title: null, exerciseCode: null, exerciseVersion: null });
   if (!learnerId) return simple('profile');
-  const key = selectedSessionKey(learnerId);
-  const selected = storage.getItem(key);
-  if (!selected) {
+  const session = await resolveCurrentDiagnostic(learnerId, storage, isCurrent);
+  if (!session) {
     const background = await onboardingService.get(learnerId, 'ACOUSTIC_GUITAR');
     return simple(background ? 'diagnostics' : 'onboarding');
-  }
-
-  let session: DiagnosticSession;
-  try {
-    session = await diagnosticService.get(learnerId, selected);
-  } catch (cause) {
-    // Only a 404 from GET session invalidates this browser's selection.
-    if (isHttp(cause, 404)) {
-      // A concurrent tab or selection change must not be overwritten by an old 404.
-      if (storage.getItem(key) !== selected) throw cause;
-      storage.removeItem(key);
-      const background = await onboardingService.get(learnerId, 'ACOUSTIC_GUITAR');
-      return simple(background ? 'diagnostics' : 'onboarding');
-    }
-    throw cause;
   }
   if (session.status === 'COLLECTING_EVIDENCE') return simple('diagnostics');
   if (session.status === 'READY_FOR_TASK') return simple('choose');

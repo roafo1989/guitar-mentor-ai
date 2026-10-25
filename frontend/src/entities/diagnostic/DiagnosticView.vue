@@ -5,6 +5,8 @@ import { onBeforeRouteLeave } from 'vue-router';
 import { useI18n } from 'vue-i18n';
 import { useLearnerStore } from '../../stores/learner.store';
 import { diagnosticService } from './diagnostic.service';
+import { resolveCurrentDiagnostic, diagnosticSelectionKey } from './current-diagnostic';
+import { auth, secureUi } from '../../core/auth/auth';
 import ExercisePreview from './ExercisePreview.vue';
 import { closeMetronome } from '../metronome/metronome-ui';
 import SubmissionPanel from '../attempt/SubmissionPanel.vue';
@@ -228,76 +230,78 @@ async function loadRecommendations(): Promise<void> {
 }
 const instrumentCode = 'ACOUSTIC_GUITAR';
 
-function storageKey(learnerId: string): string {
-  return 'guitar-mentor.diagnostic.' + learnerId + '.' + instrumentCode;
+const storageKey = diagnosticSelectionKey;
+
+async function hydrateSession(learnerId: string, loaded: DiagnosticSession): Promise<void> {
+  ++taskGeneration;
+  task.value = null;
+  taskFailure.value = null;
+  taskLoading.value = false;
+  session.value = loaded;
+  writeError.value = null;
+  if (loaded.status === 'TASK_ASSIGNED') await loadTask(learnerId, loaded.id);
+  else if (loaded.status === 'READY_FOR_TASK') await loadCatalog();
 }
 
 async function restoreSession(): Promise<void> {
   const seq = ++restoreGeneration;
+  const actor = auth.actor;
+  const valid = () => active && seq === restoreGeneration &&
+    (!secureUi || auth.actor === actor);
   loading.value = true;
   restoreError.value = null;
   failedRestoreRead.value = false;
-  const selectedLearner = learnerStore.learner?.id ?? window.localStorage.getItem('guitar-mentor.learnerId');
   try {
-    if (!learnerStore.learner) await learnerStore.restore();
-    if (learnerStore.error) throw learnerStore.error;
-    const id = learnerStore.learner?.id;
-    if (!id || id !== selectedLearner) return;
-    const key = storageKey(id);
-    const stored = window.localStorage.getItem(key);
-    if (!stored) return;
-    let loaded: DiagnosticSession;
-    try {
-      loaded = await diagnosticService.get(id, stored);
-    } catch (cause) {
-      if (isHttp(cause, 404)) {
-        if (active && seq === restoreGeneration && learnerStore.learner?.id === id
-          && window.localStorage.getItem(key) === stored) {
-          window.localStorage.removeItem(key);
-          session.value = null;
-        }
-        return;
-      }
-      throw cause;
+    if (!learnerStore.learner || (secureUi && learnerStore.learner.id !== actor?.learnerId)) {
+      await learnerStore.restore();
     }
-    if (!active || seq !== restoreGeneration || learnerStore.learner?.id !== id
-      || window.localStorage.getItem(key) !== stored) return;
-    session.value = loaded;
-    if (loaded.status !== 'TASK_ASSIGNED') { ++taskGeneration; task.value = null; taskFailure.value = null; taskLoading.value = false; }
-    writeError.value = null;
-    if (loaded.status === 'TASK_ASSIGNED') await loadTask(id, loaded.id);
-    if (loaded.status === 'READY_FOR_TASK') await loadCatalog();
+    if (!valid()) return;
+    if (learnerStore.error) throw learnerStore.error;
+    const id = secureUi ? actor?.learnerId : learnerStore.learner?.id;
+    if (!id || learnerStore.learner?.id !== id) return;
+    const loaded = await resolveCurrentDiagnostic(id, window.localStorage, valid);
+    if (!valid() || learnerStore.learner?.id !== id) return;
+    if (loaded) await hydrateSession(id, loaded);
+    else { ++taskGeneration; session.value = null; task.value = null; }
   } catch (cause) {
-    if (active && seq === restoreGeneration && !(cause instanceof Error && cause.name === 'AbortError')) {
+    if (valid() && !(cause instanceof Error && cause.name === 'AbortError')) {
       restoreError.value = asApiFailure(cause);
       failedRestoreRead.value = true;
     }
   } finally {
-    if (active && seq === restoreGeneration) loading.value = false;
+    if (valid()) loading.value = false;
   }
 }
+
+watch(() => auth.actor, (current, previous) => {
+  if (!secureUi || current === previous) return;
+  ++restoreGeneration; ++taskGeneration; ++catalogGeneration; ++recommendationGeneration;
+  session.value = null; task.value = null; loading.value = true;
+  if (current) void restoreSession();
+});
 onMounted(() => { void restoreSession(); });
 
 async function start(): Promise<void> {
   const id = learnerStore.learner?.id;
-  if (!id || busy.value || loading.value || failedRestoreRead.value) return;
+  const actor = auth.actor;
+  if (!id || busy.value || loading.value || failedRestoreRead.value || session.value) return;
   if (window.localStorage.getItem(storageKey(id))) {
-    // A local selection exists but no session is shown. Recover it visibly; never silently ignore Start.
     await restoreSession();
-    if (!session.value && !failedRestoreRead.value) error.value = t('diagnostic.startRecoveryHint');
     return;
   }
   busy.value = true;
   error.value = '';
   writeError.value = null;
-  failedRestoreRead.value = false;
   try {
-    session.value = await diagnosticService.start(id, instrumentCode);
-    window.localStorage.setItem(storageKey(id), session.value.id);
+    const started = await diagnosticService.start(id, instrumentCode);
+    if (!active || learnerStore.learner?.id !== id || (secureUi && auth.actor !== actor)) return;
+    window.localStorage.setItem(storageKey(id), started.id);
+    await hydrateSession(id, started);
   } catch (cause) {
-    writeError.value = asApiFailure(cause);
+    if (active && learnerStore.learner?.id === id && (!secureUi || auth.actor === actor))
+      writeError.value = asApiFailure(cause);
   } finally {
-    busy.value = false;
+    if (active && (!secureUi || auth.actor === actor)) busy.value = false;
   }
 }
 
