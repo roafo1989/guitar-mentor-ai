@@ -353,6 +353,7 @@ function Invoke-PilotBackendBuild([string]$Backend, [string]$PostgresBin) {
         Write-Host 'Подготовка отдельного временного PostgreSQL для Java-тестов.'
         Invoke-PilotTool (Join-Path $PostgresBin 'initdb.exe') @(
             '--pgdata',$data,'--username=gm_build_test','--encoding=UTF8','--locale=C',
+            '--locale-provider=builtin','--builtin-locale=C.UTF-8',
             '--auth-local=trust','--auth-host=scram-sha-256',"--pwfile=$passwordFile") $Backend
         Remove-Item -LiteralPath $passwordFile
         Invoke-PilotTool (Join-Path $PostgresBin 'pg_ctl.exe') @('-D',$data,'-l',
