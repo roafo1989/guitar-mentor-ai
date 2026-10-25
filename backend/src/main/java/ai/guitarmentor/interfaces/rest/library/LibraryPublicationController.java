@@ -157,6 +157,7 @@ public class LibraryPublicationController {
                     || !BASES.contains(right.rightsBasis())
                     || (right.provenance()!=null && !PROVENANCES.contains(right.provenance()))
                     || (right.attribution()!=null && right.attribution().length()>2000)
+                    || (right.attribution()!=null && right.attribution().length()>2000)
                     || right.rightsEvidence()==null || right.rightsEvidence().isBlank()
                     || right.rightsEvidence().trim().length()<8
                     || right.rightsEvidence().length()>500
@@ -193,9 +194,16 @@ public class LibraryPublicationController {
                 """).param("publication",pub).param("id",asset.get("id"))
                 .param("name",asset.get("original_name")).param("format",asset.get("format"))
                 .param("size",asset.get("byte_size")).param("sha",asset.get("sha256"))
-                .param("key",asset.get("object_key")).param("provenance",right.provenance())
+                .param("key",asset.get("object_key"))
+                .param("provenance",right.provenance()==null?switch(right.rightsBasis()) {
+                    case "OWN_WORK" -> "CREATED";
+                    case "LICENSE" -> "LICENSED";
+                    case "PUBLIC_DOMAIN" -> "PUBLIC_DOMAIN";
+                    default -> "PERMISSION";
+                }:right.provenance())
                 .param("basis",right.rightsBasis())
-                .param("evidence",right.rightsEvidence().trim()).update();
+                .param("evidence",right.rightsEvidence().trim())
+                .param("attribution",right.attribution()==null?"":right.attribution().trim()).update();
         }
         audit(pub,owner,"PUBLISH",null);
         var item=jdbc.sql("SELECT * FROM library_publications WHERE id=:id")
