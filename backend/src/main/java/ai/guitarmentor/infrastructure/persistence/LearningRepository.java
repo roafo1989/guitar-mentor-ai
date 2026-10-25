@@ -42,6 +42,12 @@ public class LearningRepository {
             """, Boolean.class, taskId, sessionId, learnerId));
     }
 
+    /** Durable successor lookup, independent of transient request caching. */
+    public Optional<UUID> successor(UUID taskId) {
+        return jdbc.query("SELECT target_task_id FROM lesson_transitions WHERE source_task_id=?",
+            (rs,n)->rs.getObject(1,UUID.class),taskId).stream().findFirst();
+    }
+
     public void initialize(UUID taskId) {
         jdbc.update("""
             INSERT INTO task_learning_state(task_id,state,version,updated_at)
