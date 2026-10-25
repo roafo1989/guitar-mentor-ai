@@ -8,7 +8,9 @@ export const DEFAULT_QUERY: CatalogQuery = { q:'', format:'', parserStatus:'', s
 export const LIMIT = 20;
 export const MAX_OFFSET = 200000;
 export class CatalogError extends Error {
-  constructor(public readonly kind: 'NETWORK'|'HTTP'|'INVALID_RESPONSE'|'TIMEOUT'|'RESPONSE_LIMIT', public readonly status = 0) { super(kind); }
+  readonly kind: 'NETWORK'|'HTTP'|'INVALID_RESPONSE'|'TIMEOUT'|'RESPONSE_LIMIT';
+  readonly status: number;
+  constructor(kind: 'NETWORK'|'HTTP'|'INVALID_RESPONSE'|'TIMEOUT'|'RESPONSE_LIMIT', status = 0) { super(kind); this.kind=kind; this.status=status; }
 }
 const obj = (v: unknown): v is Record<string,unknown> => !!v && typeof v === 'object' && !Array.isArray(v);
 const str = (v: unknown): v is string => typeof v === 'string';
