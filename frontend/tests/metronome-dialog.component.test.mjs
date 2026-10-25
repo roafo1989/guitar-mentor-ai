@@ -173,6 +173,8 @@ test('real dialog applies typed BPM and starts; invalid input preserves BPM and 
     await nextTick();
     const input = view.find('input', n => n.props.id === 'metronome-bpm');
     assert.ok(input, 'real BPM field rendered');
+    assert.notEqual(globalThis.document.activeElement, input,
+      'opening metronome must not focus the BPM field or raise a mobile keyboard');
     // This is the actual DOM input event, not a direct parser invocation.
     input.props.onInput({ target: { value: '90' } });
     await nextTick();
