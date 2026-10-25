@@ -24,10 +24,11 @@ const dirty=computed(()=>JSON.stringify(draft.value)!==JSON.stringify(applied.va
 const page=computed(()=>Math.floor(offset.value/LIMIT)+1);
 const canNext=computed(()=>!dirty.value && listStatus.value==='ready' && nextOffset.value!==null && nextOffset.value<=MAX_OFFSET);
 let listSeq=0,detailSeq=0;
+let failedRequest:{query:CatalogQuery;offset:number;history:number[]}|null=null;
 let listAbort:AbortController|null=null,detailAbort:AbortController|null=null;
 function abortRequests():void {++listSeq;++detailSeq;listAbort?.abort();detailAbort?.abort();listAbort=null;detailAbort=null;}
 function clearDetail():void {++detailSeq;detailAbort?.abort();detailAbort=null;selected.value=null;detail.value=null;detailStatus.value='none';detailError.value='';}
-function clearAll():void {abortRequests();items.value=[];offset.value=0;nextOffset.value=null;visited.value=[];listStatus.value='idle';listError.value='';selected.value=null;detail.value=null;detailStatus.value='none';detailError.value='';draft.value={...DEFAULT_QUERY};applied.value={...DEFAULT_QUERY};}
+function clearAll():void {failedRequest=null;abortRequests();items.value=[];offset.value=0;nextOffset.value=null;visited.value=[];listStatus.value='idle';listError.value='';selected.value=null;detail.value=null;detailStatus.value='none';detailError.value='';draft.value={...DEFAULT_QUERY};applied.value={...DEFAULT_QUERY};}
 function errorKey(cause:unknown,isDetail=false):string {
   if(cause instanceof CatalogError) {
     if(cause.kind==='TIMEOUT')return 'musicArchive.timeout';
@@ -44,13 +45,14 @@ async function search(query:CatalogQuery,at:number,history:number[],force=false)
   if(!auth.actor)return;
   if(!force && listStatus.value==='loading' && at===offset.value && JSON.stringify(query)===JSON.stringify(applied.value))return;
   const actor=auth.actor;
+  failedRequest={query:{...query},offset:at,history:[...history]};
   abortRequests(); const seq=listSeq;const controller=new AbortController();listAbort=controller;
   selected.value=null;detail.value=null;detailStatus.value='none';
   items.value=[];nextOffset.value=null;listError.value='';listStatus.value='loading';
   try {
     const result=await listWorks(query,at,controller.signal);
     if(controller.signal.aborted || listSeq!==seq || auth.actor!==actor)return;
-    applied.value={...query};offset.value=at;visited.value=[...history];items.value=result.items;nextOffset.value=result.nextOffset;listStatus.value='ready';
+    applied.value={...query};offset.value=at;visited.value=[...history];items.value=result.items;nextOffset.value=result.nextOffset;listStatus.value='ready';failedRequest=null;
   } catch(e) {
     if(controller.signal.aborted || listSeq!==seq || auth.actor!==actor)return;
     listError.value=errorKey(e);listStatus.value='error';
@@ -68,7 +70,7 @@ function submit():void {
 function reset():void {draft.value={...DEFAULT_QUERY};formError.value='';void search({...DEFAULT_QUERY},0,[]);}
 function goNext():void {if(canNext.value && nextOffset.value!==null)void search({...applied.value},nextOffset.value,[...visited.value,offset.value]);}
 function goPrevious():void {if(!dirty.value && visited.value.length){const offsets=visited.value.slice(0,-1);void search({...applied.value},visited.value[visited.value.length-1],offsets);}}
-function retry():void {void search({...applied.value},offset.value,[...visited.value],true);}
+function retry():void {const target=failedRequest; if(target)void search({...target.query},target.offset,[...target.history],true);}
 async function choose(id:string):Promise<void> {
   if(!auth.actor)return;
   const actor=auth.actor;clearDetail();selected.value=id;const seq=detailSeq;const controller=new AbortController();detailAbort=controller;detailStatus.value='loading';
