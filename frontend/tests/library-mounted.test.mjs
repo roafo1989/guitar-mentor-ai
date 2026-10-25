@@ -3,153 +3,111 @@ import assert from 'node:assert/strict';
 import { readFile } from 'node:fs/promises';
 import { parse, compileScript } from 'vue/compiler-sfc';
 import ts from 'typescript';
-import { createRenderer, reactive, nextTick } from 'vue';
-import { createI18n } from 'vue-i18n';
+import { createRenderer, reactive, h, nextTick } from 'vue';
 
-// Mount the actual #163 Vue SFC with a headless host renderer and deterministic backend.
-// This catches stale busy flags and async ordering; unlike string checks, it runs setup()/UI events.
-const asModule = code => 'data:text/javascript,' + encodeURIComponent(code);
-const vueUrl = import.meta.resolve('vue');
-const authModule = asModule('export const auth = globalThis.__libraryAuth;');
-const serviceModule = asModule('export const libraryService = globalThis.__libraryBackend; export const validateUpload = () => null;');
-const apiModule = asModule("export const asApiFailure = e => e; export const apiFailureKey = () => 'apiErrors.http';");
-let View;
-async function realView() {
-  if (View) return View;
-  const source = await readFile(new URL('../src/entities/library/LibraryView.vue', import.meta.url), 'utf8');
-  const { descriptor, errors } = parse(source, { filename: 'LibraryView.vue' });
-  assert.equal(errors.length, 0);
-  const compiled = compileScript(descriptor, { id: 'private-library', inlineTemplate: true });
-  const js = ts.transpileModule(compiled.content,
-    { compilerOptions: { module: ts.ModuleKind.ESNext, target: ts.ScriptTarget.ES2022 } }).outputText;
-  const mapped = js.replace(/from (['"])(.*?)\1/g, (_whole, _quote, name) => {
-    const sources = {
-      vue: vueUrl,
-      'vue-i18n': import.meta.resolve('vue-i18n'),
-      '../../core/auth/auth': authModule,
-      '../../shared/api-failure': apiModule,
-      './library.service': serviceModule,
+// Execute real LibraryView <script setup> lifecycle and methods with mock backend,
+// independent of DOM-specific v-model event directives.
+const asModule=code=>'data:text/javascript,'+encodeURIComponent(code);
+const vueUrl=import.meta.resolve('vue');
+let component;
+async function realSetupComponent() {
+  if (component) return component;
+  const source=await readFile(new URL('../src/entities/library/LibraryView.vue',import.meta.url),'utf8');
+  const {descriptor,errors}=parse(source,{filename:'LibraryView.vue'});
+  assert.equal(errors.length,0);
+  const script=compileScript(descriptor,{id:'library-unit',inlineTemplate:false});
+  const js=ts.transpileModule(script.content,{
+    compilerOptions:{module:ts.ModuleKind.ESNext,target:ts.ScriptTarget.ES2022},
+  }).outputText;
+  const mapped=js.replace(/from (['"])(.*?)\1/g,(_full,_q,id)=>{
+    const dependencies={
+      vue:vueUrl,
+      'vue-i18n':asModule("export const useI18n=()=>({t:key=>key});"),
+      '../../core/auth/auth':asModule("export const auth=globalThis.__libraryTestAuth;"),
+      '../../shared/api-failure':asModule("export const asApiFailure=e=>e; export const apiFailureKey=()=> 'apiErrors.http';"),
+      './library.service':asModule("export const libraryService=globalThis.__libraryTestApi; export const validateUpload=()=>null;"),
     };
-    assert.ok(sources[name], 'unexpected runtime import ' + name);
-    return 'from ' + JSON.stringify(sources[name]);
+    assert.ok(dependencies[id],'unexpected dependency '+id);
+    return 'from '+JSON.stringify(dependencies[id]);
   });
-  View = (await import(asModule(mapped))).default;
-  return View;
+  component=(await import(asModule(mapped))).default;
+  return component;
 }
-function renderer() {
-  function node(tag, text = '') { return { tag, text, props: {}, children: [], parent: null }; }
-  const remove = n => {
-    if (!n.parent) return;
-    const siblings = n.parent.children;
-    const index = siblings.indexOf(n);
-    if (index !== -1) siblings.splice(index, 1);
-    n.parent = null;
-  };
+function minimalRenderer() {
+  function node(tag){return {tag,parent:null,children:[],text:'',props:{}};}
+  function remove(n){
+    if(!n.parent)return;
+    const siblings=n.parent.children;
+    const pos=siblings.indexOf(n);
+    if(pos>=0)siblings.splice(pos,1);
+    n.parent=null;
+  }
   return createRenderer({
-    createElement: tag => node(tag),
-    createText: value => node('#text', value),
-    createComment: value => node('#comment', value),
-    setText(n, value) { n.text = value; },
-    setElementText(n, value) { n.text = value; n.children = []; },
-    patchProp(n, key, _old, value) { n.props[key] = value; },
-    insert(n, parent, anchor = null) {
-      if (n.parent) remove(n);
-      n.parent = parent;
-      const index = parent.children.indexOf(anchor);
-      if (index === -1) parent.children.push(n);
-      else parent.children.splice(index, 0, n);
-    },
-    remove,
-    parentNode: n => n.parent,
-    nextSibling: n => n.parent?.children[n.parent.children.indexOf(n)+1] ?? null,
+    createElement:node,createText:value=>({...node('#text'),text:value}),
+    createComment:value=>({...node('#comment'),text:value}),
+    setText(n,value){n.text=value;},setElementText(n,value){n.text=value;n.children=[];},
+    patchProp(n,k,_prev,v){n.props[k]=v;},
+    insert(n,p,anchor=null){if(n.parent)remove(n);n.parent=p;const i=p.children.indexOf(anchor);if(i<0)p.children.push(n);else p.children.splice(i,0,n);},
+    remove,parentNode:n=>n.parent,nextSibling:n=>n.parent?.children[n.parent.children.indexOf(n)+1]??null,
   });
 }
-const flatten = n => [n, ...(n.children ?? []).flatMap(flatten)];
-async function settle() {
-  for (let i = 0; i < 15; i++) { await Promise.resolve(); await nextTick(); }
+function card(id,title){
+  return {id,title,type:'COMPOSITION',author:null,state:'READY',
+    visibility:'PRIVATE',reviewStatus:'UNREVIEWED',revision:1,
+    createdAt:'2026-10-25T00:00:00Z',updatedAt:'2026-10-25T00:00:00Z',files:[]};
 }
-function card(id, name) {
-  return {
-    id, title: name, type: 'COMPOSITION', author: null, state: 'READY',
-    visibility: 'PRIVATE', reviewStatus: 'UNREVIEWED', revision: 1,
-    createdAt: '2026-10-25T00:00:00Z', updatedAt: '2026-10-25T00:00:00Z',
-    files: [],
+const idA='11111111-1111-4111-8111-111111111111';
+const idB='22222222-2222-4222-8222-222222222222';
+async function flush(){for(let i=0;i<10;i++){await Promise.resolve();await nextTick();}}
+
+test('#163 mounted setup: latest detail wins; upload/delete release busy; account switch wipes drafts',async()=>{
+  globalThis.__libraryTestAuth=reactive({actor:{accountId:'A'}});
+  const a=card(idA,'Alpha'),b=card(idB,'Bravo'),c=card('33333333-3333-4333-8333-333333333333','New');
+  let resolveA,resolveB;
+  let uploads=0,deletions=0,lists=0;
+  globalThis.__libraryTestApi={
+    async page(){lists++;return {items:[a,b],nextCursor:null};},
+    detail(id){return new Promise(resolve=>{if(id===idA)resolveA=resolve;else resolveB=resolve;});},
+    async upload(){uploads++;return c;},
+    async remove(){deletions++;},
+    async edit(){return a;},async download(){},
   };
-}
-const first='11111111-1111-4111-8111-111111111111';
-const second='22222222-2222-4222-8222-222222222222';
-
-test('real mounted library: upload/delete must unlock UI; late detail must not override current selection', async () => {
-  const actor = reactive({ actor: { accountId: 'account-A' } });
-  globalThis.__libraryAuth = actor;
-  const a = card(first, 'Alpha');
-  const b = card(second, 'Bravo');
-  const pages = [];
-  let resolveA, resolveB;
-  globalThis.__libraryBackend = {
-    async page() { pages.push(true); return { items: pages.length === 1 ? [a,b] : [a,b], nextCursor: null }; },
-    async detail(id) { return new Promise(resolve => { if(id===first) resolveA=resolve; else resolveB=resolve; }); },
-    async upload() { return card('33333333-3333-4333-8333-333333333333', 'New material'); },
-    async remove() {},
-    async edit() { return a; },
-    async download() {},
-  };
-  let app;
-  try {
-    const Component=await realView();
-    const root={tag:'root',children:[],parent:null};
-    app=renderer().createApp(Component);
-    const ru=JSON.parse(await readFile(new URL('../src/i18n/ru.json',import.meta.url),'utf8'));
-    app.use(createI18n({legacy:false,locale:'ru',messages:{ru}}));
-    app.mount(root);
-    await settle();
-    const nodes=()=>flatten(root);
-    assert.ok(nodes().some(n=>n.text==='Alpha'));
-    const choose = name => nodes().find(n=>n.tag==='button' && n.props.class==='library-item' &&
-      n.children.some(c=>c.text===name));
-    choose('Alpha').props.onClick();
-    choose('Bravo').props.onClick();
-    await settle();
-    resolveB(b);
-    await settle();
-    resolveA(a);
-    await settle();
-    assert.ok(nodes().some(n=>n.tag==='h3' && n.text==='Bravo'),
-      'a slower Alpha GET must not replace the newer Bravo selection');
-
-    const forms=nodes().filter(n=>n.tag==='form');
-    const titleInput=nodes().find(n=>n.tag==='input' && n.props.maxlength===150 && n.props.type==='text');
-    assert.ok(titleInput,'upload title input exists');
-    titleInput.props['onUpdate:modelValue']('New material');
-    const fileInput=nodes().find(n=>n.tag==='input' && n.props.type==='file');
-    fileInput.props.onChange({target:{ files:[{name:'test.pdf',size:5,lastModified:1}] }});
-    await settle();
-    assert.ok(forms[0].props.onSubmit);
-    forms[0].props.onSubmit({preventDefault() {}});
-    await settle();
-    const uploadButton=nodes().find(n=>n.tag==='button' && n.props.type==='submit' &&
-      n.text==='Загрузить');
-    assert.ok(uploadButton, 'after successful upload UI returns to normal enabled state');
-    assert.equal(uploadButton.props.disabled, true, 'form is cleared after success, not stuck busy');
-    assert.ok(nodes().some(n=>n.text==='Материал успешно сохранён.'));
-
-    const removeButton=nodes().find(n=>n.tag==='button' && n.text==='Удалить');
-    assert.ok(removeButton);
-    removeButton.props.onClick();
-    await settle();
-    const confirm=nodes().find(n=>n.tag==='button' && n.text==='Да, удалить');
-    assert.ok(confirm);
-    confirm.props.onClick();
-    await settle();
-    assert.ok(!nodes().some(n=>n.tag==='progress'), 'successful DELETE must not leave busy spinner');
-
-    actor.actor={accountId:'account-B'};
-    await settle();
-    assert.ok(!nodes().some(n=>n.tag==='h3' && n.text==='Bravo'),
-      'after account switch previous detail is removed');
+  const Base=await realSetupComponent();
+  let binding,app;
+  try{
+    const Wrapper={setup(props,context){binding=Base.setup(props,context);return()=>h('section');}};
+    app=minimalRenderer().createApp(Wrapper);
+    app.mount({tag:'root',children:[],parent:null});
+    await flush();
+    assert.equal(binding.entries.value.length,2);
+    const pA=binding.openCard(idA);
+    const pB=binding.openCard(idB);
+    resolveB(b);await pB;
+    resolveA(a);await pA;
+    assert.equal(binding.selected.value.title,'Bravo','older detail response cannot overwrite newer selection');
+    binding.title.value='New material';
+    binding.files.value=[{name:'sample.pdf',size:5,lastModified:1}];
+    await binding.upload();
+    assert.equal(uploads,1);
+    assert.equal(binding.busy.value,false,'upload must release busy after list reload');
+    assert.equal(binding.selected.value.id,c.id);
+    assert.equal(binding.title.value,'');
+    binding.removing.value=true;
+    await binding.removeCard();
+    assert.equal(deletions,1);
+    assert.equal(binding.busy.value,false,'delete must release busy after list reload');
+    assert.equal(binding.selected.value,null);
+    binding.editTitle.value='private old-account title';
+    binding.editAuthor.value='private old-account author';
+    globalThis.__libraryTestAuth.actor={accountId:'B'};
+    await flush();
+    assert.equal(binding.editTitle.value,'');
+    assert.equal(binding.editAuthor.value,'');
+    assert.equal(binding.entries.value.length,2,'fresh request after actor switch is allowed');
+    assert.ok(lists>=4);
   } finally {
     app?.unmount();
-    delete globalThis.__libraryAuth;
-    delete globalThis.__libraryBackend;
+    delete globalThis.__libraryTestAuth;
+    delete globalThis.__libraryTestApi;
   }
 });
