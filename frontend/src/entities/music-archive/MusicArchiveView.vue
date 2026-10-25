@@ -92,16 +92,15 @@ onBeforeUnmount(clearAll);
 </script>
 <template>
 <section class="music-archive" aria-labelledby="archive-title">
-  <h1 id="archive-title">{{t('musicArchive.title')}}</h1>
-  <p class="archive-muted">{{t('musicArchive.description')}}</p>
+  <header class="archive-heading"><div><p class="archive-eyebrow">{{t('musicArchive.eyebrow')}}</p><h1 id="archive-title">{{t('musicArchive.title')}}</h1><p class="archive-intro">{{t('musicArchive.description')}}</p></div></header>
   <p v-if="!auth.actor" role="status">{{t('musicArchive.signIn')}}</p>
   <template v-else>
     <form class="archive-search" @submit.prevent="submit">
+      <label class="archive-search-label" for="archive-q">{{t('musicArchive.searchLabel')}}</label>
       <div class="archive-query">
-        <label for="archive-q">{{t('musicArchive.searchLabel')}}</label>
-        <input id="archive-q" v-model="draft.q" maxlength="150" type="search" autocomplete="off" />
-        <button type="submit">{{t('musicArchive.search')}}</button>
-        <button type="button" @click="reset">{{t('musicArchive.reset')}}</button>
+        <div class="archive-input-wrap"><svg aria-hidden="true" viewBox="0 0 24 24" width="19" height="19" fill="none" stroke="currentColor" stroke-width="1.8"><circle cx="10.8" cy="10.8" r="6.3"/><path d="m16 16 4.5 4.5"/></svg><input id="archive-q" v-model="draft.q" maxlength="150" type="search" autocomplete="off" :placeholder="t('musicArchive.searchPlaceholder')" /></div>
+        <button class="archive-button archive-primary" type="submit">{{t('musicArchive.search')}}</button>
+        <button class="archive-button archive-secondary" type="button" @click="reset">{{t('musicArchive.reset')}}</button>
       </div>
       <div class="archive-filters">
         <label>{{t('musicArchive.format')}}<select v-model="draft.format">
@@ -114,35 +113,40 @@ onBeforeUnmount(clearAll);
           <option value="title">{{t('musicArchive.sortTitle')}}</option><option value="artist">{{t('musicArchive.sortArtist')}}</option><option value="title_desc">{{t('musicArchive.sortTitleDesc')}}</option>
         </select></label>
       </div>
-      <p v-if="formError" role="alert">{{t(formError)}}</p>
-      <p v-if="dirty" role="status">{{t('musicArchive.applyChanges')}}</p>
+      <p v-if="formError" class="archive-alert" role="alert">{{t(formError)}}</p>
+      <p v-if="dirty" class="archive-hint" role="status">{{t('musicArchive.applyChanges')}}</p>
     </form>
     <div class="archive-layout">
       <section :aria-busy="listStatus==='loading'" aria-labelledby="archive-results">
-        <h2 id="archive-results">{{t('musicArchive.results')}}</h2>
-        <p v-if="listStatus==='loading'" role="status">{{t('musicArchive.loading')}}</p>
-        <div v-else-if="listStatus==='error'" role="alert"><p>{{t(listError)}}</p><button type="button" @click="retry">{{t('musicArchive.retry')}}</button></div>
-        <p v-else-if="listStatus==='ready' && !items.length" role="status">{{t(applied.q || applied.format || applied.parserStatus ? 'musicArchive.noMatches':'musicArchive.empty')}}</p>
+        <h2 id="archive-results" class="archive-section-title">{{t('musicArchive.results')}}</h2>
+        <p v-if="listStatus==='loading'" class="archive-state" role="status">{{t('musicArchive.loading')}}</p>
+        <div v-else-if="listStatus==='error'" class="archive-state archive-alert" role="alert"><p>{{t(listError)}}</p><button class="archive-button archive-secondary" type="button" @click="retry">{{t('musicArchive.retry')}}</button></div>
+        <div v-else-if="listStatus==='ready' && !items.length" class="archive-empty" role="status">
+          <div class="archive-empty-icon" aria-hidden="true"><svg viewBox="0 0 24 24" width="28" height="28" fill="none" stroke="currentColor" stroke-width="1.6"><path d="M9 18V5l12-2v13"/><ellipse cx="6" cy="18" rx="3" ry="2"/><ellipse cx="18" cy="16" rx="3" ry="2"/></svg></div>
+          <h3>{{t(applied.q || applied.format || applied.parserStatus ? 'musicArchive.noMatchesTitle':'musicArchive.emptyTitle')}}</h3>
+          <p>{{t(applied.q || applied.format || applied.parserStatus ? 'musicArchive.noMatches':'musicArchive.empty')}}</p>
+          <button v-if="applied.q || applied.format || applied.parserStatus" class="archive-button archive-secondary" type="button" @click="reset">{{t('musicArchive.reset')}}</button>
+        </div>
         <ul v-if="listStatus==='ready' && items.length" class="archive-results-list">
           <li v-for="work in items" :key="work.id">
             <button :ref="(el)=>{if(el)resultButtons[work.id]=el as HTMLElement}" type="button" :aria-pressed="selected===work.id" class="archive-work" @click="choose(work.id)">
               <strong>{{textOr(work.title,'musicArchive.untitled')}}</strong>
               <span>{{textOr(work.artist,'musicArchive.artistMissing')}}</span>
-              <small>{{work.identityStatus}}</small>
+              
             </button>
           </li>
         </ul>
-        <div v-if="listStatus==='ready'" class="archive-pagination">
-          <button type="button" :disabled="dirty || !visited.length" @click="goPrevious">{{t('musicArchive.previous')}}</button>
+        <div v-if="listStatus==='ready' && (items.length>0 || visited.length>0)" class="archive-pagination">
+          <button class="archive-button archive-secondary" type="button" :disabled="dirty || !visited.length" @click="goPrevious">{{t('musicArchive.previous')}}</button>
           <span role="status">{{t('musicArchive.page',{page})}}</span>
-          <button type="button" :disabled="!canNext" @click="goNext">{{t('musicArchive.next')}}</button>
+          <button class="archive-button archive-secondary" type="button" :disabled="!canNext" @click="goNext">{{t('musicArchive.next')}}</button>
         </div>
         <p v-if="listStatus==='ready' && nextOffset!==null && nextOffset>MAX_OFFSET">{{t('musicArchive.limitReached')}}</p>
       </section>
       <section v-if="selected" class="archive-detail" :aria-busy="detailStatus==='loading'">
-        <button type="button" @click="backToResults">{{t('musicArchive.back')}}</button>
+        <button class="archive-button archive-secondary archive-back" type="button" @click="backToResults">{{t('musicArchive.back')}}</button>
         <p v-if="detailStatus==='loading'" role="status">{{t('musicArchive.loadingDetail')}}</p>
-        <div v-else-if="detailStatus==='error'" role="alert"><p>{{t(detailError)}}</p><button type="button" @click="selected && choose(selected)">{{t('musicArchive.retry')}}</button></div>
+        <div v-else-if="detailStatus==='error'" role="alert"><p>{{t(detailError)}}</p><button class="archive-button archive-secondary" type="button" @click="selected && choose(selected)">{{t('musicArchive.retry')}}</button></div>
         <template v-else-if="detailStatus==='ready' && detail">
           <h2 ref="heading" tabindex="-1">{{textOr(detail.work.title,'musicArchive.untitled')}}</h2>
           <p>{{textOr(detail.work.artist,'musicArchive.artistMissing')}}</p>
@@ -164,33 +168,71 @@ onBeforeUnmount(clearAll);
           </article>
         </template>
       </section>
-      <aside v-else class="archive-muted">{{t('musicArchive.choose')}}</aside>
+      <aside v-else-if="listStatus==='ready' && items.length" class="archive-placeholder">{{t('musicArchive.choose')}}</aside>
     </div>
   </template>
 </section>
 </template>
 <style scoped>
-.music-archive{max-width:1280px;margin:0 auto;padding:24px;min-width:0}
-.archive-muted{color:var(--gm-text-muted,#667085)}
-.archive-search,.archive-detail,.archive-arrangement{border:1px solid var(--gm-border,#ddd);border-radius:14px;padding:18px;margin:18px 0;background:var(--gm-surface,#fff)}
-.archive-query{display:flex;align-items:end;flex-wrap:wrap;gap:12px}
-.archive-query label{flex-basis:100%}
-.archive-query input{flex:1 1 210px;min-width:0}
-.archive-filters{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:16px;margin-top:16px}
-.archive-filters label{display:flex;flex-direction:column;gap:6px}
-.archive-filters select{width:100%;min-width:0}
+
+.music-archive{max-width:1280px;margin:0 auto;padding:32px 24px 56px;min-width:0;color:var(--gm-text,#162331)}
+.archive-heading{margin-bottom:26px}
+.archive-eyebrow{font-size:12px;letter-spacing:.11em;font-weight:750;text-transform:uppercase;color:var(--gm-primary,#28776d);margin:0 0 6px}
+.archive-heading h1{font-size:clamp(26px,2.5vw,36px);line-height:1.2;letter-spacing:-.025em;margin:0 0 12px}
+.archive-intro{margin:0;line-height:1.55;color:var(--gm-muted,#53636d);font-size:14px;max-width:780px}
+.archive-muted{color:var(--gm-muted,#53636d)}
+.archive-search{border:1px solid var(--gm-border,#dde5e4);border-radius:var(--gm-radius-lg,16px);background:var(--gm-surface,#fff);padding:22px 24px;margin:0 0 30px;box-shadow:var(--gm-shadow,0 4px 22px #1623310f)}
+.archive-search-label{display:block;font-size:13px;font-weight:650;margin:0 0 9px}
+.archive-query{display:flex;align-items:stretch;flex-wrap:wrap;gap:10px}
+.archive-input-wrap{display:flex;align-items:center;gap:10px;border:1px solid var(--gm-control-border,#7c8987);border-radius:var(--gm-radius-sm,8px);min-height:44px;flex:1 1 260px;padding:0 13px;min-width:0;color:var(--gm-muted,#53636d);background:#fff}
+.archive-input-wrap:focus-within{border-color:var(--gm-primary,#28776d);box-shadow:0 0 0 2px #28776d26}
+.archive-input-wrap input{border:0!important;outline:0!important;box-shadow:none!important;flex:1;min-width:0;width:100%;font:inherit;font-size:14px;color:var(--gm-text,#162331);background:transparent;padding:10px 0}
+.archive-input-wrap input::placeholder{color:#889491}
+.archive-button{font:inherit;font-size:13px;font-weight:650;min-height:44px;display:inline-flex;align-items:center;justify-content:center;gap:8px;padding:10px 19px;border-radius:var(--gm-radius-sm,8px);white-space:nowrap;cursor:pointer;transition:background .12s,border-color .12s}
+.archive-button.archive-primary{background:var(--gm-primary,#28776d);border:1px solid var(--gm-primary,#28776d);color:#fff}
+.archive-button.archive-primary:hover:not(:disabled){background:var(--gm-primary-hover,#205f57)}
+.archive-button.archive-secondary{background:#fff!important;color:var(--gm-text,#162331)!important;border:1px solid var(--gm-border,#dde5e4)!important}
+.archive-button.archive-secondary:hover:not(:disabled){border-color:#b6cbc5!important;background:#eef5f2!important}
+.archive-button:disabled{cursor:not-allowed;opacity:.45}
+.archive-filters{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:16px;margin-top:20px}
+.archive-filters label{display:flex;flex-direction:column;gap:7px;min-width:0;font-size:13px;font-weight:600;color:var(--gm-muted,#53636d)}
+.archive-filters select{width:100%;min-width:0;height:44px;background:#fff;color:var(--gm-text,#162331);font:inherit;font-size:14px;font-weight:450;border:1px solid var(--gm-border,#dde5e4);border-radius:var(--gm-radius-sm,8px);padding:0 12px}
+.archive-section-title{font-size:19px;letter-spacing:-.01em;line-height:1.35;margin:0 0 16px;font-weight:750}
 .archive-layout{display:grid;grid-template-columns:minmax(280px,.9fr) minmax(0,1.1fr);gap:24px;align-items:start}
-.archive-results-list,.archive-files{padding:0;list-style:none}
-.archive-work{display:flex;flex-direction:column;align-items:start;width:100%;text-align:left;gap:5px;margin:5px 0;white-space:normal;overflow-wrap:anywhere}
-.archive-work[aria-pressed=true]{outline:2px solid var(--gm-primary,#496ad8)}
-.archive-pagination{display:flex;align-items:center;justify-content:space-between;gap:10px}
-.archive-metadata{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:8px}
+.archive-layout>section{min-width:0}
+.archive-results-list,.archive-files{padding:0;margin:0;list-style:none}
+.archive-results-list{border:1px solid var(--gm-border,#dde5e4);border-radius:14px;background:#fff;overflow:hidden}
+.archive-results-list li+li{border-top:1px solid var(--gm-border,#dde5e4)}
+.archive-work{display:flex;flex-direction:column;align-items:stretch;width:100%;min-height:66px;text-align:left;gap:5px;padding:16px 18px;white-space:normal;overflow-wrap:anywhere;background:#fff;border:0;border-left:3px solid transparent;border-radius:0;color:var(--gm-text,#162331);cursor:pointer;font:inherit}
+.archive-work strong{font-size:14px;font-weight:700;line-height:1.3}
+.archive-work span{font-size:13px;color:var(--gm-muted,#53636d)}
+.archive-work:hover{background:#f4f8f6}
+.archive-work[aria-pressed=true]{background:#eef5f2;border-left-color:var(--gm-primary,#28776d)}
+.archive-pagination{display:flex;align-items:center;justify-content:space-between;gap:12px;margin-top:15px}
+.archive-pagination span{font-size:13px;color:var(--gm-muted,#53636d)}
+.archive-empty{display:flex;flex-direction:column;align-items:center;text-align:center;justify-content:center;min-height:270px;padding:36px 24px;border:1px dashed #cbdad5;border-radius:14px;background:#fff}
+.archive-empty-icon{width:60px;height:60px;border-radius:16px;background:#eaf5ef;color:var(--gm-primary,#28776d);display:grid;place-items:center;margin-bottom:16px}
+.archive-empty h3{margin:0 0 7px;font-size:16px;line-height:1.35}
+.archive-empty p{font-size:13px;color:var(--gm-muted,#53636d);line-height:1.5;max-width:340px;margin:0 0 12px}
+.archive-state,.archive-placeholder{border:1px solid var(--gm-border,#dde5e4);border-radius:14px;padding:28px;background:#fff;color:var(--gm-muted,#53636d);font-size:14px}
+.archive-placeholder{margin-top:42px;text-align:center;min-height:180px;display:grid;place-items:center}
+.archive-alert{color:#9b3434}
+.archive-hint{font-size:13px;color:var(--gm-muted,#53636d);margin:12px 0 0}
+.archive-detail{border:1px solid var(--gm-border,#dde5e4);border-radius:14px;padding:24px;margin-top:42px;background:#fff;box-shadow:var(--gm-shadow,0 4px 22px #1623310f);min-width:0;overflow-wrap:anywhere}
+.archive-detail h2{font-size:21px;margin:20px 0 8px}
+.archive-detail h3{font-size:15px;margin:0 0 12px}
+.archive-detail p{font-size:14px}
+.archive-arrangement{border-top:1px solid var(--gm-border,#dde5e4);padding:20px 0 2px;margin-top:20px}
+.archive-metadata{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:14px}
 .archive-metadata div{min-width:0;overflow-wrap:anywhere}
-.archive-metadata dt{font-size:.85em;color:var(--gm-text-muted,#667085)}
-.archive-metadata dd{margin:0}
-.archive-files li{display:flex;flex-direction:column;border-top:1px solid var(--gm-border,#ddd);padding:10px 0;overflow-wrap:anywhere}
-button:focus-visible,input:focus-visible,select:focus-visible{outline:2px solid var(--gm-primary,#496ad8);outline-offset:2px}
-@media(max-width:1023px){.archive-layout{grid-template-columns:minmax(0,1fr)}}
+.archive-metadata dt{font-size:12px;color:var(--gm-muted,#53636d)}
+.archive-metadata dd{margin:3px 0 0;font-size:14px}
+.archive-files li{display:flex;flex-direction:column;gap:4px;border-top:1px solid var(--gm-border,#dde5e4);padding:12px 0;overflow-wrap:anywhere;font-size:13px}
+.archive-files li span{color:var(--gm-muted,#53636d)}
+.archive-back{margin-bottom:5px}
+.music-archive button:focus-visible,.music-archive input:focus-visible,.music-archive select:focus-visible{outline:3px solid var(--gm-focus,#205f57);outline-offset:3px}
+@media(max-width:1023px){.archive-layout{grid-template-columns:minmax(0,1fr)}.archive-detail{margin-top:0}.archive-placeholder{display:none}}
 @media(max-width:767px){.archive-filters{grid-template-columns:minmax(0,1fr)}}
-@media(max-width:600px){.music-archive{padding:16px}.archive-metadata{grid-template-columns:minmax(0,1fr)}}
+@media(max-width:600px){.music-archive{padding:22px 16px}.archive-search{padding:18px 16px}.archive-query .archive-input-wrap{flex-basis:100%}.archive-query .archive-button{flex:1 1 0}.archive-metadata{grid-template-columns:minmax(0,1fr)}.archive-detail{padding:18px}.archive-pagination .archive-button{padding:9px 11px}}
+@media(prefers-reduced-motion:reduce){.archive-button{transition:none}}
 </style>
