@@ -88,7 +88,7 @@ async function load(nextCursor: string | null, previous: (string | null)[]): Pro
 function pickFiles(event: Event): void {
   const input = event.target as HTMLInputElement;
   files.value = Array.from(input.files ?? []);
-  pendingKey = null; lastUploadFingerprint = '';
+  // upload() retains its key for identical retry payloads.
   error.value = ''; notice.value = '';
 }
 function metadata(): LibraryMetadata {
@@ -279,7 +279,7 @@ async function download(file: LibraryMaterial['files'][number]): Promise<void> {
           <button type="button" class="library-secondary" :disabled="busy" @click="editing=false">{{ t('library.cancel') }}</button>
         </div>
       </form>
-      <div v-if="removing" class="library-confirm" role="group" :aria-label="t('library.delete')">
+      <div v-if="removing" class="library-confirm" @keydown.esc="removing=false" role="group" :aria-label="t('library.delete')">
         <p>{{ t('library.confirmDelete') }}</p>
         <div class="library-actions">
           <button type="button" class="library-danger" :disabled="busy" @click="removeCard">{{ t('library.confirm') }}</button>
