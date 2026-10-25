@@ -83,7 +83,7 @@ export const libraryService = {
     } catch { throw new ApiFailure('NETWORK'); }
     if (response.status !== 202) throw new ApiFailure('HTTP', response.status);
   },
-  async download(id: string, file: LibraryFile): Promise<void> {
+  async download(id: string, file: LibraryFile, stillAuthorized: () => boolean = () => true): Promise<void> {
     const expected = materialUrl(id) + '/files/' + encodeURIComponent(file.id) + '/content';
     // Use only same-origin routes derived from trusted IDs, never arbitrary server URLs.
     if (file.downloadUrl !== expected) throw new ApiFailure('INVALID_RESPONSE');
@@ -92,6 +92,8 @@ export const libraryService = {
     catch { throw new ApiFailure('NETWORK'); }
     if (!response.ok) throw new ApiFailure('HTTP', response.status);
     const blob = await response.blob();
+    // A session can change while downloading the response body.
+    if (!stillAuthorized()) return;
     if (blob.size !== file.byteSize) throw new ApiFailure('INVALID_RESPONSE');
     const href = URL.createObjectURL(blob);
     const anchor = document.createElement('a');
