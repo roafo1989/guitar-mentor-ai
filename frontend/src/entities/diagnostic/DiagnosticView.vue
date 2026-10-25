@@ -259,7 +259,7 @@ async function restoreSession(): Promise<void> {
     if (learnerStore.error) throw learnerStore.error;
     const id = secureUi ? actor?.learnerId : learnerStore.learner?.id;
     if (!id || learnerStore.learner?.id !== id) return;
-    const loaded = await resolveCurrentDiagnostic(id, window.localStorage);
+    const loaded = await resolveCurrentDiagnostic(id, window.localStorage, valid);
     if (!valid() || learnerStore.learner?.id !== id) return;
     if (loaded) await hydrateSession(id, loaded);
     else { ++taskGeneration; session.value = null; task.value = null; }
