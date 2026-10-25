@@ -25,7 +25,7 @@ export async function resolveHomeSummary(
   const simple = (step: HomeNextStep): HomeSummary =>
     ({ step, title: null, exerciseCode: null, exerciseVersion: null });
   if (!learnerId) return simple('profile');
-  const session = await resolveCurrentDiagnostic(learnerId, storage);
+  const session = await resolveCurrentDiagnostic(learnerId, storage, isCurrent);
   if (!session) {
     const background = await onboardingService.get(learnerId, 'ACOUSTIC_GUITAR');
     return simple(background ? 'diagnostics' : 'onboarding');
