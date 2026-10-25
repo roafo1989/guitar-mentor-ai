@@ -137,4 +137,52 @@ class NextLessonPostgresIntegrationTest {
             new NextLessonService.Request(UUID.randomUUID(),2L,"OTHER","1")));
     }
 
+    @Test void staleOrForeignHistoryCursorIsRejectedWithoutDataLeak() {
+        var second=UUID.randomUUID();
+        var now=Timestamp.from(Instant.now());
+        jdbc.update("INSERT INTO learners(id,display_name,created_at) VALUES(?,?,?)",
+            second,"Other learner",now);
+        try {
+            code("RESOURCE_NOT_FOUND",()->service.history(second,"ACOUSTIC_GUITAR",20,null));
+            code("INVALID_PAGINATION",()->service.history(learner,"ACOUSTIC_GUITAR",0,null));
+            code("INVALID_PAGINATION",()->service.history(learner,"ACOUSTIC_GUITAR",51,null));
+            code("INVALID_PAGINATION",()->service.history(learner,"ACOUSTIC_GUITAR",20,"!"));
+            var forged=java.util.Base64.getUrlEncoder().withoutPadding().encodeToString(
+                (second+"|"+profile+"|"+Instant.now()+"|"+task)
+                .getBytes(java.nio.charset.StandardCharsets.UTF_8));
+            code("INVALID_PAGINATION",()->service.history(learner,"ACOUSTIC_GUITAR",20,forged));
+        } finally {
+            jdbc.update("DELETE FROM learners WHERE id=?",second);
+        }
+    }
+
+    @Test void sourceTaskMustBelongToThePathSession() {
+        code("RESOURCE_NOT_FOUND",()->service.start(learner,session,UUID.randomUUID(),
+            command(UUID.randomUUID())));
+        assertEquals(0,jdbc.queryForObject("SELECT count(*) FROM lesson_transitions WHERE learner_id=?",
+            Integer.class,learner));
+    }
+
+    @Test void replayAfterAnotherSessionBecomesCurrentReturnsOriginalIds() {
+        var a=service.start(learner,session,task,command(UUID.randomUUID()));
+        var currentTask=a.result().task().id();
+        var currentSession=a.result().session().id();
+        var now=Timestamp.from(Instant.now());
+        jdbc.update("UPDATE task_learning_state SET state='COMPLETED_BY_LEARNER',version=1,completed_at=? WHERE task_id=?",
+            now,currentTask);
+        var b=service.start(learner,currentSession,currentTask,
+            new NextLessonService.Request(UUID.randomUUID(),1L,"GM-EB01","0.8B"));
+        assertNotEquals(currentSession,b.result().session().id());
+        // Replaying the original creation must not misrepresent B as the result of A.
+        var fromA=service.start(learner,session,task,
+            new NextLessonService.Request(
+                jdbc.queryForObject("SELECT request_id FROM lesson_transitions WHERE source_task_id=?",
+                    UUID.class,task),
+                2L,"GM-EB01","0.8B"));
+        assertTrue(fromA.replay());
+        assertEquals(currentSession,fromA.result().session().id());
+        assertEquals(b.result().session().id(),
+            service.history(learner,"ACOUSTIC_GUITAR",1,null).items().getFirst().sessionId());
+    }
+
 }
