@@ -73,5 +73,5 @@ try {
  console.log('PASS: Chrome picker, one pinned POST, history read-only, 360px and 200% effective reflow');
 } finally {
  socket?.close();browser?.kill('SIGTERM');
- await server.close();await rm(dir,{recursive:true,force:true});
+ await server.close();await rm(dir,{recursive:true,force:true,maxRetries:12,retryDelay:250}).catch(()=>{});
 }
