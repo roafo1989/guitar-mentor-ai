@@ -15,6 +15,7 @@ export const router = createRouter({
   scrollBehavior: (_to, _from, savedPosition) => savedPosition ?? { top: 0 },
   routes: [
     { path: '/', name: 'home', component: HomeView },
+    { path: '/music-archive', name: 'music-archive', component: () => import('../entities/music-archive/MusicArchiveView.vue') },
     { path: '/profile', name: 'learner-profile', component: LearnerProfileView },
     { path: '/onboarding', name: 'onboarding', component: OnboardingView },
     { path: '/diagnostics', name: 'diagnostics', component: DiagnosticView },
