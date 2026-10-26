@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { onBeforeUnmount, onMounted, ref } from 'vue';
+import { nextTick, onBeforeUnmount, onMounted, ref } from 'vue';
 import { useI18n } from 'vue-i18n';
 import { takeAccountLinkToken } from './account-link';
 import { auth, refreshActor } from './auth';
@@ -11,11 +11,15 @@ let active = true;
 let generation = 0;
 const accountId = auth.actor?.accountId;
 const isCurrent = () => active && auth.actor?.accountId === accountId;
-onBeforeUnmount(() => { active = false; ++generation; currentPassword.value = ''; newPassword.value = ''; confirm.value = ''; token.value = ''; });
+onBeforeUnmount(() => { active = false; ++generation; currentPassword.value = ''; newPassword.value = ''; confirm.value = ''; googlePassword.value = ''; identifier.value = ''; token.value = ''; });
 const passwordEnabled = ref(false);
 const googleEnabled = ref(false);
 const googleAvailable = ref(false);
 const identifier = ref('');
+const googlePassword = ref('');
+const googleLinkOpen = ref(false);
+const googleIdentifierInput = ref<HTMLInputElement | null>(null);
+const googleLinkButton = ref<HTMLButtonElement | null>(null);
 const email = ref('');
 const login = ref('');
 const currentPassword = ref('');
@@ -99,9 +103,18 @@ async function verifyLink(): Promise<void> {
     token.value = ''; notice.value = label('Пароль добавлен.', 'Password sign-in enabled.');
   }
 }
+function openGoogleLink(): void {
+  identifier.value = ''; googlePassword.value = ''; error.value = ''; notice.value = ''; googleLinkOpen.value = true;
+  void nextTick(() => googleIdentifierInput.value?.focus?.());
+}
+function cancelGoogleLink(): void {
+  identifier.value = ''; googlePassword.value = ''; googleLinkOpen.value = false;
+  void nextTick(() => googleLinkButton.value?.focus?.());
+}
 async function linkGoogle(): Promise<void> {
-  if (await submit('link/google/start',{identifier:identifier.value,password:currentPassword.value})) {
-    currentPassword.value = '';
+  if (!googleLinkOpen.value || !identifier.value.trim() || !googlePassword.value) return;
+  if (await submit('link/google/start',{identifier:identifier.value,password:googlePassword.value})) {
+    googlePassword.value = '';
     window.location.assign('/oauth2/authorization/guitar-mentor');
   }
 }
@@ -117,11 +130,11 @@ async function linkGoogle(): Promise<void> {
     <form v-if="methodsKnown && passwordEnabled" class="auth-form" @submit.prevent="change">
       <h3>{{ label('Изменить пароль', 'Change password') }}</h3>
       <label for="current-password">{{ label('Текущий пароль', 'Current password') }}</label>
-      <input id="current-password" v-model="currentPassword" :type="show ? 'text' : 'password'" autocomplete="current-password" required />
+      <input id="current-password" name="password-change-current" v-model="currentPassword" :type="show ? 'text' : 'password'" autocomplete="section-password-change current-password" required />
       <label for="new-account-password">{{ label('Новый пароль (12–128 символов)', 'New password (12–128 characters)') }}</label>
-      <input id="new-account-password" v-model="newPassword" :type="show ? 'text' : 'password'" autocomplete="new-password" minlength="12" maxlength="128" required />
+      <input id="new-account-password" v-model="newPassword" :type="show ? 'text' : 'password'" autocomplete="section-password-change new-password" minlength="12" maxlength="128" required />
       <label for="confirm-account-password">{{ label('Повторите пароль', 'Confirm password') }}</label>
-      <input id="confirm-account-password" v-model="confirm" :type="show ? 'text' : 'password'" autocomplete="new-password" required />
+      <input id="confirm-account-password" v-model="confirm" :type="show ? 'text' : 'password'" autocomplete="section-password-change new-password" required />
       <label class="auth-checkbox"><input v-model="show" type="checkbox" />{{ label('Показать пароли', 'Show passwords') }}</label>
       <p class="hint">{{ label('Все старые сессии завершатся.', 'All older sessions will expire.') }}</p>
       <button type="submit" class="auth-primary" :disabled="busy" :aria-busy="busy">{{ label('Сменить пароль', 'Change password') }}</button>
@@ -145,14 +158,20 @@ async function linkGoogle(): Promise<void> {
       <input v-if="!tokenFromLink" id="link-token" v-model.trim="token" type="password" autocomplete="off" maxlength="64" required />
       <button type="submit" class="auth-primary" :disabled="busy">{{ label('Подключить пароль', 'Enable password') }}</button>
     </form>
-    <form v-if="methodsKnown && passwordEnabled && !googleEnabled && googleAvailable" class="auth-form" @submit.prevent="linkGoogle">
-      <h3>{{ label('Подключить Google', 'Connect Google') }}</h3>
-      <label for="google-link-identifier">{{ label('Email или логин', 'Email or username') }}</label>
-      <input id="google-link-identifier" v-model.trim="identifier" autocomplete="username" required />
-      <label for="google-link-password">{{ label('Текущий пароль', 'Current password') }}</label>
-      <input id="google-link-password" v-model="currentPassword" type="password" autocomplete="current-password" required />
-      <button type="submit" class="auth-primary" :disabled="busy">{{ label('Подключить Google', 'Connect Google') }}</button>
-    </form>
+    <section v-if="methodsKnown && passwordEnabled && !googleEnabled && googleAvailable" class="google-provider" aria-labelledby="google-provider-title">
+      <h3 id="google-provider-title">{{ label('Вход через Google', 'Sign in with Google') }}</h3>
+      <p class="hint">{{ label('Добавь Google как ещё один способ входа в этот же профиль. Вход по паролю сохранится.', 'Add Google as another way to sign in to this profile. Password sign-in will remain available.') }}</p>
+      <button ref="googleLinkButton" v-if="!googleLinkOpen" type="button" class="action-button secondary-button" :disabled="busy" aria-expanded="false" aria-controls="google-link-form" @click="openGoogleLink">{{ label('Добавить вход через Google', 'Add Google sign-in') }}</button>
+      <form v-else id="google-link-form" class="auth-form" @submit.prevent="linkGoogle">
+        <p class="hint" id="google-link-help">{{ label('Сначала подтверди свою учётную запись Guitar Mentor AI. Затем откроется страница Google для выбора аккаунта. Пароль от почты здесь вводить не нужно.', 'First confirm your Guitar Mentor AI account. Then Google will open so you can choose an account. Do not enter your email password here.') }}</p>
+        <label for="google-link-identifier">{{ label('Email или логин в Guitar Mentor AI', 'Guitar Mentor AI email or username') }}</label>
+        <input ref="googleIdentifierInput" id="google-link-identifier" name="google-link-username" v-model.trim="identifier" autocomplete="section-google-link username" aria-describedby="google-link-help" required />
+        <label for="google-link-password">{{ label('Пароль Guitar Mentor AI', 'Guitar Mentor AI password') }}</label>
+        <input id="google-link-password" name="google-link-password" v-model="googlePassword" type="password" autocomplete="section-google-link current-password" aria-describedby="google-link-help" required />
+        <button type="submit" class="auth-primary" :disabled="busy" :aria-busy="busy">{{ label('Продолжить в Google', 'Continue to Google') }}</button>
+        <button type="button" class="text-button" :disabled="busy" @click="cancelGoogleLink">{{ label('Отмена', 'Cancel') }}</button>
+      </form>
+    </section>
     <p v-if="notice" class="success" role="status">{{ notice }}</p>
     <p v-if="error" class="auth-error" role="alert">{{ error }}</p>
     <button v-if="!methodsKnown" type="button" class="action-button secondary-button" @click="loadMethods">{{ label('Повторить', 'Retry') }}</button>

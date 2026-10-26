@@ -30,11 +30,16 @@ async function load(): Promise<void> {
 watch(() => props.learnerId, () => { void load(); }, { immediate: true });
 </script>
 <template>
-  <section class="panel learning-summary">
-    <div class="page-heading"><h2>{{ t('profileUx.goals') }}</h2><RouterLink to="/onboarding" class="continue-link">{{ t(background ? 'profileUx.editAnswers' : 'profileUx.fillAnswers') }} →</RouterLink></div>
+  <section class="learning-summary" aria-labelledby="profile-learning-title">
+    <div class="page-heading"><h2 id="profile-learning-title">{{ t('profileUx.goals') }}</h2><RouterLink to="/onboarding" class="continue-link">{{ t(background ? 'profileUx.editExperience' : 'profileUx.fillExperience') }} →</RouterLink></div>
     <p v-if="loading" role="status">{{ t('onboarding.loading') }}</p>
     <template v-else>
       <div v-if="error" role="alert"><p>{{ t(apiFailureKey(error)) }}</p><button type="button" class="text-button" @click="load">{{ t('home.retry') }}</button></div>
+      <dl v-if="background" class="learner-facts">
+        <div><dt>{{ t('profileUx.experienceLabel') }}</dt><dd>{{ t('onboarding.levels.' + background.experienceLevel) }} · {{ t('profileUx.yearsValue', { years: background.yearsPlaying }) }}</dd></div>
+        <div><dt>{{ t('profileUx.practiceLabel') }}</dt><dd>{{ t('profileUx.practiceValue', { minutes: background.practiceMinutes, sessions: background.sessionsPerWeek }) }}</dd></div>
+      </dl>
+      <h3>{{ t('profileUx.learningGoals') }}</h3>
       <p v-if="background?.goals.length">{{ background.goals.map(code => t('onboarding.goals.' + code)).join(' · ') }}</p>
       <p v-else class="hint">{{ t('profileUx.noGoals') }}</p>
       <h2>{{ t('profileUx.skills') }}</h2>

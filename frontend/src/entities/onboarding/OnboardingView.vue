@@ -233,7 +233,8 @@ async function save(complete = true): Promise<void> {
 
 <template>
   <section class="profile-page learner-experience onboarding-page">
-    <div class="intro"><span class="eyebrow">{{ t('profileUx.myMusic') }}</span><h1>{{ t('onboarding.title') }}</h1><p>{{ t('onboarding.subtitle') }}</p></div>
+    <nav class="profile-breadcrumb" :aria-label="t('profileUx.breadcrumb')"><RouterLink to="/profile">{{ t('profileUx.title') }}</RouterLink><span aria-hidden="true">/</span><span aria-current="page">{{ t('profileUx.goals') }}</span></nav>
+    <div class="intro"><h1>{{ t('onboarding.title') }}</h1><p>{{ t('onboarding.subtitle') }}</p></div>
     <div v-if="loading" class="panel" role="status">{{ t('onboarding.loading') }}</div>
     <div v-else-if="error && !learnerStore.learner" class="panel" role="alert"><p>{{ errorMessage }}</p><button type="button" class="action-button" @click="loadBackground">{{ t('home.retry') }}</button></div>
     <div v-else-if="!learnerStore.learner" class="panel"><p>{{ t('onboarding.needProfile') }}</p><RouterLink to="/profile">{{ t('app.profile') }}</RouterLink></div>

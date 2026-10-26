@@ -97,16 +97,23 @@ try {
  await navigate('/profile');await waitFor("document.querySelector('.profile-overview')&&document.body.textContent.includes('No playing observations')===false");
  await waitFor("document.querySelector('.learning-summary .skill-chips')");
  assert.equal(await ui("!!document.querySelector('.password-settings')"),false,'password has moved out');
+ assert.ok(await ui("!!document.querySelector('.profile-overview .learning-summary')"),'experience is part of the same profile card');
+ assert.equal(await ui("document.querySelectorAll('.header-navigation a[href=\"/profile\"],.header-navigation a[href=\"/onboarding\"]').length"),0,'personal sections are not duplicated in main navigation');
  await screenshot('profile-1440-ru');
+ await ui("document.querySelector('.header-account-trigger').click()");
+ await waitFor("document.querySelector('.header-account-popover')");
+ assert.equal(await ui("[...document.querySelectorAll('.header-account-popover > a')].every(a=>a.querySelector('svg[aria-hidden=true]')&&a.textContent.trim())"),true,'menu icons accompany text labels');
+ await screenshot('account-menu-1440-ru');
+ await ui("document.querySelector('.header-account-trigger').click()");
  // Profile save updates the shared store and survives a re-read.
- await clickText('Редактировать');await waitFor("!!document.querySelector('.preference-rows')");
+ await clickText('Изменить предпочтения');await waitFor("!!document.querySelector('.preference-rows')");
  await ui("document.querySelector('input[name=ROCK][value=LIKE]').click()");
  await next();await waitFor("!!document.querySelector('.saved-confirmation')");
  assert.equal(await puts(),1);
  assert.ok(await ui("document.querySelector('.preference-summary').textContent.includes('Рок')"));
  assert.ok(await ui("document.querySelector('.header-account-name').textContent.includes('Roman')"));
  // Route navigation, browser refresh and saved known-piece fields.
- await ui("import('/src/router/index.ts').then(m=>m.router.push('/onboarding'))");
+ await ui("document.querySelector('.profile-overview .learning-summary a[href=\"/onboarding\"]').click()");
  await waitFor("document.querySelector('[data-piece-title]')");
  assert.equal(await ui("document.querySelector('[data-piece-title]').value"),'Windy & Warm');
  await screenshot('onboarding-step1-1440-ru');
@@ -160,6 +167,13 @@ try {
  // Open from scratch and refresh each route with the real router/AuthGate.
  await navigate('/settings/account');await waitFor("document.querySelector('#current-password')");
  await screenshot('account-1440-ru');
+ assert.equal(await ui("!!document.querySelector('#google-link-password')"),false,'Google confirmation is closed until requested');
+ await ui("{const f=document.querySelector('#current-password');f.value='change-only-dummy';f.dispatchEvent(new Event('input',{bubbles:true}));}");
+ await clickText('Добавить вход через Google');await waitFor("document.querySelector('#google-link-password')");
+ assert.equal(await ui("document.querySelector('#google-link-password').value"),'','password from change form must not be copied');
+ assert.ok(await ui("document.querySelector('#google-link-help').textContent.includes('Guitar Mentor AI')"));
+ await screenshot('account-google-link-1440-ru');
+ await clickText('Отмена');await waitFor("!document.querySelector('#google-link-password')");
  await ui("__qa.failSave=true;const set=(id,value)=>{const f=document.getElementById(id);f.value=value;f.dispatchEvent(new Event('input',{bubbles:true}));};set('current-password','test-old-password');set('new-account-password','test-new-password');set('confirm-account-password','test-new-password');document.querySelector('.password-settings form').requestSubmit()");
  await waitFor("document.querySelector('.auth-error')");
  await ui("__qa.failSave=false;document.querySelector('.password-settings form').requestSubmit()");
@@ -191,7 +205,21 @@ try {
    await waitFor("document.querySelector('main h1')");
    assert.ok(await ui('document.documentElement.scrollWidth<=innerWidth'),locale+' '+width+' '+route+' overflow');
    assert.equal(await ui("[...document.querySelectorAll('main input:not([type=checkbox]):not([type=radio]),main select,main textarea')].every(f=>f.labels?.length>0)"),true,'field labels '+route);
-   if(width===360)await screenshot(route.split('/').at(-1)+'-360-'+locale);
+   if(width===360){
+     await screenshot(route.split('/').at(-1)+'-360-'+locale);
+     if(route==='/profile'){
+       await ui("document.querySelector('.header-account-trigger').click()");
+       await screenshot('account-menu-360-'+locale);
+       await ui("document.querySelector('.header-account-trigger').click()");
+     }
+     if(route==='/settings/account'){
+       await clickText(locale==='ru'?'Добавить вход через Google':'Add Google sign-in');
+       await waitFor("document.querySelector('#google-link-password')");
+       assert.ok(await ui('document.documentElement.scrollWidth<=innerWidth'),'Google disclosure must reflow');
+       await screenshot('account-google-link-360-'+locale);
+       await clickText(locale==='ru'?'Отмена':'Cancel');
+     }
+   }
  }
  for(const route of ['/profile','/onboarding','/settings/account']){
    await cdp('Emulation.setDeviceMetricsOverride',{width:384,height:500,deviceScaleFactor:1,mobile:false});await navigate(route);

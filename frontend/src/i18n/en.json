@@ -61,8 +61,8 @@
     "FUNK": "Funk"
   },
   "onboarding": {
-    "title": "Your musical background and goals",
-    "subtitle": "We'll use these details to tailor lessons to your experience and interests. Actual performance assessment comes later.",
+    "title": "Experience and goals",
+    "subtitle": "Part of your profile: playing experience, interests and a comfortable practice rhythm.",
     "loading": "Loading questionnaire...",
     "needProfile": "Create your learner profile first.",
     "step": "Step {step} of {total}",
@@ -815,6 +815,14 @@
     "invalidAnswers": "Check your answers: 0–60 whole years; up to 10 pieces with a title and fields up to 120 characters; 10–120 minutes, 1–7 sessions a week; notes up to 1000 characters.",
     "completeTitle": "You are ready for the next step",
     "completeDescription": "Your answers are saved. Continue learning when you are ready.",
-    "resolvingNext": "Finding your next step…"
+    "resolvingNext": "Finding your next step…",
+    "editExperience": "Edit experience and goals",
+    "fillExperience": "Add experience and goals",
+    "experienceLabel": "Playing experience",
+    "practiceLabel": "Practice rhythm",
+    "yearsValue": "Years played: {years}",
+    "practiceValue": "{minutes} min · sessions per week: {sessions}",
+    "breadcrumb": "Profile navigation",
+    "learningGoals": "Learning goals"
   }
 }

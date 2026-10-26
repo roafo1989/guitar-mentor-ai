@@ -84,9 +84,10 @@ async function save(): Promise<void> {
       <button v-if="store.error && !store.busy" type="button" class="action-button secondary-button" @click="loadProfile">{{ t('home.retry') }}</button>
       <section v-if="!editing && hasProfile" class="panel profile-overview">
         <div class="page-heading"><div><h2>{{ store.learner?.displayName }}</h2><p>{{ t('instruments.ACOUSTIC_GUITAR') }} · {{ t('instruments.FINGERSTYLE') }}</p></div>
-          <button type="button" class="action-button secondary-button" @click="editing = true; success = false">{{ t('profileUx.edit') }}</button></div>
+          <button type="button" class="action-button secondary-button" @click="editing = true; success = false">{{ t('profileUx.editPreferences') }}</button></div>
         <h3>{{ t('form.styles') }}</h3>
         <dl class="preference-summary"><div v-for="rating in ratingValues" :key="rating"><dt>{{ t('ratings.' + rating) }}</dt><dd>{{ styleCodes.filter(code => ratings[code] === rating).map(code => t('styles.' + code)).join(', ') || t('profileUx.none') }}</dd></div></dl>
+        <ProfileLearningSummary v-if="hasGuitar" :learner-id="store.learner!.id" />
         <p v-if="success" class="saved-confirmation" role="status">✓ {{ t('form.saved') }}</p>
         <RouterLink to="/" class="continue-link">{{ t('profileUx.backLearning') }} →</RouterLink>
       </section>
@@ -101,7 +102,6 @@ async function save(): Promise<void> {
           <div class="form-actions"><button type="submit" :disabled="!maySave">{{ store.busy ? t('form.saving') : t('form.update') }}</button><button v-if="hasGuitar" type="button" class="text-button" @click="cancelEdit">{{ t('profileUx.cancel') }}</button></div>
         </fieldset>
       </form>
-      <ProfileLearningSummary v-if="hasGuitar" :learner-id="store.learner!.id" />
     </template>
   </section>
 </template>

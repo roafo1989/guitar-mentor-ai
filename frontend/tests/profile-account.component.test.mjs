@@ -148,7 +148,7 @@ test('#229 account mismatched password does not POST, errors preserve input, suc
 });
 
 test('#229 skill self-report is separate from observed/measured sources; no invented confirmation or percentages',async()=>{
- globalThis.__background229=async()=>({goals:['FINGERSTYLE'],skills:['CHORDS']});
+ globalThis.__background229=async()=>({experienceLevel:'BEGINNER',yearsPlaying:1,practiceMinutes:40,sessionsPerWeek:3,goals:['FINGERSTYLE'],skills:['CHORDS']});
  globalThis.__skills229=async()=>[
   {skillCode:'a',title:'Self report only',selfReported:true,assessedLevel:0,evidenceStatus:'NOT_ASSESSED'},
   {skillCode:'b',title:'Measured rhythm',assessedLevel:2,evidenceStatus:'MEASURED'},
@@ -164,7 +164,7 @@ test('#229 skill self-report is separate from observed/measured sources; no inve
 
 test('#229 a late skill-map response is discarded after switching learner',async()=>{
  const old=deferred();
- globalThis.__background229=async()=>({goals:[],skills:[]});
+ globalThis.__background229=async()=>({experienceLevel:'BEGINNER',yearsPlaying:1,practiceMinutes:40,sessionsPerWeek:3,goals:[],skills:[]});
  globalThis.__skills229=async id=>id==='A'?old.promise:[];
  const props=reactive({learnerId:'A'});
  const h=await mount('entities/learner/ProfileLearningSummary.vue',null,props);
@@ -173,4 +173,40 @@ test('#229 a late skill-map response is discarded after switching learner',async
   assert.equal(h.nodes().some(n=>String(n.text).includes('Private A observation')),false);
   assert.ok(h.nodes().some(n=>String(n.text).includes('No playing observations')));
  }finally{h.cleanup();delete globalThis.__background229;delete globalThis.__skills229;}
+});
+
+test('#229 acceptance: Google linking is explicit, uses its own password and explains the app account',async()=>{
+ const native=globalThis.fetch;const posts=[];
+ globalThis.fetch=async(input,init)=>{if(init?.method==='POST'){posts.push({input,body:JSON.parse(init.body)});return new Response('{}',{status:400});}return Response.json({passwordEnabled:true,googleEnabled:false,googleAvailable:true});};
+ const h=await mount('core/auth/PasswordSettings.vue');
+ const set=(id,value)=>h.nodes().find(n=>n.props?.id===id).props['onUpdate:modelValue'](value);
+ try{
+  assert.equal(h.nodes().some(n=>n.props?.id==='google-link-identifier'),false,'no Google credential form before explicit action');
+  set('current-password','password-for-change-only');
+  h.button('Add Google sign-in').props.onClick();await settle();
+  assert.ok(h.nodes().some(n=>String(n.text).includes('First confirm your Guitar Mentor AI account')));
+  assert.ok(h.nodes().some(n=>String(n.text).includes('Do not enter your email password')));
+  assert.equal(h.nodes().find(n=>n.props?.id==='google-link-password').value,'','change-password value is not copied');
+  set('google-link-identifier','student@example.test');set('google-link-password','google-link-app-password');await settle();
+  assert.equal(h.nodes().find(n=>n.props?.id==='current-password').value,'password-for-change-only','Google confirmation does not change the other form');
+  h.nodes().find(n=>n.tag==='form'&&n.props?.id==='google-link-form').props.onSubmit({preventDefault(){}});await settle();
+  assert.equal(posts.length,1);assert.ok(posts[0].input.endsWith('/link/google/start'));
+  assert.deepEqual(posts[0].body,{identifier:'student@example.test',password:'google-link-app-password'});
+  assert.equal(h.nodes().find(n=>n.props?.id==='google-link-password').value,'google-link-app-password','failed request keeps retry input');
+  h.button('Cancel').props.onClick();await settle();assert.equal(h.nodes().some(n=>n.props?.id==='google-link-password'),false);
+  h.button('Add Google sign-in').props.onClick();await settle();assert.equal(h.nodes().find(n=>n.props?.id==='google-link-password').value,'','cancel clears secret before reopening');
+ }finally{h.cleanup();globalThis.fetch=native;}
+});
+
+test('#229 acceptance: successful Google confirmation clears secret and redirects only to the configured OAuth path',async()=>{
+ const native=globalThis.fetch;let path;
+ globalThis.fetch=async(_input,init)=>init?.method==='POST'?new Response('{}'):Response.json({passwordEnabled:true,googleEnabled:false,googleAvailable:true});
+ const h=await mount('core/auth/PasswordSettings.vue');globalThis.window.location.assign=value=>{path=value;};
+ try{
+  h.button('Add Google sign-in').props.onClick();await settle();
+  h.nodes().find(n=>n.props?.id==='google-link-identifier').props['onUpdate:modelValue']('student');
+  h.nodes().find(n=>n.props?.id==='google-link-password').props['onUpdate:modelValue']('app-password');
+  h.nodes().find(n=>n.props?.id==='google-link-form').props.onSubmit({preventDefault(){}});await settle();
+  assert.equal(path,'/oauth2/authorization/guitar-mentor');assert.equal(h.nodes().find(n=>n.props?.id==='google-link-password').value,'');
+ }finally{h.cleanup();globalThis.fetch=native;}
 });
