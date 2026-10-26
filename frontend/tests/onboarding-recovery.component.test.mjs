@@ -25,6 +25,10 @@ async function getComponent() {
   const sources = {
     vue: import.meta.resolve('vue'),
     'vue-i18n': import.meta.resolve('vue-i18n'),
+    '../../core/auth/auth': moduleUrl('export const auth = {actor:null}; export const secureUi=false;'),
+    '../../shared/unsaved-changes': moduleUrl('export const useUnsavedChanges=()=>{};'),
+    '../../core/home/home-summary': moduleUrl('export const resolveHomeSummary=async(...args)=>globalThis.__summary229 ? globalThis.__summary229(...args) : ({step:"diagnostics"});'),
+    '../../core/home/home-next-action': moduleUrl('export const homeNextTarget=()=>"/diagnostics";'),
     '../../stores/learner.store': store,
     './onboarding.service': service,
     '../../shared/api-failure': failure,
@@ -109,8 +113,10 @@ test('CORE-E failed background GET prevents PUT; recovery GET enables form witho
     assert.ok(nodes.some(n => n.text === 'Нет связи'), 'already displayed error translates immediately');
     assert.equal(calls.filter(([method]) => method === 'PUT').length, 0);
     const nextStep = nodes.find(n => n.tag === 'button' && String(n.text).includes('onboarding.next'));
-    assert.ok(nextStep?.props.onClick, 'first step navigation exists');
-    nextStep.props.onClick();
+    assert.ok(nextStep, 'first step navigation exists');
+    nodes.find(n => n.tag === 'form').props.onSubmit({preventDefault(){}});
+    await settle();
+    flatten(root).find(n => n.tag === 'form').props.onSubmit({preventDefault(){}});
     await settle();
     nodes = flatten(root);
     const saveButton = nodes.find(n => n.tag === 'button' && String(n.text).includes('Сохранить'));
@@ -173,7 +179,9 @@ test('P1: edited draft after failed GET cannot overwrite existing background on 
     await settle();
     nodes = flatten(root);
     const next = nodes.find(n => n.tag === 'button' && String(n.text).includes('Next'));
-    next.props.onClick();
+    nodes.find(n => n.tag === 'form').props.onSubmit({preventDefault(){}});
+    await settle();
+    flatten(root).find(n => n.tag === 'form').props.onSubmit({preventDefault(){}});
     await settle();
     nodes = flatten(root);
     const save = nodes.find(n => n.tag === 'button' && String(n.text).includes('Save'));
@@ -217,7 +225,9 @@ test('P1: late PUT for learner A cannot replace background or saved badge for le
     app.mount(root);
     await settle();
     let nodes = flatten(root);
-    nodes.find(n => n.tag === 'button' && String(n.text).includes('Next')).props.onClick();
+    nodes.find(n => n.tag === 'form').props.onSubmit({preventDefault(){}});
+    await settle();
+    flatten(root).find(n => n.tag === 'form').props.onSubmit({preventDefault(){}});
     await settle();
     nodes = flatten(root);
     assert.equal(nodes.find(n => n.tag === 'button' && String(n.text).includes('Save')).props.disabled, false);
@@ -237,4 +247,81 @@ test('P1: late PUT for learner A cannot replace background or saved badge for le
     app?.unmount(); globalThis.window = oldWindow;
     delete globalThis.__learner127; delete globalThis.__background127;
   }
+});
+
+async function mount229(service, summary) {
+  const oldWindow = globalThis.window;
+  const learner = reactive({ learner: { id: 'A' }, error: null, restore: async () => {} });
+  globalThis.__learner127 = learner;
+  globalThis.__background127 = service;
+  globalThis.__summary229 = summary;
+  globalThis.window = { localStorage: { getItem: () => 'A' } };
+  const root = { tag: 'root', children: [], parent: null };
+  const View = await getComponent();
+  const app = renderer().createApp({render: () => h(View)});
+  const en = JSON.parse(await readFile(new URL('../src/i18n/en.json', import.meta.url), 'utf8'));
+  app.use(createI18n({legacy:false,locale:'en',messages:{en},missingWarn:false,fallbackWarn:false}));
+  app.mount(root); await settle();
+  return { learner, root, nodes:()=>flatten(root),
+    submit:async()=>{ flatten(root).find(n=>n.tag==='form').props.onSubmit({preventDefault(){}}); await settle(); },
+    button: text=>flatten(root).find(n=>n.tag==='button'&&String(n.text).includes(text)),
+    cleanup:()=>{app.unmount();globalThis.window=oldWindow;delete globalThis.__learner127;delete globalThis.__background127;delete globalThis.__summary229;},
+  };
+}
+const deferred229=()=>{let resolve,reject;const promise=new Promise((a,b)=>{resolve=a;reject=b;});return {promise,resolve,reject};};
+
+test('#229 three steps preserve known piece fields including literal |; one save on double submit; next-action retry is read only',async()=>{
+  const pending=deferred229();let puts=0,nextReads=0,payload;
+  const initial={...background('draft'),knownPieces:[{title:'A | B',artist:'C | D'}]};
+  const h=await mount229({get:async()=>initial,save:async(_id,_code,data)=>{puts++;payload=data;return pending.promise;}},async()=>{nextReads++;if(nextReads===1)throw Error('offline');return {step:'result'};});
+  try {
+    await h.submit();assert.ok(h.nodes().some(n=>n.text==='What would you like to learn?') || h.nodes().some(n=>String(n.text).includes('goalsTitle')));
+    h.button('Back').props.onClick();await settle();
+    assert.ok(h.nodes().some(n=>n.value==='A | B'));
+    assert.ok(h.nodes().some(n=>n.value==='C | D'));
+    await h.submit();await h.submit();
+    const form=h.nodes().find(n=>n.tag==='form');form.props.onSubmit({preventDefault(){}});form.props.onSubmit({preventDefault(){}});await settle();
+    assert.equal(puts,1);assert.deepEqual(payload.knownPieces,initial.knownPieces);
+    pending.resolve(initial);await settle();
+    assert.equal(nextReads,1);assert.ok(h.button('Try again'));
+    h.button('Try again').props.onClick();await settle();assert.equal(nextReads,2);assert.equal(puts,1);
+    assert.ok(h.nodes().some(n=>String(n.text).includes('Choose') || String(n.text).includes('next lesson')),'completion offers real resolved action');
+  }finally{h.cleanup();}
+});
+
+test('#229 failed save keeps draft; explicit retry persists and completion cannot submit again',async()=>{
+  let puts=0;
+  const initial={...background('keep this'),knownPieces:[{title:'Yesterday',artist:'Beatles'}]};
+  const h=await mount229({get:async()=>initial,save:async()=>{if(++puts===1)throw Error('offline');return initial;}});
+  try {
+    await h.submit();await h.submit();await h.submit();assert.equal(puts,1);assert.ok(h.button('Save'));
+    h.button('Back').props.onClick();await settle();assert.ok(h.nodes().some(n=>n.value==='keep this'));
+    await h.submit();await h.submit();assert.equal(puts,2);
+    assert.equal(h.nodes().some(n=>n.tag==='form'),false);assert.ok(h.nodes().some(n=>n.props?.role==='status'));
+  }finally{h.cleanup();}
+});
+
+test('#229 late background read cannot apply to another learner',async()=>{
+  const pending=deferred229();
+  const h=await mount229({get:async id=>id==='A'?pending.promise:background('B only'),save:async()=>{throw Error('must not write');}});
+  try {
+    h.learner.learner={id:'B'};await settle();pending.resolve(background('secret A'));await settle();
+    await h.submit();assert.ok(h.nodes().some(n=>n.value==='B only'));assert.equal(h.nodes().some(n=>n.value==='secret A'),false);
+  }finally{h.cleanup();}
+});
+
+test('#229 numeric limits and known-piece maximum reject unsafe wizard progression',async()=>{
+  for(const years of [-1,61,0.5]){
+    const h=await mount229({get:async()=>({...background(''),yearsPlaying:years}),save:async()=>{throw Error('must not write');}});
+    try{await h.submit();assert.ok(h.nodes().some(n=>String(n.text).includes('Check your answers')));assert.equal(h.button('Back'),undefined);}finally{h.cleanup();}
+  }
+  const h=await mount229({get:async()=>({...background(''),knownPieces:Array.from({length:10},()=>({title:'valid',artist:''}))}),save:async()=>{throw Error('must not write');}});
+  try {
+    assert.equal(h.button('Add piece').props.disabled,true);
+    h.button('Remove').props.onClick();await settle();assert.equal(h.button('Add piece').props.disabled,false);
+    await h.submit();await h.submit();
+    const minutes=h.nodes().find(n=>n.tag==='input'&&n.props.min==='10');
+    minutes.props['onUpdate:modelValue'](9);await h.submit();
+    assert.ok(h.nodes().some(n=>String(n.text).includes('Check your answers')));
+  }finally{h.cleanup();}
 });
