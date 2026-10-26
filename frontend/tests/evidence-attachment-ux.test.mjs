@@ -22,7 +22,7 @@ test('#222 attachment UX: selected state, replace/remove, keyboard and translate
     'Removing audio must allow selecting the same file again');
   assert.ok(!source.includes('{{ entry.audio.errorCode }}'), 'Never surface raw machine errors to users');
   const css = await readFile(new URL('../src/assets/light-minimal.css', import.meta.url), 'utf8');
-  assert.match(css, /\.evidence-file-input:focus-visible \+ \.evidence-file-trigger/);
+  assert.ok(css.includes('.evidence-file-input:focus-visible ~ .evidence-file-actions .evidence-file-trigger'));
   // File input stays keyboard accessible; selected-file actions have independent focus.
   assert.match(css, /\.evidence-file-remove:focus-visible/);
   for (const locale of ['ru', 'en']) {
