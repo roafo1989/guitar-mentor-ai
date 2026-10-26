@@ -48,14 +48,6 @@
 
 .learner-experience h2[tabindex="-1"]:focus { outline: none; }
 
-/* The wizard distinguishes persistence from navigation on every step. */
-.app-shell .learner-experience .wizard-actions .secondary-button {
-  background: #eef2f0; color: #205f57; border: 1px solid #7c8987;
-}
-.app-shell .learner-experience .wizard-actions .secondary-button:hover:not(:disabled) {
-  background: #dfece6; color: #205f57;
-}
-
 .learner-experience .learning-summary { margin: 28px 0; padding-top: 28px; border-top: 1px solid #dde5e4; }
 .learner-experience .learning-summary .page-heading { align-items: baseline; }
 .learner-experience .learner-facts { display: grid; grid-template-columns: repeat(2,minmax(0,1fr)); gap: 16px; margin: 8px 0 20px; }
@@ -66,3 +58,35 @@
 .learner-experience .google-provider .auth-form { margin-top: 16px; }
 .learner-experience .google-provider .hint { margin: 8px 0 16px; }
 @media(max-width:600px) { .learner-experience .learner-facts { grid-template-columns: minmax(0,1fr); } }
+
+/* Questionnaire: list actions stay with the list; progress actions align to the right. */
+.learner-experience .action-icon { flex: 0 0 18px; }
+.learner-experience .wizard-actions,
+.learner-experience .completion-actions { justify-content: space-between; gap: 12px; padding-top: 20px; border-top: 1px solid #dde5e4; }
+.learner-experience .wizard-actions-end { display: flex; align-items: center; justify-content: flex-end; gap: 12px; margin-left: auto; min-width: 0; }
+.learner-experience .wizard-actions :is(button,a),
+.learner-experience .completion-actions :is(button,a),
+.learner-experience .piece-add { display: inline-flex; align-items: center; justify-content: center; gap: 8px; min-height: 44px; text-decoration: none; font-size: 14px; }
+.app-shell .learner-experience :is(.wizard-actions,.completion-actions) .secondary-button,
+.app-shell .learner-experience .piece-add { border: 1px solid #7c8987; background: transparent; color: #205f57; padding: 10px 16px; border-radius: 8px; font-weight: 600; }
+.app-shell .learner-experience :is(.wizard-actions,.completion-actions) .secondary-button:hover:not(:disabled),
+.app-shell .learner-experience .piece-add:hover:not(:disabled) { background: #eaf2ee; color: #205f57; }
+.app-shell .learner-experience .wizard-nav { min-width: 116px; }
+.app-shell .learner-experience .wizard-save { padding: 11px 16px; }
+.learner-experience .completion-actions .primary-link { margin-top: 0; }
+.learner-experience .piece-remove { display: inline-grid; place-items: center; width: 44px; height: 44px; padding: 10px; border: 1px solid #c9d5d1; border-radius: 8px; color: #53636d; background: transparent; cursor: pointer; }
+.learner-experience .piece-remove:hover { color: #a42d32; border-color: #a42d32; background: #fff4f3; }
+@media(max-width:600px) {
+  .learner-experience .wizard-actions { flex-wrap: nowrap; gap: 8px; }
+  .learner-experience .wizard-actions > .wizard-actions-end { flex: 0 1 auto; gap: 8px; }
+  .app-shell .learner-experience .wizard-actions .wizard-nav { flex: 0 0 44px; min-width: 44px; width: 44px; padding: 10px; }
+  .learner-experience .wizard-actions .wizard-nav .action-label { display: none; }
+  .app-shell .learner-experience .wizard-save { padding: 11px 12px; }
+  .learner-experience .known-piece-row .piece-remove { justify-self: end; }
+  .learner-experience .completion-actions > .wizard-actions-end { flex-wrap: wrap; flex: 1 1 100%; }
+  .learner-experience .completion-actions .primary-link { flex: 1 1 100%; }
+}
+@media(max-width:340px) {
+  .learner-experience .wizard-actions { flex-wrap: wrap; }
+  .learner-experience .wizard-actions > .wizard-actions-end { flex: 1 1 100%; flex-wrap: wrap; }
+}

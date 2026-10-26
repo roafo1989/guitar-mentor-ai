@@ -18,6 +18,14 @@ const experienceOptions: ExperienceLevel[] = ['NONE', 'BEGINNER', 'INTERMEDIATE'
 const skillOptions: SkillTag[] = [
   'CHORDS', 'STRUMMING', 'ARPEGGIOS', 'FINGERSTYLE_MELODY',
 ];
+const actionIcons = {
+  back: 'm14 6-6 6 6 6',
+  next: 'm10 6 6 6-6 6',
+  save: 'M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h12l4 4v12a2 2 0 0 1-2 2ZM7 3v6h10V3M7 21v-8h10v8',
+  add: 'M12 5v14M5 12h14',
+  remove: 'M3 6h18M9 6V4h6v2M5 6l1 14h12l1-14M10 10v6M14 10v6',
+  edit: 'm16 3 5 5M4 15 16 3a2 2 0 0 1 3 3L7 18l-4 1 1-4Z',
+} as const;
 const goalOptions: GoalCode[] = [
   'FINGERSTYLE', 'RHYTHM', 'INDEPENDENT_BASS',
   'DIFFERENT_STYLES', 'COMPOSITIONS', 'THEORY',
@@ -240,17 +248,20 @@ async function save(complete = true): Promise<void> {
     <div v-else-if="!learnerStore.learner" class="panel"><p>{{ t('onboarding.needProfile') }}</p><RouterLink to="/profile">{{ t('app.profile') }}</RouterLink></div>
     <section v-else-if="saved" class="panel completion-panel">
       <span class="completion-mark" aria-hidden="true">✓</span>
-      <h2 ref="heading" tabindex="-1">{{ t('profileUx.completeTitle') }}</h2>
-      <p role="status">{{ t('onboarding.saved') }}</p>
-      <p>{{ t('profileUx.completeDescription') }}</p>
+      <h2 ref="heading" tabindex="-1" role="status">{{ t('onboarding.saved') }}</h2>
       <p v-if="resolvingNext" role="status">{{ t('profileUx.resolvingNext') }}</p>
       <div v-else-if="nextError" role="alert"><p>{{ t(apiFailureKey(nextError)) }}</p><button type="button" class="action-button" @click="resolveNext">{{ t('home.retry') }}</button></div>
-      <RouterLink v-else-if="summary" :to="nextTarget" class="action-button primary-link">{{ nextLabel }} →</RouterLink>
-      <div class="form-actions"><button type="button" class="text-button" @click="editAgain">{{ t('profileUx.editAnswers') }}</button><RouterLink to="/profile">{{ t('onboarding.profileBack') }}</RouterLink></div>
+      <div class="form-actions completion-actions">
+        <RouterLink to="/profile" class="action-button secondary-button completion-back" :title="t('onboarding.profileBack')"><svg class="action-icon" viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false"><path :d="actionIcons.back" /></svg><span class="action-label">{{ t('profileUx.title') }}</span></RouterLink>
+        <div class="wizard-actions-end">
+          <button type="button" class="action-button secondary-button" :title="t('profileUx.editAnswers')" @click="editAgain"><svg class="action-icon" viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false"><path :d="actionIcons.edit" /></svg><span>{{ t('profileUx.editShort') }}</span></button>
+          <RouterLink v-if="summary && !resolvingNext && !nextError" :to="nextTarget" class="action-button primary-link"><span>{{ nextLabel }}</span><svg class="action-icon" viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false"><path :d="actionIcons.next" /></svg></RouterLink>
+        </div>
+      </div>
     </section>
     <form v-else class="panel" @input="edited = true; savedConfirmation = false" @change="edited = true; savedConfirmation = false" @submit.prevent="step < 3 ? nextStep() : save()">
       <ol class="wizard-steps" :aria-label="t('profileUx.stepsLabel')"><li v-for="(label, index) in ['experience', 'goals', 'rhythm']" :key="label" :aria-current="step === index + 1 ? 'step' : undefined" :class="{ current: step === index + 1, done: step > index + 1 }"><span>{{ index + 1 }}</span>{{ t('profileUx.steps.' + label) }}</li></ol>
-      <p class="step-indicator">{{ t('onboarding.step', { step, total: 3 }) }}</p>
+      <p class="step-indicator sr-only">{{ t('onboarding.step', { step, total: 3 }) }}</p>
       <fieldset class="plain-fieldset" :disabled="saving">
         <template v-if="step === 1">
           <h2 ref="heading" tabindex="-1">{{ t('onboarding.experienceTitle') }}</h2>
@@ -258,8 +269,8 @@ async function save(complete = true): Promise<void> {
           <div class="section-heading"><h3>{{ t('onboarding.skillsTitle') }}</h3><p class="hint">{{ t('onboarding.skillsHint') }}</p></div>
           <div class="choice-grid"><label v-for="code in skillOptions" :key="code" class="choice-checkbox"><input v-model="skills" type="checkbox" :value="code" /><span>{{ t('onboarding.skills.' + code) }}</span></label></div>
           <div class="section-heading"><h3>{{ t('onboarding.piecesTitle') }}</h3><p class="hint">{{ t('onboarding.piecesHint') }}</p></div>
-          <div v-for="(piece, index) in knownPieces" :key="index" class="known-piece-row"><label class="field"><span>{{ t('profileUx.pieceTitle', { number: index + 1 }) }}</span><input v-model="piece.title" data-piece-title required maxlength="120" /></label><label class="field"><span>{{ t('profileUx.pieceArtist') }}</span><input v-model="piece.artist" maxlength="120" /></label><button type="button" class="text-button" :aria-label="t('profileUx.removePiece', { number: index + 1 })" @click="removePiece(index)">{{ t('profileUx.remove') }}</button></div>
-          <button ref="addPieceButton" type="button" class="action-button secondary-button" :disabled="knownPieces.length >= 10" @click="addPiece">+ {{ t('profileUx.addPiece') }}</button>
+          <div v-for="(piece, index) in knownPieces" :key="index" class="known-piece-row"><label class="field"><span>{{ t('profileUx.pieceTitle', { number: index + 1 }) }}</span><input v-model="piece.title" data-piece-title required maxlength="120" /></label><label class="field"><span>{{ t('profileUx.pieceArtist') }}</span><input v-model="piece.artist" maxlength="120" /></label><button type="button" data-remove-piece class="piece-remove icon-button" :aria-label="t('profileUx.removePiece', { number: index + 1 })" :title="t('profileUx.removePiece', { number: index + 1 })" @click="removePiece(index)"><svg class="action-icon" viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false"><path :d="actionIcons.remove" /></svg></button></div>
+          <button ref="addPieceButton" data-add-piece type="button" class="action-button piece-add" :disabled="knownPieces.length >= 10" :aria-label="t('profileUx.addPiece')" :title="t('profileUx.addPiece')" @click="addPiece"><svg class="action-icon" viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false"><path :d="actionIcons.add" /></svg><span>{{ t('profileUx.addShort') }}</span></button>
         </template>
         <template v-else-if="step === 2">
           <h2 ref="heading" tabindex="-1">{{ t('onboarding.goalsTitle') }}</h2><p class="hint">{{ t('profileUx.goalsHint') }}</p>
@@ -272,10 +283,12 @@ async function save(complete = true): Promise<void> {
           <div class="form-grid"><label class="field"><span>{{ t('onboarding.practiceMinutes') }}</span><input v-model.number="practiceMinutes" type="number" min="10" max="120" required /></label><label class="field"><span>{{ t('onboarding.sessionsPerWeek') }}</span><input v-model.number="sessionsPerWeek" type="number" min="1" max="7" required /></label></div>
         </template>
         <div class="form-actions wizard-actions">
-          <button v-if="step > 1" type="button" class="text-button" @click="backStep">← {{ t('onboarding.back') }}</button>
-          <button v-if="step < 3" type="button" class="action-button" :disabled="!maySave" :aria-busy="saving" @click="save(false)">{{ saving ? t('form.saving') : t('onboarding.saveChanges') }}</button>
-          <button v-if="step < 3" type="submit" class="action-button secondary-button wizard-next">{{ t('onboarding.next') }} →</button>
-          <button v-else type="submit" :disabled="!maySave" :aria-busy="saving">{{ saving ? t('form.saving') : t('onboarding.save') }}</button>
+          <button v-if="step > 1" type="button" class="action-button secondary-button wizard-nav" :aria-label="t('onboarding.back')" :title="t('onboarding.back')" @click="backStep"><svg class="action-icon" viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false"><path :d="actionIcons.back" /></svg><span class="action-label">{{ t('onboarding.back') }}</span></button>
+          <div class="wizard-actions-end">
+            <button v-if="step < 3" type="button" class="action-button wizard-save" :disabled="!maySave" :aria-busy="saving" :aria-label="t('onboarding.saveChanges')" :title="t('onboarding.saveChanges')" @click="save(false)"><svg class="action-icon" viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false"><path :d="actionIcons.save" /></svg><span>{{ saving ? t('form.saving') : t('onboarding.saveShort') }}</span></button>
+            <button v-if="step < 3" type="submit" class="action-button secondary-button wizard-nav wizard-next" :aria-label="t('onboarding.next')" :title="t('onboarding.next')"><span class="action-label">{{ t('onboarding.next') }}</span><svg class="action-icon" viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false"><path :d="actionIcons.next" /></svg></button>
+            <button v-else type="submit" class="action-button wizard-save" :disabled="!maySave" :aria-busy="saving"><svg class="action-icon" viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false"><path :d="actionIcons.save" /></svg><span>{{ saving ? t('form.saving') : t('onboarding.save') }}</span></button>
+          </div>
         </div>
         <p v-if="savedConfirmation" class="saved-confirmation" role="status">✓ {{ t('form.saved') }}</p>
       </fieldset>

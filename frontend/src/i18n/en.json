@@ -62,13 +62,13 @@
   },
   "onboarding": {
     "title": "Experience and goals",
-    "subtitle": "Part of your profile: playing experience, interests and a comfortable practice rhythm.",
+    "subtitle": "Playing experience, goals and practice rhythm.",
     "loading": "Loading questionnaire...",
     "needProfile": "Create your learner profile first.",
     "step": "Step {step} of {total}",
     "experienceTitle": "What can you play already?",
     "experienceLevel": "How would you describe your level?",
-    "yearsPlaying": "Full years playing",
+    "yearsPlaying": "Full years played",
     "levels": {
       "NONE": "Never played",
       "BEGINNER": "Beginner",
@@ -76,18 +76,18 @@
       "ADVANCED": "Advanced"
     },
     "skillsTitle": "Which techniques have you tried?",
-    "skillsHint": "Leave blank if you are new to the instrument.",
+    "skillsHint": "You can skip this.",
     "skills": {
       "CHORDS": "Chords",
       "STRUMMING": "Strumming",
       "ARPEGGIOS": "Simple arpeggios",
       "FINGERSTYLE_MELODY": "Melodic fingerstyle"
     },
-    "piecesTitle": "Which pieces have you played?",
-    "piecesHint": "Optional. Add up to 10 pieces.",
+    "piecesTitle": "Familiar pieces",
+    "piecesHint": "Optional · up to 10 pieces.",
     "piecesExample": "Yesterday | The Beatles\nWindy & Warm | Tommy Emmanuel",
     "invalidPieces": "Maximum 10 pieces; title required (up to 120 characters).",
-    "goalsTitle": "What would you like to learn?",
+    "goalsTitle": "Learning goals",
     "goals": {
       "FINGERSTYLE": "Pure fingerstyle",
       "RHYTHM": "Better rhythm and timing",
@@ -96,11 +96,11 @@
       "COMPOSITIONS": "Learn compositions",
       "THEORY": "Music theory"
     },
-    "practiceTitle": "How much time can you practice?",
+    "practiceTitle": "Practice rhythm",
     "practiceMinutes": "Minutes per session",
     "sessionsPerWeek": "Sessions per week",
-    "notesTitle": "Anything else your teacher should know?",
-    "notesHint": "Your preferences, challenges, special requests (optional).",
+    "notesTitle": "Preferences",
+    "notesHint": "What to keep in mind (optional)",
     "next": "Continue",
     "back": "Back",
     "save": "Save questionnaire",
@@ -108,7 +108,8 @@
     "profileBack": "Back to profile",
     "draftConflict": "A saved background exists on the server. Your local draft is still visible, but saving is blocked to prevent data loss. Load the server version to continue.",
     "loadServerBackground": "Load saved background (replace draft)",
-    "saveChanges": "Save changes"
+    "saveChanges": "Save changes",
+    "saveShort": "Save"
   },
   "diagnostic": {
     "title": "Initial assessment",
@@ -810,8 +811,8 @@
     "removePiece": "Remove piece {number}",
     "remove": "Remove",
     "addPiece": "Add piece",
-    "goalsHint": "Choose several goals or skip. Music styles can be changed in your profile.",
-    "rhythmHint": "Choose a comfortable rhythm: 10–120 minutes, 1–7 sessions a week. You can change it later.",
+    "goalsHint": "Choose goals or skip this step.",
+    "rhythmHint": "10–120 minutes, 1–7 sessions a week.",
     "invalidAnswers": "Check your answers: 0–60 whole years; up to 10 pieces with a title and fields up to 120 characters; 10–120 minutes, 1–7 sessions a week; notes up to 1000 characters.",
     "completeTitle": "You are ready for the next step",
     "completeDescription": "Your answers are saved. Continue learning when you are ready.",
@@ -823,6 +824,8 @@
     "yearsValue": "Years played: {years}",
     "practiceValue": "{minutes} min · sessions per week: {sessions}",
     "breadcrumb": "Profile navigation",
-    "learningGoals": "Learning goals"
+    "learningGoals": "Learning goals",
+    "addShort": "Add",
+    "editShort": "Edit"
   }
 }

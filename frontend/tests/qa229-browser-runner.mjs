@@ -86,7 +86,7 @@ try {
    const ok=await evaluate(`new Promise(resolve=>{let n=0;const t=setInterval(()=>{if(${expression}){clearInterval(t);resolve(true);}else if(++n>200){clearInterval(t);resolve(false);}},25);})`);
    assert.ok(ok,'Timed out: '+expression);
  };
- const clickText=async text=>evaluate(`[...document.querySelectorAll('main button')].find(b=>b.textContent.includes(${JSON.stringify(text)}))?.click()`);
+ const clickText=async text=>evaluate(`[...document.querySelectorAll('main button')].find(b=>(b.getAttribute('aria-label')||b.textContent).includes(${JSON.stringify(text)}))?.click()`);
  const navigate=async path=>{await cdp('Page.navigate',{url:base+path});await waitFor("document.querySelector('main h1')");};
  const ui=async expression=>evaluate(expression);
  const puts=()=>ui("__qa.calls.filter(c=>c.method==='PUT').length");
@@ -130,10 +130,10 @@ try {
 
  // Structured title preserves a literal separator.
  await ui("let f=document.querySelector('[data-piece-title]');f.value='A | B';f.dispatchEvent(new Event('input',{bubbles:true}))");
- await ui("[...document.querySelectorAll('main button')].find(b=>b.textContent.includes('Добавить произведение')).click()");
+ await ui("document.querySelector('[data-add-piece]').click()");
  await waitFor("document.querySelectorAll('[data-piece-title]').length===2");
  assert.equal(await ui("document.activeElement===document.querySelectorAll('[data-piece-title]')[1]"),true,'new row gets keyboard focus');
- await ui("[...document.querySelectorAll('main button')].filter(b=>b.textContent.trim()==='Удалить').at(-1).click()");
+ await ui("[...document.querySelectorAll('[data-remove-piece]')].at(-1).click()");
  // Unsaved-route guard: cancel stays, confirm discards.
  const navAttempt=cdp('Runtime.evaluate',{expression:"import('/src/router/index.ts').then(m=>m.router.push('/profile'))",awaitPromise:true,returnByValue:true});
  await new Promise(resolve=>{const fn=e=>{const m=JSON.parse(e.data);if(m.method==='Page.javascriptDialogOpening'){socket.removeEventListener('message',fn);resolve();}};socket.addEventListener('message',fn);});
@@ -146,9 +146,12 @@ try {
  assert.equal(await ui("document.querySelector('[data-piece-title]').value"),'Windy & Warm','discarded draft is not persisted');
  await ui("{const field=document.querySelector('[data-piece-title]');field.value='A | B';field.dispatchEvent(new Event('input',{bubbles:true}));}");
 
- await next();await waitFor("document.querySelector('main h2')?.textContent.includes('освоить')");
+ await next();await waitFor("document.querySelector('main h2')?.textContent.includes('Цели обучения')");
  await clickText('Сохранить изменения');await waitFor("document.querySelector('.wizard-steps')&&document.querySelector('main .saved-confirmation')");
  assert.equal(await ui("document.querySelector('.wizard-steps [aria-current=step] span').textContent"),'2');
+ const actionLayout=await ui(`(()=>{const bar=document.querySelector('.wizard-actions'),back=bar.querySelector('.wizard-nav:not(.wizard-next)'),next=bar.querySelector('.wizard-next'),save=bar.querySelector('.wizard-save');const b=back.getBoundingClientRect(),n=next.getBoundingClientRect(),s=save.getBoundingClientRect();const bs=getComputedStyle(back),ns=getComputedStyle(next);return {back:b.x,save:s.x,next:n.x,same:bs.border===ns.border&&bs.backgroundColor===ns.backgroundColor&&bs.height===ns.height};})()`);
+ assert.ok(actionLayout.back<actionLayout.save&&actionLayout.save<actionLayout.next,'Back is left; save and Continue are right');
+ assert.ok(actionLayout.same,'Back and Continue share their visual style');
  await screenshot('onboarding-step2-1440-ru'); 
  await clickText('Назад');await waitFor("document.querySelector('[data-piece-title]')");
  assert.equal(await ui("document.querySelector('[data-piece-title]').value"),'A | B');
@@ -164,6 +167,14 @@ try {
  assert.equal(await ui("document.querySelector('.completion-panel .primary-link').getAttribute('href')"),'/diagnostics');
  assert.equal(await ui("__qa.calls.some(c=>c.method==='POST'&&c.path.includes('diagnostic'))"),false,'editing never creates diagnostics');
  await screenshot('onboarding-complete-1440-ru');
+ for(const locale of ['ru','en']){
+   await ui(`import('/src/core/i18n.ts').then(m=>m.i18n.global.locale.value='${locale}')`);
+   await cdp('Emulation.setDeviceMetricsOverride',{width:360,height:1000,deviceScaleFactor:1,mobile:false});
+   assert.ok(await ui('document.documentElement.scrollWidth<=innerWidth'),'completion reflow '+locale);
+   await screenshot('onboarding-complete-360-'+locale);
+ }
+ await ui("import('/src/core/i18n.ts').then(m=>m.i18n.global.locale.value='ru')");
+ await cdp('Emulation.setDeviceMetricsOverride',{width:1440,height:1000,deviceScaleFactor:1,mobile:false});
  // Open from scratch and refresh each route with the real router/AuthGate.
  await navigate('/settings/account');await waitFor("document.querySelector('#current-password')");
  await screenshot('account-1440-ru');
@@ -211,6 +222,16 @@ try {
        await ui("document.querySelector('.header-account-trigger').click()");
        await screenshot('account-menu-360-'+locale);
        await ui("document.querySelector('.header-account-trigger').click()");
+     }
+     if(route==='/onboarding'){
+       await next();await waitFor("document.querySelector('main textarea')");
+       const layout=await ui(`(()=>{const bar=document.querySelector('.wizard-actions'),back=bar.querySelector('.wizard-nav:not(.wizard-next)'),forward=bar.querySelector('.wizard-next'),save=bar.querySelector('.wizard-save');const b=back.getBoundingClientRect(),f=forward.getBoundingClientRect(),s=save.getBoundingClientRect();return {ordered:b.x<s.x&&s.x<f.x,touch:b.width>=44&&b.height>=44&&f.width>=44&&f.height>=44,labels:back.getAttribute('aria-label')&&forward.getAttribute('aria-label')};})()`);
+       assert.ok(layout.ordered&&layout.touch&&layout.labels,'mobile back/save/next have clear order, labels and touch targets');
+       assert.ok(await ui('document.documentElement.scrollWidth<=innerWidth'),'step 2 reflow '+locale);
+       await screenshot('onboarding-step2-360-'+locale);
+       await next();await waitFor("document.querySelector('main input[min=\"10\"]')");
+       assert.ok(await ui('document.documentElement.scrollWidth<=innerWidth'),'step 3 reflow '+locale);
+       await screenshot('onboarding-step3-360-'+locale);
      }
      if(route==='/settings/account'){
        await clickText(locale==='ru'?'Добавить вход через Google':'Add Google sign-in');
