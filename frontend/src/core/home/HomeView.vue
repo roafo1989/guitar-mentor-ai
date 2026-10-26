@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import { computed, onBeforeUnmount, onMounted, ref, watch } from 'vue';
 import { apiFailureKey, asApiFailure, type ApiFailure } from '../../shared/api-failure';
+import { homeNextTarget } from './home-next-action';
 import { resolveHomeSummary, type HomeSummary } from './home-summary';
 import { useI18n } from 'vue-i18n';
 import { useLearnerStore } from '../../stores/learner.store';
@@ -12,9 +13,7 @@ const learnerStore = useLearnerStore();
 const loading = ref(true);
 const summary = ref<HomeSummary | null>(null);
 const recoveryError = ref<ApiFailure | null>(null);
-const primaryTarget = computed(() =>
-  summary.value?.step === 'profile' ? '/profile'
-    : summary.value?.step === 'onboarding' ? '/onboarding' : summary.value?.step === 'result' ? '/lessons/new' : '/diagnostics');
+const primaryTarget = computed(() => homeNextTarget(summary.value?.step));
 const primaryLabel = computed(() => {
   if (recoveryError.value) return t('home.retry');
   if (summary.value?.step === 'result') return t('lessonNext.choose');
@@ -34,15 +33,14 @@ const homeDescription = computed(() => {
   return t('home.light.descriptions.' + summary.value.step);
 });
 const visibleSections = computed(() => sections.filter(section =>
-  section.key === 'library' || section.key === 'profile' || (section.key === 'onboarding' ? hasInstrument.value : hasInstrument.value && summary.value?.step !== 'profile'),
+  section.key === 'library' || section.key === 'profile' || (hasInstrument.value && summary.value?.step !== 'profile'),
 ));
 
 const recoveryMessage = computed(() => recoveryError.value ? t(apiFailureKey(recoveryError.value)) : '');
 const sections = [
   { key: 'profile', to: '/profile', number: '01', icon: 'M12 12a4 4 0 1 0 0-8 4 4 0 0 0 0 8ZM4 21v-2a6 6 0 0 1 6-6h4a6 6 0 0 1 6 6v2' },
-  { key: 'onboarding', to: '/onboarding', number: '02', icon: 'M8 4H5a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2V6a2 2 0 0 0-2-2h-3M8 2h8v5H8ZM7 12h10M7 17h7' },
-  { key: 'diagnostics', to: '/diagnostics', number: '03', icon: 'M4 14v-4M8 19V5M12 22V2M16 17V7M20 14v-4' },
-  { key: 'library', to: '/library', number: '04', icon: 'M4 3h16v18H4zM8 7h8M8 12h8M8 17h5' },
+  { key: 'diagnostics', to: '/diagnostics', number: '02', icon: 'M4 14v-4M8 19V5M12 22V2M16 17V7M20 14v-4' },
+  { key: 'library', to: '/library', number: '03', icon: 'M4 3h16v18H4zM8 7h8M8 12h8M8 17h5' },
 ] as const;
 
 async function restoreProfile(): Promise<void> {

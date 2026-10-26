@@ -1,0 +1,92 @@
+.learner-experience { max-width: 960px; color: #162331; }
+.learner-experience .intro { margin-bottom: 32px; }
+.learner-experience .panel { box-shadow: 0 4px 22px #16233108; border-color: #dde5e4; border-radius: 16px; }
+.learner-experience .panel + .panel { margin-top: 24px; }
+.learner-experience .page-heading { display: flex; align-items: flex-start; justify-content: space-between; gap: 20px; flex-wrap: wrap; }
+.learner-experience h2, .learner-experience h3 { overflow-wrap: anywhere; }
+.learner-experience h3 { font-size: 16px; margin: 24px 0 14px; }
+.learner-experience p { overflow-wrap: anywhere; }
+.learner-experience .quiet-link { color: #44675f; font-size: 14px; text-underline-offset: 4px; }
+.learner-experience .page-back { display: inline-block; margin-top: 24px; }
+.learner-experience .plain-fieldset { border: 0; padding: 0; margin: 0; min-width: 0; }
+.learner-experience .preference-rows { display: grid; gap: 12px; }
+.learner-experience .preference-row { margin: 0; border: 1px solid #dde5e4; border-radius: 10px; padding: 8px 12px 12px; min-width: 0; }
+.learner-experience .preference-row legend { padding: 0 8px; font-size: 14px; font-weight: 650; }
+.learner-experience .rating-options { display: flex; flex-wrap: wrap; gap: 8px; }
+.learner-experience .rating-option { display: flex; gap: 6px; align-items: center; cursor: pointer; border: 1px solid #dde5e4; border-radius: 8px; padding: 10px 12px; min-height: 44px; font-size: 14px; }
+.learner-experience .rating-option:has(input:checked) { color: #205f57; background: #eaf4ef; border-color: #28776d; }
+.learner-experience input { accent-color: #28776d; }
+.learner-experience .preference-summary { margin: 0 0 24px; }
+.learner-experience .preference-summary > div { display: grid; grid-template-columns: 140px minmax(0,1fr); gap: 16px; padding: 12px 0; border-bottom: 1px solid #e7ecf1; }
+.learner-experience dt { font-weight: 650; font-size: 14px; }
+.learner-experience dd { margin: 0; color: #53636d; font-size: 14px; overflow-wrap: anywhere; }
+.learner-experience .saved-confirmation { padding: 16px; border: 1px solid #a6c5b6; background: #edf7f0; border-radius: 10px; color: #23583f; }
+.learner-experience .skill-chips { display: flex; flex-wrap: wrap; gap: 8px; }
+.learner-experience .skill-chips span { background: #eef3f1; border-radius: 8px; padding: 8px 12px; font-size: 14px; }
+.learner-experience .wizard-steps { display: flex; gap: 12px; padding: 0; list-style: none; margin: 0 0 28px; }
+.learner-experience .wizard-steps li { flex: 1; color: #53636d; display: flex; align-items: center; gap: 8px; font-size: 14px; }
+.learner-experience .wizard-steps li > span { display: inline-grid; place-items: center; width: 28px; height: 28px; flex-shrink: 0; border: 1px solid #7c8987; border-radius: 50%; }
+.learner-experience .wizard-steps li.current { color: #205f57; font-weight: 700; }
+.learner-experience .wizard-steps :is(.current,.done) > span { color: white; background: #28776d; border-color: #28776d; }
+.learner-experience .known-piece-row { display: grid; grid-template-columns: minmax(0,1fr) minmax(0,1fr) auto; align-items: end; gap: 12px; margin: 16px 0; }
+.learner-experience .primary-link { display: inline-flex; text-decoration: none; margin-top: 16px; }
+.learner-experience .completion-mark { display: grid; place-items: center; width: 52px; height: 52px; background: #eaf4ef; color: #205f57; border-radius: 50%; font-size: 28px; margin-bottom: 24px; }
+.learner-experience :is(input:not([type=radio]):not([type=checkbox]),select,textarea) { max-width: 100%; min-width: 0; border-color: #7c8987; font: inherit; }
+.learner-experience .field input[readonly] { background: #f4f6f5; }
+.learner-experience :is(a,button,input,select,textarea):focus-visible { outline: 3px solid #205f57; outline-offset: 3px; }
+.learner-experience :is(button,a) { overflow-wrap: anywhere; }
+.learner-experience button:disabled { cursor: not-allowed; opacity: .55; }
+.learner-experience .text-button { min-height: 44px; }
+.learner-experience .password-settings { margin-top: 0; }
+@media(max-width:600px) {
+  .learner-experience .wizard-steps { flex-direction: column; gap: 8px; }
+  .learner-experience .known-piece-row { grid-template-columns: minmax(0,1fr); padding-bottom: 16px; border-bottom: 1px solid #dde5e4; }
+  .learner-experience .preference-summary > div { grid-template-columns: minmax(0,1fr); gap: 6px; }
+  .learner-experience .form-actions { align-items: stretch; gap: 12px; }
+  .learner-experience .form-actions > * { flex: 1 1 auto; text-align: center; }
+}
+
+.learner-experience h2[tabindex="-1"]:focus { outline: none; }
+
+.learner-experience .learning-summary { margin: 28px 0; padding-top: 28px; border-top: 1px solid #dde5e4; }
+.learner-experience .learning-summary .page-heading { align-items: baseline; }
+.learner-experience .learner-facts { display: grid; grid-template-columns: repeat(2,minmax(0,1fr)); gap: 16px; margin: 8px 0 20px; }
+.learner-experience .learner-facts dt { margin-bottom: 6px; }
+.learner-experience .profile-breadcrumb { display: flex; gap: 10px; flex-wrap: wrap; color: #53636d; font-size: 14px; margin-bottom: 20px; }
+.learner-experience .profile-breadcrumb a { color: #205f57; text-underline-offset: 3px; }
+.learner-experience .google-provider { margin-top: 24px; border-top: 1px solid #dde5e4; padding-top: 4px; }
+.learner-experience .google-provider .auth-form { margin-top: 16px; }
+.learner-experience .google-provider .hint { margin: 8px 0 16px; }
+@media(max-width:600px) { .learner-experience .learner-facts { grid-template-columns: minmax(0,1fr); } }
+
+/* Questionnaire: list actions stay with the list; progress actions align to the right. */
+.learner-experience .action-icon { flex: 0 0 18px; }
+.learner-experience .wizard-actions,
+.learner-experience .completion-actions { justify-content: space-between; gap: 12px; padding-top: 20px; border-top: 1px solid #dde5e4; }
+.learner-experience .wizard-actions-end { display: flex; align-items: center; justify-content: flex-end; gap: 12px; margin-left: auto; min-width: 0; }
+.learner-experience .wizard-actions :is(button,a),
+.learner-experience .completion-actions :is(button,a),
+.learner-experience .piece-add { display: inline-flex; align-items: center; justify-content: center; gap: 8px; min-height: 44px; text-decoration: none; font-size: 14px; }
+.app-shell .learner-experience :is(.wizard-actions,.completion-actions) .secondary-button,
+.app-shell .learner-experience .piece-add { border: 1px solid #7c8987; background: transparent; color: #205f57; padding: 10px 16px; border-radius: 8px; font-weight: 600; }
+.app-shell .learner-experience :is(.wizard-actions,.completion-actions) .secondary-button:hover:not(:disabled),
+.app-shell .learner-experience .piece-add:hover:not(:disabled) { background: #eaf2ee; color: #205f57; }
+.app-shell .learner-experience .wizard-nav { min-width: 116px; }
+.app-shell .learner-experience .wizard-save { padding: 11px 16px; }
+.learner-experience .completion-actions .primary-link { margin-top: 0; }
+.learner-experience .piece-remove { display: inline-grid; place-items: center; width: 44px; height: 44px; padding: 10px; border: 1px solid #c9d5d1; border-radius: 8px; color: #53636d; background: transparent; cursor: pointer; }
+.learner-experience .piece-remove:hover { color: #a42d32; border-color: #a42d32; background: #fff4f3; }
+@media(max-width:600px) {
+  .learner-experience .wizard-actions { flex-wrap: nowrap; gap: 8px; }
+  .learner-experience .wizard-actions > .wizard-actions-end { flex: 0 1 auto; gap: 8px; }
+  .app-shell .learner-experience .wizard-actions .wizard-nav { flex: 0 0 44px; min-width: 44px; width: 44px; padding: 10px; }
+  .learner-experience .wizard-actions .wizard-nav .action-label { display: none; }
+  .app-shell .learner-experience .wizard-save { padding: 11px 12px; }
+  .learner-experience .known-piece-row .piece-remove { justify-self: end; }
+  .learner-experience .completion-actions > .wizard-actions-end { flex-wrap: wrap; flex: 1 1 100%; }
+  .learner-experience .completion-actions .primary-link { flex: 1 1 100%; }
+}
+@media(max-width:340px) {
+  .learner-experience .wizard-actions { flex-wrap: wrap; }
+  .learner-experience .wizard-actions > .wizard-actions-end { flex: 1 1 100%; flex-wrap: wrap; }
+}

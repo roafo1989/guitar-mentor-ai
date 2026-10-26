@@ -129,8 +129,6 @@ onBeforeUnmount(() => { unsubscribeMetronome?.(); closeMetronome(); });
           <span aria-hidden="true">☰</span>
         </button>
         <nav v-if="auth.actor || localPrototype" :id="menuId" class="header-navigation" :class="{ 'menu-open': menuOpen }" :aria-label="locale === 'ru' ? 'Основная навигация' : 'Main navigation'">
-          <RouterLink to="/profile" @click="closeMenu()">{{ t('app.profile') }}</RouterLink>
-          <RouterLink to="/onboarding" @click="closeMenu()">{{ t('app.onboarding') }}</RouterLink>
           <RouterLink to="/diagnostics" @click="closeMenu()">{{ locale === 'ru' ? 'Занятие' : 'Practice' }}</RouterLink>
           <RouterLink to="/library" @click="closeMenu()">{{ t('library.nav') }}</RouterLink>
           <RouterLink v-if="auth.actor" to="/music-archive" @click="closeMenu()">{{ t('musicArchive.nav') }}</RouterLink>
@@ -184,16 +182,17 @@ onBeforeUnmount(() => { unsubscribeMetronome?.(); closeMetronome(); });
             <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="m6 9 6 6 6-6"/></svg>
           </button>
           <div v-if="accountMenuOpen" id="gm-account-menu" class="header-account-popover">
-            <RouterLink to="/profile" @click="closeAccountMenu()">{{ t('app.profile') }}</RouterLink>
+            <RouterLink to="/profile" @click="closeAccountMenu()"><svg class="account-menu-icon" viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false"><path d="M20 21v-2a6 6 0 0 0-6-6h-4a6 6 0 0 0-6 6v2M16 5a4 4 0 1 1-8 0 4 4 0 0 1 8 0Z" /></svg><span>{{ t('app.profile') }}</span></RouterLink>
+            <RouterLink to="/settings/account" @click="closeAccountMenu()"><svg class="account-menu-icon" viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false"><path d="M9.2 3.4 10 1h4l.8 2.4 2 .9L19 3.8l2 3.4-1.6 1.8.2 2.2 1.8 1.8-2 3.4-2.4-.5-1.8 1.3-.8 2.4h-4l-.8-2.4-2-1L5.2 17l-2-3.5 1.6-1.8-.2-2.2L2.8 7.7l2-3.4 2.4.5 2-.9ZM15.5 10.5a3.5 3.5 0 1 1-7 0 3.5 3.5 0 0 1 7 0Z" /></svg><span>{{ t('profileUx.account') }}</span></RouterLink>
             <button v-if="learnerStore.error" type="button" @click="retryHeaderProfile">{{ locale === 'ru' ? 'Повторить загрузку профиля' : 'Retry profile loading' }}</button>
             <label class="language-picker header-account-locale">
-              <span>{{ t('app.language') }}</span>
+              <span class="account-menu-label"><svg class="account-menu-icon" viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false"><path d="M21 12a9 9 0 1 1-18 0 9 9 0 0 1 18 0ZM3 12h18M12 3c3 3 3 15 0 18-3-3-3-15 0-18Z" /></svg><span>{{ t('app.language') }}</span></span>
               <select v-model="locale" :aria-label="t('app.language')">
                 <option value="ru">RU</option>
                 <option value="en">EN</option>
               </select>
             </label>
-            <button v-if="auth.actor" type="button" class="header-signout-button" :disabled="logoutPending" :aria-busy="logoutPending" @click="signOut">{{ logoutPending ? t('auth.loading') : t('auth.signOut') }}</button>
+            <button v-if="auth.actor" type="button" class="header-signout-button" :disabled="logoutPending" :aria-busy="logoutPending" @click="signOut"><svg class="account-menu-icon" viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false"><path d="M9 3H5a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h4m7-16 5 7-5 7M8 12h13" /></svg><span>{{ logoutPending ? t('auth.loading') : t('auth.signOut') }}</span></button>
             <span v-if="logoutError" class="header-action-error" role="alert">{{ locale === 'ru' ? 'Не удалось выйти. Повторите попытку.' : 'Sign out failed. Please retry.' }}</span>
           </div>
         </div>
@@ -211,6 +210,6 @@ onBeforeUnmount(() => { unsubscribeMetronome?.(); closeMetronome(); });
     <MetronomeDialog v-if="(auth.actor || localPrototype) && metronomeUi.open" @close="closeMetronome" @minimize="minimizeMetronome" />
     <TunerDialog :open="(auth.actor || localPrototype) && tunerOpen" @close="closeTuner" />
     <AuthGate><main class="main-content"><RouterView /></main></AuthGate>
-    <footer>Guitar Mentor AI · MVP <span v-if="lightMinimal" class="icon-credits">· Иконки: <a href="https://www.flaticon.com/ru/free-icon/tuner_8031641" target="_blank" rel="noopener noreferrer">тюнер</a> и <a href="https://www.flaticon.com/ru/free-icon/metronome_3564896" target="_blank" rel="noopener noreferrer">метроном</a> — Flaticon</span></footer>
+    <footer>Guitar Mentor AI <span v-if="lightMinimal" class="icon-credits">· Иконки: <a href="https://www.flaticon.com/ru/free-icon/tuner_8031641" target="_blank" rel="noopener noreferrer">тюнер</a> и <a href="https://www.flaticon.com/ru/free-icon/metronome_3564896" target="_blank" rel="noopener noreferrer">метроном</a> — Flaticon</span></footer>
   </div>
 </template>
