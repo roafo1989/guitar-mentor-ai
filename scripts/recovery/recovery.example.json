@@ -1,0 +1,21 @@
+{
+  "schemaVersion": 1,
+  "repository": "rclone:gm-backup:guitar-mentor-ai/restic",
+  "resticPath": "restic.exe",
+  "rcloneConfig": "%APPDATA%\\rclone\\rclone.conf",
+  "pilotRoot": "D:\\GuitarMentorPilot",
+  "sourceRoot": "D:\\Development\\guitar-mentor-ai",
+  "settingsRoot": "%LOCALAPPDATA%\\GuitarMentorAI",
+  "postgresBin": "C:\\Program Files\\PostgreSQL\\17\\bin",
+  "stageRoot": "%LOCALAPPDATA%\\GuitarMentorRecovery",
+  "devEnabled": true,
+  "devDatabase": {
+    "host": "127.0.0.1",
+    "port": 5432,
+    "name": "guitar_mentor",
+    "user": "guitar_mentor_app"
+  },
+  "devLibraryPath": "D:\\Development\\guitar-mentor-ai\\backend\\.local-media\\library",
+  "extraFolders": [],
+  "inventoryReviewed": false
+}

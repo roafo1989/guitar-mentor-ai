@@ -52,3 +52,10 @@ uploads/
 # Private uploaded test recordings (never commit)
 /backend/.local-media/
 /.local-media/
+
+# Disaster recovery: local configuration/reports, never backup payloads in Git
+.recovery-local/
+recovery.local.json
+recovery-status.local.json
+rclone.conf
+*.bundle
