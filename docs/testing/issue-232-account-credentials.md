@@ -10,7 +10,7 @@
 
 ## PostgreSQL / secured HTTP checks
 
-New tests cover V30 over populated ASCII tables, preservation of identity/email/history links, old/new/email authentication, six-character registration/reset/change/linking, occupied active/pending names, expired reservations, simultaneous claims in independent transactions, authenticated ownership, CSRF and rate limiting. They require `GUITAR_MENTOR_TEST_POSTGRES=true` and a real PostgreSQL server. These checks run in Java backend CI (PostgreSQL 17); the local environment cannot run native PostgreSQL as a non-root user. CI outcome must be recorded against the published commit before reporting these tests passed.
+New tests cover V30 over populated ASCII tables, preservation of identity/email/history links, old/new/email authentication, six-character registration/reset/change/linking, occupied active/pending names, expired reservations, simultaneous claims in independent transactions, authenticated ownership, CSRF and rate limiting. They require `GUITAR_MENTOR_TEST_POSTGRES=true` and a real PostgreSQL server. These checks run in Java backend CI (PostgreSQL 17); the local environment cannot run native PostgreSQL as a non-root user. First CI run `40378980893` passed all new PostgreSQL checks (11 credential-service, 1 concurrent claim, 3 secured HTTP and 1 migration tests); its overall result failed because the new route was missing from the explicit API authorization inventory. The route is now classified with actor/password/CSRF/throttle requirements; the complete rerun remains the final gate.
 
 ## Review notes
 

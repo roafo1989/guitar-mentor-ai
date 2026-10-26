@@ -32,6 +32,8 @@ class ApiRouteOwnershipInventoryTest {
         // Authenticated CurrentActor + current password, never client-selected account.
         "/api/v1/local-auth/change",
         "/api/v1/local-auth/methods",
+        // GET: own actor only; POST: same actor + current password + CSRF + throttle (#232).
+        "/api/v1/local-auth/username",
         // Each link route requires a current actor, fresh method proof and CSRF.
         "/api/v1/local-auth/link/google/start",
         "/api/v1/local-auth/link/password/start",
