@@ -120,6 +120,19 @@ class LibraryPublicationHttpPostgresTest {
         JsonNode snapshot=JSON.readTree(published);
         String shared="/api/v1/community/publications/"+snapshot.path("id").asText();
         String content=shared+"/files/"+asset+"/content";
+        String sharedList="/api/v1/community/publications";
+        mvc.perform(MockMvcRequestBuilders.get(sharedList))
+            .andExpect(status().isUnauthorized());
+        mvc.perform(MockMvcRequestBuilders.get(sharedList).with(login("pub-b"))
+            .sessionAttr("guitarMentorAccessVersion",0L))
+            .andExpect(status().isOk())
+            .andExpect(header().string("Cache-Control","no-store"))
+            .andExpect(jsonPath("$.items[0].id").value(snapshot.path("id").asText()));
+        mvc.perform(MockMvcRequestBuilders.get(sharedList).with(login("pub-b"))
+            .sessionAttr("guitarMentorAccessVersion",0L)
+            .param("q","NONEXISTENT"))
+            .andExpect(status().isOk())
+            .andExpect(jsonPath("$.items.length()").value(0));
 
         mvc.perform(MockMvcRequestBuilders.get(shared).with(login("pub-b"))
             .sessionAttr("guitarMentorAccessVersion",0L))
@@ -149,5 +162,9 @@ class LibraryPublicationHttpPostgresTest {
         mvc.perform(MockMvcRequestBuilders.get(shared).with(login("pub-b"))
             .sessionAttr("guitarMentorAccessVersion",0L))
             .andExpect(status().isNotFound());
+        mvc.perform(MockMvcRequestBuilders.get(sharedList).with(login("pub-b"))
+            .sessionAttr("guitarMentorAccessVersion",0L))
+            .andExpect(status().isOk())
+            .andExpect(jsonPath("$.items.length()").value(0));
     }
 }

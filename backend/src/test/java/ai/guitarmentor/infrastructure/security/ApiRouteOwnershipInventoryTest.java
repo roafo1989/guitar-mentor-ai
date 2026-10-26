@@ -60,6 +60,8 @@ class ApiRouteOwnershipInventoryTest {
                     || path.startsWith("/api/v1/music-catalog/works/")
                     || path.startsWith("/api/v1/music-catalog/arrangements/"))
                     continue; // #194 private indexed metadata, CurrentActor account scoping.
+                if (path.equals("/api/v1/community/publications"))
+                    continue; // #166: admitted-only published search; never returns private sources.
                 if (path.equals("/api/v1/community/publications/{publicationId}")
                     || path.equals("/api/v1/community/publications/{publicationId}/files/{assetId}/content")
                     || path.equals("/api/v1/community/publications/{publicationId}/hide")

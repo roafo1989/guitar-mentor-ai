@@ -32,12 +32,17 @@ public class LibraryPublicationController {
         this.jdbc=jdbc;this.storage=storage;this.enabled=enabled;
     }
     public record AssetRight(UUID assetId,String provenance, @com.fasterxml.jackson.annotation.JsonAlias("basis") String rightsBasis, @com.fasterxml.jackson.annotation.JsonAlias("evidence") String rightsEvidence, String attribution) { public AssetRight(UUID id,String p,String b,String e){ this(id,p,b,e,""); } }
-    public record PublishRequest(@com.fasterxml.jackson.annotation.JsonAlias("assetRights") List<AssetRight> assets) {}
+    public record PublishRequest(
+        @com.fasterxml.jackson.annotation.JsonAlias("assetRights") List<AssetRight> assets,
+        List<String> tags) {
+        public PublishRequest(List<AssetRight> assets) {this(assets,List.of());}
+    }
     public record AssetSnapshot(UUID id,String originalName,String format,long byteSize,String sha256,
             String provenance,String rightsBasis,String rightsEvidence,String attribution,String downloadUrl) {}
     @com.fasterxml.jackson.annotation.JsonInclude(com.fasterxml.jackson.annotation.JsonInclude.Include.NON_NULL)
     public record Publication(UUID id,UUID materialId,UUID ownerAccountId,long version,
-            String title,String type,String author,String state,long revision,List<AssetSnapshot> assets) {}
+            String title,String type,String author,String state,long revision,List<AssetSnapshot> assets,
+            List<String> tags) {}
     public record HideRequest(String reason) {}
 
     private CurrentActor actor(HttpServletRequest request) {
@@ -66,6 +71,9 @@ public class LibraryPublicationController {
     }
     private Publication snapshot(Map<String,Object> row,boolean includePrivateEvidence) {
         UUID id=(UUID)row.get("id");
+        List<String> tags=jdbc.sql("""
+            SELECT tag FROM library_publication_tags WHERE publication_id=:id ORDER BY tag
+            """).param("id",id).query(String.class).list();
         var files=jdbc.sql("""
             SELECT asset_id,original_name,format,byte_size,sha256,provenance,rights_basis,rights_evidence,attribution
             FROM library_publication_assets WHERE publication_id=:id ORDER BY asset_id
@@ -79,7 +87,7 @@ public class LibraryPublicationController {
             includePrivateEvidence?(UUID)row.get("owner_account_id"):null,((Number)row.get("version")).longValue(),
             (String)row.get("title"),(String)row.get("material_type"),
             (String)row.get("author"),(String)row.get("state"),
-            ((Number)row.get("publication_revision")).longValue(),files);
+            ((Number)row.get("publication_revision")).longValue(),files,tags);
     }
 
 
@@ -88,6 +96,20 @@ public class LibraryPublicationController {
         try {return UUID.fromString(raw);}
         catch(IllegalArgumentException ex){throw new Failure(400,"PUBLICATION_INVALID_IDEMPOTENCY_KEY");}
     }
+    private static List<String> normalizedTags(List<String> supplied) {
+        if(supplied==null) return List.of();
+        if(supplied.size()>10) throw new Failure(400,"PUBLICATION_INVALID_TAGS");
+        java.util.TreeSet<String> tags=new java.util.TreeSet<>();
+        for(String raw:supplied) {
+            if(raw==null) throw new Failure(400,"PUBLICATION_INVALID_TAGS");
+            String tag=raw.strip().toLowerCase(Locale.ROOT);
+            if(!tag.matches("[\\p{L}\\p{N}][\\p{L}\\p{N} _-]{0,39}"))
+                throw new Failure(400,"PUBLICATION_INVALID_TAGS");
+            tags.add(tag);
+        }
+        return List.copyOf(tags);
+    }
+
     private static String fingerprint(UUID material,long revision,PublishRequest payload) {
         if(payload==null || payload.assets()==null || payload.assets().isEmpty())
             throw new Failure(400,"PUBLICATION_INVALID_RIGHTS");
@@ -98,8 +120,12 @@ public class LibraryPublicationController {
                 +"|"+a.rightsEvidence()+"|"+a.attribution());
         }
         Collections.sort(normalized);
-        byte[] body=(material+"|"+revision+"|"+String.join("\n",normalized))
-            .getBytes(StandardCharsets.UTF_8);
+        List<String> tags=normalizedTags(payload.tags());
+        String fingerprintInput=material+"|"+revision+"|"+String.join("\n",normalized);
+        // Compatibility: V28 existing publications have no tags and used the original fingerprint.
+        // Identical replay after V29 must still return 200 rather than a false 409.
+        if(!tags.isEmpty()) fingerprintInput+="|tags="+String.join(",",tags);
+        byte[] body=fingerprintInput.getBytes(StandardCharsets.UTF_8);
         try {return HexFormat.of().formatHex(
             java.security.MessageDigest.getInstance("SHA-256").digest(body));}
         catch(java.security.NoSuchAlgorithmException e){throw new IllegalStateException(e);}
@@ -203,6 +229,10 @@ public class LibraryPublicationController {
                 .param("basis",right.rightsBasis())
                 .param("evidence",right.rightsEvidence().trim())
                 .param("attribution",right.attribution()==null?"":right.attribution().trim()).update();
+        }
+        for(String tag:normalizedTags(payload.tags())) {
+            jdbc.sql("INSERT INTO library_publication_tags(publication_id,tag) VALUES(:id,:tag)")
+                .param("id",pub).param("tag",tag).update();
         }
         audit(pub,owner,"PUBLISH",null);
         var item=jdbc.sql("SELECT * FROM library_publications WHERE id=:id")
