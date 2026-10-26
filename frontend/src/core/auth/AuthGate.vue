@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import { nextTick, onBeforeUnmount, onMounted, ref } from 'vue';
 import { useI18n } from 'vue-i18n';
+import { isValidLogin, isValidPassword, normalizeLogin } from './credential-policy';
 import { auth, clearActor, login, refreshActor, secureUi } from './auth';
 import { captureEmailActionLink, takeEmailActionLink } from './auth-link';
 import { captureOAuthBridgeTicket, takeOAuthBridgeTicket } from './oauth-bridge-ticket';
@@ -94,13 +95,13 @@ async function localLogin() {
 }
 async function register() {
   if (busy.value || oauthPending.value) return;
-  if (!/^[a-z0-9][a-z0-9._-]{2,63}$/.test(username.value.toLowerCase())) { error.value = label('Проверьте логин: 3–64 латинских символа, цифры, точка, _ или -.', 'Check username: 3–64 Latin letters, digits, dot, _ or -.'); return; }
-  if (password.value.length < 12 || password.value.length > 128) { error.value = label('Пароль должен содержать 12–128 символов.', 'Password must be 12–128 characters.'); return; }
+  if (!isValidLogin(username.value)) { error.value = label('Проверьте логин: 3–64 символа: латинские или кириллические буквы, цифры, точка, _ или -.', 'Check username: 3–64 characters: Latin or Cyrillic letters, digits, dot, _ or -.'); return; }
+  if (!isValidPassword(password.value)) { error.value = label('Пароль должен содержать 6–128 символов.', 'Password must be 6–128 characters.'); return; }
   if (password.value !== confirmPassword.value) {
     error.value = label('Пароли не совпадают.', 'Passwords do not match.'); return;
   }
   if (await request('register', {
-    email: email.value, login: username.value,
+    email: email.value, login: normalizeLogin(username.value),
     password: password.value, confirmPassword: confirmPassword.value,
   })) {
     password.value = ''; confirmPassword.value = '';
@@ -130,7 +131,7 @@ async function forgot() {
 async function reset() {
   if (busy.value) return;
   if (!tokenPattern.test(verificationToken.value)) { error.value = label('Код восстановления недействителен.', 'Invalid reset code.'); return; }
-  if (password.value.length < 12 || password.value.length > 128) { error.value = label('Пароль должен содержать 12–128 символов.', 'Password must be 12–128 characters.'); return; }
+  if (!isValidPassword(password.value)) { error.value = label('Пароль должен содержать 6–128 символов.', 'Password must be 6–128 characters.'); return; }
   if (password.value !== confirmPassword.value) {
     error.value = label('Пароли не совпадают.', 'Passwords do not match.'); return;
   }
@@ -257,13 +258,13 @@ onBeforeUnmount(() => {
       <form v-else-if="mode === 'register'" class="auth-form auth03-form" @submit.prevent="register">
         <label for="registration-email">Email</label><input id="registration-email" v-model.trim="email" type="email" autocomplete="email" maxlength="320" required />
         <label for="registration-login">{{ label('Логин', 'Username') }}</label>
-        <input id="registration-login" v-model.trim="username" autocomplete="username" minlength="3" maxlength="64" pattern="[A-Za-z0-9][A-Za-z0-9._-]{2,63}" aria-describedby="auth03-login-help" required />
-        <small id="auth03-login-help">{{ label('3–64: латинские буквы, цифры, точка, _ и -; первый символ — буква или цифра', '3–64: Latin letters, digits, dot, _ and -; first character must be a letter or digit') }}</small>
+        <input id="registration-login" v-model.trim="username" autocomplete="username" minlength="3" maxlength="128" aria-describedby="auth03-login-help" required />
+        <small id="auth03-login-help">{{ label('3–64: латиница, кириллица, цифры, . _ -; первый символ — буква или цифра', '3–64: Latin or Cyrillic letters, digits, . _ -; start with a letter or digit') }}</small>
         <label for="registration-password">{{ label('Пароль', 'Password') }}</label>
-        <div class="auth03-password"><input id="registration-password" v-model="password" :type="showPassword ? 'text' : 'password'" autocomplete="new-password" minlength="12" maxlength="128" aria-describedby="auth03-password-help" required /><button type="button" :aria-pressed="showPassword" :aria-label="showPassword ? label('Скрыть пароль', 'Hide password') : label('Показать пароль', 'Show password')" @click="showPassword = !showPassword">{{ showPassword ? '◉' : '◎' }}</button></div>
-        <small id="auth03-password-help">{{ label('12–128 символов', '12–128 characters') }}</small>
+        <div class="auth03-password"><input id="registration-password" v-model="password" :type="showPassword ? 'text' : 'password'" autocomplete="new-password" minlength="6" maxlength="256" aria-describedby="auth03-password-help" required /><button type="button" :aria-pressed="showPassword" :aria-label="showPassword ? label('Скрыть пароль', 'Hide password') : label('Показать пароль', 'Show password')" @click="showPassword = !showPassword">{{ showPassword ? '◉' : '◎' }}</button></div>
+        <small id="auth03-password-help">{{ label('6–128 символов', '6–128 characters') }}</small>
         <label for="registration-confirm">{{ label('Повторите пароль', 'Confirm password') }}</label>
-        <div class="auth03-password"><input id="registration-confirm" v-model="confirmPassword" :type="showConfirm ? 'text' : 'password'" autocomplete="new-password" minlength="12" maxlength="128" required /><button type="button" :aria-pressed="showConfirm" :aria-label="showConfirm ? label('Скрыть подтверждение', 'Hide confirmation') : label('Показать подтверждение', 'Show confirmation')" @click="showConfirm = !showConfirm">{{ showConfirm ? '◉' : '◎' }}</button></div>
+        <div class="auth03-password"><input id="registration-confirm" v-model="confirmPassword" :type="showConfirm ? 'text' : 'password'" autocomplete="new-password" minlength="6" maxlength="256" required /><button type="button" :aria-pressed="showConfirm" :aria-label="showConfirm ? label('Скрыть подтверждение', 'Hide confirmation') : label('Показать подтверждение', 'Show confirmation')" @click="showConfirm = !showConfirm">{{ showConfirm ? '◉' : '◎' }}</button></div>
         <button class="auth-primary" type="submit" :disabled="busy || oauthPending" :aria-busy="busy">{{ busy ? t('auth.loading') : label('Зарегистрироваться', 'Create account') }}</button>
       </form>
       <div v-if="mode === 'login' || mode === 'register'" class="auth03-google-block">
@@ -293,10 +294,10 @@ onBeforeUnmount(() => {
         <template v-if="!tokenFromLink && manualCode"><label for="reset-token">{{ label('Код восстановления', 'Reset code') }}</label><input id="reset-token" v-model.trim="verificationToken" autocomplete="one-time-code" minlength="64" maxlength="64" pattern="[a-f0-9]{64}" required /></template>
         <template v-if="tokenFromLink || manualCode">
           <label for="reset-password">{{ label('Новый пароль', 'New password') }}</label>
-          <div class="auth03-password"><input id="reset-password" v-model="password" :type="showPassword ? 'text' : 'password'" autocomplete="new-password" minlength="12" maxlength="128" required /><button type="button" :aria-pressed="showPassword" :aria-label="showPassword ? label('Скрыть пароль', 'Hide password') : label('Показать пароль', 'Show password')" @click="showPassword = !showPassword">{{ showPassword ? '◉' : '◎' }}</button></div>
-          <small>{{ label('12–128 символов', '12–128 characters') }}</small>
+          <div class="auth03-password"><input id="reset-password" v-model="password" :type="showPassword ? 'text' : 'password'" autocomplete="new-password" minlength="6" maxlength="256" required /><button type="button" :aria-pressed="showPassword" :aria-label="showPassword ? label('Скрыть пароль', 'Hide password') : label('Показать пароль', 'Show password')" @click="showPassword = !showPassword">{{ showPassword ? '◉' : '◎' }}</button></div>
+          <small>{{ label('6–128 символов', '6–128 characters') }}</small>
           <label for="reset-confirm">{{ label('Подтверждение пароля', 'Confirm password') }}</label>
-          <div class="auth03-password"><input id="reset-confirm" v-model="confirmPassword" :type="showConfirm ? 'text' : 'password'" autocomplete="new-password" minlength="12" maxlength="128" required /><button type="button" :aria-pressed="showConfirm" :aria-label="showConfirm ? label('Скрыть подтверждение', 'Hide confirmation') : label('Показать подтверждение', 'Show confirmation')" @click="showConfirm = !showConfirm">{{ showConfirm ? '◉' : '◎' }}</button></div>
+          <div class="auth03-password"><input id="reset-confirm" v-model="confirmPassword" :type="showConfirm ? 'text' : 'password'" autocomplete="new-password" minlength="6" maxlength="256" required /><button type="button" :aria-pressed="showConfirm" :aria-label="showConfirm ? label('Скрыть подтверждение', 'Hide confirmation') : label('Показать подтверждение', 'Show confirmation')" @click="showConfirm = !showConfirm">{{ showConfirm ? '◉' : '◎' }}</button></div>
           <button class="auth-primary" type="submit" :disabled="busy" :aria-busy="busy">{{ label('Сохранить пароль', 'Save password') }}</button>
         </template>
       </form>

@@ -168,6 +168,26 @@ public class LocalAuthController {
             return ResponseEntity.ok(Map.of("code","PASSWORD_CHANGED"));
         }catch(IllegalArgumentException|SecurityException ex){return bad("INVALID_CREDENTIALS");}
     }
+    @GetMapping("/username")
+    ResponseEntity<UsernameView> username(HttpServletRequest http) {
+        var actor=(CurrentActor)http.getAttribute("guitarMentorActor");
+        if(actor==null) return ResponseEntity.status(401).build();
+        return ResponseEntity.ok(new UsernameView(service.username(actor.accountId())));
+    }
+    @PostMapping("/username")
+    ResponseEntity<?> changeUsername(@RequestBody ChangeUsername req,HttpServletRequest http) {
+        limit(http,"username-change");
+        var actor=(CurrentActor)http.getAttribute("guitarMentorActor");
+        if(actor==null) return ResponseEntity.status(401).body(Map.of("code","UNAUTHENTICATED"));
+        try {
+            return ResponseEntity.ok(new UsernameView(service.changeUsername(actor.accountId(),req.newLogin(),req.currentPassword())));
+        } catch(LocalCredentialService.UsernameUnavailable | org.springframework.dao.DataIntegrityViolationException ex) {
+            return ResponseEntity.status(409).body(Map.of("code","LOGIN_UNAVAILABLE"));
+        } catch(IllegalArgumentException ex) { return bad("INVALID_INPUT"); }
+        catch(SecurityException ex) { return bad("INVALID_CREDENTIALS"); }
+    }
+    public record UsernameView(String login) {}
+    public record ChangeUsername(String newLogin,String currentPassword) {}
     @ExceptionHandler(RateLimited.class)
     ResponseEntity<Map<String,String>> limited() {
         return ResponseEntity.status(429).body(Map.of("code","RATE_LIMITED"));

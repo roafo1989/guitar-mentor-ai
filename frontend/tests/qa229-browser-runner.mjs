@@ -56,7 +56,7 @@ try {
  await cdp('Page.addScriptToEvaluateOnNewDocument',{source:`
  const id='11111111-1111-4111-8111-111111111111';
  const instrumentId='22222222-2222-4222-8222-222222222222';
- window.__qa={calls:[], failRead:false, failSave:false, failNext:false, failMethods:false, google:false, bare:false,
+ window.__qa={calls:[], failRead:false, failSave:false, failNext:false, failMethods:false, google:false, bare:false, username:'roman',usernameConflict:false,failUsernameRead:false,
    learner:{id,displayName:'Roman',instruments:[{id:instrumentId,instrumentCode:'ACOUSTIC_GUITAR',techniqueCode:'FINGERSTYLE',preferences:[{styleCode:'BLUES',rating:'LIKE'}]}]},
    background:{experienceLevel:'INTERMEDIATE',yearsPlaying:2,skills:['CHORDS'],knownPieces:[{title:'Windy & Warm',artist:'Tommy Emmanuel'}],goals:['FINGERSTYLE'],practiceMinutes:40,sessionsPerWeek:3,notes:'No percussion'},
  };
@@ -69,6 +69,11 @@ try {
    const reply=(value,status=200)=>new Response(status===204?null:JSON.stringify(value),{status,headers:{'Content-Type':'application/json'}});
    if(path.endsWith('/me'))return reply({accountId:'account-1',learnerId:id,role:'LEARNER'});
    if(path.endsWith('/csrf'))return reply({headerName:'X-CSRF',token:'fixture'});
+   if(path.endsWith('/username')){
+     if(method==='POST'){if(q.usernameConflict)return reply({code:'LOGIN_UNAVAILABLE'},409);q.username=JSON.parse(init.body).newLogin;return reply({login:q.username});}
+     return q.failUsernameRead?reply({},503):reply({login:q.username});
+   }
+   if(path.endsWith('/register'))return reply({code:'VERIFY_EMAIL'},202);
    if(path.endsWith('/methods'))return q.failMethods?reply({},503):reply({passwordEnabled:!q.google,googleEnabled:q.google,googleAvailable:true});
    if(path.endsWith('/change'))return q.failSave?reply({},400):reply({});
    if(path.endsWith('/logout'))return reply({},204);
@@ -178,6 +183,19 @@ try {
  // Open from scratch and refresh each route with the real router/AuthGate.
  await navigate('/settings/account');await waitFor("document.querySelector('#current-password')");
  await screenshot('account-1440-ru');
+ const credentialsDir=path.resolve('../docs/testing/qa232');await mkdir(credentialsDir,{recursive:true});
+ const credentialShot=async name=>{await ui('window.scrollTo(0,0)');const png=await cdp('Page.captureScreenshot',{format:'png',captureBeyondViewport:true});await writeFile(path.join(credentialsDir,name+'.png'),Buffer.from(png.data,'base64'));};
+ await waitFor("document.querySelector('.username-settings .account-login-value')");
+ await ui("document.querySelector('.username-settings button').click()");await waitFor("document.querySelector('#account-new-login')");
+ await ui("{const set=(id,v)=>{const f=document.getElementById(id);f.value=v;f.dispatchEvent(new Event('input',{bubbles:true}));};set('account-new-login','РОМАН_1989');set('account-login-password','123456');__qa.usernameConflict=true;}");
+ await credentialShot('username-edit-1440-ru');
+ await ui("document.querySelector('.username-settings form').requestSubmit()");await waitFor("document.querySelector('.username-settings [role=alert]')");
+ assert.equal(await ui("document.querySelector('#account-new-login').value"),'РОМАН_1989','conflict preserves input');
+ await ui("__qa.usernameConflict=false;document.querySelector('.username-settings form').requestSubmit()");await waitFor("document.querySelector('.username-settings .saved-confirmation')");
+ assert.equal(await ui('__qa.username'),'роман_1989');
+ assert.equal(await ui("document.querySelector('.header-account-name').textContent"),'Roman','changing login does not rename the learner');
+ await credentialShot('username-saved-1440-ru');
+
  assert.equal(await ui("!!document.querySelector('#google-link-password')"),false,'Google confirmation is closed until requested');
  await ui("{const f=document.querySelector('#current-password');f.value='change-only-dummy';f.dispatchEvent(new Event('input',{bubbles:true}));}");
  await clickText('Добавить вход через Google');await waitFor("document.querySelector('#google-link-password')");
@@ -185,7 +203,7 @@ try {
  assert.ok(await ui("document.querySelector('#google-link-help').textContent.includes('Guitar Mentor AI')"));
  await screenshot('account-google-link-1440-ru');
  await clickText('Отмена');await waitFor("!document.querySelector('#google-link-password')");
- await ui("__qa.failSave=true;const set=(id,value)=>{const f=document.getElementById(id);f.value=value;f.dispatchEvent(new Event('input',{bubbles:true}));};set('current-password','test-old-password');set('new-account-password','test-new-password');set('confirm-account-password','test-new-password');document.querySelector('.password-settings form').requestSubmit()");
+ await ui("__qa.failSave=true;const set=(id,value)=>{const f=document.getElementById(id);f.value=value;f.dispatchEvent(new Event('input',{bubbles:true}));};set('current-password','test-old-password');set('new-account-password','123456');set('confirm-account-password','123456');document.querySelector('.password-settings form').requestSubmit()");
  await waitFor("document.querySelector('.auth-error')");
  await ui("__qa.failSave=false;document.querySelector('.password-settings form').requestSubmit()");
  await waitFor("document.querySelector('.password-settings .success')");
@@ -234,6 +252,10 @@ try {
        await screenshot('onboarding-step3-360-'+locale);
      }
      if(route==='/settings/account'){
+       await ui("document.querySelector('.username-settings button').click()");await waitFor("document.querySelector('#account-new-login')");
+       assert.ok(await ui('document.documentElement.scrollWidth<=innerWidth'),'username form reflows');
+       await credentialShot('username-edit-360-'+locale);
+       await ui("[...document.querySelectorAll('.username-settings button')].find(b=>b.type==='button').click()");
        await clickText(locale==='ru'?'Добавить вход через Google':'Add Google sign-in');
        await waitFor("document.querySelector('#google-link-password')");
        assert.ok(await ui('document.documentElement.scrollWidth<=innerWidth'),'Google disclosure must reflow');
@@ -251,8 +273,19 @@ try {
  await cdp('Input.dispatchKeyEvent',{type:'keyDown',key:'Tab',code:'Tab',windowsVirtualKeyCode:9});
  await cdp('Input.dispatchKeyEvent',{type:'keyUp',key:'Tab',code:'Tab',windowsVirtualKeyCode:9});
  assert.ok(await ui("document.activeElement!==document.body&&document.activeElement.matches('a,button,input,select,textarea')"),'Tab reaches an interactive control');
+ // Real AuthGate: Cyrillic registration and 5/6 password boundary, with mocked server response.
+ await ui("import('/src/core/i18n.ts').then(m=>m.i18n.global.locale.value='ru')");
+ await ui("import('/src/core/auth/auth.ts').then(m=>m.clearActor())");await waitFor("document.querySelector('#local-identifier')");
+ await ui("document.querySelector('.auth03-switch').click()");await waitFor("document.querySelector('#registration-login')");
+ await ui("{const set=(id,v)=>{const f=document.getElementById(id);f.value=v;f.dispatchEvent(new Event('input',{bubbles:true}));};set('registration-email','fixture232@example.test');set('registration-login','Игрок_Юлия');set('registration-password','12345');set('registration-confirm','12345');}");
+ await ui("document.querySelector('.auth03-form').requestSubmit()");
+ assert.equal(await ui("__qa.calls.filter(c=>c.path.endsWith('/register')).length"),0,'five characters must not reach registration API');
+ await ui("{for(const id of ['registration-password','registration-confirm']){const f=document.getElementById(id);f.value='123456';f.dispatchEvent(new Event('input',{bubbles:true}));}}");
+ await credentialShot('register-cyrillic-360-ru');
+ await ui("document.querySelector('.auth03-form').requestSubmit()");await waitFor("document.querySelector('.auth03-actions')");
+ assert.equal(await ui("__qa.calls.filter(c=>c.path.endsWith('/register')).length"),1,'six characters and Cyrillic username are accepted by AuthGate');
  assert.deepEqual(errors,[],'No uncaught browser errors');
- console.log('PASS #229: real Vue+router+AuthGate; profile save/header; 3-step draft/back; piece add/remove/focus; failed save; read-only completion retry; auth local/Google/method failure; deep links/F5; RU/EN 360/768/1440; 200% effective reflow; labelled controls; screenshots. Backend mocked.');
+ console.log('PASS #229/#232: Cyrillic username conflict/save and six-character registration; real Vue+router+AuthGate; profile save/header; 3-step draft/back; piece add/remove/focus; failed save; read-only completion retry; auth local/Google/method failure; deep links/F5; RU/EN 360/768/1440; 200% effective reflow; labelled controls; screenshots. Backend mocked.');
 } finally {
  socket?.close();browser?.kill('SIGTERM');
  await server.close();await rm(dir,{recursive:true,force:true,maxRetries:12,retryDelay:250}).catch(()=>{});

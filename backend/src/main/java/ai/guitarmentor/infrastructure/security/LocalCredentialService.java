@@ -4,7 +4,6 @@ import java.security.SecureRandom;
 import java.time.Instant;
 import java.time.temporal.ChronoUnit;
 import java.util.HexFormat;
-import java.util.Locale;
 import java.util.UUID;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.jdbc.core.simple.JdbcClient;
@@ -42,14 +41,14 @@ public class LocalCredentialService {
             @Value("${guitar-mentor.local-auth.mail-from:}") String from) {
         this.jdbc = jdbc; this.mail = mail; this.publicOrigin = publicOrigin; this.from = from;
     }
-    private static String loginName(String name) {
-        String v = name == null ? "" : name.strip().toLowerCase(Locale.ROOT);
-        if (!v.matches("[a-z0-9][a-z0-9._-]{2,63}")) throw new IllegalArgumentException("INVALID_INPUT");
-        return v;
-    }
-    private static void validPassword(String value) {
-        if (value == null || value.length() < 12 || value.length() > 128)
-            throw new IllegalArgumentException("INVALID_INPUT");
+    private static String loginName(String name) { return CredentialPolicy.login(name); }
+    private static void validPassword(String value) { CredentialPolicy.password(value); }
+    // Serialize username claims across active credentials and both reservation tables.
+    // Every path that creates/transfers a username takes this transaction-scoped DB lock first.
+    private void lockLoginNamespace() {
+        jdbc.sql("SELECT pg_advisory_xact_lock(232, 1)").query((rs, row) -> 1).single();
+        jdbc.sql("DELETE FROM pending_local_registrations WHERE expires_at<=now()").update();
+        jdbc.sql("DELETE FROM pending_local_links WHERE expires_at<=now()").update();
     }
     private String newToken() {
         byte[] bytes = new byte[32]; random.nextBytes(bytes);
@@ -73,6 +72,7 @@ public class LocalCredentialService {
         String email = InvitationService.email(address);
         String username = loginName(login);
         validPassword(password);
+        lockLoginNamespace();
         if (invitationToken == null || !invitationToken.matches("[a-f0-9]{64}"))
             throw new SecurityException("INVITATION_INVALID");
         var inv = jdbc.sql("""
@@ -85,6 +85,7 @@ public class LocalCredentialService {
         long exists = jdbc.sql("""
             SELECT (SELECT count(*) FROM local_credentials WHERE email_normalized=:email OR login_normalized=:login)
              + (SELECT count(*) FROM pending_local_registrations WHERE (email_normalized=:email OR login_normalized=:login) AND expires_at>now())
+             + (SELECT count(*) FROM pending_local_links WHERE (email_normalized=:email OR login_normalized=:login) AND expires_at>now())
             """).param("email",email).param("login",username).query(Long.class).single();
         if (exists>0) throw new SecurityException("REGISTRATION_REJECTED");
         String token = newToken();
@@ -105,6 +106,7 @@ public class LocalCredentialService {
         String email = InvitationService.email(address);
         String username = loginName(login);
         validPassword(password);
+        lockLoginNamespace();
         // Expired reservations cannot permanently hold a username or email.
         jdbc.sql("DELETE FROM pending_local_registrations WHERE expires_at<=now()").update();
         long exists = jdbc.sql("""
@@ -134,6 +136,7 @@ public class LocalCredentialService {
     @Transactional
     public void verify(String token) {
         if (token==null || !token.matches("[a-f0-9]{64}")) throw new SecurityException("INVALID_TOKEN");
+        lockLoginNamespace();
         var pending = jdbc.sql("""
             SELECT p.id,p.invitation_id,p.email_normalized,p.login_normalized,p.password_hash,
                    i.learner_id,i.role
@@ -174,9 +177,9 @@ public class LocalCredentialService {
         jdbc.sql("DELETE FROM pending_local_registrations WHERE id=:id").param("id",p.id).update();
     }
     public UUID authenticate(String identifier, String password) {
-        if (identifier==null || password==null || identifier.length()>320 || password.length()>128)
+        if (identifier==null || password==null || identifier.length()>320 || password.codePointCount(0,password.length())>128)
             throw new SecurityException("INVALID_CREDENTIALS");
-        String name=identifier.strip().toLowerCase(Locale.ROOT);
+        String name=CredentialPolicy.normalizeIdentifier(identifier);
         var found=jdbc.sql("""
             SELECT c.account_id,c.password_hash FROM local_credentials c
             JOIN accounts a ON a.id=c.account_id
@@ -251,6 +254,7 @@ public class LocalCredentialService {
         String email=InvitationService.email(address);
         String username=loginName(login);
         validPassword(password);
+        lockLoginNamespace();
         long admissible=jdbc.sql("""
             SELECT count(*) FROM accounts a
             WHERE a.id=:id AND a.status='ACTIVE'
@@ -280,6 +284,7 @@ public class LocalCredentialService {
     @Transactional
     public void verifyLink(UUID accountId,String token) {
         if(token==null || !token.matches("[a-f0-9]{64}")) throw new SecurityException("LINK_REJECTED");
+        lockLoginNamespace();
         var pending=jdbc.sql("""
             SELECT email_normalized,login_normalized,password_hash
             FROM pending_local_links WHERE account_id=:id AND verification_hash=:hash
@@ -296,6 +301,40 @@ public class LocalCredentialService {
             .param("login",row.login).param("password",row.password).update();
         jdbc.sql("DELETE FROM pending_local_links WHERE account_id=:id").param("id",accountId).update();
     }
+    public String username(UUID account) {
+        return jdbc.sql("""
+            SELECT c.login_normalized FROM local_credentials c JOIN accounts a ON a.id=c.account_id
+            WHERE c.account_id=:id AND a.status='ACTIVE'
+            """).param("id", account).query(String.class).optional().orElse(null);
+    }
+
+    /** Change the login identifier, never the account/learner identity or email. */
+    @Transactional
+    public String changeUsername(UUID account, String proposed, String currentPassword) {
+        String name = loginName(proposed);
+        if (currentPassword == null || currentPassword.codePointCount(0,currentPassword.length()) > 128)
+            throw new SecurityException("INVALID_CREDENTIALS");
+        lockLoginNamespace();
+        var current = jdbc.sql("""
+            SELECT c.login_normalized,c.password_hash FROM local_credentials c
+            JOIN accounts a ON a.id=c.account_id
+            WHERE c.account_id=:id AND a.status='ACTIVE' FOR UPDATE OF c
+            """).param("id",account).query((rs,row)->new UsernameCredential(rs.getString(1),rs.getString(2))).optional();
+        boolean matches = encoder.matches(currentPassword, current.map(UsernameCredential::hash).orElse(dummyPasswordHash));
+        if (current.isEmpty() || !matches) throw new SecurityException("INVALID_CREDENTIALS");
+        if (name.equals(current.get().login())) return name;
+        long occupied = jdbc.sql("""
+            SELECT (SELECT count(*) FROM local_credentials WHERE login_normalized=:name AND account_id<>:id)
+                 + (SELECT count(*) FROM pending_local_registrations WHERE login_normalized=:name AND expires_at>now())
+                 + (SELECT count(*) FROM pending_local_links WHERE login_normalized=:name AND expires_at>now())
+            """).param("name",name).param("id",account).query(Long.class).single();
+        if (occupied != 0) throw new UsernameUnavailable();
+        jdbc.sql("UPDATE local_credentials SET login_normalized=:name,changed_at=now() WHERE account_id=:id")
+            .param("name",name).param("id",account).update();
+        return name;
+    }
+    static class UsernameUnavailable extends RuntimeException {}
+    private record UsernameCredential(String login,String hash) {}
     private record PendingLink(String email,String login,String password) {}
     private record Invitation(UUID id,String email) {}
     private record Pending(UUID id,UUID invitation,String email,String login,String hash,UUID learner,String role) {}
