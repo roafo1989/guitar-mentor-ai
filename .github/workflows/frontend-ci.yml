@@ -45,5 +45,16 @@ jobs:
           VITE_GUITAR_MENTOR_LIGHT_MINIMAL: 'true'
       - name: Real Chrome isolated PDF score reader
         run: npm run test:score-browser
+      - name: Real Chrome next-lesson picker smoke (mocked backend)
+        run: npm run test:lesson-browser
       - name: Real Chrome keyboard and responsive UI smoke
         run: npm run test:browser
+      - name: Real Chrome profile, onboarding and account UX regression
+        run: npm run test:profile-browser
+      - name: Upload profile UX screenshots
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: qa229-profile-ux
+          path: docs/testing/qa229/*.png
+          if-no-files-found: ignore

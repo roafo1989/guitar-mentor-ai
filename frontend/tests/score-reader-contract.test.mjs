@@ -102,7 +102,7 @@ test('#150 owner regression: centered lesson and Start never silently drops save
  assert.match(source,/margin-inline:auto/);
  assert.match(source,/width:min\(100% - 48px,1560px\)/);
  assert.match(source,/lesson-submission :deep\(input\[type="file"\]\)/);
- assert.match(source,/await restoreSession\(\);\n    return;/);
+ assert.match(source,/await restoreSession\(\);\r?\n    return;/);
  assert.doesNotMatch(source,/failedRestoreRead\.value \|\| window\.localStorage\.getItem\(storageKey\(id\)\)\) return/);
  for (const lang of ['ru','en']){
    const dictionary=JSON.parse(await readFile(new URL('../src/i18n/'+lang+'.json',import.meta.url),'utf8'));

@@ -1,4 +1,4 @@
-export type DiagnosticStatus = 'COLLECTING_EVIDENCE' | 'READY_FOR_TASK' | 'TASK_ASSIGNED';
+export type DiagnosticStatus = 'COLLECTING_EVIDENCE' | 'READY_FOR_TASK' | 'TASK_ASSIGNED' | 'ARCHIVED';
 export interface DiagnosticSession {
   id: string;
   instrumentCode: string;
@@ -72,4 +72,14 @@ export interface SkillSnapshot {
   assessedLevel: number;
   evidenceStatus: string;
   unresolvedGaps: string[];
+}
+
+export interface LessonHistoryItem {
+  sessionId: string; taskId: string; exerciseCode: string; exerciseVersion: string;
+  title: string; assignedAt: string; taskState: string | null; isCurrent: boolean;
+}
+export interface LessonHistoryPage { items: LessonHistoryItem[]; nextCursor: string | null; }
+export interface NextLessonResult {
+  transitionId: string; sourceSessionId: string; sourceTaskId: string;
+  session: DiagnosticSession; task: DiagnosticTask;
 }

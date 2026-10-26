@@ -73,7 +73,8 @@ public class LearningService {
             attempt.isEmpty() ? "NO_ATTEMPT"
                 : latestAssessment.isEmpty() ? "NO_ASSESSMENT" : "AVAILABLE",
             latestAssessment.map(Assessment::id).orElse(null),
-            repo.latestDecision(taskId).orElse(null),"NOT_IMPLEMENTED");
+            repo.latestDecision(taskId).orElse(null),nextAvailability(taskId,state.state()),
+            repo.successorLink(taskId).orElse(null));
     }
 
     @Transactional(readOnly=true)
@@ -260,10 +261,16 @@ public class LearningService {
         return repo.state(taskId,false).map(s->!"ACTIVE".equals(s.state())).orElse(false);
     }
 
-    private static DecisionResult result(DecisionView decision) {
+    private String nextAvailability(UUID taskId, String state) {
+        if (!enabled || "ACTIVE".equals(state)) return "NOT_IMPLEMENTED";
+        return repo.successor(taskId).isPresent() ? "SUCCESSOR_EXISTS" : "MANUAL_SELECTION";
+    }
+
+    private DecisionResult result(DecisionView decision) {
         return new DecisionResult(decision.decisionId(),decision.taskId(),
             decision.resultingState(),decision.resultingVersion(),decision.assessmentId(),
-            decision.recordedAt(),"NOT_IMPLEMENTED");
+            decision.recordedAt(),nextAvailability(decision.taskId(),decision.resultingState()),
+            repo.successorLink(decision.taskId()).orElse(null));
     }
 
     private static int pageLimit(Integer limit) {

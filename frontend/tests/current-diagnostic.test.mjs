@@ -78,3 +78,26 @@ test('#211: existing selected session takes priority without current lookup', as
   assert.deepEqual(await h.resolveCurrentDiagnostic('learner-1', h.storage), selected);
   assert.deepEqual(h.calls, ['get']);
 });
+
+test('#216: archived browser key resolves successor only after authoritative GET succeeds', async () => {
+  const next = { id: 'next-session', status: 'TASK_ASSIGNED' };
+  const h = harness({ selected: 'archived', get: async () => ({ id: 'archived', status: 'ARCHIVED' }), current: async () => next });
+  assert.deepEqual(await h.resolveCurrentDiagnostic('learner-1', h.storage), next);
+  assert.equal(h.values.get(h.key), 'next-session');
+  assert.deepEqual(h.calls, ['get', 'current', 'set']);
+});
+
+test('#216: failed server current cannot erase an archived selection', async () => {
+  const h = harness({ selected: 'archived', get: async () => ({ id: 'archived', status: 'ARCHIVED' }),
+    current: async () => { throw Object.assign(new Error('offline'), { status: 500 }); } });
+  await assert.rejects(h.resolveCurrentDiagnostic('learner-1', h.storage), /offline/);
+  assert.equal(h.values.get(h.key), 'archived');
+  assert.deepEqual(h.calls, ['get', 'current']);
+});
+
+test('#216: successful no-current response clears stale archived selection without new session', async () => {
+  const h = harness({ selected: 'archived', get: async () => ({ id: 'archived', status: 'ARCHIVED' }), current: async () => null });
+  assert.equal(await h.resolveCurrentDiagnostic('learner-1', h.storage), null);
+  assert.equal(h.storage.getItem(h.key), null);
+  assert.deepEqual(h.calls, ['get', 'current', 'remove']);
+});

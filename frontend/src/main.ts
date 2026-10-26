@@ -6,6 +6,7 @@ import { router } from './router';
 import './assets/design-tokens.css';
 import './assets/main.css';
 import './assets/light-minimal.css';
+import './assets/learner-experience.css';
 import { installAuthenticatedFetch } from './core/auth/auth';
 import { captureEmailActionLink } from './core/auth/auth-link';
 import { useLearnerStore } from './stores/learner.store';

@@ -159,12 +159,12 @@ test('email recovery hides signed-in home and home does not duplicate retry butt
 });
 
 
-test('single HTTPS origin keeps email action URLs on guitar-mentor', async () => {
+test('unified local email actions use isolated HTTPS development origin', async () => {
   const router = await readFile(new URL('../src/router/index.ts', import.meta.url), 'utf8');
   const launcher = await readFile(new URL('../../scripts/local-auth-unified.ps1', import.meta.url), 'utf8');
   assert.doesNotMatch(router, /redirectUnifiedLocalAlias/);
   assert.match(router, /captureEmailActionLink\(\)/);
-  assert.match(launcher, /GUITAR_MENTOR_PUBLIC_ORIGIN = 'https:\/\/guitar-mentor'/);
+  assert.match(launcher, /GUITAR_MENTOR_PUBLIC_ORIGIN = 'https:\/\/guitar-mentor-dev'/);
   assert.doesNotMatch(launcher, /VITE_GUITAR_MENTOR_UNIFIED_LOCAL = 'true'/);
 });
 
@@ -256,4 +256,18 @@ test('AUTH-03 regression: POST guarded before validation and email tokens checke
   assert.match(gate, /async function verify\(\) \{\s*if \(busy\.value \|\| !tokenPattern\.test\(verificationToken\.value\)\)/);
   assert.match(gate, /const epoch = requestEpoch\.value \+ 1;/);
   assert.match(gate, /if \(!mounted \|\| epoch !== requestEpoch\.value\) return;/);
+});
+
+test('#229 legacy account-link URL is scrubbed before router; token is memory-only and consumed once',async()=>{
+ const source=await readFile(new URL('../src/core/auth/account-link.ts',import.meta.url),'utf8');
+ const js=ts.transpileModule(source,{compilerOptions:{target:ts.ScriptTarget.ES2022,module:ts.ModuleKind.ESNext}}).outputText;
+ const mod=await import('data:text/javascript,'+encodeURIComponent(js));
+ const original=globalThis.window;let cleaned;
+ globalThis.window={location:{href:'https://example.test/profile#authAction=link&token='+'a'.repeat(64)},history:{state:null,replaceState:(_state,_title,url)=>{cleaned=url}}};
+ try {
+  mod.captureAccountLink();assert.equal(cleaned,'/settings/account');assert.equal(mod.takeAccountLinkToken(),'a'.repeat(64));assert.equal(mod.takeAccountLinkToken(),null);
+  assert.equal(mod.rememberAccountLink('#authAction=link&token=bad'),true);assert.equal(mod.takeAccountLinkToken(),null);
+  assert.equal(mod.rememberAccountLink('#authAction=reset&token=bad'),false);
+  assert.doesNotMatch(source,/localStorage|sessionStorage|console\./);
+ }finally{globalThis.window=original;}
 });

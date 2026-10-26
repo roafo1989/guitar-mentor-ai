@@ -2,6 +2,10 @@
 
 Implementation branch: `feature/141-auth-email-password`. **Not production-approved.** This document describes intended code paths; CI and external security QA remain acceptance gates.
 
+## Amendment #232 — 26 October 2026
+
+The owner requested editable login names, Latin/Cyrillic input and a six-character password minimum. The current policy, username API and additive V30 migration are documented in [issue-232-account-credentials.md](issue-232-account-credentials.md). This supersedes the original ASCII-only/12-character rules below; other historical acceptance gates remain unchanged.
+
 ## Storage and migrations
 
 - V18 and V19 are unchanged. V20 adds `local_credentials`, `pending_local_registrations`, `local_password_tokens`.

@@ -59,7 +59,9 @@ class ActorFilterTest {
             "/diagnostic-sessions/" + UUID.randomUUID() + "/evidence/" + UUID.randomUUID(),
             "/diagnostic-sessions/" + UUID.randomUUID() + "/tasks/" + UUID.randomUUID() + "/attempts",
             "/diagnostic-sessions/" + UUID.randomUUID() + "/tasks/" + UUID.randomUUID() + "/attempts/" + UUID.randomUUID() + "/assessments",
-            "/diagnostic-sessions/" + UUID.randomUUID() + "/tasks/" + UUID.randomUUID() + "/decisions"
+            "/diagnostic-sessions/" + UUID.randomUUID() + "/tasks/" + UUID.randomUUID() + "/decisions",
+            "/lessons?instrumentCode=ACOUSTIC_GUITAR",
+            "/diagnostic-sessions/" + UUID.randomUUID() + "/tasks/" + UUID.randomUUID() + "/next-lesson"
         };
         for (String suffix : paths) {
             for (String method : new String[] { "GET", "HEAD", "POST", "PUT" }) {
