@@ -242,9 +242,25 @@ function Get-RecoveryPgArguments([hashtable]$Database) {
     @('--no-password',"--host=$($Database.host)","--port=$($Database.port)","--username=$($Database.user)")
 }
 
+function Invoke-RecoveryPg([string]$File, [string[]]$Arguments, [string]$Directory,
+    [string]$Password, [AllowNull()][string]$InputText = $null) {
+    # Windows native getenv may convert a Unicode PGPASSWORD through the system
+    # ANSI code page. A UTF-8 pgpass file preserves the original credential bytes.
+    if ($Password -match '[\r\n\x00]') { throw 'Пароль с переводом строки/NUL не поддерживается форматом pgpass.' }
+    $temporary=Join-Path ([IO.Path]::GetTempPath()) ('gm-dr-auth-'+[guid]::NewGuid().ToString('N'))
+    New-PrivateRecoveryDirectory $temporary
+    try {
+        $path=Join-Path $temporary 'pgpass'
+        $escaped=$Password.Replace('\','\\').Replace(':','\:')
+        [IO.File]::WriteAllText($path,('*:*:*:*:'+$escaped+"`n"),[Text.UTF8Encoding]::new($false))
+        if (-not $IsWindows) { [IO.File]::SetUnixFileMode($path,([IO.UnixFileMode]::UserRead -bor [IO.UnixFileMode]::UserWrite)) }
+        Invoke-RecoveryNative $File $Arguments $Directory @{PGPASSFILE=$path;PGCLIENTENCODING='UTF8'} $InputText
+    } finally { Remove-Item -LiteralPath $temporary -Recurse -Force }
+}
+
 function Invoke-RecoverySql([string]$Bin, [hashtable]$Database, [string]$Password, [string]$Sql) {
     $arguments = @(Get-RecoveryPgArguments $Database) + @('--no-psqlrc','--tuples-only','--no-align','--set=ON_ERROR_STOP=1',"--dbname=$($Database.name)")
-    Invoke-RecoveryNative (Join-Path $Bin 'psql.exe') $arguments $Bin @{PGPASSWORD=$Password;PGCLIENTENCODING='UTF8'} $Sql
+    Invoke-RecoveryPg (Join-Path $Bin 'psql.exe') $arguments $Bin $Password $Sql
 }
 
 function Get-RecoveryDatabaseSummary([string]$Bin, [hashtable]$Database, [string]$Password) {
@@ -271,7 +287,7 @@ function Backup-RecoveryDatabase([string]$Bin, [hashtable]$Database, [string]$Pa
     $connections = [int](Invoke-RecoverySql $Bin $Database $Password 'SELECT count(*) FROM pg_stat_activity WHERE datname=current_database() AND pid<>pg_backend_pid();').Trim()
     if ($connections -ne 0) { throw "В $($Database.name) есть другие подключения. Закройте приложение и SQL-клиент." }
     $arguments = @(Get-RecoveryPgArguments $Database) + @("--dbname=$($Database.name)",'--format=custom',"--file=$Path")
-    $null = Invoke-RecoveryNative (Join-Path $Bin 'pg_dump.exe') $arguments $Bin @{PGPASSWORD=$Password}
+    $null = Invoke-RecoveryPg (Join-Path $Bin 'pg_dump.exe') $arguments $Bin $Password
     if ((Get-Item -LiteralPath $Path).Length -eq 0) { throw 'Пустой dump.' }
     $null = Invoke-RecoveryNative (Join-Path $Bin 'pg_restore.exe') @('--list',$Path) $Bin
     Get-RecoveryDatabaseSummary $Bin $Database $Password
@@ -287,10 +303,10 @@ function Restore-RecoveryDatabase([string]$Bin, [string]$Dump, [hashtable]$Sourc
     if ($exists -ne '0') { throw 'Целевая роль или БД уже существует; никакие изменения не сделаны.' }
     $sql = ('SET standard_conforming_strings=on; CREATE ROLE "{0}" LOGIN NOSUPERUSER NOCREATEDB NOCREATEROLE NOREPLICATION PASSWORD ''{1}'';' -f $Target.user,$safePassword)
     $null = Invoke-RecoverySql $Bin $admin $AdminPassword $sql
-    $null = Invoke-RecoveryNative (Join-Path $Bin 'createdb.exe') (@(Get-RecoveryPgArguments $admin) + @(
-        '--maintenance-db=postgres','--template=template0','--encoding=UTF8',"--owner=$($Target.user)",$Target.name)) $Bin @{PGPASSWORD=$AdminPassword}
-    $null = Invoke-RecoveryNative (Join-Path $Bin 'pg_restore.exe') (@(Get-RecoveryPgArguments $Target) + @(
-        "--dbname=$($Target.name)",'--no-owner','--no-acl','--exit-on-error','--single-transaction',$Dump)) $Bin @{PGPASSWORD=$AppPassword}
+    $null = Invoke-RecoveryPg (Join-Path $Bin 'createdb.exe') (@(Get-RecoveryPgArguments $admin) + @(
+        '--maintenance-db=postgres','--template=template0','--encoding=UTF8',"--owner=$($Target.user)",$Target.name)) $Bin $AdminPassword
+    $null = Invoke-RecoveryPg (Join-Path $Bin 'pg_restore.exe') (@(Get-RecoveryPgArguments $Target) + @(
+        "--dbname=$($Target.name)",'--no-owner','--no-acl','--exit-on-error','--single-transaction',$Dump)) $Bin $AppPassword
     $actual = Get-RecoveryDatabaseSummary $Bin $Target $AppPassword
     if (($actual.counts | ConvertTo-Json -Compress) -ne ($SourceSummary.counts | ConvertTo-Json -Compress)) {
         # Hashtable property order is not a data invariant.
