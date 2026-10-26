@@ -29,12 +29,12 @@
     "save": "Create profile",
     "update": "Save preferences",
     "saving": "Saving...",
-    "loaded": "Profile loaded from PostgreSQL",
+    "loaded": "Profile loaded",
     "saved": "Preferences saved",
     "new": "Create another test profile",
     "nameReadonly": "Editing the name will be added later.",
     "notice": "Local prototype without authentication. Do not enter real personal data yet.",
-    "networkError": "Backend unavailable. Check that Spring Boot is listening on port 8080.",
+    "networkError": "Could not connect. Check your connection and retry.",
     "error": "Operation failed:",
     "example": "For example, Student",
     "supported": "Only acoustic guitar is included in the first iteration.",
@@ -43,7 +43,7 @@
   "ratings": {
     "LIKE": "Like",
     "NEUTRAL": "Neutral",
-    "EXCLUDE": "Exclude"
+    "EXCLUDE": "Do not suggest"
   },
   "instruments": {
     "ACOUSTIC_GUITAR": "Acoustic guitar",
@@ -84,7 +84,7 @@
       "FINGERSTYLE_MELODY": "Melodic fingerstyle"
     },
     "piecesTitle": "Which pieces have you played?",
-    "piecesHint": "Optional. One per line: title | artist (up to 10).",
+    "piecesHint": "Optional. Add up to 10 pieces.",
     "piecesExample": "Yesterday | The Beatles\nWindy & Warm | Tommy Emmanuel",
     "invalidPieces": "Maximum 10 pieces; title required (up to 120 characters).",
     "goalsTitle": "What would you like to learn?",
@@ -104,7 +104,7 @@
     "next": "Continue",
     "back": "Back",
     "save": "Save questionnaire",
-    "saved": "Questionnaire saved to PostgreSQL",
+    "saved": "Questionnaire saved",
     "profileBack": "Back to profile",
     "draftConflict": "A saved background exists on the server. Your local draft is still visible, but saving is blocked to prevent data loss. Load the server version to continue.",
     "loadServerBackground": "Load saved background (replace draft)"
@@ -766,5 +766,54 @@
     "currentMarker": "Current",
     "confirmRepeat": "Restart this exercise as a new lesson? Previous attempts stay in history.",
     "uncertain": "The previous request has not been confirmed. Retry the same request or return to the current lesson."
+  },
+  "profileUx": {
+    "myMusic": "My music",
+    "title": "My profile",
+    "description": "Your interests, goals and path to confident playing.",
+    "account": "Account settings",
+    "accountDescription": "Sign-in methods and security. Your learning stays in your profile.",
+    "accountUnavailable": "Sign in to manage your account.",
+    "edit": "Edit",
+    "editPreferences": "Edit preferences",
+    "setup": "Start with your interests",
+    "preferencesHint": "Choose the styles you enjoy and the ones you would rather skip.",
+    "none": "None selected yet",
+    "cancel": "Cancel",
+    "backLearning": "Back to learning",
+    "discardPrompt": "You have unsaved changes. Press OK to discard them and leave, or Cancel to stay.",
+    "profileConflict": "A saved profile was loaded. Load the saved version explicitly before continuing to protect your data.",
+    "loadServer": "Load saved profile",
+    "goals": "Experience and goals",
+    "editAnswers": "Edit questionnaire",
+    "fillAnswers": "Complete questionnaire",
+    "noGoals": "Tell us what you want to learn to help choose your practice.",
+    "skills": "Skills",
+    "selfReport": "Your self-assessment",
+    "noSelfReport": "No skills selected yet. Starting from scratch is fine.",
+    "evidence": "Observations and evidence",
+    "noEvidence": "No playing observations yet. Self-assessment does not confirm a skill; a performance check is needed.",
+    "evidenceUnavailable": "Observations are unavailable. Try loading them again.",
+    "sources": {
+      "OBSERVED": "Source: performance observation",
+      "MEASURED": "Source: performance measurement"
+    },
+    "stepsLabel": "Questionnaire steps",
+    "steps": {
+      "experience": "Experience",
+      "goals": "Goals and interests",
+      "rhythm": "Practice rhythm"
+    },
+    "pieceTitle": "Title {number}",
+    "pieceArtist": "Artist / composer (optional)",
+    "removePiece": "Remove piece {number}",
+    "remove": "Remove",
+    "addPiece": "Add piece",
+    "goalsHint": "Choose several goals or skip. Music styles can be changed in your profile.",
+    "rhythmHint": "Choose a comfortable rhythm: 10–120 minutes, 1–7 sessions a week. You can change it later.",
+    "invalidAnswers": "Check your answers: 0–60 whole years; up to 10 pieces with a title and fields up to 120 characters; 10–120 minutes, 1–7 sessions a week; notes up to 1000 characters.",
+    "completeTitle": "You are ready for the next step",
+    "completeDescription": "Your answers are saved. Continue learning when you are ready.",
+    "resolvingNext": "Finding your next step…"
   }
 }

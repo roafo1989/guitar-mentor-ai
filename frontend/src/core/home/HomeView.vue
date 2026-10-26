@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import { computed, onBeforeUnmount, onMounted, ref, watch } from 'vue';
 import { apiFailureKey, asApiFailure, type ApiFailure } from '../../shared/api-failure';
+import { homeNextTarget } from './home-next-action';
 import { resolveHomeSummary, type HomeSummary } from './home-summary';
 import { useI18n } from 'vue-i18n';
 import { useLearnerStore } from '../../stores/learner.store';
@@ -12,9 +13,7 @@ const learnerStore = useLearnerStore();
 const loading = ref(true);
 const summary = ref<HomeSummary | null>(null);
 const recoveryError = ref<ApiFailure | null>(null);
-const primaryTarget = computed(() =>
-  summary.value?.step === 'profile' ? '/profile'
-    : summary.value?.step === 'onboarding' ? '/onboarding' : summary.value?.step === 'result' ? '/lessons/new' : '/diagnostics');
+const primaryTarget = computed(() => homeNextTarget(summary.value?.step));
 const primaryLabel = computed(() => {
   if (recoveryError.value) return t('home.retry');
   if (summary.value?.step === 'result') return t('lessonNext.choose');

@@ -28,6 +28,8 @@ export const useLearnerStore = defineStore('learner', () => {
   }
 
   async function execute(action: () => Promise<Learner>): Promise<boolean> {
+    syncActor();
+    const actor = auth.actor;
     const current = ++generation;
     inFlight = null;
     inFlightId = null;
@@ -35,13 +37,13 @@ export const useLearnerStore = defineStore('learner', () => {
     error.value = null;
     try {
       const loaded = await action();
-      if (current !== generation) return false;
+      if (current !== generation || (secureUi && auth.actor !== actor)) return false;
       if (secureUi && (!auth.actor || loaded.id !== auth.actor.learnerId)) throw new Error('RESOURCE_NOT_FOUND');
       learner.value = loaded;
       if (!secureUi) window.localStorage.setItem(storageKey, loaded.id);
       return true;
     } catch (cause) {
-      if (current === generation && !(cause instanceof Error && cause.name === 'AbortError'))
+      if (current === generation && (!secureUi || auth.actor === actor) && !(cause instanceof Error && cause.name === 'AbortError'))
         error.value = asApiFailure(cause);
       return false;
     } finally {
@@ -90,7 +92,8 @@ export const useLearnerStore = defineStore('learner', () => {
 
   async function replacePreferences(data: UpdatePreferencesRequest): Promise<boolean> {
     if (!learner.value || (secureUi && learner.value.id !== auth.actor?.learnerId)) return false;
-    return execute(() => learnerService.replacePreferences(learner.value!.id, data));
+    const id = learner.value.id;
+    return execute(() => learnerService.replacePreferences(id, data));
   }
 
   function clearLocalSelection(): void {

@@ -71,7 +71,7 @@
 .app-shell[data-ui="light-minimal"] :is(.profile-page,.main-content) {min-width:0}
 .app-shell[data-ui="light-minimal"] {overflow-wrap:break-word}
 .app-shell[data-ui="light-minimal"] :is(.main-content,.profile-page) {scroll-margin-top:150px}
-@media(max-width:1180px) {
+@media(max-width:1480px) {
   .app-shell[data-ui="light-minimal"] .site-header {flex-wrap:wrap;position:sticky}
   .app-shell[data-ui="light-minimal"] .header-actions {width:100%;justify-content:flex-start;flex-wrap:wrap}
   .app-shell[data-ui="light-minimal"] .header-menu-button {display:inline-grid;order:0}
@@ -153,10 +153,10 @@
   padding:4px 11px;font-size:13px;
 }
 .app-shell[data-ui="light-minimal"] .header-account-locale select {min-height:36px}
-@media(min-width:1181px) {
+@media(min-width:1481px) {
   .app-shell[data-ui="light-minimal"] .header-navigation {margin-right:auto}
 }
-@media(max-width:1180px) {
+@media(max-width:1480px) {
   .app-shell[data-ui="light-minimal"] .header-account {order:4;margin-left:auto;padding-left:10px}
   .app-shell[data-ui="light-minimal"] .header-tool-button {order:1}
   .app-shell[data-ui="light-minimal"] .header-navigation {order:10}
