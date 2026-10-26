@@ -185,6 +185,7 @@ onBeforeUnmount(() => { unsubscribeMetronome?.(); closeMetronome(); });
           </button>
           <div v-if="accountMenuOpen" id="gm-account-menu" class="header-account-popover">
             <RouterLink to="/profile" @click="closeAccountMenu()">{{ t('app.profile') }}</RouterLink>
+            <RouterLink to="/settings/account" @click="closeAccountMenu()">{{ t('profileUx.account') }}</RouterLink>
             <button v-if="learnerStore.error" type="button" @click="retryHeaderProfile">{{ locale === 'ru' ? 'Повторить загрузку профиля' : 'Retry profile loading' }}</button>
             <label class="language-picker header-account-locale">
               <span>{{ t('app.language') }}</span>
@@ -211,6 +212,6 @@ onBeforeUnmount(() => { unsubscribeMetronome?.(); closeMetronome(); });
     <MetronomeDialog v-if="(auth.actor || localPrototype) && metronomeUi.open" @close="closeMetronome" @minimize="minimizeMetronome" />
     <TunerDialog :open="(auth.actor || localPrototype) && tunerOpen" @close="closeTuner" />
     <AuthGate><main class="main-content"><RouterView /></main></AuthGate>
-    <footer>Guitar Mentor AI · MVP <span v-if="lightMinimal" class="icon-credits">· Иконки: <a href="https://www.flaticon.com/ru/free-icon/tuner_8031641" target="_blank" rel="noopener noreferrer">тюнер</a> и <a href="https://www.flaticon.com/ru/free-icon/metronome_3564896" target="_blank" rel="noopener noreferrer">метроном</a> — Flaticon</span></footer>
+    <footer>Guitar Mentor AI <span v-if="lightMinimal" class="icon-credits">· Иконки: <a href="https://www.flaticon.com/ru/free-icon/tuner_8031641" target="_blank" rel="noopener noreferrer">тюнер</a> и <a href="https://www.flaticon.com/ru/free-icon/metronome_3564896" target="_blank" rel="noopener noreferrer">метроном</a> — Flaticon</span></footer>
   </div>
 </template>

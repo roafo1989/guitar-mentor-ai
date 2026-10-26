@@ -1,10 +1,17 @@
 <script setup lang="ts">
-import { onMounted, ref } from 'vue';
+import { onBeforeUnmount, onMounted, ref } from 'vue';
 import { useI18n } from 'vue-i18n';
-import { refreshActor } from './auth';
+import { takeAccountLinkToken } from './account-link';
+import { auth, refreshActor } from './auth';
 const { locale } = useI18n();
 const label = (ru: string, en: string) => locale.value === 'ru' ? ru : en;
 const loaded = ref(false);
+const methodsKnown = ref(false);
+let active = true;
+let generation = 0;
+const accountId = auth.actor?.accountId;
+const isCurrent = () => active && auth.actor?.accountId === accountId;
+onBeforeUnmount(() => { active = false; ++generation; currentPassword.value = ''; newPassword.value = ''; confirm.value = ''; token.value = ''; });
 const passwordEnabled = ref(false);
 const googleEnabled = ref(false);
 const googleAvailable = ref(false);
@@ -15,36 +22,36 @@ const currentPassword = ref('');
 const newPassword = ref('');
 const confirm = ref('');
 const token = ref('');
+const tokenFromLink = ref(false);
 const busy = ref(false);
 const show = ref(false);
 const error = ref('');
 const notice = ref('');
 const verificationPending = ref(false);
 onMounted(async () => {
-  const url = new URL(window.location.href);
-  const fragment = new URLSearchParams(url.hash.slice(1));
-  if (fragment.get('authAction') === 'link') {
-    const value = fragment.get('token');
-    if (value && /^[a-f0-9]{64}$/.test(value)) token.value = value;
-    fragment.delete('token'); fragment.delete('authAction');
-    window.history.replaceState(null, '', url.pathname + url.search + (fragment.toString() ? '#' + fragment : ''));
-  }
+  const value = takeAccountLinkToken();
+  if (value) { token.value = value; tokenFromLink.value = true; }
+  void loadMethods();
+});
+async function loadMethods(): Promise<void> {
+  const seq = ++generation;
+  loaded.value = false; methodsKnown.value = false; error.value = '';
   try {
     const response = await fetch('/api/v1/local-auth/methods');
-    if (response.ok) {
-      const methods = await response.json() as {
-        passwordEnabled: boolean; googleEnabled: boolean; googleAvailable: boolean;
-      };
-      passwordEnabled.value = methods.passwordEnabled;
-      googleEnabled.value = methods.googleEnabled;
-      googleAvailable.value = methods.googleAvailable;
-      verificationPending.value = Boolean(token.value);
-    }
-  } catch { error.value = label('Не удалось получить способы входа.', 'Could not load sign-in methods.'); }
-  finally { loaded.value = true; }
-});
+    if (!response.ok) throw new Error('METHODS_UNAVAILABLE');
+    const methods = await response.json();
+    if (typeof methods.passwordEnabled !== 'boolean' || typeof methods.googleEnabled !== 'boolean' || typeof methods.googleAvailable !== 'boolean') throw new Error('INVALID_METHODS');
+    if (!isCurrent() || seq !== generation) return;
+    passwordEnabled.value = methods.passwordEnabled;
+    googleEnabled.value = methods.googleEnabled;
+    googleAvailable.value = methods.googleAvailable;
+    methodsKnown.value = true;
+    verificationPending.value = Boolean(token.value);
+  } catch { if (isCurrent() && seq === generation) error.value = label('Не удалось получить способы входа.', 'Could not load sign-in methods.'); }
+  finally { if (isCurrent() && seq === generation) loaded.value = true; }
+}
 async function submit(path: string, body: object): Promise<boolean> {
-  if (busy.value) return false;
+  if (busy.value || !methodsKnown.value || !isCurrent()) return false;
   busy.value = true; error.value = ''; notice.value = '';
   try {
     const response = await fetch('/api/v1/local-auth/' + path, {
@@ -52,6 +59,7 @@ async function submit(path: string, body: object): Promise<boolean> {
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify(body),
     });
+    if (!isCurrent()) return false;
     if (!response.ok) {
       error.value = response.status === 429
         ? label('Слишком много попыток. Попробуйте позже.', 'Too many attempts. Please try later.')
@@ -60,6 +68,7 @@ async function submit(path: string, body: object): Promise<boolean> {
     }
     return true;
   } catch {
+    if (!isCurrent()) return false;
     error.value = label('Ошибка сети. Попробуйте снова.', 'Network error. Try again.');
     return false;
   } finally { busy.value = false; }
@@ -70,6 +79,7 @@ async function change(): Promise<void> {
   }
   if (await submit('change',{currentPassword:currentPassword.value,newPassword:newPassword.value})) {
     currentPassword.value = ''; newPassword.value = ''; confirm.value = '';
+    notice.value = label('Пароль изменён.', 'Password changed.');
     await refreshActor();
   }
 }
@@ -97,13 +107,14 @@ async function linkGoogle(): Promise<void> {
 }
 </script>
 <template>
-  <section v-if="loaded" class="panel password-settings" aria-labelledby="password-settings-title">
+  <p v-if="!loaded" class="panel" role="status">{{ label('Загрузка…', 'Loading…') }}</p>
+  <section v-else class="panel password-settings" aria-labelledby="password-settings-title">
     <h2 id="password-settings-title">{{ label('Способы входа', 'Sign-in methods') }}</h2>
-    <p class="hint">
+    <p v-if="methodsKnown" class="hint">
       {{ label('Пароль:', 'Password:') }} {{ passwordEnabled ? label('подключён', 'enabled') : label('не подключён', 'not enabled') }} ·
       Google: {{ googleEnabled ? label('подключён', 'enabled') : label('не подключён', 'not enabled') }}
     </p>
-    <form v-if="passwordEnabled" class="auth-form" @submit.prevent="change">
+    <form v-if="methodsKnown && passwordEnabled" class="auth-form" @submit.prevent="change">
       <h3>{{ label('Изменить пароль', 'Change password') }}</h3>
       <label for="current-password">{{ label('Текущий пароль', 'Current password') }}</label>
       <input id="current-password" v-model="currentPassword" :type="show ? 'text' : 'password'" autocomplete="current-password" required />
@@ -115,7 +126,7 @@ async function linkGoogle(): Promise<void> {
       <p class="hint">{{ label('Все старые сессии завершатся.', 'All older sessions will expire.') }}</p>
       <button type="submit" class="auth-primary" :disabled="busy" :aria-busy="busy">{{ label('Сменить пароль', 'Change password') }}</button>
     </form>
-    <form v-else class="auth-form" @submit.prevent="linkPassword">
+    <form v-else-if="methodsKnown" class="auth-form" @submit.prevent="linkPassword">
       <h3>{{ label('Добавить пароль', 'Add password') }}</h3>
       <p class="hint">{{ label('Для безопасности войдите через Google заново, затем добавьте пароль в течение 5 минут.', 'For security, sign in with Google again, then add a password within 5 minutes.') }}</p>
       <label for="link-email">Email</label>
@@ -129,12 +140,12 @@ async function linkGoogle(): Promise<void> {
       <label class="auth-checkbox"><input v-model="show" type="checkbox" />{{ label('Показать пароль', 'Show password') }}</label>
       <button type="submit" class="auth-primary" :disabled="busy">{{ label('Подтвердить по почте', 'Confirm by email') }}</button>
     </form>
-    <form v-if="!passwordEnabled && verificationPending" class="auth-form" @submit.prevent="verifyLink">
-      <label for="link-token">{{ label('Код из письма', 'Email verification code') }}</label>
-      <input id="link-token" v-model.trim="token" autocomplete="off" maxlength="64" required />
+    <form v-if="methodsKnown && !passwordEnabled && verificationPending" class="auth-form" @submit.prevent="verifyLink">
+      <label v-if="!tokenFromLink" for="link-token">{{ label('Код из письма', 'Email verification code') }}</label>
+      <input v-if="!tokenFromLink" id="link-token" v-model.trim="token" type="password" autocomplete="off" maxlength="64" required />
       <button type="submit" class="auth-primary" :disabled="busy">{{ label('Подключить пароль', 'Enable password') }}</button>
     </form>
-    <form v-if="passwordEnabled && !googleEnabled && googleAvailable" class="auth-form" @submit.prevent="linkGoogle">
+    <form v-if="methodsKnown && passwordEnabled && !googleEnabled && googleAvailable" class="auth-form" @submit.prevent="linkGoogle">
       <h3>{{ label('Подключить Google', 'Connect Google') }}</h3>
       <label for="google-link-identifier">{{ label('Email или логин', 'Email or username') }}</label>
       <input id="google-link-identifier" v-model.trim="identifier" autocomplete="username" required />
@@ -144,5 +155,6 @@ async function linkGoogle(): Promise<void> {
     </form>
     <p v-if="notice" class="success" role="status">{{ notice }}</p>
     <p v-if="error" class="auth-error" role="alert">{{ error }}</p>
+    <button v-if="!methodsKnown" type="button" class="action-button secondary-button" @click="loadMethods">{{ label('Повторить', 'Retry') }}</button>
   </section>
 </template>
