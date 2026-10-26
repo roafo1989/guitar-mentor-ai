@@ -67,6 +67,9 @@ function Invoke-RecoveryNative([string]$File, [string[]]$Arguments, [string]$Dir
         if ($null -ne $InputText) { $process.StandardInput.Write($InputText) }
         $process.StandardInput.Close()
         $process.WaitForExit()
+        if (-not $outTask.Wait(10000) -or -not $errTask.Wait(10000)) {
+            throw 'Команда завершилась, но оставила открытые каналы вывода. Для запуска фоновых служб используйте отдельный launcher.'
+        }
         $output = $outTask.GetAwaiter().GetResult()
         $null = $errTask.GetAwaiter().GetResult()
         if ($process.ExitCode -ne 0) {

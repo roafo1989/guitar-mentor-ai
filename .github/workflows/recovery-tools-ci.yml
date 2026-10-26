@@ -33,6 +33,7 @@ jobs:
         shell: pwsh
         run: ./scripts/recovery/tests/Recovery.Tests.ps1 -ResticPath $env:GM_TEST_RESTIC
       - name: Real restore on an isolated PostgreSQL cluster; no user database
+        timeout-minutes: 5
         shell: pwsh
         run: ./scripts/recovery/tests/Recovery.Postgres.Tests.ps1
       - name: Existing release safety regression
