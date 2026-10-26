@@ -1,12 +1,12 @@
 # OPS-02 / #40 — проверка комплекта восстановления
 
-Дата: 26.10.2026. Код: отдельная локальная ветка `ops/40-disaster-recovery`,
+Дата: 26.10.2026. Код: опубликованная ветка `ops/40-disaster-recovery`,
 основание `ops/39-pilot-release-shortcuts` / PR #219. Владелец явно разрешил
 публикацию ветки и открытие PR 26.10.2026. Результат Windows CI фиксируется
 отдельно ниже/в PR Checks; поля Project и состояние #40 не изменены.
 Этот отчёт не закрывает #39/#40/#26.
 
-## Выполнено
+## Исходный локальный прогон
 
 Среда: Linux x64, настоящий PowerShell 7.4.13 и restic 0.18.0.
 
@@ -29,13 +29,42 @@
 в аккаунт пользователя. Runtime config принимает rclone backend облака;
 оператор должен выбрать настоящий облачный remote, не local/alias этого SSD.
 
+## Подтверждённый Windows CI
+
+Проверенный код: `6b1bf49ef8b552ae0212a301c82fb2084ddbddb7`,
+[PR #230](https://github.com/roafo1989/guitar-mentor-ai/pull/230),
+основание PR #219. Последующее обновление этого отчёта меняет только документацию.
+Среда CI: Windows Server 2025 / windows-latest, PostgreSQL 17.11, restic 0.18.0.
+Это не пользовательский Windows 10 и не реальные данные PILOT.
+
+- [Disaster recovery tools — PASS](https://github.com/roafo1989/guitar-mentor-ai/actions/runs/40300928056):
+  50 recovery assertions, закрытый ACL, настоящий Windows DPAPI export/AES/import
+  с повторным шифрованием в той же учётной записи, restic snapshot/restore/check;
+  реальный изолированный PostgreSQL dump/restore, количество строк/Flyway,
+  Unicode и бинарные данные, пароль с кавычкой и кириллицей, отказ перезаписи
+  существующих данных и отказ при несовпадении; кластер остановлен;
+  существующая релизная регрессия — 91 assertion PASS.
+- [Pilot release tools — PASS](https://github.com/roafo1989/guitar-mentor-ai/actions/runs/40300928081):
+  91 assertion PASS, Maven verify на отдельном PostgreSQL — BUILD SUCCESS,
+  334 tests, 0 failures, 0 errors, 5 skips. Тестовый сервер остановлен.
+
+Windows-прогон обнаружил и позволил исправить два дефекта DR-комплекта:
+наследование pipe handles тестовым PostgreSQL-демоном и искажение Unicode-пароля
+через нативное Windows-окружение. Для SQL фиксирована UTF-8 кодировка, а
+PostgreSQL credentials передаются через краткоживущий UTF-8 pgpass с закрытым ACL.
+Тесты не ослаблены и не отключены ради зелёного результата.
+
+В первом прогоне существующей Java-регрессии был один сбой
+`DiagnosticEvidencePostgresIntegrationTest.sixtyFailedPendingDeletesCannotStarveFreshEligibleMedia`
+(ожидалось 26, получено 25). Повторный запуск и следующие полные прогоны прошли.
+Причина нестабильности этого существующего теста не установлена; продуктовый
+код очистки и сам этот тест в DR-инкременте не изменялись.
+
 ## Не выполнено и что именно проверить
 
 | Проверка | Статус / способ |
 | --- | --- |
-| Windows ACL, реальный DPAPI export/re-import | NOT_RUN здесь; Windows-ветви Recovery.Tests.ps1 подготовлены |
-| Реальный PostgreSQL 17 dump/restore нового кластера | NOT_RUN здесь; Recovery.Postgres.Tests.ps1 подготовлен |
-| GitHub Windows CI | Результат конкретного head — в PR Checks; не подменять локальным прогоном |
+| Windows ACL/DPAPI, PostgreSQL 17, restic на синтетических данных CI | PASS, ссылки и точный код выше |
 | Повторный вход/загрузка в реальное облако, квота/сеть | NOT_RUN: rclone remote на ноутбуке не настроен этим сеансом |
 | Полнота всех пользовательских папок и секретов | NOT_RUN: Inventory + ручная карта extraFolders/менеджер паролей |
 | Реальный согласованный restore PILOT/DEV/library | NOT_RUN: §3 runbook, новые изолированные БД |
@@ -43,11 +72,10 @@
 | Вход, история, PDF, F5, тюнер/метроном, два аккаунта после восстановления | NOT_RUN: сначала без Funnel, затем отдельная внешняя проверка |
 | Фактические RPO/RTO и ежедневная дисциплина копий | NOT_MEASURED; целевые ≤24 ч / 1–2 ч после готовой Windows |
 
-Из-за ограничений среды здесь нельзя запустить Windows DPAPI/службы и PostgreSQL
-от отдельного пользователя. Отсутствие этих проверок не подменено чтением кода.
-Workflow `recovery-tools-ci.yml` добавлен для Windows, включая настоящий
-одноразовый PostgreSQL-кластер и restic; после публикации нужно дождаться его
-результата и исправить возможные замечания до приёмки на рабочем хосте.
+В локальной Linux-среде Windows-проверки недоступны; их реально выполнил
+GitHub Windows CI. Перенос на другую Windows/учётную запись, полный запуск
+восстановленного приложения и доступ к пользовательскому облаку остаются
+отдельной приёмкой владельца; синтетический CI их не заменяет.
 
 ## Воспроизведение
 
