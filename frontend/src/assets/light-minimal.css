@@ -216,10 +216,10 @@
   border:1px solid var(--gm-primary);border-radius:var(--gm-radius-sm);
   font-size:14px;font-weight:650;
 }
-.app-shell[data-ui="light-minimal"] .evidence-file-input:focus-visible + .evidence-file-trigger {
+.app-shell[data-ui="light-minimal"] .evidence-file-input:focus-visible ~ .evidence-file-actions .evidence-file-trigger {
   outline:3px solid var(--gm-focus);outline-offset:3px;
 }
-.app-shell[data-ui="light-minimal"] .evidence-file-input:disabled + .evidence-file-trigger {
+.app-shell[data-ui="light-minimal"] .evidence-file-input:disabled ~ .evidence-file-actions .evidence-file-trigger {
   opacity:.5;cursor:not-allowed;
 }
 .app-shell[data-ui="light-minimal"] .evidence-file-trigger:hover {background:#e7f2ef}
