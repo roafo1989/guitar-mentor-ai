@@ -385,7 +385,17 @@
     "waitBeforeLeave": "Stop recording or finish/cancel the upload before leaving.",
     "cancelUpload": "Cancel upload",
     "uploadCancelledRetry": "Upload canceled. Files and request ID remain for a safe retry. Editing files or fields creates a new submission.",
-    "payloadMismatch": "This request ID already belongs to a different performance. Your draft remains. Edit a field or reselect a file to start a new submission."
+    "payloadMismatch": "This request ID already belongs to a different performance. Your draft remains. Edit a field or reselect a file to start a new submission.",
+    "chooseAudio": "Choose audio file",
+    "chooseScore": "Choose score file",
+    "replaceFile": "Replace",
+    "removeFile": "Remove",
+    "attached": "File attached",
+    "audioFormats": "MP3 · WAV · OGG · WebM · M4A",
+    "scoreFormats": "PDF · JPG · PNG",
+    "durationExceeded": "Audio exceeds 120 seconds. Please choose or record a shorter excerpt.",
+    "unsupportedFormat": "Unsupported file format. Check the supported formats above.",
+    "technicalGeneric": "The audio file could not be validated. Try another recording."
   },
   "metronome": {
     "open": "Metronome",
