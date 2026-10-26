@@ -2,7 +2,9 @@
 import { nextTick, onBeforeUnmount, onMounted, ref } from 'vue';
 import { useI18n } from 'vue-i18n';
 import { takeAccountLinkToken } from './account-link';
+import { isValidLogin, isValidPassword, normalizeLogin } from './credential-policy';
 import { auth, refreshActor } from './auth';
+const emit = defineEmits<{ 'credentials-changed': [] }>();
 const { locale } = useI18n();
 const label = (ru: string, en: string) => locale.value === 'ru' ? ru : en;
 const loaded = ref(false);
@@ -78,6 +80,7 @@ async function submit(path: string, body: object): Promise<boolean> {
   } finally { busy.value = false; }
 }
 async function change(): Promise<void> {
+  if (!isValidPassword(newPassword.value)) { error.value = label('Пароль должен содержать 6–128 символов.', 'Password must be 6–128 characters.'); return; }
   if (newPassword.value !== confirm.value) {
     error.value = label('Пароли не совпадают.', 'Passwords do not match.'); return;
   }
@@ -88,10 +91,11 @@ async function change(): Promise<void> {
   }
 }
 async function linkPassword(): Promise<void> {
+  if (!isValidLogin(login.value) || !isValidPassword(newPassword.value)) { error.value = label('Проверьте логин и пароль (6–128 символов).', 'Check username and password (6–128 characters).'); return; }
   if (newPassword.value !== confirm.value) {
     error.value = label('Пароли не совпадают.', 'Passwords do not match.'); return;
   }
-  if (await submit('link/password/start',{email:email.value,login:login.value,password:newPassword.value})) {
+  if (await submit('link/password/start',{email:email.value,login:normalizeLogin(login.value),password:newPassword.value})) {
     newPassword.value = ''; confirm.value = '';
     verificationPending.value = true;
     notice.value = label('Отправлено письмо. Подтвердите новый способ входа.', 'Check your email to confirm the new sign-in method.');
@@ -100,6 +104,7 @@ async function linkPassword(): Promise<void> {
 async function verifyLink(): Promise<void> {
   if (await submit('link/password/verify',{token:token.value})) {
     passwordEnabled.value = true; verificationPending.value = false;
+    emit('credentials-changed');
     token.value = ''; notice.value = label('Пароль добавлен.', 'Password sign-in enabled.');
   }
 }
@@ -131,8 +136,8 @@ async function linkGoogle(): Promise<void> {
       <h3>{{ label('Изменить пароль', 'Change password') }}</h3>
       <label for="current-password">{{ label('Текущий пароль', 'Current password') }}</label>
       <input id="current-password" name="password-change-current" v-model="currentPassword" :type="show ? 'text' : 'password'" autocomplete="section-password-change current-password" required />
-      <label for="new-account-password">{{ label('Новый пароль (12–128 символов)', 'New password (12–128 characters)') }}</label>
-      <input id="new-account-password" v-model="newPassword" :type="show ? 'text' : 'password'" autocomplete="section-password-change new-password" minlength="12" maxlength="128" required />
+      <label for="new-account-password">{{ label('Новый пароль (6–128 символов)', 'New password (6–128 characters)') }}</label>
+      <input id="new-account-password" v-model="newPassword" :type="show ? 'text' : 'password'" autocomplete="section-password-change new-password" minlength="6" maxlength="256" required />
       <label for="confirm-account-password">{{ label('Повторите пароль', 'Confirm password') }}</label>
       <input id="confirm-account-password" v-model="confirm" :type="show ? 'text' : 'password'" autocomplete="section-password-change new-password" required />
       <label class="auth-checkbox"><input v-model="show" type="checkbox" />{{ label('Показать пароли', 'Show passwords') }}</label>
@@ -145,9 +150,10 @@ async function linkGoogle(): Promise<void> {
       <label for="link-email">Email</label>
       <input id="link-email" v-model.trim="email" type="email" autocomplete="email" required />
       <label for="link-username">{{ label('Логин', 'Username') }}</label>
-      <input id="link-username" v-model.trim="login" autocomplete="username" minlength="3" maxlength="64" required />
-      <label for="link-password">{{ label('Пароль (12–128 символов)', 'Password (12–128 characters)') }}</label>
-      <input id="link-password" v-model="newPassword" :type="show ? 'text' : 'password'" autocomplete="new-password" minlength="12" maxlength="128" required />
+      <input id="link-username" v-model.trim="login" autocomplete="username" minlength="3" maxlength="128" required />
+      <p class="hint">{{ label('Логин: 3–64 символа, латиница или кириллица, цифры, . _ -; начните с буквы или цифры.', 'Username: 3–64 Latin or Cyrillic letters, digits, . _ -; start with a letter or digit.') }}</p>
+      <label for="link-password">{{ label('Пароль (6–128 символов)', 'Password (6–128 characters)') }}</label>
+      <input id="link-password" v-model="newPassword" :type="show ? 'text' : 'password'" autocomplete="new-password" minlength="6" maxlength="256" required />
       <label for="link-confirm">{{ label('Подтверждение пароля', 'Confirm password') }}</label>
       <input id="link-confirm" v-model="confirm" :type="show ? 'text' : 'password'" autocomplete="new-password" required />
       <label class="auth-checkbox"><input v-model="show" type="checkbox" />{{ label('Показать пароль', 'Show password') }}</label>

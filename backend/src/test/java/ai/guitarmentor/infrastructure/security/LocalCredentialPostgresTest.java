@@ -26,6 +26,7 @@ class LocalCredentialPostgresTest {
     @Autowired InvitationService invitations;
     @Autowired ActorRepository actors;
     @Autowired GoogleLinkService googleLinks;
+    @Autowired org.springframework.jdbc.core.simple.JdbcClient db;
     @MockitoBean JavaMailSender sender;
     private static final Pattern TOKEN=Pattern.compile("token=([a-f0-9]{64})");
 
@@ -173,6 +174,65 @@ class LocalCredentialPostgresTest {
             .orElseThrow().accountId());
         assertEquals("LEARNER",actors.findActive(InvitationService.GOOGLE_ISSUER,google.getSubject())
             .orElseThrow().role());
+    }
+
+    @Test
+    void unicodeUsernameChangeKeepsAccountLearnerAndEmailAndSixCharacterPasswordWorks() {
+        String suffix=UUID.randomUUID().toString().substring(0,8);
+        String login="Роман"+suffix, email=suffix+"@example.test";
+        local.registerPublic(email,login,"123456"); local.verify(latestMailToken());
+        UUID account=local.authenticate(login.toUpperCase(java.util.Locale.ROOT),"123456");
+        UUID learner=db.sql("SELECT learner_id FROM accounts WHERE id=:id").param("id",account).query(UUID.class).single();
+        String display=db.sql("SELECT display_name FROM learners WHERE id=:id").param("id",learner).query(String.class).single();
+        String renamed=local.changeUsername(account,"И\u0306ГРОК_"+suffix,"123456");
+        assertEquals("йгрок_"+suffix,renamed);
+        assertEquals(renamed,local.username(account));
+        assertThrows(SecurityException.class,()->local.authenticate(login,"123456"));
+        assertEquals(account,local.authenticate("ЙГРОК_"+suffix,"123456"));
+        assertEquals(account,local.authenticate(email,"123456"));
+        assertEquals(learner,actors.findActiveLocal(account,0L).orElseThrow().learnerId());
+        assertEquals(display,db.sql("SELECT display_name FROM learners WHERE id=:id").param("id",learner).query(String.class).single());
+        assertThrows(SecurityException.class,()->local.changeUsername(account,"another"+suffix,"wrong-password"));
+        assertEquals(renamed,local.username(account));
+        assertEquals(renamed,local.changeUsername(account,renamed.toUpperCase(java.util.Locale.ROOT),"123456"));
+        local.change(account,"123456","abcdef");
+        assertEquals(account,local.authenticate(renamed,"abcdef"));
+        local.requestReset(email);local.reset(latestMailToken(),"fedcba");
+        assertEquals(account,local.authenticate(email,"fedcba"));
+    }
+    @Test
+    void usernameChangesRespectActiveAndPendingReservations() {
+        String suffix=UUID.randomUUID().toString().substring(0,8), first="first"+suffix, second="second"+suffix;
+        local.registerPublic(first+"@example.test",first,"123456"); local.verify(latestMailToken());
+        local.registerPublic(second+"@example.test",second,"123456"); local.verify(latestMailToken());
+        UUID account=local.authenticate(second,"123456");
+        assertThrows(LocalCredentialService.UsernameUnavailable.class,()->local.changeUsername(account,first.toUpperCase(),"123456"));
+        String pending="ожидает"+suffix;
+        local.registerPublic(pending+"@example.test",pending,"123456");
+        assertThrows(LocalCredentialService.UsernameUnavailable.class,()->local.changeUsername(account,pending,"123456"));
+        UUID google=UUID.randomUUID(),learner=UUID.randomUUID();
+        db.sql("INSERT INTO learners(id,display_name,created_at) VALUES (:id,'QA232',now())").param("id",learner).update();
+        db.sql("INSERT INTO accounts(id,learner_id,role,status) VALUES (:id,:learner,'LEARNER','ACTIVE')").param("id",google).param("learner",learner).update();
+        String linked="связь"+suffix;
+        local.beginLink(google,"linked"+suffix+"@example.test",linked,"123456");
+        assertThrows(LocalCredentialService.UsernameUnavailable.class,()->local.changeUsername(account,linked,"123456"));
+        local.verifyLink(google,latestMailToken());
+        assertEquals(google,local.authenticate(linked,"123456"));
+        assertEquals(second,local.username(account));
+    }
+    @Test
+    void expiredReservationIsReleasedAndShortPasswordsAreRejected() {
+        String suffix=UUID.randomUUID().toString().substring(0,8), name="active"+suffix;
+        assertThrows(IllegalArgumentException.class,()->local.registerPublic(suffix+"@example.test",name,"12345"));
+        assertThrows(IllegalArgumentException.class,()->local.registerPublic(suffix+"@example.test",name,"x".repeat(129)));
+        local.registerPublic(suffix+"@example.test",name,"123456");local.verify(latestMailToken());
+        UUID account=local.authenticate(name,"123456");
+        assertThrows(IllegalArgumentException.class,()->local.change(account,"123456","12345"));
+        String expired="истекло"+suffix;
+        local.registerPublic("pending"+suffix+"@example.test",expired,"123456");
+        db.sql("UPDATE pending_local_registrations SET expires_at=now()-interval '1 minute' WHERE login_normalized=:name").param("name",expired).update();
+        assertEquals(expired,local.changeUsername(account,expired,"123456"));
+        assertEquals(account,local.authenticate(expired,"123456"));
     }
 
     private String latestMailToken() {

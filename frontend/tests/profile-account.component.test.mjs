@@ -20,6 +20,7 @@ async function component(path){
   '../../stores/learner.store':url('export const useLearnerStore=()=>globalThis.__store229;'),
   '../../shared/api-failure':url('export const apiFailureKey=()=>"apiErrors.network";export const asApiFailure=x=>x;'),
   '../../core/auth/auth':url('export const secureUi=true;export const auth=globalThis.__auth229;'),
+  './credential-policy':import.meta.resolve('../src/core/auth/credential-policy.ts'),
   './account-link':url('export const takeAccountLinkToken=()=>null;'),
   './auth':url('export const auth=globalThis.__auth229;export const refreshActor=async()=>{};'),
   '../../shared/unsaved-changes':url('export const useUnsavedChanges=(dirty)=>{globalThis.__dirty229=dirty};'),
@@ -208,5 +209,53 @@ test('#229 acceptance: successful Google confirmation clears secret and redirect
   h.nodes().find(n=>n.props?.id==='google-link-password').props['onUpdate:modelValue']('app-password');
   h.nodes().find(n=>n.props?.id==='google-link-form').props.onSubmit({preventDefault(){}});await settle();
   assert.equal(path,'/oauth2/authorization/guitar-mentor');assert.equal(h.nodes().find(n=>n.props?.id==='google-link-password').value,'');
+ }finally{h.cleanup();globalThis.fetch=native;}
+});
+
+test('#232 username GET failure keeps editing closed; retry is read only',async()=>{
+ const native=globalThis.fetch;let reads=0;
+ globalThis.fetch=async(_url,options)=>{assert.equal(options?.method,undefined);return ++reads===1?new Response('{}',{status:503}):Response.json({login:'current-player'});};
+ const h=await mount('core/auth/UsernameSettings.vue');
+ try{
+  assert.equal(h.nodes().some(n=>n.tag==='form'),false);assert.equal(h.button('Edit'),undefined);
+  h.button('Try again').props.onClick();await settle();assert.equal(reads,2);assert.ok(h.button('Edit'));
+ }finally{h.cleanup();globalThis.fetch=native;}
+});
+
+test('#232 username form preserves failed input, serializes clicks and leaves learner identity alone',async()=>{
+ const native=globalThis.fetch;let fail=true,posts=0,body;const pending=deferred();
+ globalThis.fetch=async(_url,options)=>{if(options?.method==='POST'){posts++;body=JSON.parse(options.body);return fail?new Response('{}',{status:409}):pending.promise;}return Response.json({login:'current-player'});};
+ const h=await mount('core/auth/UsernameSettings.vue');
+ const set=(id,value)=>h.nodes().find(n=>n.props?.id===id).props['onUpdate:modelValue'](value);
+ const submit=()=>h.nodes().find(n=>n.tag==='form').props.onSubmit({preventDefault(){}});
+ try{
+  h.button('Edit').props.onClick();await settle();set('account-new-login','РОМАН_1989');set('account-login-password','123456');
+  submit();await settle();assert.equal(posts,1);assert.ok(h.nodes().some(n=>n.value==='РОМАН_1989'));assert.ok(h.nodes().some(n=>String(n.text).includes('unavailable')));
+  fail=false;submit();submit();await settle();assert.equal(posts,2);assert.deepEqual(body,{newLogin:'роман_1989',currentPassword:'123456'});
+  pending.resolve(Response.json({login:'роман_1989'}));await settle();assert.equal(h.nodes().some(n=>n.tag==='form'),false);assert.ok(h.nodes().some(n=>n.text==='роман_1989'));assert.equal(globalThis.__dirty229.value,false);assert.equal(actor.actor.learnerId,'A');assert.equal(h.nodes().some(n=>n.value==='123456'),false);
+ }finally{h.cleanup();globalThis.fetch=native;}
+});
+
+test('#232 late username write cannot announce saved or leak a draft after account switch',async()=>{
+ const native=globalThis.fetch;const pending=deferred();
+ globalThis.fetch=async(_url,options)=>options?.method==='POST'?pending.promise:Response.json({login:'current-player'});
+ const h=await mount('core/auth/UsernameSettings.vue');
+ try{
+  h.button('Edit').props.onClick();await settle();h.nodes().find(n=>n.props?.id==='account-new-login').props['onUpdate:modelValue']('private-name');h.nodes().find(n=>n.props?.id==='account-login-password').props['onUpdate:modelValue']('123456');
+  h.nodes().find(n=>n.tag==='form').props.onSubmit({preventDefault(){}});await settle();
+  actor.actor={accountId:'B',learnerId:'B'};pending.resolve(Response.json({login:'private-name'}));await settle();
+  assert.equal(h.nodes().some(n=>n.props?.role==='status'&&String(n.text).includes('Username changed')),false);assert.equal(h.nodes().some(n=>n.value==='private-name'||n.value==='123456'),false);
+ }finally{h.cleanup();globalThis.fetch=native;}
+});
+
+test('#232 password settings reject 5 characters and accept a 6-character replacement',async()=>{
+ const native=globalThis.fetch;let writes=0;
+ globalThis.fetch=async(_url,options)=>{if(options?.method==='POST'){writes++;return new Response('{}');}return Response.json({passwordEnabled:true,googleEnabled:false,googleAvailable:true});};
+ const h=await mount('core/auth/PasswordSettings.vue');
+ const set=(id,value)=>h.nodes().find(n=>n.props?.id===id).props['onUpdate:modelValue'](value);
+ const submit=()=>h.nodes().find(n=>n.tag==='form').props.onSubmit({preventDefault(){}});
+ try{
+  set('current-password','previous-password');set('new-account-password','12345');set('confirm-account-password','12345');submit();await settle();assert.equal(writes,0);
+  set('new-account-password','123456');set('confirm-account-password','123456');submit();await settle();assert.equal(writes,1);
  }finally{h.cleanup();globalThis.fetch=native;}
 });

@@ -827,5 +827,20 @@
     "learningGoals": "Learning goals",
     "addShort": "Add",
     "editShort": "Edit"
+  },
+  "accountLogin": {
+    "title": "Sign-in username",
+    "loading": "Loading username…",
+    "newLogin": "New username",
+    "password": "Current Guitar Mentor AI password",
+    "rules": "3–64 Latin or Cyrillic letters, digits, . _ -. Start with a letter or digit. Case does not matter.",
+    "purpose": "Used to sign in to your account.",
+    "noPassword": "A username will appear after you add password sign-in.",
+    "invalid": "Check the new username and enter your current password.",
+    "loadError": "Could not load username. Please retry.",
+    "saveError": "Could not change username. Check your current password and connection.",
+    "unavailable": "This username is unavailable. Choose another.",
+    "rateLimited": "Too many attempts. Please try later.",
+    "saved": "Username changed. Use it the next time you sign in."
   }
 }

@@ -90,3 +90,6 @@
   .learner-experience .wizard-actions { flex-wrap: wrap; }
   .learner-experience .wizard-actions > .wizard-actions-end { flex: 1 1 100%; flex-wrap: wrap; }
 }
+
+.learner-experience .account-login-value { font-weight: 650; overflow-wrap: anywhere; }
+.learner-experience .username-help { margin: 10px 0 20px; }
