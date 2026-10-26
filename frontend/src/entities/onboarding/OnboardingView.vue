@@ -55,7 +55,7 @@ function resetForm(): void {
   failedRead.value = false;
   error.value = null;
   localValidation.value = false;
-  saved.value = false;
+  saved.value = false; savedConfirmation.value = false;
   summary.value = null; nextError.value = null; ++nextGeneration;
 }
 const errorMessage = computed(() => localValidation.value ? t('profileUx.invalidAnswers') : error.value ? t(apiFailureKey(error.value)) : '');
@@ -69,6 +69,7 @@ watch(() => (secureUi ? auth.actor?.accountId ?? '' : '') + ':' + (learnerStore.
   if (learnerStore.learner && active) void loadBackground();
 });
 const saved = ref(false);
+const savedConfirmation = ref(false);
 const experienceLevel = ref<ExperienceLevel>('BEGINNER');
 const yearsPlaying = ref(0);
 const skills = ref<SkillTag[]>([]);
@@ -155,11 +156,11 @@ async function resolveNext(): Promise<void> {
 }
 function addPiece(): void {
   if (knownPieces.value.length >= 10) return;
-  knownPieces.value.push({ title: '', artist: '' }); edited.value = true;
+  knownPieces.value.push({ title: '', artist: '' }); edited.value = true; savedConfirmation.value = false;
   void nextTick(() => Array.from(document.querySelectorAll<HTMLInputElement>('[data-piece-title]')).at(-1)?.focus());
 }
 function removePiece(index: number): void {
-  knownPieces.value.splice(index, 1); edited.value = true;
+  knownPieces.value.splice(index, 1); edited.value = true; savedConfirmation.value = false;
   void nextTick(() => addPieceButton.value?.focus?.());
 }
 function validStep(): boolean {
@@ -170,21 +171,27 @@ function validStep(): boolean {
   return true;
 }
 function nextStep(): void {
+  if (saving.value) return;
   localValidation.value = !validStep();
   if (!localValidation.value && step.value < 3) { step.value = (step.value + 1) as 2 | 3; focusHeading(); }
 }
-function backStep(): void { if (step.value > 1) step.value = (step.value - 1) as 1 | 2; localValidation.value = false; focusHeading(); }
+function backStep(): void { if (saving.value) return; if (step.value > 1) step.value = (step.value - 1) as 1 | 2; localValidation.value = false; focusHeading(); }
 function focusHeading(): void { void nextTick(() => heading.value?.focus?.()); }
 function editAgain(): void { ++nextGeneration; resolvingNext.value = false; saved.value = false; step.value = 1; summary.value = null; focusHeading(); }
 
-async function save(): Promise<void> {
+async function save(complete = true): Promise<void> {
   if (!maySave.value || !learnerStore.learner) return;
-  saved.value = false;
+  saved.value = false; savedConfirmation.value = false;
   failedRead.value = false;
   error.value = null;
   localValidation.value = false;
   const pieces = knownPieces.value.map(piece => ({ title: piece.title.trim(), artist: piece.artist.trim() }));
-  if (!validStep() || !Number.isInteger(yearsPlaying.value) || yearsPlaying.value < 0 || yearsPlaying.value > 60 || pieces.length > 10 || pieces.some(piece => !piece.title || piece.title.length > 120 || piece.artist.length > 120)) {
+  // Every save writes the complete API object, even when initiated on an earlier step.
+  if (!Number.isInteger(yearsPlaying.value) || yearsPlaying.value < 0 || yearsPlaying.value > 60
+    || !Number.isInteger(practiceMinutes.value) || practiceMinutes.value < 10 || practiceMinutes.value > 120
+    || !Number.isInteger(sessionsPerWeek.value) || sessionsPerWeek.value < 1 || sessionsPerWeek.value > 7
+    || notes.value.length > 1000 || pieces.length > 10
+    || pieces.some(piece => !piece.title || piece.title.length > 120 || piece.artist.length > 120)) {
     localValidation.value = true;
     return;
   }
@@ -209,9 +216,12 @@ async function save(): Promise<void> {
     if (!active || currentSave !== saveGeneration || learnerStore.learner?.id !== learnerId || (secureUi && auth.actor?.accountId !== actorId)) return;
     if (result) apply(result);
     edited.value = false;
-    saved.value = true;
-    focusHeading();
-    void resolveNext();
+    savedConfirmation.value = true;
+    if (complete) {
+      saved.value = true;
+      focusHeading();
+      void resolveNext();
+    }
   } catch (cause) {
     if (active && currentSave === saveGeneration && learnerStore.learner?.id === learnerId && (!secureUi || auth.actor?.accountId === actorId))
       error.value = asApiFailure(cause);
@@ -237,7 +247,7 @@ async function save(): Promise<void> {
       <RouterLink v-else-if="summary" :to="nextTarget" class="action-button primary-link">{{ nextLabel }} →</RouterLink>
       <div class="form-actions"><button type="button" class="text-button" @click="editAgain">{{ t('profileUx.editAnswers') }}</button><RouterLink to="/profile">{{ t('onboarding.profileBack') }}</RouterLink></div>
     </section>
-    <form v-else class="panel" @input="edited = true" @change="edited = true" @submit.prevent="step < 3 ? nextStep() : save()">
+    <form v-else class="panel" @input="edited = true; savedConfirmation = false" @change="edited = true; savedConfirmation = false" @submit.prevent="step < 3 ? nextStep() : save()">
       <ol class="wizard-steps" :aria-label="t('profileUx.stepsLabel')"><li v-for="(label, index) in ['experience', 'goals', 'rhythm']" :key="label" :aria-current="step === index + 1 ? 'step' : undefined" :class="{ current: step === index + 1, done: step > index + 1 }"><span>{{ index + 1 }}</span>{{ t('profileUx.steps.' + label) }}</li></ol>
       <p class="step-indicator">{{ t('onboarding.step', { step, total: 3 }) }}</p>
       <fieldset class="plain-fieldset" :disabled="saving">
@@ -260,7 +270,13 @@ async function save(): Promise<void> {
           <p class="hint">{{ t('profileUx.rhythmHint') }}</p>
           <div class="form-grid"><label class="field"><span>{{ t('onboarding.practiceMinutes') }}</span><input v-model.number="practiceMinutes" type="number" min="10" max="120" required /></label><label class="field"><span>{{ t('onboarding.sessionsPerWeek') }}</span><input v-model.number="sessionsPerWeek" type="number" min="1" max="7" required /></label></div>
         </template>
-        <div class="form-actions"><button v-if="step > 1" type="button" class="action-button secondary-button" @click="backStep">← {{ t('onboarding.back') }}</button><button v-if="step < 3" type="submit" class="wizard-next">{{ t('onboarding.next') }} →</button><button v-else type="submit" :disabled="!maySave">{{ saving ? t('form.saving') : t('onboarding.save') }}</button></div>
+        <div class="form-actions wizard-actions">
+          <button v-if="step > 1" type="button" class="text-button" @click="backStep">← {{ t('onboarding.back') }}</button>
+          <button v-if="step < 3" type="button" class="action-button" :disabled="!maySave" :aria-busy="saving" @click="save(false)">{{ saving ? t('form.saving') : t('onboarding.saveChanges') }}</button>
+          <button v-if="step < 3" type="submit" class="action-button secondary-button wizard-next">{{ t('onboarding.next') }} →</button>
+          <button v-else type="submit" :disabled="!maySave" :aria-busy="saving">{{ saving ? t('form.saving') : t('onboarding.save') }}</button>
+        </div>
+        <p v-if="savedConfirmation" class="saved-confirmation" role="status">✓ {{ t('form.saved') }}</p>
       </fieldset>
       <p v-if="error || localValidation" class="error" role="alert">{{ errorMessage }}</p>
       <div v-if="needsReadResolution" class="notice" role="alert"><p>{{ t('onboarding.draftConflict') }}</p><button type="button" class="action-button secondary-button" @click="acceptServerBackground">{{ t('onboarding.loadServerBackground') }}</button></div>

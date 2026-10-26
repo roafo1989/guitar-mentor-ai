@@ -110,6 +110,17 @@ try {
  await waitFor("document.querySelector('[data-piece-title]')");
  assert.equal(await ui("document.querySelector('[data-piece-title]').value"),'Windy & Warm');
  await screenshot('onboarding-step1-1440-ru');
+ // Acceptance UX229-A01: explicit save on early steps stays in place.
+ const writesBeforeEarlySave=await puts();
+ const nextReadsBeforeEarlySave=await ui("__qa.calls.filter(c=>c.path.endsWith('/current')).length");
+ await ui("{const f=document.querySelector('main input[type=number]');f.value='3';f.dispatchEvent(new Event('input',{bubbles:true}));}");
+ await clickText('Сохранить изменения');await waitFor("document.querySelector('.wizard-steps')&&document.querySelector('main .saved-confirmation')");
+ assert.equal(await puts(),writesBeforeEarlySave+1);
+ assert.equal(await ui('__qa.background.yearsPlaying'),3);
+ assert.equal(await ui("document.querySelector('.wizard-steps [aria-current=step] span').textContent"),'1');
+ assert.equal(await ui("__qa.calls.filter(c=>c.path.endsWith('/current')).length"),nextReadsBeforeEarlySave);
+ await screenshot('onboarding-save-step1-1440-ru');
+
  // Structured title preserves a literal separator.
  await ui("let f=document.querySelector('[data-piece-title]');f.value='A | B';f.dispatchEvent(new Event('input',{bubbles:true}))");
  await ui("[...document.querySelectorAll('main button')].find(b=>b.textContent.includes('Добавить произведение')).click()");
@@ -129,6 +140,8 @@ try {
  await ui("{const field=document.querySelector('[data-piece-title]');field.value='A | B';field.dispatchEvent(new Event('input',{bubbles:true}));}");
 
  await next();await waitFor("document.querySelector('main h2')?.textContent.includes('освоить')");
+ await clickText('Сохранить изменения');await waitFor("document.querySelector('.wizard-steps')&&document.querySelector('main .saved-confirmation')");
+ assert.equal(await ui("document.querySelector('.wizard-steps [aria-current=step] span').textContent"),'2');
  await screenshot('onboarding-step2-1440-ru'); 
  await clickText('Назад');await waitFor("document.querySelector('[data-piece-title]')");
  assert.equal(await ui("document.querySelector('[data-piece-title]').value"),'A | B');

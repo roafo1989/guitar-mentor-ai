@@ -47,3 +47,11 @@
 }
 
 .learner-experience h2[tabindex="-1"]:focus { outline: none; }
+
+/* The wizard distinguishes persistence from navigation on every step. */
+.app-shell .learner-experience .wizard-actions .secondary-button {
+  background: #eef2f0; color: #205f57; border: 1px solid #7c8987;
+}
+.app-shell .learner-experience .wizard-actions .secondary-button:hover:not(:disabled) {
+  background: #dfece6; color: #205f57;
+}

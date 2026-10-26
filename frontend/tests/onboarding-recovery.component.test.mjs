@@ -325,3 +325,49 @@ test('#229 numeric limits and known-piece maximum reject unsafe wizard progressi
     assert.ok(h.nodes().some(n=>String(n.text).includes('Check your answers')));
   }finally{h.cleanup();}
 });
+
+test('#229 acceptance: explicit Save changes on steps 1 and 2 persists without leaving the step or resolving next action',async()=>{
+ const pending=deferred229();let puts=0,resolutions=0,payload;
+ const initial={...background('unchanged rhythm'),knownPieces:[{title:'Yesterday',artist:'Beatles'}]};
+ const h=await mount229({get:async()=>initial,save:async(_id,_code,data)=>{puts++;payload=data;return puts===1?pending.promise:data;}},async()=>{resolutions++;return {step:'diagnostics'};});
+ try {
+  const years=h.nodes().find(n=>n.tag==='input'&&n.props?.max==='60');
+  years.props['onUpdate:modelValue'](4);h.nodes().find(n=>n.tag==='form').props.onInput();
+  const save=h.button('Save changes');assert.ok(save);save.props.onClick();save.props.onClick();await settle();assert.equal(puts,1,'double click is guarded');
+  pending.resolve(payload);await settle();
+  assert.ok(h.nodes().some(n=>n.tag==='input'&&n.props?.max==='60'),'still on experience step');
+  assert.ok(h.nodes().some(n=>n.props?.class==='saved-confirmation'&&n.props.role==='status'));
+  assert.equal(resolutions,0);assert.equal(payload.yearsPlaying,4);assert.equal(payload.practiceMinutes,40);assert.deepEqual(payload.knownPieces,initial.knownPieces);
+  h.button('Remove').props.onClick();await settle();assert.equal(h.nodes().some(n=>n.props?.class==='saved-confirmation'),false,'removing a piece invalidates confirmation');
+  await h.submit();assert.ok(h.nodes().some(n=>n.tag==='textarea'),'now on goals step');
+  const notes=h.nodes().find(n=>n.tag==='textarea');notes.props['onUpdate:modelValue']('updated goals');h.nodes().find(n=>n.tag==='form').props.onInput();await settle();
+  assert.equal(h.nodes().some(n=>n.props?.class==='saved-confirmation'),false,'editing removes old confirmation');
+  h.button('Save changes').props.onClick();await settle();
+  assert.equal(puts,2);assert.equal(payload.notes,'updated goals');assert.ok(h.nodes().some(n=>n.tag==='textarea'));assert.equal(resolutions,0);
+  await h.submit();await h.submit();assert.equal(puts,3);assert.equal(resolutions,1,'final save resolves next action');
+ }finally{h.cleanup();}
+});
+
+test('#229 acceptance: early save preserves failed-write draft and requires full-object validation',async()=>{
+ let puts=0;let fail=true;
+ const h=await mount229({get:async()=>background('existing'),save:async(_id,_code,data)=>{puts++;if(fail)throw Error('offline');return data;}});
+ try{
+  const years=h.nodes().find(n=>n.tag==='input'&&n.props?.max==='60');years.props['onUpdate:modelValue'](7);h.nodes().find(n=>n.tag==='form').props.onInput();
+  h.button('Save changes').props.onClick();await settle();assert.equal(puts,1);assert.ok(h.nodes().some(n=>n.value===7));assert.equal(h.nodes().some(n=>n.props?.class==='saved-confirmation'),false);
+  fail=false;h.button('Save changes').props.onClick();await settle();assert.equal(puts,2);assert.ok(h.nodes().some(n=>n.props?.class==='saved-confirmation'));
+ }finally{h.cleanup();}
+ const invalid=await mount229({get:async()=>({...background('existing'),sessionsPerWeek:8}),save:async()=>{throw Error('invalid hidden field must not be sent');}});
+ try{invalid.button('Save changes').props.onClick();await settle();assert.ok(invalid.nodes().some(n=>String(n.text).includes('Check your answers')));}finally{invalid.cleanup();}
+});
+
+test('#229 acceptance: failed GET blocks early Save changes until successful read and explicit conflict resolution',async()=>{
+ let fail=true,puts=0;
+ const h=await mount229({get:async()=>{if(fail)throw Error('offline');return background('server');},save:async()=>{puts++;return background('saved');}});
+ try{
+  assert.equal(h.button('Save changes').props.disabled,true);
+  h.button('Save changes').props.onClick();await settle();assert.equal(puts,0);
+  h.nodes().find(n=>n.tag==='form').props.onInput();fail=false;h.button('Try again').props.onClick();await settle();
+  assert.equal(h.button('Save changes').props.disabled,true);h.button('Save changes').props.onClick();await settle();assert.equal(puts,0);
+  h.button('Load saved background').props.onClick();await settle();assert.equal(h.button('Save changes').props.disabled,false);
+ }finally{h.cleanup();}
+});
