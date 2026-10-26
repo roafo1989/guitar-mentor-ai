@@ -60,6 +60,9 @@ function Invoke-RecoveryNative([string]$File, [string[]]$Arguments, [string]$Dir
     $info.RedirectStandardOutput = $true
     $info.RedirectStandardError = $true
     $info.RedirectStandardInput = $true
+    $info.StandardInputEncoding = [Text.UTF8Encoding]::new($false)
+    $info.StandardOutputEncoding = [Text.UTF8Encoding]::new($false)
+    $info.StandardErrorEncoding = [Text.UTF8Encoding]::new($false)
     $process = [Diagnostics.Process]::Start($info)
     try {
         $outTask = $process.StandardOutput.ReadToEndAsync()
@@ -241,7 +244,7 @@ function Get-RecoveryPgArguments([hashtable]$Database) {
 
 function Invoke-RecoverySql([string]$Bin, [hashtable]$Database, [string]$Password, [string]$Sql) {
     $arguments = @(Get-RecoveryPgArguments $Database) + @('--no-psqlrc','--tuples-only','--no-align','--set=ON_ERROR_STOP=1',"--dbname=$($Database.name)")
-    Invoke-RecoveryNative (Join-Path $Bin 'psql.exe') $arguments $Bin @{PGPASSWORD=$Password} $Sql
+    Invoke-RecoveryNative (Join-Path $Bin 'psql.exe') $arguments $Bin @{PGPASSWORD=$Password;PGCLIENTENCODING='UTF8'} $Sql
 }
 
 function Get-RecoveryDatabaseSummary([string]$Bin, [hashtable]$Database, [string]$Password) {

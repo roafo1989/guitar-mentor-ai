@@ -32,6 +32,8 @@ INSERT INTO flyway_schema_history VALUES (1,'1','V1__fixture.sql',42,true);
 CREATE TABLE library_fixture(id int PRIMARY KEY, title text, content bytea);
 INSERT INTO library_fixture VALUES (1,'Unicode: 音楽',decode('00ff0a0d','hex')),(2,'second',decode('abcd','hex'));
 '@
+    $title=(Invoke-RecoverySql $PostgresBin $source 'synthetic source credential' 'SELECT title FROM library_fixture WHERE id=1;').Trim()
+    if ($title -ne 'Unicode: 音楽') { throw 'FAIL Unicode SQL pipe encoding' }
     $dump=Join-Path $root 'source.dump'
     Write-Host 'Dumping the synthetic source database.'
     $summary=Backup-RecoveryDatabase $PostgresBin $source 'synthetic source credential' $dump
@@ -53,7 +55,11 @@ INSERT INTO library_fixture VALUES (1,'Unicode: 音楽',decode('00ff0a0d','hex')
     $failed=$false
     try { $null=Restore-RecoveryDatabase $PostgresBin $dump $bad $badTarget $targetPassword 'gm_dr_admin' $password } catch { $failed=$true }
     if (-not $failed) { throw 'FAIL count mismatch must block successful drill' }
-    Write-Host 'PASS: real isolated PostgreSQL dump/restore, all-table counts/Flyway, binary bytes, quoted password, overwrite refusal, mismatch refusal.'
+    Write-Host 'PASS: real isolated PostgreSQL dump/restore, all-table counts/Flyway, Unicode/binary bytes, quoted password, overwrite refusal, mismatch refusal.'
+} catch {
+    # Synthetic fixture cluster ONLY; these diagnostics never read a user database.
+    if (Test-Path -LiteralPath (Join-Path $root 'pg.log')) { Get-Content -LiteralPath (Join-Path $root 'pg.log') -Tail 30 | Write-Host }
+    throw
 } finally {
     $stopped=$true
     if ($started) {
