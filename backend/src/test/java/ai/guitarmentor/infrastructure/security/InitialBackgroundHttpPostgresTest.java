@@ -189,19 +189,21 @@ class InitialBackgroundHttpPostgresTest {
         assertEquals(1, profiles(student));
     }
 
-    @Test void concurrentFirstBackgroundWritesCreateOneInstrumentAndOneClaim() throws Exception { race(false); }
-    @Test void concurrentFirstBackgroundAndPreferencesPreserveBoth() throws Exception { race(true); }
+    @Test void concurrentFirstBackgroundWritesCreateOneInstrumentAndOneClaim() throws Exception { race(0); }
+    @Test void concurrentFirstBackgroundAndPreferencesPreserveBoth() throws Exception { race(1); }
 
-    void race(boolean preferences) throws Exception {
+    @Test void concurrentFirstBackgroundAndDiagnosticStartShareOneInstrument() throws Exception { race(2); }
+
+    void race(int secondKind) throws Exception {
         var student = google();
         var pool = Executors.newFixedThreadPool(2);
         var ready = new CountDownLatch(2); var start = new CountDownLatch(1);
         try {
-            var first = pool.submit(() -> writeAfterStart(student, false, ready, start));
-            var second = pool.submit(() -> writeAfterStart(student, preferences, ready, start));
+            var first = pool.submit(() -> writeAfterStart(student, 0, ready, start));
+            var second = pool.submit(() -> writeAfterStart(student, secondKind, ready, start));
             assertTrue(ready.await(10, TimeUnit.SECONDS)); start.countDown();
             assertEquals(200, first.get(30, TimeUnit.SECONDS));
-            assertEquals(200, second.get(30, TimeUnit.SECONDS));
+            assertEquals(secondKind == 2 ? 201 : 200, second.get(30, TimeUnit.SECONDS));
             assertEquals(1, profiles(student));
             assertEquals(1L, jdbc.sql("SELECT count(*) FROM learning_backgrounds WHERE instrument_profile_id IN "
                 + "(SELECT id FROM instrument_profiles WHERE learner_id=:id)")
@@ -211,22 +213,27 @@ class InitialBackgroundHttpPostgresTest {
                 .param("id", student.learner()).query(Long.class).single());
             mvc.perform(get(student.background()).with(student.auth())).andExpect(status().isOk())
                 .andExpect(jsonPath("$.notes").value("keep me"));
-            if (preferences) mvc.perform(get(student.path()).with(student.auth())).andExpect(status().isOk())
+            if (secondKind == 1) mvc.perform(get(student.path()).with(student.auth())).andExpect(status().isOk())
                 .andExpect(jsonPath("$.instruments[0].preferences[0].styleCode").value("BLUES"));
         } finally {
             start.countDown(); pool.shutdownNow(); assertTrue(pool.awaitTermination(35, TimeUnit.SECONDS));
+            jdbc.sql("DELETE FROM diagnostic_sessions WHERE instrument_profile_id IN "
+                + "(SELECT id FROM instrument_profiles WHERE learner_id=:id)")
+                .param("id", student.learner()).update();
             jdbc.sql("DELETE FROM account_identities WHERE account_id=:id").param("id", student.account()).update();
             jdbc.sql("DELETE FROM accounts WHERE id=:id").param("id", student.account()).update();
             jdbc.sql("DELETE FROM learners WHERE id=:id").param("id", student.learner()).update();
         }
     }
 
-    int writeAfterStart(Student student, boolean preferences, CountDownLatch ready, CountDownLatch start) throws Exception {
+    int writeAfterStart(Student student, int kind, CountDownLatch ready, CountDownLatch start) throws Exception {
         ready.countDown();
         if (!start.await(10, TimeUnit.SECONDS)) throw new IllegalStateException("start timed out");
-        return mvc.perform(put(preferences ? student.path() + "/preferences" : student.background())
-            .with(student.auth()).with(csrf()).contentType(MediaType.APPLICATION_JSON)
-            .content(preferences ? PREFERENCES : BODY)).andReturn().getResponse().getStatus();
+        var request = kind == 2 ? post(student.path() + "/diagnostic-sessions")
+            : put(kind == 1 ? student.path() + "/preferences" : student.background());
+        String body = kind == 2 ? "{\"instrumentCode\":\"ACOUSTIC_GUITAR\"}" : kind == 1 ? PREFERENCES : BODY;
+        return mvc.perform(request.with(student.auth()).with(csrf()).contentType(MediaType.APPLICATION_JSON)
+            .content(body)).andReturn().getResponse().getStatus();
     }
 
     long profiles(Student student) {
