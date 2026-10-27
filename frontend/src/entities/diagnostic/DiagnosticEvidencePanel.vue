@@ -9,7 +9,7 @@ const props = defineProps<{ learnerId: string; sessionId: string; allowUpload: b
 const emit = defineEmits<{
   (event: 'intake-state', state: { busy: boolean; dirty: boolean }): void;
 }>();
-const { t } = useI18n();
+const { t, locale } = useI18n();
 const capabilities = ref<EvidenceCapabilities | null>(null);
 const entries = ref<EvidenceEntry[]>([]);
 const loading = ref(true);
@@ -70,6 +70,13 @@ function removeScore(): void {
   score.value = null;
   if (scoreInput.value) scoreInput.value.value = '';
 }
+function technicalStatus(status: string): string {
+  if (status === 'PROCESSED') return t('evidence.statusProcessed');
+  if (status === 'PENDING') return t('evidence.statusPending');
+  if (status === 'PROCESSING') return t('evidence.statusProcessing');
+  if (status === 'FAILED') return t('evidence.statusFailed');
+  return t('evidence.statusUnknown');
+}
 function technicalError(code: string | null | undefined): string {
   if (code === 'DURATION_EXCEEDED') return t('evidence.durationExceeded');
   if (code === 'SIZE_EXCEEDED' || code === 'FILE_TOO_LARGE') return t('evidence.sizeError');
@@ -81,7 +88,7 @@ function onRecorded(file: File): void {
   chooseAudio(file);
 }
 function size(bytes: number): string {
-  return (bytes / 1024 / 1024).toFixed(2) + ' MiB';
+  return new Intl.NumberFormat(locale.value, { minimumFractionDigits: 2, maximumFractionDigits: 2 }).format(bytes / 1_000_000) + ' ' + t('evidence.megabytes');
 }
 async function refresh(): Promise<void> {
   try {
@@ -250,7 +257,7 @@ onBeforeUnmount(() => {
           {{ t('evidence.technicalFailed') }}: {{ technicalError(entry.audio.errorCode) }}
         </p>
         <p v-else class="hint" role="status">
-          {{ t('evidence.technicalStatus') }}: {{ entry.audio.status }}
+          {{ t('evidence.technicalStatus') }}: {{ technicalStatus(entry.audio.status) }}
         </p>
         <p v-if="entry.audio.mediaState === 'DELETED' || entry.score?.mediaState === 'DELETED'"
           class="hint">{{ t('evidence.deleted') }}</p>
