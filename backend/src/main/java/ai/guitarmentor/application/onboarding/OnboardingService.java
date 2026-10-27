@@ -1,6 +1,7 @@
 package ai.guitarmentor.application.onboarding;
 
 import ai.guitarmentor.domain.learner.InstrumentProfile;
+import ai.guitarmentor.domain.learner.Learner;
 import ai.guitarmentor.domain.onboarding.KnownPiece;
 import ai.guitarmentor.domain.onboarding.LearningBackground;
 import ai.guitarmentor.infrastructure.persistence.LearnerRepository;
@@ -42,8 +43,12 @@ public class OnboardingService {
 
     @Transactional(readOnly = true)
     public Optional<BackgroundView> get(UUID learnerId, String instrumentCode) {
-        var instrument = instrument(learnerId, instrumentCode);
-        return backgrounds.findByInstrumentProfile_Id(instrument.getId())
+        var learner = learners.findById(learnerId)
+                .orElseThrow(() -> new EntityNotFoundException("Learner not found"));
+        // Signup deliberately creates a bare learner. Reading that learner's
+        // supported initial questionnaire is empty, and must not write any rows.
+        return instrument(learner, instrumentCode)
+                .flatMap(profile -> backgrounds.findByInstrumentProfile_Id(profile.getId()))
                 .map(OnboardingService::toView);
     }
 
@@ -51,10 +56,19 @@ public class OnboardingService {
     public BackgroundView upsert(UUID learnerId, String instrumentCode, BackgroundRequest request) {
         // Lock the learner row before reading/updating claims: concurrent PUTs
         // must serialize so duplicate claims and lost retractions cannot occur.
-        var instrument = instrument(learnerId, instrumentCode, true);
+        var learner = learners.findLockedById(learnerId)
+                .orElseThrow(() -> new EntityNotFoundException("Learner not found"));
+        validate(request);
+        var instrument = instrument(learner, instrumentCode).orElseGet(() -> {
+            // Same row lock as PUT preferences: either first save may provision
+            // the initial instrument, without racing or creating another learner.
+            var initial = new InstrumentProfile("ACOUSTIC_GUITAR", "FINGERSTYLE");
+            learner.addInstrumentProfile(initial);
+            learners.saveAndFlush(learner);
+            return initial;
+        });
         var background = backgrounds.findByInstrumentProfile_Id(instrument.getId())
                 .orElseGet(() -> new LearningBackground(instrument));
-        validate(request);
         boolean wasFamiliar = background.getSkills().contains(SkillTag.FINGERSTYLE_MELODY);
         boolean nowFamiliar = request.skills().contains(SkillTag.FINGERSTYLE_MELODY);
         background.update(
@@ -76,17 +90,15 @@ public class OnboardingService {
         return toView(saved);
     }
 
-    private InstrumentProfile instrument(UUID learnerId, String instrumentCode) {
-        return instrument(learnerId, instrumentCode, false);
-    }
-
-    private InstrumentProfile instrument(UUID learnerId, String instrumentCode, boolean lock) {
-        var learner = (lock ? learners.findLockedById(learnerId) : learners.findById(learnerId))
-                .orElseThrow(() -> new EntityNotFoundException("Learner not found"));
-        return learner.getInstrumentProfiles().stream()
+    private Optional<InstrumentProfile> instrument(Learner learner, String instrumentCode) {
+        var existing = learner.getInstrumentProfiles().stream()
                 .filter(profile -> profile.getInstrumentCode().equals(instrumentCode))
-                .findFirst()
-                .orElseThrow(() -> new EntityNotFoundException("Instrument profile not found"));
+                .findFirst();
+        if (existing.isPresent()) return existing;
+        if (learner.getInstrumentProfiles().isEmpty() && "ACOUSTIC_GUITAR".equals(instrumentCode)) {
+            return Optional.empty();
+        }
+        throw new EntityNotFoundException("Instrument profile not found");
     }
 
     private static void validate(BackgroundRequest request) {

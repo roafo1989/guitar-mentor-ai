@@ -55,6 +55,18 @@ class DiagnosticSessionServiceTest {
     }
 
     @Test
+    void bareLearnerCanStartSupportedIntakeButUnknownInstrumentStillFails() {
+        var bare = new Learner("New registered student");
+        when(learners.findLockedById(bare.getId())).thenReturn(Optional.of(bare));
+        assertThrows(EntityNotFoundException.class, () -> service.start(bare.getId(), "TYPO"));
+        assertTrue(bare.getInstrumentProfiles().isEmpty());
+        when(sessions.saveAndFlush(any(DiagnosticSession.class))).thenAnswer(inv -> inv.getArgument(0));
+        assertTrue(service.start(bare.getId(), "ACOUSTIC_GUITAR").created());
+        assertEquals(1, bare.getInstrumentProfiles().size());
+        org.mockito.Mockito.verify(learners).saveAndFlush(bare);
+    }
+
+    @Test
     void repeatedStartReturnsExistingSessionWithoutCreatingAnother() {
         when(learners.findLockedById(learner.getId())).thenReturn(Optional.of(learner));
         var existing = new DiagnosticSession(instrument);

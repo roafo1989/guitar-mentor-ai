@@ -37,7 +37,18 @@ public class DiagnosticSessionService {
         var profile = learner.getInstrumentProfiles().stream()
                 .filter(p -> p.getInstrumentCode().equals(instrumentCode))
                 .findFirst()
-                .orElseThrow(() -> new EntityNotFoundException("Instrument profile not found"));
+                .orElseGet(() -> {
+                    // A registered learner may start intake before saving preferences
+                    // or a questionnaire. Provision only the supported first profile,
+                    // under the same learner lock used by those two save paths.
+                    if (!learner.getInstrumentProfiles().isEmpty() || !"ACOUSTIC_GUITAR".equals(instrumentCode)) {
+                        throw new EntityNotFoundException("Instrument profile not found");
+                    }
+                    var initial = new InstrumentProfile("ACOUSTIC_GUITAR", "FINGERSTYLE");
+                    learner.addInstrumentProfile(initial);
+                    learners.saveAndFlush(learner);
+                    return initial;
+                });
 
         var existing = sessions.findFirstByInstrumentProfile_IdAndStatusInOrderByCreatedAtDesc(
                 profile.getId(), ACTIVE_STATUSES);
