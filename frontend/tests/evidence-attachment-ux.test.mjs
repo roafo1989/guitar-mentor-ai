@@ -33,3 +33,18 @@ test('#222 attachment UX: selected state, replace/remove, keyboard and translate
     }
   }
 });
+
+test('#222 sizes and technical statuses are localized rather than raw codes', async () => {
+  const panel = await readFile(new URL('../src/entities/diagnostic/DiagnosticEvidencePanel.vue', import.meta.url), 'utf8');
+  assert.ok(panel.includes('bytes / 1_000_000'), 'MB must use decimal 1,000,000 bytes');
+  assert.ok(panel.includes('Intl.NumberFormat(locale.value'), 'numeric display follows UI locale');
+  assert.ok(panel.includes('technicalStatus(entry.audio.status)'), 'raw status codes are hidden');
+  assert.ok(!panel.includes('{{ entry.audio.status }}'));
+  for (const lang of ['ru','en']) {
+    const messages = JSON.parse(await readFile(new URL('../src/i18n/' + lang + '.json', import.meta.url), 'utf8')).evidence;
+    for (const key of ['megabytes','statusProcessed','statusPending','statusProcessing','statusFailed','statusUnknown']) {
+      assert.ok(messages[key], lang + ' missing ' + key);
+    }
+    assert.ok(!messages.limits.includes('MiB'), 'limits use familiar MB');
+  }
+});
