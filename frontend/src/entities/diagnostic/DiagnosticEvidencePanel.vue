@@ -66,6 +66,16 @@ function onAudioInput(event: Event): void {
 function onScoreInput(event: Event): void {
   score.value = (event.target as HTMLInputElement).files?.[0] ?? null;
 }
+function removeScore(): void {
+  score.value = null;
+  if (scoreInput.value) scoreInput.value.value = '';
+}
+function technicalError(code: string | null | undefined): string {
+  if (code === 'DURATION_EXCEEDED') return t('evidence.durationExceeded');
+  if (code === 'SIZE_EXCEEDED' || code === 'FILE_TOO_LARGE') return t('evidence.sizeError');
+  if (code === 'UNSUPPORTED_FORMAT' || code === 'FORMAT_UNSUPPORTED') return t('evidence.unsupportedFormat');
+  return t('evidence.technicalGeneric');
+}
 function onRecorded(file: File): void {
   if (audioInput.value) audioInput.value.value = '';
   chooseAudio(file);
@@ -167,27 +177,49 @@ onBeforeUnmount(() => {
         <label for="evidence-composer">{{ t('evidence.composer') }}</label>
         <input id="evidence-composer" v-model="composer" maxlength="200" :disabled="uploading" />
         <label for="evidence-audio">{{ t('evidence.audio') }}</label>
-        <div class="evidence-file-picker">
+        <div class="evidence-file-picker" :class="{ 'has-file': !!audio }">
           <input id="evidence-audio" ref="audioInput" class="evidence-file-input" type="file"
             accept=".mp3,.wav,.ogg,.webm,.m4a" :disabled="uploading || recordingActive" @change="onAudioInput" />
-          <label class="evidence-file-trigger" for="evidence-audio">{{ t('evidence.audio') }}</label>
-          <span class="evidence-file-name" aria-live="polite">{{ audio?.name || 'MP3 · WAV · OGG · WebM · M4A' }}</span>
+          <div v-if="audio" class="evidence-file-selected" role="status" aria-live="polite">
+            <span class="evidence-file-check" aria-hidden="true">✓</span>
+            <span class="evidence-file-meta">
+              <strong class="evidence-file-name">{{ audio.name }}</strong>
+              <span class="evidence-file-secondary">{{ t('evidence.attached') }} · {{ size(audio.size) }}</span>
+            </span>
+          </div>
+          <span v-else class="evidence-file-empty">{{ t('evidence.audioFormats') }}</span>
+          <div class="evidence-file-actions">
+            <label class="evidence-file-trigger" for="evidence-audio">{{ audio ? t('evidence.replaceFile') : t('evidence.chooseAudio') }}</label>
+            <button v-if="audio" type="button" class="evidence-file-remove"
+              :disabled="uploading || recordingActive" @click="chooseAudio(null)">{{ t('evidence.removeFile') }}</button>
+          </div>
         </div>
         <MicrophoneRecorder :disabled="uploading" :max-bytes="capabilities.maxAudioBytes"
           @active="recordingActive = $event" @recorded="onRecorded" />
         <div v-if="preview" class="recorded-preview">
           <audio :src="preview" controls preload="metadata" :aria-label="t('evidence.listen')" />
           <button type="button" class="recorder-button secondary-button"
-            :disabled="uploading" @click="chooseAudio(null)">
+            :disabled="uploading || recordingActive" @click="chooseAudio(null)">
             {{ t('evidence.discard') }}
           </button>
         </div>
         <label for="evidence-score">{{ t('evidence.score') }}</label>
-        <div class="evidence-file-picker">
+        <div class="evidence-file-picker" :class="{ 'has-file': !!score }">
           <input id="evidence-score" ref="scoreInput" class="evidence-file-input" type="file"
             accept=".pdf,.jpg,.jpeg,.png" :disabled="uploading" @change="onScoreInput" />
-          <label class="evidence-file-trigger" for="evidence-score">{{ t('evidence.score') }}</label>
-          <span class="evidence-file-name" aria-live="polite">{{ score?.name || 'PDF · JPG · PNG' }}</span>
+          <div v-if="score" class="evidence-file-selected" role="status" aria-live="polite">
+            <span class="evidence-file-check" aria-hidden="true">✓</span>
+            <span class="evidence-file-meta">
+              <strong class="evidence-file-name">{{ score.name }}</strong>
+              <span class="evidence-file-secondary">{{ t('evidence.attached') }} · {{ size(score.size) }}</span>
+            </span>
+          </div>
+          <span v-else class="evidence-file-empty">{{ t('evidence.scoreFormats') }}</span>
+          <div class="evidence-file-actions">
+            <label class="evidence-file-trigger" for="evidence-score">{{ score ? t('evidence.replaceFile') : t('evidence.chooseScore') }}</label>
+            <button v-if="score" type="button" class="evidence-file-remove"
+              :disabled="uploading" @click="removeScore">{{ t('evidence.removeFile') }}</button>
+          </div>
         </div>
         <p class="hint">{{ t('evidence.limits') }}</p>
         <label for="evidence-comment">{{ t('evidence.comment') }}</label>
@@ -215,7 +247,7 @@ onBeforeUnmount(() => {
           {{ t('evidence.score') }}: {{ entry.score.format.toUpperCase() }} · {{ size(entry.score.bytes) }}
         </p>
         <p v-if="entry.audio.status === 'FAILED'" class="hint" role="status">
-          {{ t('evidence.technicalFailed') }}: {{ entry.audio.errorCode }}
+          {{ t('evidence.technicalFailed') }}: {{ technicalError(entry.audio.errorCode) }}
         </p>
         <p v-else class="hint" role="status">
           {{ t('evidence.technicalStatus') }}: {{ entry.audio.status }}
