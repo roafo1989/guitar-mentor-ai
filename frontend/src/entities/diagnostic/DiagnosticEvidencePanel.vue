@@ -9,7 +9,7 @@ const props = defineProps<{ learnerId: string; sessionId: string; allowUpload: b
 const emit = defineEmits<{
   (event: 'intake-state', state: { busy: boolean; dirty: boolean }): void;
 }>();
-const { t } = useI18n();
+const { t, locale } = useI18n();
 const capabilities = ref<EvidenceCapabilities | null>(null);
 const entries = ref<EvidenceEntry[]>([]);
 const loading = ref(true);
@@ -66,12 +66,29 @@ function onAudioInput(event: Event): void {
 function onScoreInput(event: Event): void {
   score.value = (event.target as HTMLInputElement).files?.[0] ?? null;
 }
+function removeScore(): void {
+  score.value = null;
+  if (scoreInput.value) scoreInput.value.value = '';
+}
+function technicalStatus(status: string): string {
+  if (status === 'PROCESSED') return t('evidence.statusProcessed');
+  if (status === 'PENDING') return t('evidence.statusPending');
+  if (status === 'PROCESSING') return t('evidence.statusProcessing');
+  if (status === 'FAILED') return t('evidence.statusFailed');
+  return t('evidence.statusUnknown');
+}
+function technicalError(code: string | null | undefined): string {
+  if (code === 'DURATION_EXCEEDED') return t('evidence.durationExceeded');
+  if (code === 'SIZE_EXCEEDED' || code === 'FILE_TOO_LARGE') return t('evidence.sizeError');
+  if (code === 'UNSUPPORTED_FORMAT' || code === 'FORMAT_UNSUPPORTED') return t('evidence.unsupportedFormat');
+  return t('evidence.technicalGeneric');
+}
 function onRecorded(file: File): void {
   if (audioInput.value) audioInput.value.value = '';
   chooseAudio(file);
 }
 function size(bytes: number): string {
-  return (bytes / 1024 / 1024).toFixed(2) + ' MiB';
+  return new Intl.NumberFormat(locale.value, { minimumFractionDigits: 2, maximumFractionDigits: 2 }).format(bytes / 1_000_000) + ' ' + t('evidence.megabytes');
 }
 async function refresh(): Promise<void> {
   try {
@@ -148,7 +165,7 @@ onBeforeUnmount(() => {
 <template>
   <!-- The intake form stays open. After moving to task selection, native <details>
        starts closed but keeps the saved evidence available on click or keyboard. -->
-  <details class="homework-panel evidence-details" :open="props.allowUpload">
+  <details class="homework-panel evidence-details evidence-intake" :open="props.allowUpload">
     <summary id="evidence-toggle" class="evidence-summary"
       :style="props.allowUpload ? { display: 'none' } : undefined">
       {{ t('evidence.heading') }} ({{ entries.length }})
@@ -160,27 +177,57 @@ onBeforeUnmount(() => {
     <template v-else>
       <p v-if="props.allowUpload && !capabilities?.enabled" class="hint">{{ t('evidence.disabled') }}</p>
       <form v-if="props.allowUpload && capabilities?.enabled && entries.length < capabilities.maxItems"
-        class="homework-form" @submit.prevent="submit">
+        class="homework-form evidence-form" @submit.prevent="submit">
         <label for="evidence-title">{{ t('evidence.title') }}</label>
         <input id="evidence-title" v-model="title" required maxlength="200"
           :disabled="uploading" :placeholder="t('evidence.titleExample')" />
         <label for="evidence-composer">{{ t('evidence.composer') }}</label>
         <input id="evidence-composer" v-model="composer" maxlength="200" :disabled="uploading" />
         <label for="evidence-audio">{{ t('evidence.audio') }}</label>
-        <input id="evidence-audio" ref="audioInput" type="file"
-          accept=".mp3,.wav,.ogg,.webm,.m4a" :disabled="uploading || recordingActive" @change="onAudioInput" />
+        <div class="evidence-file-picker" :class="{ 'has-file': !!audio }">
+          <input id="evidence-audio" ref="audioInput" class="evidence-file-input" type="file"
+            accept=".mp3,.wav,.ogg,.webm,.m4a" :disabled="uploading || recordingActive" @change="onAudioInput" />
+          <div v-if="audio" class="evidence-file-selected" role="status" aria-live="polite">
+            <span class="evidence-file-check" aria-hidden="true">✓</span>
+            <span class="evidence-file-meta">
+              <strong class="evidence-file-name">{{ audio.name }}</strong>
+              <span class="evidence-file-secondary">{{ t('evidence.attached') }} · {{ size(audio.size) }}</span>
+            </span>
+          </div>
+          <span v-else class="evidence-file-empty">{{ t('evidence.audioFormats') }}</span>
+          <div class="evidence-file-actions">
+            <label class="evidence-file-trigger" for="evidence-audio">{{ audio ? t('evidence.replaceFile') : t('evidence.chooseAudio') }}</label>
+            <button v-if="audio" type="button" class="evidence-file-remove"
+              :disabled="uploading || recordingActive" @click="chooseAudio(null)">{{ t('evidence.removeFile') }}</button>
+          </div>
+        </div>
         <MicrophoneRecorder :disabled="uploading" :max-bytes="capabilities.maxAudioBytes"
           @active="recordingActive = $event" @recorded="onRecorded" />
         <div v-if="preview" class="recorded-preview">
           <audio :src="preview" controls preload="metadata" :aria-label="t('evidence.listen')" />
           <button type="button" class="recorder-button secondary-button"
-            :disabled="uploading" @click="chooseAudio(null)">
+            :disabled="uploading || recordingActive" @click="chooseAudio(null)">
             {{ t('evidence.discard') }}
           </button>
         </div>
         <label for="evidence-score">{{ t('evidence.score') }}</label>
-        <input id="evidence-score" ref="scoreInput" type="file"
-          accept=".pdf,.jpg,.jpeg,.png" :disabled="uploading" @change="onScoreInput" />
+        <div class="evidence-file-picker" :class="{ 'has-file': !!score }">
+          <input id="evidence-score" ref="scoreInput" class="evidence-file-input" type="file"
+            accept=".pdf,.jpg,.jpeg,.png" :disabled="uploading" @change="onScoreInput" />
+          <div v-if="score" class="evidence-file-selected" role="status" aria-live="polite">
+            <span class="evidence-file-check" aria-hidden="true">✓</span>
+            <span class="evidence-file-meta">
+              <strong class="evidence-file-name">{{ score.name }}</strong>
+              <span class="evidence-file-secondary">{{ t('evidence.attached') }} · {{ size(score.size) }}</span>
+            </span>
+          </div>
+          <span v-else class="evidence-file-empty">{{ t('evidence.scoreFormats') }}</span>
+          <div class="evidence-file-actions">
+            <label class="evidence-file-trigger" for="evidence-score">{{ score ? t('evidence.replaceFile') : t('evidence.chooseScore') }}</label>
+            <button v-if="score" type="button" class="evidence-file-remove"
+              :disabled="uploading" @click="removeScore">{{ t('evidence.removeFile') }}</button>
+          </div>
+        </div>
         <p class="hint">{{ t('evidence.limits') }}</p>
         <label for="evidence-comment">{{ t('evidence.comment') }}</label>
         <textarea id="evidence-comment" v-model="comment" rows="2" maxlength="2000"
@@ -207,10 +254,10 @@ onBeforeUnmount(() => {
           {{ t('evidence.score') }}: {{ entry.score.format.toUpperCase() }} · {{ size(entry.score.bytes) }}
         </p>
         <p v-if="entry.audio.status === 'FAILED'" class="hint" role="status">
-          {{ t('evidence.technicalFailed') }}: {{ entry.audio.errorCode }}
+          {{ t('evidence.technicalFailed') }}: {{ technicalError(entry.audio.errorCode) }}
         </p>
         <p v-else class="hint" role="status">
-          {{ t('evidence.technicalStatus') }}: {{ entry.audio.status }}
+          {{ t('evidence.technicalStatus') }}: {{ technicalStatus(entry.audio.status) }}
         </p>
         <p v-if="entry.audio.mediaState === 'DELETED' || entry.score?.mediaState === 'DELETED'"
           class="hint">{{ t('evidence.deleted') }}</p>
