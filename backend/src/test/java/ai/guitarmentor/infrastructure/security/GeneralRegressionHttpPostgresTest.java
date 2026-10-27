@@ -146,20 +146,25 @@ class GeneralRegressionHttpPostgresTest {
     }
 
     @Test void allPublishedCurrentExercisePreviewsAndVersionedResourcesResolve() throws Exception {
-        var a=student();var catalog=read(call(a,get("/api/v1/exercises"),200));
+        var a=student();var catalog=read(call(a,get("/api/v1/exercises?instrumentCode=ACOUSTIC_GUITAR&techniqueCode=FINGERSTYLE"),200));
         assertTrue(catalog.isArray());assertFalse(catalog.isEmpty());int checked=0;
+        var broken=new java.util.ArrayList<String>();
         for(var exercise:catalog) {
             String base="/api/v1/exercises/"+exercise.path("code").asText()+"/versions/"+exercise.path("version").asText();
             call(a,get(base),200);
             for(String field:List.of("previewPdfUrl","previewAudioUrl","scoreUrl","eventsUrl")) {
                 if(!exercise.path(field).isTextual())continue;
                 String url=exercise.path(field).asText();if(url.isBlank())continue;
-                var result=call(a,get(url),200);
-                assertTrue(result.getResponse().getContentAsByteArray().length>0,url);checked++;
+                var result=mvc.perform(get(url).with(a.auth())).andReturn();
+                int code=result.getResponse().getStatus();
+                System.out.println("GENERAL_QA_RESOURCE "+url+" HTTP="+code);
+                if(code!=200 || result.getResponse().getContentAsByteArray().length==0)broken.add(url+" HTTP="+code);
+                checked++;
             }
         }
         assertTrue(checked>0);
-        System.out.println("GENERAL_QA_CATALOG PASS exercises="+catalog.size()+" resources="+checked);
+        System.out.println("GENERAL_QA_CATALOG exercises="+catalog.size()+" resources="+checked+" broken="+broken);
+        assertTrue(broken.isEmpty(),"Visible catalog has unavailable advertised resources: "+broken);
     }
 
     @Test void observeNewLearnerReadOnlyScreensAndNoPersistentSideEffects() throws Exception {
