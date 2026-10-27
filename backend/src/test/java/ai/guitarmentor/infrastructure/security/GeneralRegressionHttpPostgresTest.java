@@ -31,6 +31,7 @@ import org.springframework.test.context.DynamicPropertySource;
 import org.springframework.test.web.servlet.MockMvc;
 import org.springframework.test.web.servlet.MvcResult;
 import org.springframework.test.web.servlet.request.MockHttpServletRequestBuilder;
+import org.springframework.test.web.servlet.request.AbstractMockHttpServletRequestBuilder;
 import org.springframework.test.web.servlet.request.RequestPostProcessor;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -68,7 +69,7 @@ class GeneralRegressionHttpPostgresTest {
         return new Student(learner,req->{req=oidcLogin().oidcUser(identity).postProcessRequest(req);
             req.getSession().setAttribute("guitarMentorAccessVersion",0L);return req;});
     }
-    MvcResult call(Student s,MockHttpServletRequestBuilder request,int status) throws Exception {
+    MvcResult call(Student s,AbstractMockHttpServletRequestBuilder<?> request,int status) throws Exception {
         return mvc.perform(request.with(s.auth()).with(csrf())).andExpect(status().is(status)).andReturn();
     }
     JsonNode read(MvcResult result) throws Exception {return JSON.readTree(result.getResponse().getContentAsString());}
