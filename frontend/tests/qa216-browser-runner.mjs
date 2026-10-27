@@ -85,6 +85,25 @@ try {
  await cdp('Emulation.setDeviceMetricsOverride',{width:180,height:410,deviceScaleFactor:1,mobile:false});
  const zoomWidth=await evaluate("({layout:innerWidth,scroll:document.documentElement.scrollWidth})");
  assert.ok(zoomWidth.scroll<=zoomWidth.layout,'History overflows at effective 200% reflow: '+JSON.stringify(zoomWidth));
+ await evaluate("window.__qa216Router.push('/diagnostics')");
+ await evaluate("window.__qa237EmptyHistory=true;window.__qa216Router.push('/lessons')");
+ const emptyReady=await evaluate(`new Promise(resolve=>{let i=0;const timer=setInterval(()=>{
+ if(document.querySelector('.lesson-history-empty')){clearInterval(timer);resolve(true);}
+ else if(++i>100){clearInterval(timer);resolve(false);}},50);})`);
+ assert.ok(emptyReady,'Bare learner should see empty history');
+ assert.ok(await evaluate("!!document.querySelector('a[href=\"/onboarding\"]')"),'Empty history needs an onboarding action');
+ assert.equal(await evaluate("!!document.querySelector('[role=alert]')"),false);
+ for(const status of [401,403,404,500]) {
+   await evaluate("window.__qa216Router.push('/diagnostics')");
+   await evaluate("window.__qa237HistoryStatus="+status+";window.__qa216Router.push('/lessons')");
+   const errorReady=await evaluate(`new Promise(resolve=>{let i=0;const timer=setInterval(()=>{
+     if(document.querySelector('[role=alert]')){clearInterval(timer);resolve(true);}
+     else if(++i>100){clearInterval(timer);resolve(false);}},50);})`);
+   assert.ok(errorReady,'HTTP '+status+' must remain a visible error');
+   assert.equal(await evaluate("!!document.querySelector('.lesson-history-empty')"),false,'HTTP '+status+' must not claim empty history');
+ }
+ assert.equal(await evaluate("window.__qa216Calls.filter(x=>x.method==='POST').length"),1);
+ console.log('PASS #237: empty history + onboarding action; 401/403/404/500 remain errors; no writes');
  console.log('PASS: Chrome picker, one pinned POST, history read-only, 360px and 200% effective reflow');
 } finally {
  socket?.close();browser?.kill('SIGTERM');

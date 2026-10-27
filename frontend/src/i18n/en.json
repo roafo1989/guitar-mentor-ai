@@ -17,7 +17,14 @@
     "loading": "Checking sign-in…",
     "invitationCode": "Invitation code",
     "activate": "Activate invitation",
-    "invalidInvitation": "Invalid invitation or Google sign-in required"
+    "invalidInvitation": "Invalid invitation or Google sign-in required",
+    "registration": {
+      "EMAIL_IN_USE": "This email is already in use. Sign in to your existing account or use another email.",
+      "LOGIN_UNAVAILABLE": "This username is already taken. Choose another username.",
+      "EMAIL_VERIFICATION_PENDING": "Registration with this email is already pending. Check your verification email, including spam. No new email was sent.",
+      "rejected": "Could not register with these details. Check your email and username and try again.",
+      "mailSent": "A verification email has been sent. Check your inbox and spam folder."
+    }
   },
   "form": {
     "title": "Let's meet your student",
@@ -301,6 +308,7 @@
     "recordingTimer": "Recording duration",
     "recorderError": "Recording failed. Check your microphone and retry.",
     "recorderEmpty": "The recording is empty. Please try again.",
+    "microphoneBusy": "The microphone is already being used for recording. Finish the current recording and try again.",
     "microphoneDenied": "Could not access the microphone. Check browser permissions and the selected device.",
     "recordingReady": "Recording ready — listen before submitting",
     "listenRecording": "Listen to recording",

@@ -73,7 +73,10 @@ try {
      if(method==='POST'){if(q.usernameConflict)return reply({code:'LOGIN_UNAVAILABLE'},409);q.username=JSON.parse(init.body).newLogin;return reply({login:q.username});}
      return q.failUsernameRead?reply({},503):reply({login:q.username});
    }
-   if(path.endsWith('/register'))return reply({code:'VERIFY_EMAIL'},202);
+   if(path.endsWith('/register')){
+     if(q.registrationHtmlError)return new Response('<h1>private-provider-message</h1>',{status:409});
+     return q.registrationConflict?reply({code:q.registrationConflict},409):reply({code:'VERIFY_EMAIL'},202);
+   }
    if(path.endsWith('/methods'))return q.failMethods?reply({},503):reply({passwordEnabled:!q.google,googleEnabled:q.google,googleAvailable:true});
    if(path.endsWith('/change'))return q.failSave?reply({},400):reply({});
    if(path.endsWith('/logout'))return reply({},204);
@@ -284,6 +287,40 @@ try {
  await credentialShot('register-cyrillic-360-ru');
  await ui("document.querySelector('.auth03-form').requestSubmit()");await waitFor("document.querySelector('.auth03-actions')");
  assert.equal(await ui("__qa.calls.filter(c=>c.path.endsWith('/register')).length"),1,'six characters and Cyrillic username are accepted by AuthGate');
+ // #237 owner UAT: conflicts remain on the form, show the correct localized field and preserve inputs.
+ for(const locale of ['ru','en']) {
+   await ui("import('/src/core/i18n.ts').then(m=>m.i18n.global.locale.value="+JSON.stringify(locale)+")");
+   await clickText(locale==='ru'?'Изменить данные регистрации':'Change registration details');
+   await waitFor("document.querySelector('#registration-email')");
+   await ui("{const set=(id,v)=>{const f=document.getElementById(id);f.value=v;f.dispatchEvent(new Event('input',{bubbles:true}));};set('registration-email','feedback@example.test');set('registration-login','Игрок_Юлия');set('registration-password','123456');set('registration-confirm','123456');}");
+   for(const code of ['EMAIL_IN_USE','EMAIL_VERIFICATION_PENDING','LOGIN_UNAVAILABLE']) {
+     await ui("__qa.registrationConflict="+JSON.stringify(code));
+     await ui("document.querySelector('.auth03-form').requestSubmit()");
+     const field=code==='LOGIN_UNAVAILABLE'?'login':'email';
+     await waitFor("document.querySelector('#registration-"+field+"-error')");
+     const expected=await ui("import('/src/core/i18n.ts').then(m=>m.i18n.global.t('auth.registration.'+"+JSON.stringify(code)+"))");
+     assert.equal(await ui("document.querySelector('#registration-"+field+"-error').textContent"),expected);
+     assert.equal(await ui("document.querySelector('#registration-"+field+"').getAttribute('aria-invalid')"),'true');
+     assert.equal(await ui("!!document.querySelector('.auth03-actions')"),false,'Conflict must not claim an email was sent');
+     assert.equal(await ui("document.querySelector('#registration-email').value"),'feedback@example.test');
+     assert.equal(await ui("document.querySelector('#registration-login').value"),'Игрок_Юлия');
+     assert.equal(await ui("document.querySelector('#registration-password').value"),'123456');
+     assert.equal(await ui("document.querySelector('button[type=submit]').disabled"),false);
+     assert.ok(await ui("document.documentElement.scrollWidth<=innerWidth"),'Conflict message must reflow at 384px');
+   }
+   for(const html of [false,true]) {
+     await ui("__qa.registrationConflict='UNKNOWN_CONFLICT';__qa.registrationHtmlError="+html);
+     await ui("document.querySelector('.auth03-form').requestSubmit()");
+     await waitFor("document.querySelector('.auth-error[role=alert]')&&!document.querySelector('#registration-email-error')&&!document.querySelector('#registration-login-error')");
+     assert.equal(await ui("document.body.textContent.includes('private-provider-message')||document.body.textContent.includes('UNKNOWN_CONFLICT')"),false);
+     assert.equal(await ui("!!document.querySelector('.auth03-actions')"),false);
+   }
+   await ui("__qa.registrationConflict=null;__qa.registrationHtmlError=false;document.querySelector('.auth03-form').requestSubmit()");
+   await waitFor("document.querySelector('.auth03-actions')");
+   const sent=await ui("import('/src/core/i18n.ts').then(m=>m.i18n.global.t('auth.registration.mailSent'))");
+   assert.ok(await ui("document.body.textContent.includes("+JSON.stringify(sent)+")"),'Successful retry announces the sent verification email');
+ }
+ console.log('PASS #237 registration feedback: RU/EN active email, pending email, busy username, preserved form/draft, safe unknown/HTML error and successful retry');
  assert.deepEqual(errors,[],'No uncaught browser errors');
  console.log('PASS #229/#232: Cyrillic username conflict/save and six-character registration; real Vue+router+AuthGate; profile save/header; 3-step draft/back; piece add/remove/focus; failed save; read-only completion retry; auth local/Google/method failure; deep links/F5; RU/EN 360/768/1440; 200% effective reflow; labelled controls; screenshots. Backend mocked.');
 } finally {

@@ -140,7 +140,10 @@ onBeforeUnmount(() => { ++generation; });
       </section>
     </template>
     <template v-if="!requestedId">
-      <p v-if="!loading && !items.length" class="lesson-history-empty">{{ t('lessonNext.emptyHistory') }}</p>
+      <template v-if="!loading && !error && !items.length">
+        <p class="lesson-history-empty">{{ t('lessonNext.emptyHistory') }}</p>
+        <RouterLink to="/onboarding">{{ t('profileUx.fillExperience') }} →</RouterLink>
+      </template>
       <ol class="lesson-history-list">
         <li v-for="item in items" :key="item.taskId" class="lesson-history-card">
           <div class="lesson-history-card-heading">

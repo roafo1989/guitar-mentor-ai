@@ -70,7 +70,7 @@ test('logout posts with verified CSRF and clears current actor', async () => {
     await mod.logout(() => { cleared = true; });
     const outgoing = calls.find(x => x.path === '/logout');
     assert.equal(outgoing.options.method, 'POST');
-    assert.equal(outgoing.options.headers['X-XSRF-TOKEN'], 'csrf-secret');
+    assert.equal(new Headers(outgoing.options.headers).get('X-XSRF-TOKEN'), 'csrf-secret');
     assert.equal(mod.auth.actor, null);
     assert.equal(cleared, true);
   } finally { restore(); }
@@ -212,11 +212,13 @@ test('AUTH-03 exposes one-step Google sign-in without a Google tab or local vali
   assert.match(gate, /Already have an account\? Sign in/);
 });
 
-test('AUTH-03 protects post-submit state and preserves honest generic email responses', async () => {
+test('AUTH-03 protects post-submit state and keeps reset responses generic', async () => {
   const gate = await readFile(new URL('../src/core/auth/AuthGate.vue', import.meta.url), 'utf8');
   assert.match(gate, /const epoch = \+\+requestEpoch.value;/);
   assert.match(gate, /if \(!mounted \|\| epoch !== requestEpoch.value\) return false;/);
-  assert.match(gate, /If registration can proceed with these details/);
+  assert.match(gate, /auth\.registration\.mailSent/);
+  assert.match(gate, /EMAIL_IN_USE/);
+  assert.match(gate, /LOGIN_UNAVAILABLE/);
   assert.match(gate, /If an account exists, you will receive reset instructions/);
   assert.doesNotMatch(gate, /resend-verification|local-auth\/resend/);
   assert.match(gate, /window\.history\.replaceState/);

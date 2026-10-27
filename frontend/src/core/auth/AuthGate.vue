@@ -24,6 +24,7 @@ let mounted = false;
 const oauthPending = ref(false);
 const busy = ref(false);
 const error = ref('');
+const registrationProblem = ref('');
 const success = ref('');
 const verificationToken = ref('');
 const tokenFromLink = ref(false);
@@ -39,7 +40,7 @@ const label = (ru: string, en: string) => locale.value === 'ru' ? ru : en;
 function setMode(next: Mode) {
   if (busy.value) return;
   requestEpoch.value++;
-  mode.value = next; error.value = ''; success.value = '';
+  mode.value = next; error.value = ''; success.value = ''; registrationProblem.value = '';
   emailActionInProgress.value = next === 'verify' || next === 'reset' || next === 'expired-link';
   password.value = ''; confirmPassword.value = ''; showPassword.value = false; showConfirm.value = false; manualCode.value = false;
   if (next !== 'verify' && next !== 'reset') {
@@ -49,7 +50,7 @@ function setMode(next: Mode) {
 }
 async function request(path: string, body: object): Promise<boolean> {
   if (busy.value) return false;
-  busy.value = true; error.value = ''; success.value = '';
+  busy.value = true; error.value = ''; success.value = ''; registrationProblem.value = '';
   const epoch = ++requestEpoch.value;
   try {
     const response = await fetch('/api/v1/local-auth/' + path, {
@@ -58,6 +59,18 @@ async function request(path: string, body: object): Promise<boolean> {
     });
     if (!response.ok) {
       if (!mounted || epoch !== requestEpoch.value) return false;
+      if (path === 'register' && response.status === 409) {
+        const payload: unknown = await response.json().catch(() => null);
+        // Parsing may finish after an email-link navigation or unmount.
+        if (!mounted || epoch !== requestEpoch.value) return false;
+        const code = payload && typeof payload === 'object' && 'code' in payload ? payload.code : null;
+        if (typeof code === 'string' && ['EMAIL_IN_USE', 'EMAIL_VERIFICATION_PENDING', 'LOGIN_UNAVAILABLE'].includes(code)) {
+          registrationProblem.value = code;
+        } else {
+          error.value = t('auth.registration.rejected');
+        }
+        return false;
+      }
       if (response.status === 400 && (path === 'verify' || path === 'reset')) {
         mailPurpose.value = path === 'reset' ? 'reset' : 'register';
         mode.value = 'expired-link';
@@ -243,7 +256,7 @@ onBeforeUnmount(() => {
         mode === 'expired-link' ? label('Ссылка недействительна или истекла', 'This link is invalid or expired') :
         label('Подтвердите почту', 'Verify your email') }}</h1>
       <p class="auth03-intro">{{ mode === 'login' ? label('Войдите в Guitar Mentor AI', 'Sign in to Guitar Mentor AI') :
-        mode === 'check-mail' ? (mailPurpose === 'register' ? label('Если регистрация доступна для этих данных, вы получите письмо с подтверждением. Проверьте входящие и спам.', 'If registration can proceed with these details, you will receive a verification email. Check your inbox and spam folder.') : label('Если такой аккаунт существует, вы получите письмо с инструкциями.', 'If an account exists, you will receive reset instructions.')) :
+        mode === 'check-mail' ? (mailPurpose === 'register' ? t('auth.registration.mailSent') : label('Если такой аккаунт существует, вы получите письмо с инструкциями.', 'If an account exists, you will receive reset instructions.')) :
         mode === 'forgot' ? label('Введите email вашего аккаунта', 'Enter your account email') :
         mode === 'register' ? label('Начните заниматься с Guitar Mentor AI', 'Start learning with Guitar Mentor AI') : '' }}</p>
       <p v-if="auth.expired && mode === 'login'" class="auth03-note" role="status">{{ label('Сессия завершена. Войдите снова.', 'Your session has ended. Sign in again.') }}</p>
@@ -256,9 +269,17 @@ onBeforeUnmount(() => {
         <button class="auth-link" type="button" :disabled="busy" @click="setMode('forgot')">{{ label('Забыли пароль?', 'Forgot password?') }}</button>
       </form>
       <form v-else-if="mode === 'register'" class="auth-form auth03-form" @submit.prevent="register">
-        <label for="registration-email">Email</label><input id="registration-email" v-model.trim="email" type="email" autocomplete="email" maxlength="320" required />
+        <label for="registration-email">Email</label><input id="registration-email" v-model.trim="email" type="email" autocomplete="email" maxlength="320" required
+          :aria-invalid="registrationProblem.startsWith('EMAIL_') || undefined"
+          :aria-describedby="registrationProblem.startsWith('EMAIL_') ? 'registration-email-error' : undefined"
+          @input="registrationProblem = ''" />
+        <p v-if="registrationProblem.startsWith('EMAIL_')" id="registration-email-error" class="auth-error" role="alert">{{ t('auth.registration.' + registrationProblem) }}</p>
         <label for="registration-login">{{ label('Логин', 'Username') }}</label>
-        <input id="registration-login" v-model.trim="username" autocomplete="username" minlength="3" maxlength="128" aria-describedby="auth03-login-help" required />
+        <input id="registration-login" v-model.trim="username" autocomplete="username" minlength="3" maxlength="128" required
+          :aria-invalid="registrationProblem === 'LOGIN_UNAVAILABLE' || undefined"
+          :aria-describedby="registrationProblem === 'LOGIN_UNAVAILABLE' ? 'auth03-login-help registration-login-error' : 'auth03-login-help'"
+          @input="registrationProblem = ''" />
+        <p v-if="registrationProblem === 'LOGIN_UNAVAILABLE'" id="registration-login-error" class="auth-error" role="alert">{{ t('auth.registration.LOGIN_UNAVAILABLE') }}</p>
         <small id="auth03-login-help">{{ label('3–64: латиница, кириллица, цифры, . _ -; первый символ — буква или цифра', '3–64: Latin or Cyrillic letters, digits, . _ -; start with a letter or digit') }}</small>
         <label for="registration-password">{{ label('Пароль', 'Password') }}</label>
         <div class="auth03-password"><input id="registration-password" v-model="password" :type="showPassword ? 'text' : 'password'" autocomplete="new-password" minlength="6" maxlength="256" aria-describedby="auth03-password-help" required /><button type="button" :aria-pressed="showPassword" :aria-label="showPassword ? label('Скрыть пароль', 'Hide password') : label('Показать пароль', 'Show password')" @click="showPassword = !showPassword">{{ showPassword ? '◉' : '◎' }}</button></div>

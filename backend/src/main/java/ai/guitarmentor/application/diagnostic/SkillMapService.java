@@ -34,14 +34,14 @@ public class SkillMapService {
 
     @Transactional(readOnly = true)
     public List<SkillView> map(UUID learnerId, String instrumentCode) {
-        var profile = ownedProfile(learnerId, instrumentCode);
+        var profile = initialOrOwnedProfile(learnerId, instrumentCode);
         var catalog = skills.skills();
         var graph = skills.prerequisites();
         validateAcyclic(graph, catalog.stream().map(SkillMapRepository.SkillRow::code)
                 .collect(java.util.stream.Collectors.toSet()));
         Map<String, Boolean> claims = new HashMap<>();
         Map<String, SignalRow> assessments = new HashMap<>();
-        for (var signal : skills.signals(profile.getId())) {
+        for (var signal : profile.map(p -> skills.signals(p.getId())).orElseGet(List::of)) {
             if ("SELF_REPORTED".equals(signal.sourceType())) {
                 claims.putIfAbsent(signal.skillCode(), "CLAIMED".equals(signal.claimState()));
             } else if (signal.level() != null) {
@@ -75,6 +75,16 @@ public class SkillMapService {
         return skills.history(profile.getId(), skillCode, limit, beforeRecordedAt, beforeId).stream()
                 .map(s -> new SignalView(s.id(), s.skillCode(), s.sourceType(), s.claimState(),
                         s.level(), s.confidence(), s.recordedAt(), s.noteCode())).toList();
+    }
+
+    private java.util.Optional<InstrumentProfile> initialOrOwnedProfile(UUID learnerId, String instrumentCode) {
+        var learner = learners.findById(learnerId)
+                .orElseThrow(() -> new EntityNotFoundException("Learner not found"));
+        var profile = learner.getInstrumentProfiles().stream()
+                .filter(p -> p.getInstrumentCode().equals(instrumentCode)).findFirst();
+        if (profile.isPresent() || (learner.getInstrumentProfiles().isEmpty()
+                && "ACOUSTIC_GUITAR".equals(instrumentCode))) return profile;
+        throw new EntityNotFoundException("Instrument profile not found");
     }
 
     private InstrumentProfile ownedProfile(UUID learnerId, String instrumentCode) {

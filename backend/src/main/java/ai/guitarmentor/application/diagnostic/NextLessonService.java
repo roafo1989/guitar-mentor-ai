@@ -158,8 +158,15 @@ public class NextLessonService {
         var learner=learners.findById(learnerId)
             .orElseThrow(()->problem(HttpStatus.NOT_FOUND,"RESOURCE_NOT_FOUND"));
         var profile=learner.getInstrumentProfiles().stream()
-            .filter(p->p.getInstrumentCode().equals(instrumentCode)).findFirst()
-            .orElseThrow(()->problem(HttpStatus.NOT_FOUND,"RESOURCE_NOT_FOUND"));
+            .filter(p->p.getInstrumentCode().equals(instrumentCode)).findFirst();
+        if (profile.isEmpty()) {
+            if (!learner.getInstrumentProfiles().isEmpty() || !"ACOUSTIC_GUITAR".equals(instrumentCode))
+                throw problem(HttpStatus.NOT_FOUND,"RESOURCE_NOT_FOUND");
+            // No profile exists to own a valid continuation cursor. Validate before returning empty.
+            if (cursor != null) throw problem(HttpStatus.BAD_REQUEST,"INVALID_PAGINATION");
+            return new HistoryPage(List.of(), null);
+        }
+        var existing = profile.orElseThrow();
         Instant beforeTime=null; UUID beforeId=null;
         if (cursor!=null) {
             if (cursor.isBlank() || cursor.length()>512) throw problem(HttpStatus.BAD_REQUEST,"INVALID_PAGINATION");
@@ -167,7 +174,7 @@ public class NextLessonService {
                 String raw=new String(Base64.getUrlDecoder().decode(cursor),StandardCharsets.UTF_8);
                 String[] fields=raw.split("\\|",-1);
                 if (fields.length!=4 || !fields[0].equals(learnerId.toString())
-                    || !fields[1].equals(profile.getId().toString()))
+                    || !fields[1].equals(existing.getId().toString()))
                     throw new IllegalArgumentException();
                 beforeTime=Instant.parse(fields[2]); beforeId=UUID.fromString(fields[3]);
             } catch (RuntimeException ex) { throw problem(HttpStatus.BAD_REQUEST,"INVALID_PAGINATION"); }
@@ -182,8 +189,8 @@ public class NextLessonService {
             WHERE s.instrument_profile_id=?
             """+(beforeTime==null?"":" AND (t.assigned_at,t.id) < (?,?)")
             +" ORDER BY t.assigned_at DESC,t.id DESC LIMIT ?";
-        Object[] args=beforeTime==null?new Object[]{profile.getId(),size+1}
-            :new Object[]{profile.getId(),Timestamp.from(beforeTime),beforeId,size+1};
+        Object[] args=beforeTime==null?new Object[]{existing.getId(),size+1}
+            :new Object[]{existing.getId(),Timestamp.from(beforeTime),beforeId,size+1};
         var all=jdbc.query(query,(rs,n)->new HistoryItem(
             rs.getObject(1,UUID.class),rs.getObject(2,UUID.class),rs.getString(3),
             rs.getString(4),rs.getString(5),rs.getTimestamp(6).toInstant(),rs.getString(7),
@@ -193,7 +200,7 @@ public class NextLessonService {
         if(all.size()>size) {
             var last=items.getLast();
             next=Base64.getUrlEncoder().withoutPadding().encodeToString(
-                (learnerId+"|"+profile.getId()+"|"+last.assignedAt()+"|"+last.taskId())
+                (learnerId+"|"+existing.getId()+"|"+last.assignedAt()+"|"+last.taskId())
                 .getBytes(StandardCharsets.UTF_8));
         }
         return new HistoryPage(items,next);

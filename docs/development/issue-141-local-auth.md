@@ -82,3 +82,15 @@ Do not merge or mark accepted until required gates have concrete evidence.
 **Совместимость:** V18–V21 неизменны, V22 делает pending_local_registrations.invitation_id необязательным; прежние приглашения/аккаунты не удаляются. Стандартная форма не содержит приглашений. Письма и reset требуют настроенного SMTP, иных bypass нет. Реальная публичная публикация всё ещё зависит от #39/#40 (HTTPS, rate-limits, наблюдаемость и безопасность).
 
 **Приёмка:** без приглашения клиент отправляет POST /api/v1/local-auth/register {email,login,password,confirmPassword}; 202 при принятии на почтовое подтверждение, GET /api/v1/me недоступен до проверки почты, один verify создаёт одного LEARNER, повторный verify отклоняется. Проверяются коллизии login/email, parallel signups, unavailable SMTP, CSRF, Google first-login, unchanged identity linkage. Эти изменения имеют приоритет над устаревшими invitation-only формулировками выше.
+
+## UAT #237 — явная обратная связь регистрации (27.10.2026)
+
+По явному указанию владельца для публичной регистрации изменён прежний одинаковый ответ.
+Занятые local email и username теперь возвращают HTTP 409 с EMAIL_IN_USE или LOGIN_UNAVAILABLE;
+неподтверждённая регистрация — EMAIL_VERIFICATION_PENDING. Для общего конфликта — REGISTRATION_REJECTED.
+Ни один из этих ответов не утверждает, что отправлено новое письмо. 202 VERIFY_EMAIL выдаётся
+только после успешного send; при сбое отправки транзакция откатывает резервирование как прежде.
+UI показывает RU/EN сообщение у поля, сохраняет данные и позволяет исправить их.
+Резервации pending_local_links учитываются, истёкшие резервации очищаются под тем же advisory lock.
+Контракт reset остаётся общим; CSRF, rate limit, email proof и identity linking не ослаблялись.
+Основание: BT-014; тесты RegistrationFeedbackHttpPostgresTest и Chrome AuthGate regression.
