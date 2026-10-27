@@ -1,0 +1,85 @@
+{
+  "date": "2026-10-27",
+  "application_base": "0914a79b8fae2441cf0a735e158818a5a99bea18",
+  "tested_qa_commit": "70be8fe05d5498eb06a5d125d0bb2d61e091951e",
+  "production_tested": false,
+  "backend_ci": {
+    "run_id": 40469387734,
+    "conclusion": "failure",
+    "total": 364,
+    "passed": 359,
+    "failed": 1,
+    "skipped": 4,
+    "failure_issue": 243
+  },
+  "frontend_ci": {
+    "run_id": 40469387723,
+    "conclusion": "success",
+    "tests_passed": 309,
+    "chrome_backend": "mocked"
+  },
+  "local_frontend_all_main": {
+    "passed": 309,
+    "failed": 0
+  },
+  "local_frontend_all_candidate236": {
+    "passed": 311,
+    "failed": 0
+  },
+  "python_importer": {
+    "passed": 9,
+    "failed": 0
+  },
+  "auth_reproduction": {
+    "passed": 0,
+    "failed": 2,
+    "issues": [
+      238,
+      239
+    ],
+    "transport": "synthetic nativeFetch, real auth.ts"
+  },
+  "new_learner_observations": {
+    "background": 404,
+    "skills": 404,
+    "lessons": 404,
+    "current_diagnostic": 204,
+    "profiles_created": 0
+  },
+  "catalog_resources": {
+    "exercises": 2,
+    "urls_checked": 8,
+    "http_200": 6,
+    "http_404": 2,
+    "broken_exercise": "GM-EB01@0.8B"
+  },
+  "known_defects": [
+    {
+      "issue": 238,
+      "priority": "P1"
+    },
+    {
+      "issue": 239,
+      "priority": "P1"
+    },
+    {
+      "issue": 241,
+      "priority": "P2"
+    },
+    {
+      "issue": 243,
+      "priority": "P2"
+    },
+    {
+      "issue": 242,
+      "priority": "P3"
+    }
+  ],
+  "not_run": [
+    "real Google redirect",
+    "real SMTP delivery",
+    "phone microphone and real guitar",
+    "PILOT deployed version and processes",
+    "real disaster recovery"
+  ]
+}
