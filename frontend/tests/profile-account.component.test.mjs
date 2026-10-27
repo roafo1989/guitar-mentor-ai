@@ -259,3 +259,14 @@ test('#232 password settings reject 5 characters and accept a 6-character replac
   set('new-account-password','123456');set('confirm-account-password','123456');submit();await settle();assert.equal(writes,1);
  }finally{h.cleanup();globalThis.fetch=native;}
 });
+
+test('#237 bare learner summary shows initial state and an onboarding action without an error', async () => {
+ globalThis.__background229=async()=>null;
+ globalThis.__skills229=async()=>[{skillCode:'PULSE',title:'Pulse',selfReported:false,assessedLevel:0,evidenceStatus:'NOT_ASSESSED',unresolvedGaps:[]}];
+ const view=await mount('entities/learner/ProfileLearningSummary.vue',undefined,{learnerId:'A'});
+ try {
+  assert.equal(view.nodes().some(n=>n.props?.role==='alert'),false);
+  assert.ok(view.nodes().some(n=>n.text===en.profileUx.noEvidence));
+  assert.ok(view.nodes().some(n=>String(n.text).includes(en.profileUx.fillExperience)));
+ } finally {view.cleanup();}
+});

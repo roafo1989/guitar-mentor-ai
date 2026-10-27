@@ -45,7 +45,7 @@ uploads/
 *.sqlite
 *.sqlite3
 
-# Local exercise-preview media; shipped separately during DEV-06 testing
+# Preview media remain ignored except verified project-owned distribution assets
 /backend/src/main/resources/exercises/**/*.pdf
 /backend/src/main/resources/exercises/**/*.mp3
 
@@ -55,3 +55,7 @@ uploads/
 
 # Local #216 acceptance reports (may contain project or test data)
 .qa-local/
+
+# Original generated GM-EB01 0.8B package, restored for reproducible installs (#237).
+!/backend/src/main/resources/exercises/GM-EB01/score_v08B.pdf
+!/backend/src/main/resources/exercises/GM-EB01/preview_v08B.mp3

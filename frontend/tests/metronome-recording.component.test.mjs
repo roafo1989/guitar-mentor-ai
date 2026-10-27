@@ -46,7 +46,7 @@ function headlessRenderer() {
   return { renderer, root, find };
 }
 
-async function compileRealRecorder(source) {
+async function compileRealRecorder(source, busyLocale) {
   const { descriptor, errors } = parse(source, { filename: 'MicrophoneRecorder.vue' });
   assert.equal(errors.length, 0);
   const component = compileScript(descriptor, { id: 'record-while-metronome', inlineTemplate: true });
@@ -60,13 +60,15 @@ async function compileRealRecorder(source) {
     compilerOptions: { target: ts.ScriptTarget.ES2022, module: ts.ModuleKind.ESNext },
   }).outputText;
   const sessionUrl = asModule(sessionJs);
+  const dictionary = busyLocale ? JSON.parse(await readFile(new URL('../src/i18n/' + busyLocale + '.json', import.meta.url), 'utf8')) : null;
+  const translatedI18n = dictionary ? asModule('const messages = ' + JSON.stringify(dictionary) + '; export const useI18n = () => ({ t: key => key.split(".").reduce((v,k)=>v?.[k], messages) ?? key });') : i18nUrl;
   const mapped = js.replace(/from (['"])(.*?)\1/g, (_matched, _q, name) => {
-    const path = { vue: vueUrl, 'vue-i18n': i18nUrl,
+    const path = { vue: vueUrl, 'vue-i18n': translatedI18n,
       '../../shared/audio/audio-session': sessionUrl }[name];
     if (!path) throw Error('Unexpected microphone runtime dependency: ' + name);
     return 'from ' + JSON.stringify(path);
   });
-  return (await import(asModule(mapped))).default;
+  return { Recorder: (await import(asModule(mapped))).default, session: await import(sessionUrl) };
 }
 
 test('actual recorder can start while metronome is playing; playback is not stopped', async () => {
@@ -97,7 +99,7 @@ test('actual recorder can start while metronome is playing; playback is not stop
     const source = await readFile(new URL('../src/entities/attempt/MicrophoneRecorder.vue', import.meta.url), 'utf8');
     assert.doesNotMatch(source, /stopMetronomeForAudioCapture\s*\(/,
       'capturing microphone audio must not stop the backing click');
-    const Recorder = await compileRealRecorder(source);
+    const { Recorder } = await compileRealRecorder(source);
     const view = headlessRenderer();
     app = view.renderer.createApp({
       render: () => h(Recorder, {
@@ -127,5 +129,36 @@ test('actual recorder can start while metronome is playing; playback is not stop
     else delete globalThis.navigator;
     globalThis.MediaRecorder = oldRecorder;
     globalThis.AudioContext = oldAudioContext;
+  }
+});
+
+for (const locale of ['ru', 'en']) test('mounted recorder lease refusal is localized and preserves active recording: ' + locale, async () => {
+  const previousNavigator = Object.getOwnPropertyDescriptor(globalThis, 'navigator');
+  const previousRecorder = globalThis.MediaRecorder;
+  let captures = 0, stopped = 0, app;
+  Object.defineProperty(globalThis, 'navigator', { configurable: true, value: {
+    mediaDevices: { getUserMedia: async () => { captures++; throw Error('must not acquire hardware'); } },
+  }});
+  globalThis.MediaRecorder = class { static isTypeSupported() { return true; } };
+  const { Recorder, session } = await compileRealRecorder(await readFile(new URL('../src/entities/attempt/MicrophoneRecorder.vue', import.meta.url), 'utf8'), locale);
+  const owner = Symbol('existing-recording');
+  assert.equal(session.acquireAudio('recorder', owner, () => { stopped++; }), true);
+  try {
+    const dictionary = JSON.parse(await readFile(new URL('../src/i18n/' + locale + '.json', import.meta.url), 'utf8'));
+    const view = headlessRenderer();
+    app = view.renderer.createApp({ render: () => h(Recorder, { disabled: false, maxBytes: 1000 }) });
+    app.mount(view.root);
+    view.find('button', dictionary.attempt.startRecording).props.onClick();
+    await nextTick();
+    const alert = view.find('p', dictionary.attempt.microphoneBusy);
+    assert.ok(alert); assert.equal(alert.props.role, 'alert');
+    assert.equal(captures, 0); assert.equal(stopped, 0); assert.equal(session.audioOwner(), 'recorder');
+    app.unmount(); app = null;
+    assert.equal(session.audioOwner(), 'recorder', 'unmounting refused recorder cannot release another lease');
+  } finally {
+    app?.unmount(); session.releaseAudio(owner);
+    if (previousNavigator) Object.defineProperty(globalThis, 'navigator', previousNavigator);
+    else delete globalThis.navigator;
+    globalThis.MediaRecorder = previousRecorder;
   }
 });

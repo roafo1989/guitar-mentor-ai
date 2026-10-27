@@ -159,6 +159,11 @@ class GeneralRegressionHttpPostgresTest {
                 int code=result.getResponse().getStatus();
                 System.out.println("GENERAL_QA_RESOURCE "+url+" HTTP="+code);
                 if(code!=200 || result.getResponse().getContentAsByteArray().length==0)broken.add(url+" HTTP="+code);
+                var headResult = mvc.perform(head(url).with(a.auth())).andExpect(status().isOk()).andReturn();
+                assertEquals(result.getResponse().getContentType(), headResult.getResponse().getContentType());
+                assertEquals(0, headResult.getResponse().getContentAsByteArray().length);
+                if (field.equals("previewPdfUrl")) assertEquals("application/pdf", result.getResponse().getContentType());
+                if (field.equals("previewAudioUrl")) assertEquals("audio/mpeg", result.getResponse().getContentType());
                 checked++;
             }
         }
@@ -172,8 +177,8 @@ class GeneralRegressionHttpPostgresTest {
         for(String path:List.of("/instruments/ACOUSTIC_GUITAR/background","/instruments/ACOUSTIC_GUITAR/skills",
                 "/lessons?instrumentCode=ACOUSTIC_GUITAR","/diagnostic-sessions/current?instrumentCode=ACOUSTIC_GUITAR")) {
             var result=mvc.perform(get(a.base()+path).with(a.auth())).andReturn();
-            assertTrue(result.getResponse().getStatus()<500,"Read-only initial screen must not throw 5xx");
-            // Observation, not an acceptance assertion that 404 is correct. Known failures go in #237 report.
+            assertEquals(path.contains("/skills") || path.startsWith("/lessons?") ? 200 : 204, result.getResponse().getStatus());
+            // Exact #237 initial read contract; no GET side effects.
             System.out.println("GENERAL_QA_INITIAL_OBSERVATION "+path+" HTTP="+result.getResponse().getStatus());
         }
         assertEquals(0L,jdbc.sql("SELECT count(*) FROM instrument_profiles WHERE learner_id=:id")

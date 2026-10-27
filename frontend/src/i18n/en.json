@@ -301,6 +301,7 @@
     "recordingTimer": "Recording duration",
     "recorderError": "Recording failed. Check your microphone and retry.",
     "recorderEmpty": "The recording is empty. Please try again.",
+    "microphoneBusy": "The microphone is already being used for recording. Finish the current recording and try again.",
     "microphoneDenied": "Could not access the microphone. Check browser permissions and the selected device.",
     "recordingReady": "Recording ready — listen before submitting",
     "listenRecording": "Listen to recording",

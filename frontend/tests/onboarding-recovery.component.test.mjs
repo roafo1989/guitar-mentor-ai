@@ -372,3 +372,42 @@ test('#229 acceptance: failed GET blocks early Save changes until successful rea
   h.button('Load saved background').props.onClick();await settle();assert.equal(h.button('Save changes').props.disabled,false);
  }finally{h.cleanup();}
 });
+
+test('#235 bare learner: successful empty GET enables explicit save and reload restores answers', async () => {
+  let stored = null, puts = 0;
+  const service = {
+    get: async () => stored,
+    save: async (_id, _code, data) => { puts++; stored = structuredClone(data); return stored; },
+  };
+  const first = await mount229(service);
+  try {
+    assert.equal(puts, 0, 'opening an empty questionnaire does not write');
+    assert.equal(first.button('Save changes').props.disabled, false);
+    const years = first.nodes().find(n => n.tag === 'input' && n.props?.max === '60');
+    years.props['onUpdate:modelValue'](3);
+    first.button('Save changes').props.onClick(); await settle();
+    assert.equal(puts, 1); assert.equal(stored.yearsPlaying, 3);
+  } finally { first.cleanup(); }
+  const reload = await mount229(service);
+  try {
+    assert.ok(reload.nodes().some(n => n.tag === 'input' && n.props?.max === '60' && n.value === 3));
+    assert.equal(puts, 1, 'reload only reads');
+  } finally { reload.cleanup(); }
+});
+
+test('#235 real HTTP failures never enable saving a default questionnaire', async () => {
+  const { ApiFailure } = await import('../src/shared/api-failure.ts');
+  for (const status of [401, 403, 404, 500]) {
+    let puts = 0;
+    const form = await mount229({
+      get: async () => { throw new ApiFailure('HTTP', status); },
+      save: async () => { puts++; return background('must not save'); },
+    });
+    try {
+      assert.equal(form.button('Save changes').props.disabled, true, 'HTTP ' + status);
+      form.button('Save changes').props.onClick(); await settle();
+      await form.submit(); await form.submit(); await form.submit();
+      assert.equal(puts, 0, 'no PUT after HTTP ' + status);
+    } finally { form.cleanup(); }
+  }
+});

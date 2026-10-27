@@ -55,6 +55,8 @@ window.fetch=async (url,init={})=>{
       nextStepAvailability:'MANUAL_SELECTION',availableActions:[],latestAttemptId:null,
       assessmentState:'NO_ATTEMPT',latestAssessmentId:null,latestDecision:null,nextLesson:null});
   if(u.pathname==='/api/v1/exercises')return respond([exercise,probe]);
+  if(u.pathname.endsWith('/lessons') && window.__qa237HistoryStatus >= 400)return respond({code:'RESOURCE_NOT_FOUND'},window.__qa237HistoryStatus);
+  if(u.pathname.endsWith('/lessons') && window.__qa237EmptyHistory)return respond({items:[],nextCursor:null});
   if(u.pathname.endsWith('/lessons'))return respond({items:[{
     sessionId:oldSession,taskId:oldTask,exerciseCode:'GM-EB01',exerciseVersion:'0.8B',
     title:'Evening Blues',assignedAt:now,taskState:'COMPLETED_BY_LEARNER',isCurrent:false

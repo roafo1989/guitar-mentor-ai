@@ -59,6 +59,29 @@ class SkillMapServiceTest {
     }
 
     @Test
+    void bareLearnerGetsInitialCatalogWithoutSignalReadsOrWrites() {
+        var learner = new Learner("New student");
+        when(learners.findById(learner.getId())).thenReturn(Optional.of(learner));
+        when(repository.skills()).thenReturn(List.of(new SkillRow("PULSE", "Pulse", "", "RHYTHM", 1)));
+        when(repository.prerequisites()).thenReturn(Map.of());
+        var result = new SkillMapService(learners, repository).map(learner.getId(), "ACOUSTIC_GUITAR");
+        assertEquals(new SkillMapService.SkillView("PULSE", "Pulse", "", List.of(), false, 0,
+            "NOT_ASSESSED", List.of()), result.getFirst());
+        org.mockito.Mockito.verify(repository, org.mockito.Mockito.never()).signals(org.mockito.ArgumentMatchers.any());
+        org.mockito.Mockito.verify(learners, org.mockito.Mockito.never()).save(org.mockito.ArgumentMatchers.any());
+    }
+
+    @Test
+    void initialFallbackDoesNotHideUnknownInstrumentOrMissingRequestedProfile() {
+        var learner = new Learner("Other instrument");
+        learner.addInstrumentProfile(new InstrumentProfile("PIANO", "KEYBOARD"));
+        when(learners.findById(learner.getId())).thenReturn(Optional.of(learner));
+        var service = new SkillMapService(learners, repository);
+        assertThrows(EntityNotFoundException.class, () -> service.map(learner.getId(), "ACOUSTIC_GUITAR"));
+        assertThrows(EntityNotFoundException.class, () -> service.map(learner.getId(), "UNKNOWN"));
+    }
+
+    @Test
     void anotherLearnerCannotReadSkillHistory() {
         var learner = new Learner("Other");
         when(learners.findById(learner.getId())).thenReturn(Optional.of(learner));

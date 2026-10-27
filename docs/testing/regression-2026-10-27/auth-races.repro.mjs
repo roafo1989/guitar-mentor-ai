@@ -1,4 +1,4 @@
-// Diagnostic reproduction, intentionally outside normal test commands.
+// Historical reproduction; expanded regressions run in npm test (tests/auth-races.test.mjs).
 // Run from repository root: node --experimental-strip-types --test docs/testing/regression-2026-10-27/auth-races.repro.mjs
 // Assertions express the required safe behavior; failures reproduce known defects.
 import test from 'node:test';

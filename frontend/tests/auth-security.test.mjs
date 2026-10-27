@@ -70,7 +70,7 @@ test('logout posts with verified CSRF and clears current actor', async () => {
     await mod.logout(() => { cleared = true; });
     const outgoing = calls.find(x => x.path === '/logout');
     assert.equal(outgoing.options.method, 'POST');
-    assert.equal(outgoing.options.headers['X-XSRF-TOKEN'], 'csrf-secret');
+    assert.equal(new Headers(outgoing.options.headers).get('X-XSRF-TOKEN'), 'csrf-secret');
     assert.equal(mod.auth.actor, null);
     assert.equal(cleared, true);
   } finally { restore(); }
