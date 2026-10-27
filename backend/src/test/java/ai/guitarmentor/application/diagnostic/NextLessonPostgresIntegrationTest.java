@@ -137,13 +137,20 @@ class NextLessonPostgresIntegrationTest {
             new NextLessonService.Request(UUID.randomUUID(),2L,"OTHER","1")));
     }
 
-    @Test void staleOrForeignHistoryCursorIsRejectedWithoutDataLeak() {
+    @Test void initialHistoryAndStaleOrForeignCursorPreserveIsolation() {
         var second=UUID.randomUUID();
         var now=Timestamp.from(Instant.now());
         jdbc.update("INSERT INTO learners(id,display_name,created_at) VALUES(?,?,?)",
             second,"Other learner",now);
         try {
-            code("RESOURCE_NOT_FOUND",()->service.history(second,"ACOUSTIC_GUITAR",20,null));
+            // #237: a persisted bare learner has a valid empty initial history.
+            // Ownership is enforced at the HTTP boundary; this service receives the resolved learner.
+            var empty = service.history(second,"ACOUSTIC_GUITAR",20,null);
+            assertTrue(empty.items().isEmpty()); assertNull(empty.nextCursor());
+            assertEquals(0,jdbc.queryForObject(
+                "SELECT count(*) FROM instrument_profiles WHERE learner_id=?",Integer.class,second));
+            code("RESOURCE_NOT_FOUND",()->service.history(UUID.randomUUID(),"ACOUSTIC_GUITAR",20,null));
+            code("INVALID_PAGINATION",()->service.history(second,"ACOUSTIC_GUITAR",20,"!"));
             code("INVALID_PAGINATION",()->service.history(learner,"ACOUSTIC_GUITAR",0,null));
             code("INVALID_PAGINATION",()->service.history(learner,"ACOUSTIC_GUITAR",51,null));
             code("INVALID_PAGINATION",()->service.history(learner,"ACOUSTIC_GUITAR",20,"!"));
@@ -151,6 +158,7 @@ class NextLessonPostgresIntegrationTest {
                 (second+"|"+profile+"|"+Instant.now()+"|"+task)
                 .getBytes(java.nio.charset.StandardCharsets.UTF_8));
             code("INVALID_PAGINATION",()->service.history(learner,"ACOUSTIC_GUITAR",20,forged));
+            code("INVALID_PAGINATION",()->service.history(second,"ACOUSTIC_GUITAR",20,forged));
         } finally {
             jdbc.update("DELETE FROM learners WHERE id=?",second);
         }

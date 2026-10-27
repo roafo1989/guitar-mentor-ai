@@ -2,6 +2,7 @@
 
 | Version | Date | Change |
 | --- | --- | --- |
+| 1.3 | 2026-10-27 | First PostgreSQL CI: all product scenarios PASS; align one pre-existing history assertion with new initial contract, retain isolation checks |
 | 1.2 | 2026-10-27 | Publication authorized by owner; recover expired local checkout and repeat CI on published SHA |
 | 1.1 | 2026-10-27 | Review corrections and local test results; publication awaiting explicit owner approval |
 | 1.0 | 2026-10-27 | Auth generations, initial screens, original media, RU/EN recorder regressions |
@@ -107,3 +108,14 @@ Owner UAT:
 Issue stays open. No merge/deploy before owner acceptance. Project v2 fields are
 unavailable through connector: do not claim board changes. After green CI and
 available automated QA target is Testing / Waiting for owner UAT.
+
+## First published CI and correction
+
+Head `e327f975`: frontend [40561626903](https://github.com/roafo1989/guitar-mentor-ai/actions/runs/40561626903) SUCCESS;
+backend [40561626901](https://github.com/roafo1989/guitar-mentor-ai/actions/runs/40561626901)
+384 total, 379 PASS, 1 FAIL, 4 existing SKIP. The failure was the old service test
+asserting 404 for a persisted bare learner. #237 explicitly changes that case to
+200/empty history, so its expectation is now empty/no profile writes. Missing learner,
+malformed/foreign cursors and HTTP foreign-owner denial remain negative assertions.
+No test was removed or skipped. Full CI must repeat on the corrective head.
+The complete HTTP learning chain and all 8 advertised GET/HEAD resources already passed.
