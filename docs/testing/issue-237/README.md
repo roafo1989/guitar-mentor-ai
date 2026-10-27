@@ -2,6 +2,7 @@
 
 | Version | Date | Change |
 | --- | --- | --- |
+| 1.4 | 2026-10-27 | Full PostgreSQL verify PASS; align deployed-media smoke with mandatory original PDF/MP3 and retain negative unknown-version checks |
 | 1.3 | 2026-10-27 | First PostgreSQL CI: all product scenarios PASS; align one pre-existing history assertion with new initial contract, retain isolation checks |
 | 1.2 | 2026-10-27 | Publication authorized by owner; recover expired local checkout and repeat CI on published SHA |
 | 1.1 | 2026-10-27 | Review corrections and local test results; publication awaiting explicit owner approval |
@@ -119,3 +120,11 @@ asserting 404 for a persisted bare learner. #237 explicitly changes that case to
 malformed/foreign cursors and HTTP foreign-owner denial remain negative assertions.
 No test was removed or skipped. Full CI must repeat on the corrective head.
 The complete HTTP learning chain and all 8 advertised GET/HEAD resources already passed.
+
+Second head `9bb81955`: frontend [40562060121](https://github.com/roafo1989/guitar-mentor-ai/actions/runs/40562060121) SUCCESS;
+PostgreSQL Maven verify in [40562060135](https://github.com/roafo1989/guitar-mentor-ai/actions/runs/40562060135)
+384 total, 380 PASS, 0 FAIL/ERROR, 4 existing media-tool skips. The later live HTTP smoke
+still assumed the legacy missing PDF (404); #237 now installs it. Replaced that obsolete
+expectation with strict successful PDF/MP3 GET/HEAD, MIME and original SHA-256 checks;
+unknown-version 404 and malformed-reference negatives remain. No runtime or asset bytes changed.
+The final CI includes real audio processing/format/duration tests after FFmpeg installation.
