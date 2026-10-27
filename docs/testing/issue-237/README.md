@@ -2,6 +2,7 @@
 
 | Version | Date | Change |
 | --- | --- | --- |
+| 1.5 | 27.10.2026 | Owner UAT extends signup feedback: explicit email/login conflicts, pending verification, field messages RU/EN, preserved draft, concurrency regression |
 | 1.4 | 2026-10-27 | Full PostgreSQL verify PASS; align deployed-media smoke with mandatory original PDF/MP3 and retain negative unknown-version checks |
 | 1.3 | 2026-10-27 | First PostgreSQL CI: all product scenarios PASS; align one pre-existing history assertion with new initial contract, retain isolation checks |
 | 1.2 | 2026-10-27 | Publication authorized by owner; recover expired local checkout and repeat CI on published SHA |
@@ -128,3 +129,25 @@ still assumed the legacy missing PDF (404); #237 now installs it. Replaced that 
 expectation with strict successful PDF/MP3 GET/HEAD, MIME and original SHA-256 checks;
 unknown-version 404 and malformed-reference negatives remain. No runtime or asset bytes changed.
 The final CI includes real audio processing/format/duration tests after FFmpeg installation.
+
+## Owner UAT addition: registration feedback (BT-014)
+
+Owner requested a clear notice when email is already used. This also fixes the original
+observed case: a new email combined with a busy username now identifies the username.
+POST registration conflicts return 409 with a bounded code, never 202/false mail notice.
+Existing local email -> EMAIL_IN_USE; pending verification -> EMAIL_VERIFICATION_PENDING;
+active/pending login -> LOGIN_UNAVAILABLE. Pending linking reservations and expiries remain enforced.
+UI shows the localized error at the field, marks aria-invalid, preserves the draft and allows retry.
+Unknown/HTML conflict bodies use a safe generic error, never raw server content.
+Successful mail-send notice is now explicit, and only reachable after successful registration.
+
+Added PostgreSQL HTTP checks for pending/active email and login, case normalization,
+no extra mail/rows, pending linking, expired retry and parallel signup winners.
+Chrome mounted AuthGate checks RU/EN messages, draft preservation, 384px reflow,
+unknown/HTML responses and success after correction. Reset stays generic; CSRF/rate limit
+and the existing namespace advisory lock remain. No migration, real mail or production data.
+Final CI must repeat on the registration feedback head before UAT readiness is restored.
+
+Manual UAT additions: try an occupied local email, a new email with an occupied login,
+and an email awaiting verification; each must show its own explanation and keep the form.
+Correct the conflicting field and check that actual mail is received after successful signup.

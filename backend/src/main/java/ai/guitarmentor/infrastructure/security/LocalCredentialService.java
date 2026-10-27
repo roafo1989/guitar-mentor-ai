@@ -109,15 +109,23 @@ public class LocalCredentialService {
         lockLoginNamespace();
         // Expired reservations cannot permanently hold a username or email.
         jdbc.sql("DELETE FROM pending_local_registrations WHERE expires_at<=now()").update();
-        long exists = jdbc.sql("""
-            SELECT (SELECT count(*) FROM local_credentials
-                    WHERE email_normalized=:email OR login_normalized=:login)
-                 + (SELECT count(*) FROM pending_local_registrations
-                    WHERE email_normalized=:email OR login_normalized=:login)
-                 + (SELECT count(*) FROM pending_local_links
-                    WHERE email_normalized=:email OR login_normalized=:login)
-            """).param("email",email).param("login",username).query(Long.class).single();
-        if (exists != 0) throw new SecurityException("REGISTRATION_REJECTED");
+        // Owner decision in #237 UAT: explain which submitted registration field conflicts.
+        // Same transaction/advisory lock as every other username reservation/write path.
+        var conflicts = jdbc.sql("""
+            SELECT (SELECT count(*) FROM local_credentials WHERE email_normalized=:email),
+                   (SELECT count(*) FROM pending_local_registrations WHERE email_normalized=:email),
+                   (SELECT count(*) FROM pending_local_links WHERE email_normalized=:email),
+                   (SELECT count(*) FROM local_credentials WHERE login_normalized=:login)
+                     + (SELECT count(*) FROM pending_local_registrations WHERE login_normalized=:login)
+                     + (SELECT count(*) FROM pending_local_links WHERE login_normalized=:login)
+            """).param("email",email).param("login",username)
+            .query((rs,row) -> new RegistrationConflicts(rs.getLong(1),rs.getLong(2),rs.getLong(3),rs.getLong(4)))
+            .single();
+        if (conflicts.activeEmail() > 0 || conflicts.linkEmail() > 0)
+            throw new RegistrationConflict("EMAIL_IN_USE");
+        if (conflicts.pendingEmail() > 0)
+            throw new RegistrationConflict("EMAIL_VERIFICATION_PENDING");
+        if (conflicts.login() > 0) throw new RegistrationConflict("LOGIN_UNAVAILABLE");
         String token = newToken();
         jdbc.sql("""
             INSERT INTO pending_local_registrations
@@ -333,6 +341,12 @@ public class LocalCredentialService {
             .param("name",name).param("id",account).update();
         return name;
     }
+    static class RegistrationConflict extends SecurityException {
+        private final String code;
+        RegistrationConflict(String code) { super(code); this.code = code; }
+        String code() { return code; }
+    }
+    private record RegistrationConflicts(long activeEmail, long pendingEmail, long linkEmail, long login) {}
     static class UsernameUnavailable extends RuntimeException {}
     private record UsernameCredential(String login,String hash) {}
     private record PendingLink(String email,String login,String password) {}

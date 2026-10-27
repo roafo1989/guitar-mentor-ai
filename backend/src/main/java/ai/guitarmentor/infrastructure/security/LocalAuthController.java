@@ -42,9 +42,11 @@ public class LocalAuthController {
                 return bad("INVALID_INPUT");
             service.registerPublic(req.email(),req.login(),req.password());
             return ResponseEntity.accepted().body(Map.of("code","VERIFY_EMAIL"));
+        } catch (LocalCredentialService.RegistrationConflict ex) {
+            return ResponseEntity.status(409).body(Map.of("code",ex.code()));
         } catch (SecurityException | org.springframework.dao.DataIntegrityViolationException ex) {
-            // Do not reveal whether an email/username already exists, including racing requests.
-            return ResponseEntity.accepted().body(Map.of("code","VERIFY_EMAIL"));
+            // Unclassified conflicts must never claim that a verification email was sent.
+            return ResponseEntity.status(409).body(Map.of("code","REGISTRATION_REJECTED"));
         } catch (IllegalArgumentException ex) {
             return bad("INVALID_INPUT");
         }
