@@ -71,7 +71,7 @@ public final class LibraryAssetDeletionWorker {
             return false;
         }
         Long published=jdbc.sql("SELECT count(*) FROM library_publication_assets a JOIN library_publications p ON p.id=a.publication_id WHERE a.asset_id=:id AND p.state='PUBLISHED'")
-            .param("id",assetId).query(Long.class).single();
+            .param("id",assetId).query(Long.class).singleRow();
         if(published>0) {
             String restoredState="READY";
             try {
