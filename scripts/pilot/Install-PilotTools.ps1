@@ -72,14 +72,9 @@ try {
         $scriptPath = (Join-Path $installation 'Pilot.ps1').Replace("'","''")
         $rootLiteral = $Root.Replace("'","''")
         "& '$scriptPath' -Mode $($item.mode) -Root '$rootLiteral'" | Set-Content -LiteralPath $entry -Encoding utf8
-        $launcher = Join-Path $Root ($item.file -replace '\.ps1
-    }
-    Write-Host 'Готово: ярлыки запуска, обновления и возврата созданы. Текущая версия сохранена; сайт не запущен.'
-    if ($filesEnabled) { Write-Host 'Загрузки и библиотека включены. Файлы: data/attempts, data/scores, data/library.' }
-} finally { $lock.Dispose() }
-,'.cmd')
+        $launcher = Join-Path $Root ($item.file -replace '\.ps1$','.cmd')
         $launcherText = New-PilotShortcutCommand -Mode $item.mode
-        [IO.File]::WriteAllText($launcher, ($launcherText -replace "`r?`n", "`r`n") + "`r`n", [Text.Encoding]::ASCII)
+        [IO.File]::WriteAllText($launcher, $launcherText + [Environment]::NewLine, [Text.Encoding]::ASCII)
         $shortcut = $shell.CreateShortcut((Join-Path $desktop ($item.title + '.lnk')))
         $shortcut.TargetPath = $commandShell
         $shortcut.Arguments = '/d /c ""' + $launcher + '""'
