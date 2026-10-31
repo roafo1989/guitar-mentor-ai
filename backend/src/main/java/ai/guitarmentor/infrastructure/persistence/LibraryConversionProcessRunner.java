@@ -135,6 +135,10 @@ public final class LibraryConversionProcessRunner {
                 deleteWorkspace(workspace);
                 return failure(exit == 0 ? "WORKER_RESULT_MISSING" : "WORKER_FAILED");
             }
+            if (Files.size(resultFile) > 64 * 1024) {
+                deleteWorkspace(workspace);
+                return failure("WORKER_RESULT_TOO_LARGE");
+            }
             JsonNode result = mapper.readTree(resultFile.toFile());
             String status = result.path("status").asText("ERROR");
             String error = result.path("code").asText(null);
@@ -173,7 +177,10 @@ public final class LibraryConversionProcessRunner {
             if (process != null && process.isAlive()) process.destroyForcibly();
             stopContainer(cidFile);
             deleteWorkspace(workspace);
-            if (error instanceof InterruptedException interrupted) throw interrupted;
+            if (error instanceof InterruptedException interrupted) {
+                Thread.currentThread().interrupt();
+                throw interrupted;
+            }
             if (error instanceof IOException io) throw io;
             throw new IOException("Conversion worker failed", error);
         }
