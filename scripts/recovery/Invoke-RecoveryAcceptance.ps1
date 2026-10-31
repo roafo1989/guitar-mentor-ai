@@ -52,7 +52,8 @@ function Save-DrillReport([hashtable]$State, [string]$Result, [string]$Path, [st
     }
     $report = @{
         schemaVersion=1;result=$Result;createdUtc=$State.startedUtc;completedUtc=$now.ToString('o')
-        durationSeconds=[math]::Round(($now - [DateTime]::Parse($State.startedUtc).ToUniversalTime()).TotalSeconds,1)
+        durationSeconds=[math]::Round(($now - [DateTime]::Parse($State.attemptStartedUtc).ToUniversalTime()).TotalSeconds,1)
+        totalElapsedWallClockSeconds=[math]::Round(($now - [DateTime]::Parse($State.startedUtc).ToUniversalTime()).TotalSeconds,1)
         sourceDataAgeMinutes=$ageMinutes;snapshotShort=if ($State.snapshotId) { $State.snapshotId.Substring(0,8) } else { $null }
         database=$dbSummary;libraryOriginalCount=if ($manifest) { @($manifest.databases.pilot.libraryReady).Count } else { $null }
         steps=$State.steps;failureCode=$FailureCode
@@ -188,7 +189,7 @@ if (-not (Test-Path -LiteralPath $progressPath)) {
     else { $selected=$snapshots | Where-Object { $_.id -eq $Snapshot } | Select-Object -First 1 }
     if (-not $selected -or $selected.id -notmatch '^[a-f0-9]{64}$') { throw 'Snapshot не найден. Укажите полный ID.' }
     $state=@{schemaVersion=1;repository=$config.repository;snapshotId=$selected.id;snapshotTime=$selected.time
-        destination=$restoreRoot;startedUtc=[DateTime]::UtcNow.ToString('o');steps=@{};databases=@{}}
+        destination=$restoreRoot;startedUtc=[DateTime]::UtcNow.ToString('o');attemptStartedUtc=[DateTime]::UtcNow.ToString('o');steps=@{};databases=@{}}
     Write-RecoveryProgress $progressPath $state
 } else {
     $state=Read-PilotJson $progressPath
@@ -196,6 +197,8 @@ if (-not (Test-Path -LiteralPath $progressPath)) {
         throw 'Progress относится к другой конфигурации/каталогу. Не переиспользуйте его; проверьте исходный прогон.'
     }
     $masterPassword=Read-RecoveryPassword
+    $state.attemptStartedUtc=[DateTime]::UtcNow.ToString('o')
+    Write-RecoveryProgress $progressPath $state
 }
 $adminSecure=Read-Host 'Пароль локального PostgreSQL администратора (не мастер-пароль копии)' -AsSecureString
 $adminPassword=[Net.NetworkCredential]::new('',$adminSecure).Password
