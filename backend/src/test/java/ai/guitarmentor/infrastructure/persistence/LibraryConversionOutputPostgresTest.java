@@ -3,6 +3,7 @@ package ai.guitarmentor.infrastructure.persistence;
 import static org.junit.jupiter.api.Assertions.*;
 
 import ai.guitarmentor.interfaces.rest.library.LibraryConversionJobController;
+import ai.guitarmentor.interfaces.rest.library.LibraryOriginalController;
 import ai.guitarmentor.infrastructure.security.CurrentActor;
 import jakarta.servlet.http.HttpServletRequest;
 import java.io.ByteArrayInputStream;
@@ -39,6 +40,7 @@ class LibraryConversionOutputPostgresTest {
     @Autowired JdbcClient jdbc;
     @Autowired LibraryObjectStore store;
     @Autowired LibraryConversionJobController controller;
+    @Autowired LibraryOriginalController originalController;
     @Autowired LibraryConversionJobLeaseService leases;
     @Autowired LibraryConversionOutputService outputs;
     @Autowired LibraryConversionOutputRecovery recovery;
@@ -158,6 +160,9 @@ class LibraryConversionOutputPostgresTest {
             String wavKey=jdbc.sql("SELECT object_key FROM library_assets WHERE id=:id").param("id",audioId).query(String.class).single();
             assertTrue(Files.isRegularFile(store.file(pdfKey)));
             assertTrue(Files.isRegularFile(store.file(wavKey)));
+            // Conversion derivatives are core private-library assets, not community uploads.
+            assertEquals(200,originalController.content(request(f.owner()),f.material(),pdfId).getStatusCode().value());
+            assertEquals(200,originalController.content(request(f.owner()),f.material(),audioId).getStatusCode().value());
             assertEquals(1,jdbc.sql("SELECT count(*) FROM library_assets WHERE id=:id AND role='SCORE_ORIGINAL'")
                 .param("id",f.asset()).query(Long.class).single());
             store.delete(pdfKey); store.delete(wavKey);
