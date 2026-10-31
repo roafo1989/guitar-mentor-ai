@@ -299,7 +299,7 @@ class LibraryMediaHttpPostgresTest {
             .with(login("caps-a")).with(csrf()).sessionAttr("guitarMentorAccessVersion",0L)
             .header("If-Match","\"1\"").header("Idempotency-Key",UUID.randomUUID().toString()))
             .andExpect(status().isCreated());
-        byte[] mp3=mp3Frames(40);
+        byte[] mp3=mp3Sample();
         mvc.perform(MockMvcRequestBuilders.multipart(BASE+"/"+totalMaterial+"/files")
             .file(metadata("ORIGINAL_RECORDING"))
             .file(new MockMultipartFile("files","a.mp3","audio/mpeg",mp3))
