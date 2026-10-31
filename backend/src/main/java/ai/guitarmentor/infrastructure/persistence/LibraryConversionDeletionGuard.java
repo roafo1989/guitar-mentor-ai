@@ -45,7 +45,7 @@ public final class LibraryConversionDeletionGuard {
             } else if ("RUNNING".equals(state)) {
                 jdbc.sql("""
                     UPDATE library_conversion_jobs
-                    SET state='CANCEL_REQUESTED',cancel_requested=TRUE,
+                    SET state='CANCEL_REQUESTED',cancel_requested=TRUE,error_code='SOURCE_DELETING',
                         updated_at=now(),revision=revision+1
                     WHERE id=:job AND state='RUNNING'
                     """).param("job", jobId).update();
