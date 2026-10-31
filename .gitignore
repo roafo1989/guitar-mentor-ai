@@ -64,5 +64,7 @@ uploads/
 .recovery-local/
 recovery.local.json
 recovery-status.local.json
+acceptance-progress.local.json
+recovery-acceptance-report.json
 rclone.conf
 *.bundle
