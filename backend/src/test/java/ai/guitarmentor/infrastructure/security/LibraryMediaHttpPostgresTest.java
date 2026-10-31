@@ -254,7 +254,11 @@ class LibraryMediaHttpPostgresTest {
             .andExpect(status().isConflict()).andExpect(jsonPath("$.code").value("CATALOG_LAST_SCORE"));
         mvc.perform(MockMvcRequestBuilders.get("/api/v1/library/capabilities").with(login("media-a"))
             .sessionAttr("guitarMentorAccessVersion",0L)).andExpect(status().isOk())
-            .andExpect(jsonPath("$.enabled").value(true)).andExpect(jsonPath("$.maxFilesPerMaterial").value(7));
+            .andExpect(jsonPath("$.enabled").value(true)).andExpect(jsonPath("$.maxFilesPerMaterial").value(7))
+            .andExpect(jsonPath("$.maxFilesPerRequest").value(2))
+            .andExpect(jsonPath("$.maxPhotosAndScores").value(5))
+            .andExpect(jsonPath("$.maxAudio").value(2))
+            .andExpect(jsonPath("$.maxRequestBytes").value(20971520));
     }
 
     @Test void requestAndPerMaterialAssetCapsAreEnforcedWithoutMutation() throws Exception {
