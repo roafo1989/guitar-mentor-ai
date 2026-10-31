@@ -1,5 +1,17 @@
 # OPS-02 / #40 — проверка комплекта восстановления
 
+## Актуализация — 31.10.2026: перенос на main и единый приёмочный сценарий
+
+Код перенесён из PR #230 на актуальный main после merge PR #246: [PR #247](https://github.com/roafo1989/guitar-mentor-ai/pull/247), head `ce90f86ba2dd877a48f015ebe532e5cb330b01e4`. PR #247 остаётся открытым; merge и пользовательская эксплуатационная приёмка не заявлены.
+
+- [Windows workflow #39 — PASS](https://github.com/roafo1989/guitar-mentor-ai/actions/runs/41218007145): синтаксис всех recovery scripts, AES-GCM/DPAPI portable envelope, ACL, restic synthetic snapshot/restore/check, тесты дискового резерва и безопасной диагностики, настоящий PostgreSQL 17 isolated restore, release safety regression.
+- Добавлен `Invoke-RecoveryAcceptance.ps1`: одна команда может выполнить backup → полное чтение encrypted repository → isolated file restore → PILOT/DEV database restore → table/row/Flyway checks → restored JAR HTTP/CSRF smoke → post-start DB verification.
+- Прогресс пишется атомарно; тот же WorkRoot продолжает с неуспешного шага. Временные реквизиты drill-БД зашифрованы DPAPI текущего Windows-пользователя; в отчёт они не попадают.
+- Перед backup проверяется минимальный резерв staging-диска (default 1 GiB, configurable); ошибки места/квоты, доступа, сети и целостности дают безопасные понятные подсказки.
+- Отчёт содержит snapshot short ID, точный source HEAD, release ID, возраст данных, длительность текущего/полного прогона, количество восстановленных файлов/байт, library originals, БД/строки/Flyway и результат локального smoke.
+
+**Остаётся NOT_RUN:** rclone remote/реальный облачный аккаунт владельца, Inventory/extraFolders, пользовательский encrypted backup, restore из него, запуск на отдельной Windows-учётной записи/машине и фактические RPO/RTO. Windows CI использует синтетические данные и не заменяет эти действия. AI API пока вне реализации; постоянный мониторинг/24×7 не добавлялся. Загрузка/аккаунтные лимиты уже задаются действующим PILOT runtime: 20 MB файл, 32 MB multipart request, 200 MB/account, 100 files/account, 5 files/material; пересекающиеся пользовательские проверки остаются в #245.
+
 Дата: 26.10.2026. Код: опубликованная ветка `ops/40-disaster-recovery`,
 основание `ops/39-pilot-release-shortcuts` / PR #219. Владелец явно разрешил
 публикацию ветки и открытие PR 26.10.2026. Результат Windows CI фиксируется
