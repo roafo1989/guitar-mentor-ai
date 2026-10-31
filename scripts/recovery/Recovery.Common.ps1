@@ -61,6 +61,10 @@ function ConvertTo-RecoveryUtcDateTime([object]$Value) {
 }
 
 function Get-RecoveryFailureHint([string]$ErrorText) {
+    # Preserve the deliberately sanitized phase diagnostic emitted by Recovery.ps1.
+    if ($ErrorText -match "Резервная копия остановлена на этапе '([^']+)' \(тип ошибки: ([^;]+); Recovery\.ps1:(\d+)\)") {
+        return "Резервная копия остановлена на этапе '$($Matches[1])' (тип ошибки: $($Matches[2]); Recovery.ps1:$($Matches[3]))."
+    }
     # Invoke-RecoveryNative already converts provider stderr into one of these
     # safe actionable messages. Preserve that classification when outer
     # workflow catches classify the exception again (idempotent diagnostics).
