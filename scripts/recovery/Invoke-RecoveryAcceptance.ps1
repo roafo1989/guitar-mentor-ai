@@ -162,6 +162,7 @@ function Invoke-DrillApplicationSmoke([hashtable]$State, [hashtable]$Config, [ha
     }
     $listener = [Net.Sockets.TcpListener]::new([Net.IPAddress]::Loopback,0)
     $listener.Start();$port=([Net.IPEndPoint]$listener.LocalEndpoint).Port;$listener.Stop()
+    $localOrigin=Get-RecoveryLoopbackOrigin $port
     $java=(Get-Command java.exe -ErrorAction Stop).Source
     $settings = $Secrets.settings
     $arguments = @('-jar',$jar,'--spring.profiles.active=secure,local-auth',
@@ -169,7 +170,7 @@ function Invoke-DrillApplicationSmoke([hashtable]$State, [hashtable]$Config, [ha
         '--server.address=127.0.0.1',"--server.port=$port",
         "--spring.datasource.url=jdbc:postgresql://127.0.0.1:$($entry.port)/$($entry.name)",
         "--spring.datasource.username=$($entry.user)",'--guitar-mentor.security.enabled=true',
-        '--guitar-mentor.local-auth.unified-local=false',"--guitar-mentor.local-auth.public-origin=$($Config.origin)",
+        '--guitar-mentor.local-auth.unified-local=false',"--guitar-mentor.local-auth.public-origin=$localOrigin",
         '--guitar-mentor.submissions.enabled=false','--guitar-mentor.library.enabled=false')
     $envValues=@{
         SPRING_DATASOURCE_PASSWORD=$dbPassword
