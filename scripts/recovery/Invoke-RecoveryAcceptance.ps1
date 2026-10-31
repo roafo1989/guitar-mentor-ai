@@ -297,6 +297,17 @@ try {
         $state.applicationSmoke=Invoke-DrillApplicationSmoke $state $config $secrets $ApplicationTimeoutSeconds
         Set-RecoveryProgressStep $state $stepName 'PASS' $progressPath
     }
+    $stepName='PostStartDataCheck'
+    if(-not (Test-RecoveryProgressStep $state $stepName)){
+        Set-RecoveryProgressStep $state $stepName 'RUNNING' $progressPath
+        foreach($kind in @('pilot','dev')){
+            if($state.databases.ContainsKey($kind)){
+                $null=Get-DrillDbSummary $kind $state $manifest $config.postgresBin 'postgres' $adminPassword
+            }
+        }
+        Set-RecoveryProgressStep $state $stepName 'PASS' $progressPath
+    }
+
     Save-DrillReport $state 'PASS' $reportPath
     Write-Host "Восстановление и локальный smoke пройдены. Обезличенный отчёт: $reportPath"
     Write-Host "Длительность прогона: $([math]::Round(([DateTime]::UtcNow-$startedRun).TotalSeconds,1)) сек."
