@@ -65,6 +65,33 @@ function Save-DrillReport([hashtable]$State, [string]$Result, [string]$Path, [st
     Write-RecoveryProgress $Path $report
 }
 
+function Test-RecoveryAcceptanceEnvironment([hashtable]$Config) {
+    foreach ($directory in @($Config.pilotRoot,$Config.sourceRoot,$Config.settingsRoot)) {
+        if (-not (Test-Path -LiteralPath $directory -PathType Container)) { throw 'Не найден один из обязательных каталогов PILOT, sourceRoot или settingsRoot.' }
+    }
+    foreach ($file in @('pilot-tools.json','release-state.json')) {
+        if (-not (Test-Path -LiteralPath (Join-Path $Config.pilotRoot $file) -PathType Leaf)) { throw 'В каталоге PILOT отсутствует обязательный файл конфигурации/release state.' }
+    }
+    foreach ($file in @('local-auth-unified.json','pilot-database-password.txt')) {
+        if (-not (Test-Path -LiteralPath (Join-Path $Config.settingsRoot $file) -PathType Leaf)) { throw 'В settingsRoot отсутствует обязательный переносимый файл секретов.' }
+    }
+    if (-not (Test-Path -LiteralPath $Config.rcloneConfig -PathType Leaf)) { throw 'Не найден rclone config. Подключите внешний аккаунт перед запуском.' }
+    foreach ($tool in @('git.exe','java.exe','rclone.exe')) { $null=Get-Command $tool -ErrorAction Stop }
+    foreach ($tool in @('psql.exe','pg_dump.exe','pg_restore.exe','createdb.exe')) {
+        if (-not (Test-Path -LiteralPath (Join-Path $Config.postgresBin $tool) -PathType Leaf)) { throw "Не найдена утилита PostgreSQL $tool." }
+    }
+    if (Test-Path -LiteralPath $Config.resticPath -PathType Leaf) { }
+    else { $null=Get-Command $Config.resticPath -ErrorAction Stop }
+    foreach ($folder in $Config.extraFolders) {
+        if (-not (Test-Path -LiteralPath (Expand-RecoveryPath $folder.path) -PathType Container)) { throw "Не найден дополнительный каталог extra/$($folder.id)." }
+    }
+    $pilotConfig=Read-PilotJson (Join-Path $Config.pilotRoot 'pilot-tools.json')
+    if (-not (Test-Path -LiteralPath $pilotConfig.tailscale -PathType Leaf)) { throw 'Не найден Tailscale CLI из pilot-tools.json.' }
+    $minimum=if ($Config.minimumFreeBytes) { [long]$Config.minimumFreeBytes } else { 1073741824 }
+    $free=Assert-RecoveryStageCapacity $Config.stageRoot $minimum
+    return @{stageFreeBytes=$free;minimumFreeBytes=$minimum}
+}
+
 function Get-DrillDbSummary([string]$Kind, [hashtable]$State, [hashtable]$Manifest,
     [string]$Bin, [string]$AdminUser, [string]$AdminPassword) {
     $entry = $State.databases[$Kind]
@@ -199,6 +226,19 @@ if (-not (Test-Path -LiteralPath $progressPath)) {
 if (-not $BackupFirst -and $state.steps.ContainsKey('Backup') -and -not (Test-RecoveryProgressStep $state 'Backup')) {
     throw 'Предыдущий backup не завершён. Повторите запуск с -BackupFirst и тем же WorkRoot.'
 }
+$stepName='EnvironmentPreflight'
+try {
+    Set-RecoveryProgressStep $state $stepName 'RUNNING' $progressPath
+    $preflight=Test-RecoveryAcceptanceEnvironment $config
+    Set-RecoveryProgressStep $state $stepName 'PASS' $progressPath
+} catch {
+    $failure=Get-RecoveryFailureHint $_.Exception.Message
+    Set-RecoveryProgressStep $state $stepName 'FAIL' $progressPath $failure
+    Save-DrillReport $state 'FAIL' $reportPath $stepName
+    Write-Error "Проверка окружения не пройдена. Прогресс сохранён; исправьте указанное условие и повторите тот же запуск. $failure Отчёт: $reportPath"
+    exit 1
+}
+
 if ($BackupFirst -and -not (Test-RecoveryProgressStep $state 'Backup')) {
     $stepName='Backup'
     try {
