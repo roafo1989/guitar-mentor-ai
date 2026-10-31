@@ -395,9 +395,10 @@ public final class LibraryMediaController {
             if(published>0) throw new Failure(409,"CATALOG_ASSET_PUBLISHED");
             String role=(String)assets.getFirst().get("role");
             if("SCORE_ORIGINAL".equals(role)||"PHOTO_ORIGINAL".equals(role)) {
-                Long remaining=jdbc.sql("SELECT count(*) FROM library_assets WHERE material_id=:material AND role IN ('SCORE_ORIGINAL','PHOTO_ORIGINAL') AND processing_state IN ('READY','REJECTED')")
+                Long readyRemaining=jdbc.sql("SELECT count(*) FROM library_assets WHERE material_id=:material AND role IN ('SCORE_ORIGINAL','PHOTO_ORIGINAL') AND processing_state='READY'")
                     .param("material",materialId).query(Long.class).single();
-                if(remaining<=1) throw new Failure(409,"CATALOG_LAST_SCORE");
+                if("READY".equals(assetState) && readyRemaining<=1)
+                    throw new Failure(409,"CATALOG_LAST_SCORE");
             }
             jdbc.sql("UPDATE library_assets SET processing_state='DELETING' WHERE id=:asset").param("asset",assetId).update();
             int revisionUpdated=jdbc.sql("UPDATE library_materials SET revision=revision+1,updated_at=now() WHERE id=:id")
