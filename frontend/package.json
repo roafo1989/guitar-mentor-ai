@@ -13,17 +13,20 @@
     "test:browser": "node tests/qa126-browser-runner.mjs",
     "test:score-browser": "node tests/score-reader-browser-runner.mjs",
     "test:lesson-browser": "node tests/qa216-browser-runner.mjs",
-    "test:profile-browser": "node tests/qa229-browser-runner.mjs"
+    "test:profile-browser": "node tests/qa229-browser-runner.mjs",
+    "test:community": "node --experimental-strip-types --test tests/community-library.test.mjs",
+    "test:community-browser": "node tests/qa168-browser-runner.mjs"
   },
   "dependencies": {
+    "pdfjs-dist": "5.4.394",
     "pinia": "^3.0.3",
     "vue": "^3.5.18",
     "vue-i18n": "^11.1.9",
-    "vue-router": "^4.5.1",
-    "pdfjs-dist": "5.4.394"
+    "vue-router": "^4.5.1"
   },
   "devDependencies": {
     "@vitejs/plugin-vue": "^6.0.1",
+    "playwright": "1.56.1",
     "typescript": "~5.9.2",
     "vite": "^7.1.5",
     "vue-tsc": "^3.1.0"

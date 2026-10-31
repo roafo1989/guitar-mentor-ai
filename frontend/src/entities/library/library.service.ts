@@ -4,6 +4,10 @@ export type MaterialType = 'EXERCISE' | 'ETUDE' | 'COMPOSITION' | 'OTHER';
 export interface LibraryFile {
   id: string; originalName: string; format: string; byteSize: number;
   sha256: string; validationStatus: string; downloadUrl: string;
+  role: 'SCORE_ORIGINAL' | 'PHOTO_ORIGINAL' | 'ORIGINAL_RECORDING' | 'SYNTHESIZED_PREVIEW';
+  mediaType: string; processingState: string; previewAvailable: boolean;
+  previewUrl: string | null; previewReasonCode: string | null;
+  durationMillis: number | null; channels: number | null; sampleRate: number | null; width: number | null; height: number | null;
 }
 export interface LibraryMaterial {
   id: string; title: string; type: MaterialType; author: string | null;
@@ -22,16 +26,23 @@ function validFile(value: unknown): value is LibraryFile {
     && isString(value.format) && typeof value.byteSize === 'number'
     && Number.isSafeInteger(value.byteSize) && value.byteSize > 0
     && isString(value.sha256) && isString(value.validationStatus)
-    && isString(value.downloadUrl) && value.downloadUrl.startsWith(base + '/');
+    && isString(value.downloadUrl)
+    && ['SCORE_ORIGINAL','PHOTO_ORIGINAL','ORIGINAL_RECORDING','SYNTHESIZED_PREVIEW'].includes(String(value.role))
+    && isString(value.mediaType) && ['READY','REJECTED','DELETING','PROCESSING'].includes(String(value.processingState))
+    && typeof value.previewAvailable === 'boolean' && (value.previewUrl === null || isString(value.previewUrl))
+    && (value.previewReasonCode === null || isString(value.previewReasonCode))
+    && ['durationMillis','channels','sampleRate','width','height'].every(k => value[k] === null || (Number.isSafeInteger(value[k]) && Number(value[k]) > 0));
 }
-function validMaterial(value: unknown): value is LibraryMaterial {
+export function validMaterial(value: unknown): value is LibraryMaterial {
   return isObject(value) && isUuid(value.id) && isString(value.title)
     && ['EXERCISE','ETUDE','COMPOSITION','OTHER'].includes(String(value.type))
     && (value.author === null || isString(value.author))
     && value.state === 'READY' && value.visibility === 'PRIVATE'
     && isString(value.reviewStatus) && Number.isSafeInteger(value.revision)
     && Number(value.revision) >= 1 && isString(value.createdAt)
-    && isString(value.updatedAt) && isArrayOf(value.files, validFile);
+    && isString(value.updatedAt) && isArrayOf(value.files, validFile)
+    && (value.files as LibraryFile[]).every(f => f.downloadUrl === base+'/'+value.id+'/files/'+f.id+'/content'
+      && (f.previewUrl === null || f.previewUrl === base+'/'+value.id+'/files/'+f.id+'/preview'));
 }
 function validPage(value: unknown): value is LibraryPage {
   return isObject(value) && isArrayOf(value.items, validMaterial)
@@ -53,13 +64,13 @@ async function request<T>(url: string, options: RequestInit, check: (data: unkno
 }
 function materialUrl(id: string): string { return base + '/' + encodeURIComponent(id); }
 export const libraryService = {
-  page(cursor?: string): Promise<LibraryPage> {
+  page(cursor?: string, signal?: AbortSignal): Promise<LibraryPage> {
     const params = new URLSearchParams({ limit: '20' });
     if (cursor) params.set('cursor', cursor);
-    return request(base + '?' + params, {}, validPage);
+    return request(base + '?' + params, {signal}, validPage);
   },
-  detail(id: string): Promise<LibraryMaterial> {
-    return request(materialUrl(id), {}, validMaterial);
+  detail(id: string, signal?: AbortSignal): Promise<LibraryMaterial> {
+    return request(materialUrl(id), {signal}, validMaterial);
   },
   upload(metadata: LibraryMetadata, files: File[], key: string): Promise<LibraryMaterial> {
     const form = new FormData();

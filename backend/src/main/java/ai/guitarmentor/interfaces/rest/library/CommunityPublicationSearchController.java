@@ -43,9 +43,9 @@ public class CommunityPublicationSearchController {
           AND (:q = '' OR lower(p.title) LIKE :needle ESCAPE '!'
                         OR lower(COALESCE(p.author,'')) LIKE :needle ESCAPE '!')
           AND (:type = '' OR p.material_type=:type)
-          AND (:tag_count=0 OR EXISTS(
-             SELECT 1 FROM library_publication_tags t
-             WHERE t.publication_id=p.id AND t.tag IN (:tags)))
+          AND (:tag_count=0 OR (
+             SELECT count(*) FROM library_publication_tags t
+             WHERE t.publication_id=p.id AND t.tag IN (:tags)) = :tag_count)
           AND (CAST(:audio AS boolean) IS NULL OR ((:media_enabled AND EXISTS(
              SELECT 1 FROM library_publication_assets a
              JOIN library_assets source ON source.id=a.asset_id

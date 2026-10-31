@@ -77,6 +77,25 @@ class LibraryPublicationPostgresTest {
     }
     interface Executable {void run() throws Exception;}
 
+    @Test void allRequestedTagsAndOpaqueCursorExcludeSingleTagMatches() throws Exception {
+        UUID owner=newAccount("LEARNER"),reader=newAccount("LEARNER");
+        var a=material(owner,"AND regression A only");
+        var b=material(owner,"AND regression B only");
+        var ab1=material(owner,"AND regression AB first");
+        var ab2=material(owner,"AND regression AB second");
+        var request=req(owner,"LEARNER");
+        publications.publish(request,a.material(),"\"1\"",new LibraryPublicationController.PublishRequest(rights(a.asset()).assets(),List.of("tag-a")));
+        publications.publish(request,b.material(),"\"1\"",new LibraryPublicationController.PublishRequest(rights(b.asset()).assets(),List.of("tag-b")));
+        UUID first=publications.publish(request,ab1.material(),"\"1\"",new LibraryPublicationController.PublishRequest(rights(ab1.asset()).assets(),List.of("tag-a","tag-b"))).getBody().id();
+        UUID second=publications.publish(request,ab2.material(),"\"1\"",new LibraryPublicationController.PublishRequest(rights(ab2.asset()).assets(),List.of("tag-a","tag-b"))).getBody().id();
+        var one=search.search(req(reader,"LEARNER"),"AND regression",null,List.of("tag-a","tag-b"),null,1,null).getBody();
+        assertEquals(1,one.items().size()); assertNotNull(one.nextCursor());
+        var two=search.search(req(reader,"LEARNER"),"AND regression",null,List.of("tag-b","tag-a"),null,1,one.nextCursor()).getBody();
+        assertEquals(1,two.items().size()); assertNull(two.nextCursor());
+        assertEquals(Set.of(first,second),Set.of(one.items().getFirst().id(),two.items().getFirst().id()));
+        assertEquals(3,search.search(req(reader,"LEARNER"),"AND regression",null,List.of("tag-a"),null,20,null).getBody().items().size());
+    }
+
     @Test void sharedSearchFilterScopedPaginationAndRevocation() throws Exception {
         UUID alice=newAccount("LEARNER"),bob=newAccount("LEARNER");
         var privateDraft=material(alice,"Secret guitar draft");
@@ -108,9 +127,9 @@ class LibraryPublicationPostgresTest {
         assertEquals(List.of("blues","fingerstyle"),
             publications.publishedDetail(req(bob,"LEARNER"),pub1).getBody().tags(),
             "shared detail and search cards must expose consistent public tags");
-        assertEquals(2,search.search(req(bob,"LEARNER"),"yesterday",null,
+        assertEquals(0,search.search(req(bob,"LEARNER"),"yesterday",null,
             List.of("rock","blues"),false,20,null).getBody().items().size(),
-            "OR among tags, AND with q");
+            "ALL requested tags, AND with q");
         assertTrue(search.search(req(bob,"LEARNER"),"Secret guitar draft",null,null,
             false,20,null).getBody().items().isEmpty());
         assertTrue(search.search(req(bob,"LEARNER"),null,null,null,true,20,null)
