@@ -78,6 +78,11 @@ The existing `frontend/src/shared/score/ScoreReader.vue` already implements the 
 
 The current `pinnedPdfUrl` allowlist is intentionally exercise-specific (`/api/v1/exercises/.../preview/pdf`). #167 does not build the library UI. #168 must extend the URL/identity allowlist for the exact private library and published community `/content` routes while reusing this existing sandbox renderer; it must not accept arbitrary caller URLs or create another PDF viewer. This is the only remaining frontend integration boundary identified by the #167 review.
 
+
+## Accepted #165 publication lifecycle boundary
+
+The original CATALOG-03 target mentions an optional atomic `replacePublicationId`. The accepted #165 implementation in current main does not expose that parameter: its supported sequence is explicit owner WITHDRAW (which immediately revokes the old snapshot) followed by a new owner PUBLISH with rights for every asset in the new revision. #167 deliberately reuses this accepted contract rather than adding a second/parallel replacement API. The integration test covers add-to-draft → old snapshot unchanged → explicit withdraw → explicit publish with score+photo rights → old URL 404/new snapshot includes photo. There is a short private-only interval between withdraw and publish; this matches the already accepted #165 behavior and is not hidden as an atomic replacement.
+
 ## Review findings and final CI evidence
 
 Self-review (not an independent human review) found and corrected: SQL predicate closure in `hasAudio`; Spring's lack of a `ResourceRegion` converter (both private and published Range routes now stream a bounded `InputStreamResource`); legacy PDF MIME backfill and MIME on new P0 uploads; last-usable-score/photo deletion guard; queued per-asset deletion jobs during whole-material deletion; stale `If-Match` on repeated deletion; flag-off capability values; and decoder-only MP3 header acceptance. MP3 now has structural bounds plus full pinned JLayer frame decoding with a 30-second timeout and fixed two-worker/bounded-queue executor. Tests use the tracked real MP3 fixture and preserve valid silent MPEG frames.
