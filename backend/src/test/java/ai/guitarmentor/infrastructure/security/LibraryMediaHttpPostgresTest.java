@@ -119,7 +119,7 @@ class LibraryMediaHttpPostgresTest {
             .sessionAttr("guitarMentorAccessVersion",0L)).andExpect(status().isOk())
             .andExpect(header().string("Content-Type","image/png"))
             .andExpect(result->{byte[] preview=result.getResponse().getContentAsByteArray();
-                assertTrue(preview.length>0); assertFalse(Arrays.equals(png,preview));});
+                assertTrue(preview.length>0); assertEquals(23,ImageIO.read(new ByteArrayInputStream(preview)).getWidth());});
         mvc.perform(MockMvcRequestBuilders.get(photoPath+"/"+photoAsset+"/content").with(login("media-a"))
             .sessionAttr("guitarMentorAccessVersion",0L))
             .andExpect(status().isOk()).andExpect(result->assertArrayEquals(png,result.getResponse().getContentAsByteArray()));
