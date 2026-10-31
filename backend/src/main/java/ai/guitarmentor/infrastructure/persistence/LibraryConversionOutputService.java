@@ -78,7 +78,7 @@ public final class LibraryConversionOutputService {
         } catch(RuntimeException|IOException error) {
             cleanupIfUnreferenced(pdf);
             cleanupIfUnreferenced(wav);
-            releaseReservation(lease.jobId(),lease.ownerAccountId());
+            releaseReservation(lease);
             throw error;
         } finally {
             // Caller owns and removes the renderer workspace after persistence returns.
@@ -262,10 +262,16 @@ public final class LibraryConversionOutputService {
             throw new MaterialCapacityExceeded();
     }
 
-    private void releaseReservation(UUID jobId,UUID owner) {
+    private void releaseReservation(LibraryConversionJobLeaseService.Lease lease) {
+        UUID jobId=lease.jobId(), owner=lease.ownerAccountId();
         try {
             transactions.executeWithoutResult(status -> {
                 lockUsage(owner);
+                var live=jdbc.sql("""
+                    SELECT slot_number FROM library_conversion_worker_slots
+                    WHERE job_id=:job AND lease_owner=:worker AND lease_until>now() FOR UPDATE
+                    """).param("job",jobId).param("worker",lease.leaseOwner()).query(Integer.class).list();
+                if(live.size()!=1) return; // Expired/lost leases are handled by scheduled recovery.
                 var rows=jdbc.sql("""
                     SELECT output_reserved_bytes,output_reserved_files,output_reservation_state
                     FROM library_conversion_jobs WHERE id=:job AND owner_account_id=:owner FOR UPDATE
