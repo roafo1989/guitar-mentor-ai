@@ -49,12 +49,11 @@ public final class LibraryConversionOutputRecovery {
                     .param("owner",owner).query().singleRow();
                 jdbc.sql("SELECT id FROM library_materials WHERE id=:material FOR UPDATE")
                     .param("material",material).query().list();
-                var slots=jdbc.sql("""
-                    SELECT slot_number,lease_until FROM library_conversion_worker_slots
-                    WHERE job_id=:job FOR UPDATE
-                    """).param("job",jobId).query().listOfRows();
-                if(!slots.isEmpty() && ((java.time.OffsetDateTime)slots.getFirst().get("lease_until"))
-                        .isAfter(java.time.OffsetDateTime.now(java.time.ZoneOffset.UTC))) return false;
+                Long liveSlots=jdbc.sql("""
+                    SELECT count(*) FROM library_conversion_worker_slots
+                    WHERE job_id=:job AND lease_until>now() FOR UPDATE
+                    """).param("job",jobId).query(Long.class).single();
+                if(liveSlots>0) return false;
                 var jobs=jdbc.sql("""
                     SELECT output_reserved_bytes,output_reserved_files,output_reservation_state
                     FROM library_conversion_jobs WHERE id=:job AND owner_account_id=:owner FOR UPDATE
