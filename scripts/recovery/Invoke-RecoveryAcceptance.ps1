@@ -234,6 +234,13 @@ if (-not $state.snapshotId) {
 $adminSecure=Read-Host 'Пароль локального PostgreSQL администратора (не мастер-пароль копии)' -AsSecureString
 $adminPassword=[Net.NetworkCredential]::new('',$adminSecure).Password
 try {
+    $stepName='VerifyRepository'
+    if (-not (Test-RecoveryProgressStep $state $stepName)) {
+        Set-RecoveryProgressStep $state $stepName 'RUNNING' $progressPath
+        $null=Invoke-RecoveryRestic $config $masterPassword @('check','--read-data') $PSScriptRoot
+        Set-RecoveryProgressStep $state $stepName 'PASS' $progressPath
+    }
+
     $stepName='RestoreSnapshot'
     if (-not (Test-RecoveryProgressStep $state $stepName)) {
         Set-RecoveryProgressStep $state $stepName 'RUNNING' $progressPath
