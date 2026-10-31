@@ -4,6 +4,8 @@ param(
     [string]$InitialRelease = '20261025-143144',
     [string]$Origin = 'https://guitar-mentor.tail3b8201.ts.net',
     [string]$PostgresBin = 'C:\Program Files\PostgreSQL\17\bin',
+    [string]$CaddyPath = 'C:\Tools\Caddy\caddy.exe',
+    [string]$TailscalePath = 'C:\Program Files\Tailscale\tailscale.exe',
     [switch]$EnableFiles
 )
 $ErrorActionPreference = 'Stop'
@@ -17,7 +19,7 @@ try {
     Assert-PilotReady $Root
     Assert-PilotStopped
     foreach ($path in @((Join-Path $Root 'application-pilot.yml'),
-        'C:\Tools\Caddy\caddy.exe','C:\Program Files\Tailscale\tailscale.exe',
+        $CaddyPath,$TailscalePath,
         (Join-Path $PostgresBin 'pg_dump.exe'),(Join-Path $PostgresBin 'pg_restore.exe'),
         (Join-Path $PostgresBin 'initdb.exe'),(Join-Path $PostgresBin 'pg_ctl.exe'),
         (Join-Path $env:LOCALAPPDATA 'GuitarMentorAI/local-auth-unified.json'),
@@ -54,7 +56,7 @@ try {
     foreach ($name in 'Pilot.ps1','Pilot.Common.ps1') { Copy-Item -LiteralPath (Join-Path $PSScriptRoot $name) -Destination $installation }
     Write-PilotJson $configPath @{
         origin=$Origin; postgresBin=$PostgresBin
-        caddy='C:\Tools\Caddy\caddy.exe'; tailscale='C:\Program Files\Tailscale\tailscale.exe'
+        caddy=$CaddyPath; tailscale=$TailscalePath
         filesEnabled=$filesEnabled; ffprobe=$ffprobe
     }
     $shell = New-Object -ComObject WScript.Shell
