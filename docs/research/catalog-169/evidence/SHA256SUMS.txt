@@ -4,7 +4,7 @@ c81a43ed1c3ad32b6c3ea9728f366018d054836fb2cae520832775b750b40209  fixtures/resea
 06c9d77fd70e29d034017b6b6b4e384bfb73a895d810e81775f8d7dc9ac04304  fixtures/research/catalog-169/generated/gm169-synthetic.gp4
 6319259107629ef8d9a9a73a2c706f35842a33eb7ee8e1bd63e7d6f21a98aa33  fixtures/research/catalog-169/generated/gm169-synthetic.gp5
 8da0eaf5dd019b3b282eb3c0906fc8c7560c3477c5cb090b833e2edc429c9f8c  CI artifact: gm169-synthetic-gp7.gp (same-writer round-trip only)
-824ebde117cfd4b967f2678c77938487ad31488ba6b10584a12cfbd69ea3dedc  CI artifact: gm169-synthetic-score-tab.pdf
+365e9407b8e5cd24778c11ee0b4f0030ad08577088fe0ec1c1edf543110ab32e  CI artifact: gm169-synthetic-score-tab.pdf
 55837bbc89d6bdd3248dba7bccb090ee2c509837de9301b486e3ca202869b6c2  CI artifact: gm169-synthetic-audio.wav
 fddee9b4a86fa89a5cf1389594cd20d4fe68666d2fd14e2b427b355559bf9e84  CI artifact: system-01.svg
 67df7db021c78d82409ac39268fdc82f62ab5473afa0ca9e41266ccbf51bb658  CI artifact: system-02.svg
