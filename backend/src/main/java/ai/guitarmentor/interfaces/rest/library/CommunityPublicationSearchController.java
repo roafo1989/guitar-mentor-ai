@@ -50,7 +50,7 @@ public class CommunityPublicationSearchController {
              SELECT 1 FROM library_publication_assets a
              JOIN library_assets source ON source.id=a.asset_id
                AND source.material_id=p.material_id AND source.object_key=a.object_key AND source.role=a.role AND source.processing_state='READY'
-             WHERE a.publication_id=p.id AND a.role IN ('ORIGINAL_RECORDING','SYNTHESIZED_PREVIEW'))) = CAST(:audio AS boolean))
+             WHERE a.publication_id=p.id AND a.role IN ('ORIGINAL_RECORDING','SYNTHESIZED_PREVIEW'))) = CAST(:audio AS boolean)))
           AND (CAST(:before AS timestamptz) IS NULL OR (p.created_at,p.id)<(CAST(:before AS timestamptz),CAST(:before_id AS uuid)))
         ORDER BY p.created_at DESC,p.id DESC LIMIT :max
         """;
