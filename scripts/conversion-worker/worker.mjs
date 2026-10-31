@@ -78,11 +78,13 @@ try {
       if (!isInitialTempo) fail('UNSUPPORTED_TEMPO_CHANGE');
     }
   }
-  for (const bar of staff.bars) {
+  for (let barIndex = 0; barIndex < staff.bars.length; barIndex++) {
+    const bar = staff.bars[barIndex];
     if (bar.voices.length > 2 || bar.voices[1]?.beats?.length > 0) fail('UNSUPPORTED_POLYPHONY');
     const voice = bar.voices[0];
     if (!voice.beats?.length) fail('UNSUPPORTED_EMPTY_BAR');
-    for (const beat of voice.beats) {
+    for (let beatIndex = 0; beatIndex < voice.beats.length; beatIndex++) {
+      const beat = voice.beats[beatIndex];
       if (beat.duration !== 4 || beat.notes?.length !== 1) fail('UNSUPPORTED_RHYTHM_OR_REST');
       const note = beat.notes[0];
       const effectFlags = {
@@ -102,8 +104,14 @@ try {
         whammy: (beat.whammyBarPoints?.length || 0) > 0,
       };
       if (Object.values(effectFlags).some(Boolean)) fail('UNSUPPORTED_NOTE_EFFECT', { effectFlags });
-      if (beat.automations?.length > 0)
-        fail('UNSUPPORTED_BEAT_AUTOMATION', { automationTypes: beat.automations.map(a => a.type) });
+      for (const automation of beat.automations || []) {
+        const initialInstrument = automation.type === 2 && barIndex === 0 && beatIndex === 0
+          && automation.ratioPosition === 0 && automation.value === track.playbackInfo.program;
+        if (!initialInstrument)
+          fail('UNSUPPORTED_BEAT_AUTOMATION', { type: automation.type, value: automation.value,
+            ratioPosition: automation.ratioPosition, initialProgram: track.playbackInfo.program,
+            barIndex, beatIndex });
+      }
       if (note.fret < 0 || note.fret > 24 || note.string < 1 || note.string > staff.tuning.length)
         fail('INVALID_NOTE', { noteString: note.string, noteFret: note.fret, tuningLength: staff.tuning.length });
     }
