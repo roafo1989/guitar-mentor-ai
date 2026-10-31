@@ -1,7 +1,7 @@
 # Guitar Mentor AI: восстановление после потери ноутбука / SSD
 
 Связано с #40 (OPS-02), #39 (домашний пилот), #26 (локальный запуск).
-Дата: 26.10.2026. Среда: Windows, PowerShell 7.4+, PostgreSQL 17, Java 21,
+Дата актуализации: 31.10.2026. Среда: Windows, PowerShell 7.4+, PostgreSQL 17, Java 21,
 Vue/Vite, Caddy, Tailscale Funnel. Это не инструкция для Angular/порта 4200.
 Release tooling находится в актуальном `main` (PR #246 merged); восстановление использует только совместимые с ним скрипты `scripts/pilot/`.
 
