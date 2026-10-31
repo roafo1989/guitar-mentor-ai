@@ -2,7 +2,8 @@
 
 | Версия | Дата | Изменение |
 |---|---|---|
-| 0.2 | 2026-10-31 | Зафиксирован реальный GitHub Actions/Docker run, проверены PDF/WAV и измерения; решение ограничено доказанным subset. |
+| 0.2 | 2026-10-31 | Первичный Linux/Docker эксперимент и доказанный subset. |
+| 0.3 | 2026-10-31 | Повторный CI на актуальном main, проверка hash consistency, обновлены evidence и решение о согласованном scope. |
 
 ## 1. Решение
 
@@ -12,7 +13,7 @@
 
 Оригинальный GP остаётся immutable и доступен для скачивания при любом исходе. Хранение GP в #161 не является доказательством конвертации. #40 и #167 не изменялись.
 
-**Gate #170 не снимается автоматически.** Можно готовить/оценивать первый ограниченный инкремент для GP3/4/5; production implementation — только после явного принятия владельцем такого subset. До production exposure обязательны adversarial и расширенные musical tests, Windows deployment check и полноценная Java→container orchestration. Неподтверждённые форматы не показывать как доступные.
+**Владелец 31.10.2026 согласовал первый рабочий scope GP3/4/5 указанного subset.** После приёмки и merge PR #249 можно передавать инкремент #170-A в разработку. Это не снимает production gates: до production exposure обязательны adversarial и расширенные musical tests, Windows deployment check и полноценная Java→container orchestration. Неподтверждённые форматы не показывать как доступные.
 
 ## 2. Входные требования и документы
 
@@ -20,7 +21,7 @@
 - MUSIC-01-shared-catalog-ownership.md прочитан из текущего main (blob 434255f9466c1a0d7a2deb6a6983f93e0b950ba4). GP original остаётся отдельным immutable asset; derived outputs не должны заменять original или публиковаться автоматически.
 - AGENTS.md не найден в корне текущего main и историческом commit.
 - MUS-NOTATION-01.md не найден в текущем main, историческом commit или поиске точного имени в репозитории. Поэтому нельзя утверждать полное соответствие отсутствующему каноническому документу/эталонному PDF. Визуально проверены требуемые свойства: стандартный нотный стан сверху, шестилинейная TAB снизу, горизонтально совмещённые события, четыре полных такта в первой системе и остаток во второй; гитарная нотная октава на 12 полутонов выше sounding pitch.
-- Ветка исследования создана от main SHA e4d6789dcd4e0633bb72b23b3eda8e4e7c54d0b8.
+- Первоначальная ветка исследования создана от main SHA e4d6789dcd4e0633bb72b23b3eda8e4e7c54d0b8; перед финальной приёмкой PR rebased onto current main SHA b9f922bb3f653992785d7929537eef97ac299560.
 
 ## 3. Сравнение кандидатов
 
@@ -128,9 +129,9 @@ WAV independently inspected: RIFF PCM, stereo, 16-bit, 44,100 Hz, 551,296 frames
 
 ## 9. Reproducibility и resource measurements
 
-- GitHub Actions run: https://github.com/roafo1989/guitar-mentor-ai/actions/runs/41222243331
-- Job/check: synthetic-gp3-gp4-gp5-gp7, check ID 124599069703, commit 0289a0eead47fc262db42eb3d7a014861e7683c4, conclusion SUCCESS.
-- CI artifact: catalog-169-evidence, artifact ID 13050537149, retention 14 days. Permanent compact evidence committed in docs/research/catalog-169/evidence/.
+- GitHub Actions final PR run: https://github.com/roafo1989/guitar-mentor-ai/actions/runs/41239012014
+- Job: synthetic-gp3-gp4-gp5-gp7, job ID 124648770263, commit a514f19ec32b90f4339209b97617c591f1308ac4, conclusion SUCCESS.
+- CI artifact: catalog-169-evidence, artifact ID 13055799449, retention 14 days. Permanent compact evidence committed in docs/research/catalog-169/evidence/. The final run manifest's expectedEventsSha256 matches the exact fixture file bytes and fixture manifest.
 - Commands: python -m pip install -r scripts/research/catalog-169/requirements.txt; python scripts/research/catalog-169/generate_fixtures.py; node scripts/research/catalog-169/verify-fixtures.mjs; npm ci --prefix scripts/research/catalog-169 --omit=dev; docker build -f scripts/research/catalog-169/Dockerfile -t gm169-research .; ./scripts/research/catalog-169/run-linux.sh. Windows PowerShell runner supplied but not verified.
 
 Container flags: --network none, --memory 512m, --memory-swap 512m, --cpus 1, --pids-limit 64, read-only root, /tmp tmpfs 100 MiB; only /out writable. No secrets, app DB or user originals mounted. Build/install stage occurs outside the network-disabled container.
@@ -139,8 +140,8 @@ Container flags: --network none, --memory 512m, --memory-swap 512m, --cpus 1, --
 |---|---:|---:|
 | Exit/OOM | exit 0, OOMKilled=false | PASS |
 | Wall time | ≈1.56 s from CI timestamps | 60 s watchdog; not long-score stress |
-| Memory peak | 68,505,600 bytes ≈65.33 MiB | 512 MiB cgroup cap |
-| CPU quota | cpu.max 100000 100000 | 1 CPU; usage 975,729 µs; throttled 720,923 µs |
+| Memory peak | 68,280,320 bytes ≈65.14 MiB | 512 MiB cgroup cap |
+| CPU quota | cpu.max 100000 100000 | 1 CPU; usage 984,669 µs; throttled 767,873 µs |
 | Scratch | 4,096 bytes used | 100 MiB tmpfs |
 | Network | none | Container no-network; build host remains trusted/network-enabled |
 | Input size | Generated GP fixtures below 20 MiB | cap checked; exact boundary not stress-tested |
@@ -197,4 +198,4 @@ AI, audio recognition, external search, transcription and production queue broke
 - [ ] Windows host and Java ProcessBuilder integration — NOT_RUN.
 - [ ] Independent human code review — not claimed.
 
-**Decision: GO for GP3/4/5 simple subset only.** #170 remains gated for owner approval of that scope and remaining production-security/complex-corpus work. No merge or issue closure requested.
+**Decision: GO for GP3/4/5 simple subset only.** The owner has approved this limited initial scope. #170-A may start after PR #249 is accepted and merged; production exposure remains gated by the outstanding security/complex-corpus, Windows and Java orchestration checks. This report does not claim those checks passed.
