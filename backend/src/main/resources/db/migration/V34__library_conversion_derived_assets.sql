@@ -4,7 +4,7 @@ ALTER TABLE library_assets ADD CONSTRAINT library_assets_role_check
     CHECK (role IN ('SCORE_ORIGINAL','DERIVED_SCORE_PDF','PHOTO_ORIGINAL','ORIGINAL_RECORDING','SYNTHESIZED_PREVIEW'));
 ALTER TABLE library_assets DROP CONSTRAINT IF EXISTS library_asset_role_format;
 ALTER TABLE library_assets ADD CONSTRAINT library_asset_role_format CHECK (
-    (role IN ('SCORE_ORIGINAL','DERIVED_SCORE_PDF') AND format='PDF'
+    (role IN ('SCORE_ORIGINAL','DERIVED_SCORE_PDF') AND format='PDF' AND media_type='application/pdf'
         AND duration_millis IS NULL AND channels IS NULL AND sample_rate IS NULL
         AND width IS NULL AND height IS NULL AND preview_object_key IS NULL AND preview_byte_size IS NULL)
     OR (role='SCORE_ORIGINAL' AND format IN ('GTP','GP3','GP4','GP5','GPX','GP')
