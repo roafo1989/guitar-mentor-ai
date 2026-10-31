@@ -2,12 +2,10 @@ package ai.guitarmentor.interfaces.rest.library;
 
 import static org.junit.jupiter.api.Assertions.*;
 import ai.guitarmentor.application.library.LibraryConversionJobService;
-import ai.guitarmentor.infrastructure.persistence.JdbcClient;
 import ai.guitarmentor.infrastructure.persistence.LibraryConversionDeletionGuard;
 import ai.guitarmentor.infrastructure.persistence.LibraryConversionJobLeaseService;
 import ai.guitarmentor.infrastructure.security.CurrentActor;
 import jakarta.servlet.http.HttpServletRequest;
-import java.util.List;
 import java.util.UUID;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.condition.EnabledIfEnvironmentVariable;
@@ -33,6 +31,10 @@ import org.springframework.transaction.annotation.Transactional;
 @Transactional
 @EnabledIfEnvironmentVariable(named="GUITAR_MENTOR_TEST_POSTGRES",matches="true")
 class LibraryConversionJobPostgresTest {
+    private static final String TRACKS_JSON = """
+        [{"trackIndex":0,"name":"Lead Guitar","guitar":true,"instrument":"Guitar"},{"trackIndex":1,"name":"Rhythm Guitar","guitar":true,"instrument":"Guitar"}]
+        """;
+
     @Autowired JdbcClient jdbc;
     @Autowired LibraryConversionJobController controller;
     @Autowired LibraryConversionJobLeaseService leases;
@@ -144,7 +146,7 @@ class LibraryConversionJobPostgresTest {
             UPDATE library_conversion_jobs SET state='AWAITING_TRACK_SELECTION',
                 tracks=CAST(:tracks AS jsonb),revision=2
             WHERE id=:id
-            """).param("tracks","""[{"trackIndex":0,"name":"Lead Guitar","guitar":true,"instrument":"Guitar"},{"trackIndex":1,"name":"Rhythm Guitar","guitar":true,"instrument":"Guitar"}]""")
+            """).param("tracks",TRACKS_JSON)
             .param("id",selectedJob.id()).update();
         var selected=controller.selectTrack(request(selection.owner()),selection.material(),
             selectedJob.id(),"\"2\"",new LibraryConversionJobController.TrackSelectionRequest(1));
@@ -185,8 +187,7 @@ class LibraryConversionJobPostgresTest {
         assertTrue(leases.claimNext(worker3).isEmpty());
         assertTrue(leases.heartbeat(lease1.jobId(),worker1));
         assertTrue(leases.updateProgress(lease1.jobId(),worker1,"IMPORTING_SCORE",20));
-        assertTrue(leases.awaitTrackSelection(lease1.jobId(),worker1,
-            """[{"trackIndex":0,"name":"Lead Guitar","guitar":true,"instrument":"Guitar"},{"trackIndex":1,"name":"Rhythm Guitar","guitar":true,"instrument":"Guitar"}]"""));
+        assertTrue(leases.awaitTrackSelection(lease1.jobId(),worker1,TRACKS_JSON));
         assertEquals("AWAITING_TRACK_SELECTION",row(lease1.jobId()).state());
 
         jdbc.sql("""
