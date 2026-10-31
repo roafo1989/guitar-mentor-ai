@@ -173,13 +173,15 @@ public final class LibraryConversionJobLeaseService {
                 """).param("job", jobId).param("worker", workerId).query(Integer.class).list();
             if (slots.isEmpty()) return false;
             var jobs = jdbc.sql("""
-                SELECT state,cancel_requested FROM library_conversion_jobs WHERE id=:job FOR UPDATE
+                SELECT state,cancel_requested,error_code FROM library_conversion_jobs WHERE id=:job FOR UPDATE
                 """).param("job", jobId).query().listOfRows();
             if (jobs.isEmpty()) return false;
             Map<String,Object> job = jobs.getFirst();
             String finalState = Boolean.TRUE.equals(job.get("cancel_requested"))
                 || "CANCEL_REQUESTED".equals(job.get("state")) ? "CANCELLED" : terminalState;
-            String finalError = "CANCELLED".equals(finalState) ? "CANCELLED_BY_USER" : errorCode;
+            String priorError = ObjectsText.value(job.get("error_code"));
+            String finalError = "CANCELLED".equals(finalState)
+                ? (priorError == null ? "CANCELLED_BY_USER" : priorError) : errorCode;
             boolean finalRetryable = !"CANCELLED".equals(finalState) && retryable;
             jdbc.sql("""
                 UPDATE library_conversion_jobs SET state=:state,error_code=:error,
@@ -220,7 +222,7 @@ public final class LibraryConversionJobLeaseService {
             int slotNumber = ((Number) slot.get("slot_number")).intValue();
             UUID jobId = (UUID) slot.get("job_id");
             var jobs = jdbc.sql("""
-                SELECT state,cancel_requested,attempt_count FROM library_conversion_jobs
+                SELECT state,cancel_requested,attempt_count,error_code FROM library_conversion_jobs
                 WHERE id=:job FOR UPDATE
                 """).param("job", jobId).query().listOfRows();
             if (!jobs.isEmpty()) {
@@ -231,7 +233,8 @@ public final class LibraryConversionJobLeaseService {
                         || "CANCEL_REQUESTED".equals(state);
                     int attempts = ((Number) job.get("attempt_count")).intValue();
                     String nextState = cancelled ? "CANCELLED" : attempts < 2 ? "QUEUED" : "FAILED";
-                    String error = cancelled ? "CANCELLED_BY_USER"
+                    String priorError = ObjectsText.value(job.get("error_code"));
+                    String error = cancelled ? (priorError == null ? "CANCELLED_BY_USER" : priorError)
                         : attempts < 2 ? null : "WORKER_LEASE_EXPIRED";
                     boolean terminal = "CANCELLED".equals(nextState) || "FAILED".equals(nextState);
                     jdbc.sql("""
