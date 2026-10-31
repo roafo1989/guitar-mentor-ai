@@ -57,3 +57,5 @@
 - [DEV-05A — DiagnosticSession и сценарий](https://github.com/roafo1989/guitar-mentor-ai/issues/29)
 - [DEV-05B — StorageService и TTL](https://github.com/roafo1989/guitar-mentor-ai/issues/30)
 - [SPIKE-01 — Достоверность анализа исполнения](https://github.com/roafo1989/guitar-mentor-ai/issues/31)
+
+- [#168 — общий UI материалов, матрица критериев и QA](testing/qa168/README.md)

@@ -165,6 +165,7 @@ async function upload(): Promise<void> {
   } finally { if (active && auth.actor?.accountId === owner) busy.value = false; }
 }
 async function openCard(id: string): Promise<void> {
+  if (busy.value) return;
   const ticket = generation;
   detailController.abort();detailController=new AbortController();selected.value=null;
   const requestId = ++detailGeneration;
@@ -314,7 +315,7 @@ function onPageKeydown(event: KeyboardEvent): void {
           </thead>
           <tbody>
             <tr v-for="item in entries" :key="item.id">
-              <td class="name-cell"><button class="library-quiet" @click="openCard(item.id)">{{ item.title }}</button></td>
+              <td class="name-cell"><button class="library-quiet" :disabled="busy" @click="openCard(item.id)">{{ item.title }}</button></td>
               <td>{{ t('library.types.' + item.type) }}</td>
               <td>{{ item.author || '—' }}</td>
               <td>{{ item.files.length }}</td>

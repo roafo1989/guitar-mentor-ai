@@ -49,3 +49,11 @@ test('media requests use current revision and role metadata, keep delete separat
  globalThis.fetch=async(url,init)=>{assert.equal(url,'/api/v1/library/materials/'+id+'/files');assert.equal(init.headers['If-Match'],'"8"');assert.equal(init.headers['Idempotency-Key'],'key');assert.equal(JSON.parse(await init.body.get('metadata').text()).role,'ORIGINAL_RECORDING');return Response.json({id,title:'Test',type:'ETUDE',author:null,state:'READY',visibility:'PRIVATE',reviewStatus:'UNREVIEWED',revision:9,createdAt:'date',updatedAt:'date',files:[]});};
  assert.equal((await communityService.addFiles({id,revision:8},'ORIGINAL_RECORDING',[new File(['data'],'a.wav')],'key',signal)).revision,9);
 });
+test('UI errors distinguish statuses and media guards; Retry-After has a concrete retry time',()=>{
+ const {libraryError}=module('library-errors.ts',{'../../shared/api-failure':failure,'./community.service':service});
+ const t=key=>key;
+ const cases={401:'auth',404:'missing',409:'conflict',412:'version',413:'size',415:'format',429:'rate',503:'disabled'};
+ for(const [status,key] of Object.entries(cases))assert.equal(libraryError(new LibraryFailure(Number(status),null),t),'community.errors.'+key);
+ for(const [code,key] of Object.entries({CATALOG_ASSET_PUBLISHED:'referenced',CATALOG_LAST_SCORE:'lastScore',LIBRARY_QUOTA_EXCEEDED:'quota'}))assert.equal(libraryError(new LibraryFailure(409,code),t),'community.'+key);
+ assert.equal(libraryError(new LibraryFailure(429,null,Date.now()+10000),t),'community.errors.rateUntil');
+});

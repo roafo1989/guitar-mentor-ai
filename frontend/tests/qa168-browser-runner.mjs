@@ -1,9 +1,9 @@
 import assert from 'node:assert/strict';
 import {chromium} from 'playwright';
 import {createServer} from 'vite';
-import {mkdir,readFile,writeFile} from 'node:fs/promises';
+import {mkdir,readFile,writeFile,rm} from 'node:fs/promises';
 import path from 'node:path';
-const output=path.resolve('../docs/testing/qa168');await mkdir(output,{recursive:true});
+const output=path.resolve('../docs/testing/qa168');await mkdir(output,{recursive:true});await rm(path.join(output,'browser-result.json'),{force:true});
 process.env.VITE_GUITAR_MENTOR_AUTH_REQUIRED='true';process.env.VITE_GUITAR_MENTOR_LIGHT_MINIMAL='true';
 const vite=await createServer({server:{host:'127.0.0.1',port:0}});await vite.listen();
 const browser=await chromium.launch({headless:true,executablePath:process.env.CHROME_PATH||undefined,args:['--no-sandbox','--disable-dev-shm-usage']});
@@ -22,7 +22,7 @@ const wav=Buffer.alloc(46);wav.write('RIFF');wav.writeUInt32LE(38,4);wav.write('
 let actor=id,history=[],calls=[],failSearch=0,failPublish=0,mediaEnabled=true;
 const page=await browser.newPage({viewport:{width:1440,height:1000}}),exceptions=[];page.on('pageerror',e=>exceptions.push(e.message));page.on('console',m=>{if(m.type()==='error'||m.type()==='warning')console.error('browser console:',m.text());});
 await page.route('**/api/**',async route=>{
- const req=route.request(),url=new URL(req.url()),p=url.pathname,method=req.method();calls.push({p,method,query:url.search});
+ const req=route.request(),url=new URL(req.url()),p=url.pathname,method=req.method();calls.push({p,method,query:url.search,key:req.headers()['idempotency-key']});
  const json=(data,status=200)=>route.fulfill({status,contentType:'application/json',body:JSON.stringify(data)});
  if(p==='/api/v1/me')return json({accountId:actor,learnerId:null,role:'LEARNER'});
  if(p==='/api/v1/csrf')return json({headerName:'X-CSRF',token:'fixture'});
@@ -62,11 +62,11 @@ try{
  await page.goto(origin+'/library');await button('Original score').click();await button('Опубликовать').waitFor();assert.equal(history.length,0);
  const dialog=page.getByRole('dialog');
  async function rights(){await dialog.getByLabel('Включить этот файл').check();await dialog.getByLabel('Основание распространения').selectOption('OWN_WORK');await dialog.getByLabel('Подтверждение прав',{exact:false}).fill('Synthetic original QA168 score.');await dialog.getByLabel('Подтверждаю права',{exact:false}).check();}
- await button('Опубликовать').click();await rights();await dialog.getByRole('button',{name:'Опубликовать',exact:true}).click();await dialog.waitFor({state:'detached'});assert.equal(history.length,1);
+ await button('Опубликовать').click();await page.keyboard.press('Escape');assert.equal(await page.evaluate(()=>document.activeElement?.textContent?.trim()),'Опубликовать');await button('Опубликовать').click();await rights();await dialog.getByRole('button',{name:'Опубликовать',exact:true}).click();await dialog.waitFor({state:'detached'});assert.equal(history.length,1);
  await page.locator('.sharing .asset-list').first().getByRole('button',{name:'Открыть',exact:true}).click();await page.waitForFunction(()=>document.querySelector('.score-reader')?.dataset.renderedPage==='1');
  await page.locator('.library-more').click();await page.getByRole('menuitem').filter({hasText:'Изменить'}).click();
  await dialog.getByLabel('Название').fill('Changed private draft');await dialog.getByRole('button',{name:'Сохранить',exact:true}).click();await dialog.waitFor({state:'detached'});await page.getByText('Черновик изменён.',{exact:false}).waitFor();assert.equal(history[0].title,'Original score');
- await button('Снять старую и опубликовать новую').click();await rights();failPublish=503;await dialog.getByRole('button',{name:'Опубликовать',exact:true}).click();await page.getByText('Старая публикация снята; новая не опубликована.',{exact:false}).waitFor();assert.equal(history[0].state,'WITHDRAWN');await page.keyboard.press('Escape');assert.equal(await page.getByRole('dialog').count(),0);assert.equal(await page.evaluate(()=>document.activeElement?.textContent?.trim()),'Обновить');failPublish=0;
+ await button('Снять старую и опубликовать новую').click();await rights();failPublish=503;await dialog.getByRole('button',{name:'Опубликовать',exact:true}).click();await page.getByText('Старая публикация снята; новая не опубликована.',{exact:false}).waitFor();assert.equal(history[0].state,'WITHDRAWN');const failedKey=calls.filter(c=>c.p===own+'/publications'&&c.method==='POST').at(-1).key;failPublish=0;await dialog.getByRole('button',{name:'Опубликовать',exact:true}).click();await dialog.waitFor({state:'detached'});assert.equal(calls.filter(c=>c.p.endsWith('/withdraw')).length,1);assert.equal(calls.filter(c=>c.p===own+'/publications'&&c.method==='POST').at(-1).key,failedKey);assert.equal(history[0].state,'PUBLISHED');assert.equal(await page.evaluate(()=>document.querySelector('.sharing')?.contains(document.activeElement)),true);
  await button('Общие').click();await page.locator('.results button').first().waitFor();
  const search=page.getByLabel('Поиск по названию или автору');await search.fill('slow');await wait();await search.fill('fast');await page.waitForTimeout(800);assert.equal(await page.getByText('STALE',{exact:true}).count(),0);
  await page.getByLabel('Теги через запятую').fill('blues, fingerstyle');await wait();assert.deepEqual(new URLSearchParams(calls.filter(c=>c.p==='/api/v1/community/publications').at(-1).query).getAll('tag'),['blues','fingerstyle']);
@@ -80,6 +80,7 @@ try{
  await button('Мои').click();await button('Changed private draft').click();mediaEnabled=false;await page.locator('.sharing').getByRole('button',{name:'Обновить',exact:true}).click();await page.getByText('Добавление фото и аудио отключено.',{exact:false}).waitFor();assert.ok(await button('Открыть').count());
  mediaEnabled=true;await page.locator('.sharing').getByRole('button',{name:'Обновить',exact:true}).click();
  const mediaInput=page.locator('.sharing input[type=file]');
+ await mediaInput.waitFor({state:'visible'});await page.waitForFunction(()=>!document.querySelector('.sharing > button')?.disabled);
  const payload={name:'photo.png',mimeType:'image/png',buffer:png};
  await mediaInput.setInputFiles([payload,payload,payload]);const uploads=calls.filter(c=>c.p===own+'/files'&&c.method==='POST').length;await button('Добавить к материалу').click();await page.getByText('Проверьте формат, размер и количество файлов',{exact:false}).waitFor();assert.equal(calls.filter(c=>c.p===own+'/files'&&c.method==='POST').length,uploads);
  await mediaInput.setInputFiles(payload);await button('Добавить к материалу').click();await page.getByText('Файлы добавлены к личному черновику.',{exact:true}).waitFor();
@@ -91,6 +92,6 @@ try{
  await page.keyboard.press('Tab');assert.ok(await page.evaluate(()=>document.activeElement!==document.body));await page.screenshot({path:path.join(output,'mine-ru.png'),fullPage:true});
  actor='44444444-4444-4444-8444-444444444444';await page.evaluate(async accountId=>{const {auth}=await import('/src/core/auth/auth.ts');auth.actor={accountId,learnerId:'',role:'LEARNER'};},actor);await wait();assert.equal(await page.getByText('Changed private draft',{exact:true}).count(),0);assert.equal(await page.evaluate(()=>window.__qaAudio.paused&&!window.__qaAudio.hasAttribute('src')),true);
  await page.evaluate(()=>localStorage.setItem('guitar-mentor.locale','en'));await page.reload();await button('Shared').click();await page.locator('.results button').first().click();await page.getByText('User material, not reviewed for learning',{exact:true}).waitFor();await page.setViewportSize({width:360,height:900});assert.ok(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth));await page.screenshot({path:path.join(output,'shared-en-360.png'),fullPage:true});
- assert.deepEqual(exceptions,[]);const result={status:'PASS',kind:'Real Chromium; explicitly mocked HTTP backend',widths:[360,768,1440],zoom:'200%',pdfRendered:true,checks:['explicit no-audio publish','draft vs snapshot','withdraw/publish failure','stale search','all tags','opaque cursor','sandbox','read-only retry','flag-off','keyboard','account change with audio teardown','photo sanitized preview','media upload limits and role','published-reference error','EN mobile']};await writeFile(path.join(output,'browser-result.json'),JSON.stringify(result,null,2)+'\n');console.log(result);
+ assert.deepEqual(exceptions,[]);const result={status:'PASS',kind:'Real Chromium; explicitly mocked HTTP backend',widths:[360,768,1440],zoom:'200%',pdfRendered:true,checks:['explicit no-audio publish','draft vs snapshot','withdraw/publish failure and identical retry key','stale search','all tags','opaque cursor','sandbox','read-only retry','flag-off','keyboard','account change with audio teardown','photo sanitized preview','media upload limits and role','published-reference error','EN mobile']};await writeFile(path.join(output,'browser-result.json'),JSON.stringify(result,null,2)+'\n');console.log(result);
 }catch(e){await page.screenshot({path:path.join(output,'failure.png'),fullPage:true});console.error((await page.locator('body').innerText()).slice(0,4000));throw e;}
 finally{await browser.close();await vite.close();}

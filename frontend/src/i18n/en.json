@@ -664,9 +664,9 @@
     "homeDescription": "Your personal scores and tabs: upload, browse and download PDF and Guitar Pro.",
     "eyebrow": "PRIVATE LIBRARY",
     "title": "My materials",
-    "subtitle": "Save existing music scores and tabs. These files are visible to you only.",
+    "subtitle": "Your private materials and published snapshots.",
     "add": "Add material",
-    "privateNote": "Private material · not published in the shared catalog",
+    "privateNote": "Drafts are private. Sharing requires a separate publication.",
     "name": "Title",
     "type": "Type",
     "author": "Author / performer (optional)",
@@ -959,6 +959,7 @@
       "network": "Cannot reach server. Check connection and retry reading.",
       "invalid": "Invalid server response."
     },
-    "removeTag": "Remove tag {tag}"
+    "removeTag": "Remove tag {tag}",
+    "mediaDetails": "Photos: up to {pixels} MP, side ≤{side} px. Audio: {min}–{max} Hz, {channels} channels, WAV {wav}."
   }
 }
