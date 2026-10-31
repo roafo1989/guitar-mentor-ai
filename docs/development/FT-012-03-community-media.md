@@ -87,10 +87,10 @@ The original CATALOG-03 target mentions an optional atomic `replacePublicationId
 
 Self-review (not an independent human review) found and corrected: SQL predicate closure in `hasAudio`; Spring's lack of a `ResourceRegion` converter (both private and published Range routes now stream a bounded `InputStreamResource`); legacy PDF MIME backfill and MIME on new P0 uploads; last-usable-score/photo deletion guard; queued per-asset deletion jobs during whole-material deletion; stale `If-Match` on repeated deletion; flag-off capability values; and decoder-only MP3 header acceptance. MP3 now has structural bounds plus full pinned JLayer frame decoding with a 30-second timeout and fixed two-worker/bounded-queue executor. Tests use the tracked real MP3 fixture and preserve valid silent MPEG frames.
 
-Final verification before this documentation-only evidence update (implementation tree unchanged):
-- Java backend CI run `41222830562` — SUCCESS on `df4dde97b990dbd58431a500efb744df653a8762`; Java 21, PostgreSQL 17.11; **401 tests, 0 failures, 0 errors, 4 skips**; Flyway V32 applied; Spring Boot/PostgreSQL bootstrap and existing live HTTP smoke passed.
-- Vue frontend CI run `41222830486` — SUCCESS on the same SHA; typecheck/build, PDF.js provenance audit and real Chromium isolated PDF reader passed.
-- Audio benchmark validator run `41222830483` — SUCCESS on the same SHA; positive and negative corpus checks passed.
+Final verification on PR head `4cc9d8828aa0227b1921a6b6595101b0dbaf9965`:
+- Java backend CI run `41223494090` — SUCCESS; Java 21, PostgreSQL 17.11; **401 tests, 0 failures, 0 errors, 4 skips**; Flyway V32 applied; Spring Boot/PostgreSQL bootstrap and existing live HTTP smoke passed.
+- Vue frontend CI run `41223494118` — SUCCESS; typecheck/build, PDF.js provenance audit and real Chromium isolated PDF reader passed.
+- Audio benchmark validator run `41223494083` — SUCCESS; positive and negative corpus checks passed.
 
 Evidence types are deliberately distinct: `LibraryMediaInspectorTest` is unit; `LibraryMediaHttpPostgresTest` is Spring Security/MockMvc backed by PostgreSQL (two separate mock identities/sessions, not independent live HTTP clients); `LibraryMediaConcurrencyPostgresTest` exercises concurrent controller operations against PostgreSQL, not HTTP; Java CI additionally performs a live app/bootstrap smoke for the existing application endpoints, not the new media upload routes. The real-Chromium test validates the existing ScoreReader isolation, not #168 library route integration.
 
