@@ -57,3 +57,17 @@ test('UI errors distinguish statuses and media guards; Retry-After has a concret
  for(const [code,key] of Object.entries({CATALOG_ASSET_PUBLISHED:'referenced',CATALOG_LAST_SCORE:'lastScore',LIBRARY_QUOTA_EXCEEDED:'quota'}))assert.equal(libraryError(new LibraryFailure(409,code),t),'community.'+key);
  assert.equal(libraryError(new LibraryFailure(429,null,Date.now()+10000),t),'community.errors.rateUntil');
 });
+const {declaredRights}=module('publication-rights.ts',{'./community.service':service});
+const form={assetId:asset,chosen:true,choice:'OWN',basis:'',author:'',note:''};
+test('own work uses explicit declaration without requiring evidence text or author name',()=>{
+ const r=declaredRights(form);assert.equal(r.rightsBasis,'OWN_WORK');assert.equal(r.provenance,'CREATED');assert.ok(r.rightsEvidence.length>=8);assert.equal(r.attribution,'');assert.deepEqual(declaredRights({...form,note:'ignored hidden input'}),r);
+});
+test('permission requires public author name; comment is optional and private',()=>{
+ assert.equal(declaredRights({...form,choice:'PERMISSION'}),null);
+ const r=declaredRights({...form,choice:'PERMISSION',author:' Иван Петров '});assert.equal(r.rightsBasis,'PERMISSION');assert.equal(r.attribution,'Иван Петров');assert.match(r.rightsEvidence,/Иван Петров/);assert.ok(r.rightsEvidence.length<=500);
+ const withNote=declaredRights({...form,choice:'PERMISSION',author:'A'.repeat(150),note:'x'.repeat(250)});assert.ok(withNote.rightsEvidence.length<=500);assert.equal(withNote.attribution,'A'.repeat(150));assert.equal(declaredRights({...form,choice:'PERMISSION',author:'Name',note:'x'.repeat(251)}),null);
+});
+test('advanced sources retain actual source explanation, bounds and explicit basis',()=>{
+ for(const basis of ['LICENSE','PUBLIC_DOMAIN']){const r=declaredRights({...form,choice:'OTHER',basis,note:'Actual license/source explanation',author:'Credit'});assert.equal(r.rightsBasis,basis);assert.equal(r.rightsEvidence,'Actual license/source explanation');assert.equal(r.attribution,'Credit');}
+ for(const invalid of [{choice:''},{choice:'OTHER',basis:'OWN_WORK',note:'source details'},{choice:'OTHER',basis:'LICENSE',note:''},{choice:'OTHER',basis:'LICENSE',note:'x'.repeat(501)},{author:'x'.repeat(151)}])assert.equal(declaredRights({...form,...invalid}),null);
+});

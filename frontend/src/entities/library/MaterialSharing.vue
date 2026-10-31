@@ -6,15 +6,13 @@ import { libraryService, type LibraryMaterial } from "./library.service";
 import {
   communityService,
   normalizeTags,
-  provenance,
-  type AssetRight,
   type AssetRole,
   type Capabilities,
   type Publication,
-  type RightsBasis,
 } from "./community.service";
 import { libraryError } from "./library-errors";
 import LibraryAssets from "./LibraryAssets.vue";
+import { declaredRights, type RightsForm } from "./publication-rights";
 const props = defineProps<{ material: LibraryMaterial }>(),
   emit = defineEmits<{ updated: [material: LibraryMaterial] }>();
 const { t } = useI18n();
@@ -28,7 +26,7 @@ const publications = ref<Publication[]>([]),
   capabilityError = ref("");
 const root = ref<HTMLElement | null>(null);
 const rightsOpen = ref(false),
-  rights = ref<(AssetRight & { chosen: boolean })[]>([]),
+  rights = ref<RightsForm[]>([]),
   tags = ref(""),
   confirm = ref(false),
   replace = ref(false),
@@ -46,7 +44,7 @@ const changed = computed(
     activePublication.value &&
     activePublication.value.sourceRevision !== props.material.revision,
 );
-const bases = Object.keys(provenance) as RightsBasis[];
+const bases = ["LICENSE", "PUBLIC_DOMAIN"] as const;
 let controller = new AbortController(),
   generation = 0,
   active = true,
@@ -149,10 +147,10 @@ function openRights(update = false) {
     rights.value = props.material.files.map((f) => ({
       assetId: f.id,
       chosen: false,
-      provenance: "",
-      rightsBasis: "" as RightsBasis,
-      rightsEvidence: "",
-      attribution: "",
+      choice: "" as const,
+      basis: "" as const,
+      author: "",
+      note: "",
     }));
     rightsRevision = props.material.revision;
   }
@@ -173,9 +171,6 @@ function close() {
   rightsOpen.value = false;
   restoreFocus();
 }
-function basis(r: AssetRight) {
-  r.provenance = provenance[r.rightsBasis] ?? "";
-}
 async function mutate(action: () => Promise<void>) {
   if (busy.value) return;
   const ticket = generation;
@@ -195,24 +190,32 @@ async function publish() {
   await mutate(async () => {
     const ticket = generation,
       material = props.material;
-    const selected = rights.value
-      .filter((r) => r.chosen)
-      .map(({ chosen: _, ...r }) => r);
+    const chosen = rights.value.filter((r) => r.chosen);
+    const payload = chosen.map(declaredRights);
     if (
       !confirm.value ||
-      !selected.length ||
-      !selected.some(r=>material.files.some(f=>f.id===r.assetId && ['SCORE_ORIGINAL','PHOTO_ORIGINAL'].includes(f.role))) ||
-      selected.some(r=>!material.files.some(f=>f.id===r.assetId && f.processingState==='READY')) ||
-      selected.some(
+      !chosen.length ||
+      payload.some((r) => r === null) ||
+      !chosen.some((r) =>
+        material.files.some(
+          (f) =>
+            f.id === r.assetId &&
+            ["SCORE_ORIGINAL", "PHOTO_ORIGINAL"].includes(f.role),
+        ),
+      ) ||
+      chosen.some(
         (r) =>
-          !r.rightsBasis ||
-          r.provenance !== provenance[r.rightsBasis] ||
-          r.rightsEvidence.trim().length < 8,
+          !material.files.some(
+            (f) => f.id === r.assetId && f.processingState === "READY",
+          ),
       )
     ) {
       error.value = t("community.rightsRequired");
       return;
     }
+    const selected = payload.filter(
+      (r): r is NonNullable<typeof r> => r !== null,
+    );
     const normalized = normalizeTags(tags.value);
     const signature = JSON.stringify({
       id: material.id,
@@ -522,46 +525,88 @@ async function refresh() {
               "
             />{{ t("community.include") }}</label
           >
-          <label
-            >{{ t("community.basis")
-            }}<select v-model="r.rightsBasis" :required="r.chosen" :disabled="!r.chosen" @change="basis(r)">
-              <option disabled value="">{{ t("community.choose") }}</option>
-              <option v-for="b in bases" :key="b" :value="b">
-                {{ t("community.bases." + b) }}
-              </option>
-            </select></label
-          >
-          <p>
-            {{ t("community.provenance") }}:
-            {{
-              r.provenance ? t("community.provenances." + r.provenance) : "—"
-            }}
-          </p>
-          <label
-            >{{ t("community.evidence")
-            }}<textarea
-              v-model="r.rightsEvidence"
-              :required="r.chosen" :disabled="!r.chosen"
-              minlength="8"
-              maxlength="500"
-            />
-          </label>
-          <label
-            >{{ t("community.attribution")
-            }}<textarea v-model="r.attribution" :disabled="!r.chosen" maxlength="2000" />
-          </label>
+          <template v-if="r.chosen">
+            <label
+              >{{ t("community.rightsChoice") }}
+              <select
+                v-model="r.choice"
+                required
+                @change="
+                  r.note = '';
+                  r.basis = '';
+                  r.author = '';
+                "
+              >
+                <option disabled value="">{{ t("community.choose") }}</option>
+                <option value="OWN">{{ t("community.simpleOwn") }}</option>
+                <option value="PERMISSION">
+                  {{ t("community.simplePermission") }}
+                </option>
+                <option value="OTHER">{{ t("community.simpleOther") }}</option>
+              </select>
+            </label>
+            <p v-if="r.choice === 'OWN'" class="rights-help">
+              {{ t("community.ownHelp") }}
+            </p>
+            <template v-if="r.choice === 'PERMISSION'">
+              <label
+                >{{ t("community.permissionAuthor") }}
+                <input v-model="r.author" required maxlength="150" />
+              </label>
+              <label
+                >{{ t("community.optionalComment") }}
+                <textarea
+                  v-model="r.note"
+                  maxlength="250"
+                  :placeholder="t('community.permissionPlaceholder')"
+                />
+              </label>
+            </template>
+            <template v-if="r.choice === 'OTHER'">
+              <label
+                >{{ t("community.basis") }}
+                <select v-model="r.basis" required>
+                  <option disabled value="">{{ t("community.choose") }}</option>
+                  <option v-for="b in bases" :key="b" :value="b">
+                    {{ t("community.bases." + b) }}
+                  </option>
+                </select>
+              </label>
+              <label
+                >{{ t("community.sourceDetails") }}
+                <textarea
+                  v-model="r.note"
+                  required
+                  minlength="8"
+                  maxlength="500"
+                  :placeholder="t('community.sourcePlaceholder')"
+                />
+              </label>
+              <label
+                >{{ t("community.optionalAuthor")
+                }}<input v-model="r.author" maxlength="150"
+              /></label>
+            </template>
+            <details v-if="r.choice === 'OWN'">
+              <summary>{{ t("community.addCredit") }}</summary>
+              <label
+                >{{ t("community.optionalAuthor")
+                }}<input v-model="r.author" maxlength="150"
+              /></label>
+            </details>
+          </template>
         </fieldset>
         <label
           >{{ t("community.tags")
           }}<input v-model="tags" maxlength="410" :disabled="busy"
         /></label>
-        <label
+        <label class="rights-consent"
           ><input
             v-model="confirm"
             type="checkbox"
             :disabled="busy"
             required
-          />{{ t("community.confirm") }}</label
+          /><span>{{ t("community.confirm") }}</span></label
         >
         <button type="button" :disabled="busy" @click="close">
           {{ t("library.cancel") }}
@@ -575,6 +620,12 @@ async function refresh() {
   </section>
 </template>
 <style scoped>
+.rights-consent {
+  display: grid;
+  grid-template-columns: 22px minmax(0, 1fr);
+  align-items: start;
+  gap: 10px;
+}
 .sharing {
   border: 1px solid #dbe8e4;
   border-radius: 18px;

@@ -903,8 +903,8 @@
     "addMedia": "Add to material",
     "mediaAdded": "Files added to the private draft.",
     "mediaDeleted": "File deletion queued. Refresh after completion.",
-    "shareNotice": "You explicitly share these files with all admitted users. Audio is optional. Ordinary saving keeps the material private.",
-    "allAssets": "Select only the files to share. At least one ready score or photo is required; audio is optional. Other files remain private.",
+    "shareNotice": "Selected files will be available to other admitted users of the app.",
+    "allAssets": "Other files stay private. Include at least one score or photo.",
     "replaceNotice": "The old publication is withdrawn first, then a new one is published. Others cannot access it between these operations.",
     "partial": "Old publication withdrawn; new version not published. You can retry publishing the same data.",
     "include": "Include this file",
@@ -912,8 +912,8 @@
     "choose": "Choose rights basis",
     "provenance": "Provenance",
     "evidence": "Rights evidence (8–500 characters, private)",
-    "confirm": "I confirm rights for each selected file and access for all admitted users.",
-    "rightsRequired": "Select at least one ready score or photo. Provide rights and evidence (at least 8 characters) for each selected file, then confirm shared access.",
+    "confirm": "I confirm that these files may be shared.",
+    "rightsRequired": "Select a ready score or photo and choose who allows sharing each selected file. Permission needs the author name; another source needs a basis and explanation. Confirm publication.",
     "published": "Material published.",
     "withdrawn": "Publication withdrawn. It is no longer served to other users.",
     "notActive": "Retry returned a withdrawn or hidden version. Refresh the card; publication is not active.",
@@ -960,6 +960,18 @@
       "invalid": "Invalid server response."
     },
     "removeTag": "Remove tag {tag}",
-    "mediaDetails": "Photos: up to {pixels} MP, side ≤{side} px. Audio: {min}–{max} Hz, {channels} channels, WAV {wav}."
+    "mediaDetails": "Photos: up to {pixels} MP, side ≤{side} px. Audio: {min}–{max} Hz, {channels} channels, WAV {wav}.",
+    "rightsChoice": "Who allows this file to be shared?",
+    "simpleOwn": "I am the author",
+    "simplePermission": "The author gave permission",
+    "simpleOther": "Another source",
+    "ownHelp": "You confirm that you hold the rights to the music and this file.",
+    "permissionAuthor": "Author name (visible to others)",
+    "optionalComment": "Comment (optional, private)",
+    "permissionPlaceholder": "For example: the author allowed sharing in a message.",
+    "sourceDetails": "Source and terms of use",
+    "sourcePlaceholder": "Source link, license name or explanation of the distribution basis.",
+    "optionalAuthor": "Author or source credit (optional, visible to others)",
+    "addCredit": "Add author credit"
   }
 }

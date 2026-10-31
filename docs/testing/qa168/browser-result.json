@@ -10,6 +10,9 @@
   "pdfRendered": true,
   "checks": [
     "selected score subset leaves existing audio private",
+    "own rights without text",
+    "permission with name and no comment",
+    "advanced sources only on request",
     "draft vs snapshot",
     "withdraw/publish failure and identical retry key",
     "stale search",

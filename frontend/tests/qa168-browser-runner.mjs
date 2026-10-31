@@ -43,7 +43,7 @@ await page.route('**/api/**',async route=>{
  if(p===own+'/publications'&&method==='POST'){
   if(failPublish)return json({},failPublish);
   assert.equal(req.headers()['if-match'],'"'+material.revision+'"');assert.ok(req.headers()['idempotency-key']);assert.equal(req.headers()['x-csrf'],'fixture');
-  const body=req.postDataJSON();assert.equal(body.assets.length,1);assert.equal(body.assets[0].assetId,asset);assert.equal(body.assets.some(a=>a.assetId===omittedAudioId),false);assert.equal(body.assets[0].rightsBasis,'OWN_WORK');
+  const body=req.postDataJSON();assert.equal(body.assets.length,1);assert.equal(body.assets[0].assetId,asset);assert.equal(body.assets.some(a=>a.assetId===omittedAudioId),false);assert.ok(['OWN_WORK','PERMISSION'].includes(body.assets[0].rightsBasis));assert.ok(body.assets[0].rightsEvidence.length>=8);if(body.assets[0].rightsBasis==='PERMISSION'){assert.equal(body.assets[0].attribution,'Иван Петров');assert.ok(body.assets[0].rightsEvidence.includes('Иван Петров'));}
   const result={...publication,title:material.title,sourceRevision:material.revision};history=[result];return json(result,201);
  }
  if(p.endsWith('/withdraw')){assert.equal(req.headers()['if-match'],'"1"');history=history.map(p=>({...p,state:'WITHDRAWN',revision:2}));return json(history[0]);}
@@ -63,8 +63,22 @@ const button=text=>page.getByRole('button',{name:text,exact:true}),wait=()=>page
 try{
  await page.goto(origin+'/library');await button('Original score').click();await button('Опубликовать').waitFor();assert.equal(history.length,0);
  const dialog=page.getByRole('dialog');
- async function rights(){const score=dialog.locator('fieldset').first();assert.equal(await dialog.locator('fieldset').nth(1).getByRole('checkbox').isChecked(),false);await score.getByLabel('Включить этот файл').check();await score.getByLabel('Основание распространения').selectOption('OWN_WORK');await score.getByLabel('Подтверждение прав',{exact:false}).fill('Synthetic original QA168 score.');await dialog.getByLabel('Подтверждаю права',{exact:false}).check();}
- await button('Опубликовать').click();await page.keyboard.press('Escape');assert.equal(await page.evaluate(()=>document.activeElement?.textContent?.trim()),'Опубликовать');await button('Опубликовать').click();await rights();await dialog.getByRole('button',{name:'Опубликовать',exact:true}).click();await dialog.waitFor({state:'detached'});assert.equal(history.length,1);
+ async function rights(){const score=dialog.locator('fieldset').first();assert.equal(await dialog.locator('fieldset').nth(1).getByRole('checkbox').isChecked(),false);await score.getByLabel('Включить этот файл').check();await score.getByLabel('Кто разрешает поделиться файлом?').selectOption('OWN');assert.equal(await score.locator('textarea').count(),0);assert.equal(await score.getByText('Происхождение',{exact:false}).count(),0);await dialog.getByLabel('Подтверждаю, что',{exact:false}).check();}
+
+ await button('Опубликовать').click();await page.keyboard.press('Escape');assert.equal(await page.evaluate(()=>document.activeElement?.textContent?.trim()),'Опубликовать');await button('Опубликовать').click();await rights();
+ const scoreRights=dialog.locator('fieldset').first();
+ await page.screenshot({path:path.join(output,'rights-own.png'),fullPage:true});
+ await scoreRights.getByLabel('Кто разрешает поделиться файлом?').selectOption('OTHER');
+ await scoreRights.getByLabel('Основание распространения').selectOption('LICENSE');
+ assert.equal(await scoreRights.getByLabel('Источник и условия использования').getAttribute('required'),'');
+ assert.deepEqual(await scoreRights.getByLabel('Основание распространения').locator('option:not([disabled])').evaluateAll(nodes=>nodes.map(n=>n.value)),['LICENSE','PUBLIC_DOMAIN']);
+ await scoreRights.getByLabel('Кто разрешает поделиться файлом?').selectOption('PERMISSION');
+ const rightsPosts=calls.filter(c=>c.p===own+'/publications'&&c.method==='POST').length;
+ await dialog.getByRole('button',{name:'Опубликовать',exact:true}).click();await page.waitForTimeout(100);assert.equal(calls.filter(c=>c.p===own+'/publications'&&c.method==='POST').length,rightsPosts,'author name is required');
+ await scoreRights.getByLabel('Имя автора (показывается другим)',{exact:true}).fill('Иван Петров');assert.equal(await scoreRights.getByLabel('Комментарий',{exact:false}).inputValue(),'');
+ await page.screenshot({path:path.join(output,'rights-permission.png'),fullPage:true});
+ await page.setViewportSize({width:360,height:900});assert.ok(await dialog.evaluate(el=>el.scrollWidth<=el.clientWidth+1));await page.screenshot({path:path.join(output,'rights-permission-mobile.png'),fullPage:true});await page.setViewportSize({width:1440,height:1000});
+ await dialog.getByRole('button',{name:'Опубликовать',exact:true}).click();await dialog.waitFor({state:'detached'});assert.equal(history.length,1);
  await page.locator('.sharing .asset-list').first().getByRole('button',{name:'Открыть',exact:true}).first().click();await page.waitForFunction(()=>document.querySelector('.score-reader')?.dataset.renderedPage==='1');
  await page.locator('.library-more').click();await page.getByRole('menuitem').filter({hasText:'Изменить'}).click();
  await dialog.getByLabel('Название').fill('Changed private draft');await dialog.getByRole('button',{name:'Сохранить',exact:true}).click();await dialog.waitFor({state:'detached'});await page.getByText('Черновик изменён.',{exact:false}).waitFor();assert.equal(history[0].title,'Original score');
@@ -94,6 +108,6 @@ try{
  await page.keyboard.press('Tab');assert.ok(await page.evaluate(()=>document.activeElement!==document.body));await page.screenshot({path:path.join(output,'mine-ru.png'),fullPage:true});
  actor='44444444-4444-4444-8444-444444444444';await page.evaluate(async accountId=>{const {auth}=await import('/src/core/auth/auth.ts');auth.actor={accountId,learnerId:'',role:'LEARNER'};},actor);await wait();assert.equal(await page.getByText('Changed private draft',{exact:true}).count(),0);assert.equal(await page.evaluate(()=>window.__qaAudio.paused&&!window.__qaAudio.hasAttribute('src')),true);
  await page.evaluate(()=>localStorage.setItem('guitar-mentor.locale','en'));await page.reload();await button('Shared').click();await page.locator('.results button').first().click();await page.getByText('User material, not reviewed for learning',{exact:true}).waitFor();await page.setViewportSize({width:360,height:900});assert.ok(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth));await page.screenshot({path:path.join(output,'shared-en-360.png'),fullPage:true});
- assert.deepEqual(exceptions,[]);const result={status:'PASS',kind:'Real Chromium; explicitly mocked HTTP backend',widths:[360,768,1440],zoom:'200%',pdfRendered:true,checks:['selected score subset leaves existing audio private','draft vs snapshot','withdraw/publish failure and identical retry key','stale search','all tags','opaque cursor','sandbox','read-only retry','flag-off','keyboard','account change with audio teardown','photo sanitized preview','media upload limits and role','published-reference error','EN mobile']};await writeFile(path.join(output,'browser-result.json'),JSON.stringify(result,null,2)+'\n');console.log(result);
+ assert.deepEqual(exceptions,[]);const result={status:'PASS',kind:'Real Chromium; explicitly mocked HTTP backend',widths:[360,768,1440],zoom:'200%',pdfRendered:true,checks:['selected score subset leaves existing audio private','own rights without text','permission with name and no comment','advanced sources only on request','draft vs snapshot','withdraw/publish failure and identical retry key','stale search','all tags','opaque cursor','sandbox','read-only retry','flag-off','keyboard','account change with audio teardown','photo sanitized preview','media upload limits and role','published-reference error','EN mobile']};await writeFile(path.join(output,'browser-result.json'),JSON.stringify(result,null,2)+'\n');console.log(result);
 }catch(e){await page.screenshot({path:path.join(output,'failure.png'),fullPage:true});console.error((await page.locator('body').innerText()).slice(0,4000));throw e;}
 finally{await browser.close();await vite.close();}
