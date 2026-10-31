@@ -145,7 +145,7 @@ class LibraryMediaHttpPostgresTest {
 
         // Audio request adds two different allowed codecs atomically; replay with the original ETag is valid.
         String audioKey=UUID.randomUUID().toString();
-        byte[] mp3=mp3Frames(40), wav=wav(1,44100,88200);
+        byte[] mp3=mp3Sample(), wav=wav(1,44100,88200);
         var mp3File=new MockMultipartFile("files","take.mp3","audio/mpeg",mp3);
         var wavFile=new MockMultipartFile("files","synth.wav","audio/wav",wav);
         String audioBody=mvc.perform(MockMvcRequestBuilders.multipart(photoPath).file(metadata("ORIGINAL_RECORDING"))
@@ -171,7 +171,7 @@ class LibraryMediaHttpPostgresTest {
             .andExpect(status().isOk()).andExpect(header().string("Idempotency-Replayed","true"))
             .andExpect(jsonPath("$.revision").value(3));
         mvc.perform(MockMvcRequestBuilders.multipart(photoPath).file(metadata("ORIGINAL_RECORDING"))
-            .file(new MockMultipartFile("files","take.mp3","audio/mpeg",mp3Frames(41)))
+            .file(new MockMultipartFile("files","take.mp3","audio/mpeg",mp3Sample()))
             .with(login("media-a")).with(csrf()).sessionAttr("guitarMentorAccessVersion",0L)
             .header("If-Match","\"2\"").header("Idempotency-Key",audioKey))
             .andExpect(status().isConflict());
@@ -405,10 +405,11 @@ class LibraryMediaHttpPostgresTest {
         BufferedImage image=new BufferedImage(w,h,BufferedImage.TYPE_INT_ARGB);
         ByteArrayOutputStream out=new ByteArrayOutputStream(); assertTrue(ImageIO.write(image,"png",out)); image.flush(); return out.toByteArray();
     }
-    private static byte[] mp3Frames(int count) {
-        byte[] bytes=new byte[count*417];
-        for(int i=0;i<count;i++) {int p=i*417;bytes[p]=(byte)0xff;bytes[p+1]=(byte)0xfb;bytes[p+2]=(byte)0x90;bytes[p+3]=(byte)0x64;}
-        return bytes;
+    private static byte[] mp3Sample() throws Exception {
+        try(var input=LibraryMediaHttpPostgresTest.class.getResourceAsStream("/exercises/GM-EB01/preview_v08B.mp3")) {
+            assertNotNull(input,"tracked real MP3 fixture");
+            return input.readAllBytes();
+        }
     }
     private static byte[] wav(int channels,int rate,int dataBytes) {
         int block=channels*2;
