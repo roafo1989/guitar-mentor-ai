@@ -85,17 +85,24 @@ try {
     for (const beat of voice.beats) {
       if (beat.duration !== 4 || beat.notes?.length !== 1) fail('UNSUPPORTED_RHYTHM_OR_REST');
       const note = beat.notes[0];
-      if (note.isDead || note.isGhost || note.isTieDestination || note.isTieOrigin
-          || note.tieOrigin || note.tieDestination || note.vibrato || note.trill
-          || note.bend || note.bendPoints?.length > 0 || note.hasBend || note.harmonicType
-          || note.isHarmonic || note.slideInType || note.slideOutType || note.slideOrigin || note.slideTarget
-          || note.isHammerPullOrigin || note.isHammerPullDestination || note.hammerPullOrigin || note.hammerPullDestination
-          || note.isPalmMute || note.palmMuteDestination || note.isLetRing || note.letRingDestination
-          || note.isStaccato || note.isSlurOrigin || note.isSlurDestination || note.slurOrigin || note.slurDestination
-          || note.isEffectSlurOrigin || note.isEffectSlurDestination || note.effectSlurOrigin || note.effectSlurDestination
-          || note.isLeftHandTapped || note.isTrill || note.isSlapped || note.isPopped
-          || beat.whammyBarPoints?.length > 0 || beat.automations?.length > 0)
-        fail('UNSUPPORTED_NOTE_EFFECT');
+      const effectFlags = {
+        dead: !!note.isDead, ghost: !!note.isGhost, tieDestination: !!note.isTieDestination,
+        tieOrigin: !!note.isTieOrigin || !!note.tieOrigin || !!note.tieDestination,
+        vibrato: !!note.vibrato, trill: !!note.trill || !!note.isTrill,
+        bend: !!note.bend || !!note.hasBend || (note.bendPoints?.length || 0) > 0,
+        harmonic: !!note.harmonicType || !!note.isHarmonic,
+        slide: !!note.slideInType || !!note.slideOutType || !!note.slideOrigin || !!note.slideTarget,
+        hammerPull: !!note.isHammerPullOrigin || !!note.isHammerPullDestination || !!note.hammerPullOrigin || !!note.hammerPullDestination,
+        palmMute: !!note.isPalmMute || !!note.palmMuteDestination,
+        letRing: !!note.isLetRing || !!note.letRingDestination,
+        staccato: !!note.isStaccato,
+        slur: !!note.isSlurOrigin || !!note.isSlurDestination || !!note.slurOrigin || !!note.slurDestination,
+        effectSlur: !!note.isEffectSlurOrigin || !!note.isEffectSlurDestination || !!note.effectSlurOrigin || !!note.effectSlurDestination,
+        tapped: !!note.isLeftHandTapped, slapPop: !!note.isSlapped || !!note.isPopped,
+        whammy: (beat.whammyBarPoints?.length || 0) > 0,
+        beatAutomations: (beat.automations?.length || 0) > 0
+      };
+      if (Object.values(effectFlags).some(Boolean)) fail('UNSUPPORTED_NOTE_EFFECT', { effectFlags });
       if (note.fret < 0 || note.fret > 24 || note.string < 1 || note.string > staff.tuning.length)
         fail('INVALID_NOTE', { noteString: note.string, noteFret: note.fret, tuningLength: staff.tuning.length });
     }
