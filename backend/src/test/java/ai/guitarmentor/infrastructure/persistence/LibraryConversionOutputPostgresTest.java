@@ -73,7 +73,7 @@ class LibraryConversionOutputPostgresTest {
     }
 
     private LibraryConversionJobLeaseService.Lease lease(Fixture f) {
-        var created=controller.create(request(f.owner()),f.material(),UUID.randomUUID().toString(),"\\"1\\"",
+        var created=controller.create(request(f.owner()),f.material(),UUID.randomUUID().toString(),"\"1\"",
             new LibraryConversionJobController.CreateRequest(f.asset()));
         UUID worker=UUID.randomUUID();
         var lease=leases.claimNext(worker).orElseThrow();
