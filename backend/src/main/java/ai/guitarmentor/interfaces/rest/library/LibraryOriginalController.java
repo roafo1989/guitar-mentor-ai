@@ -441,6 +441,11 @@ public final class LibraryOriginalController {
                     throw new Failure(503,"COMMUNITY_MEDIA_DISABLED");
                 throw new Failure(404,"LIBRARY_FILE_UNAVAILABLE");
             }
+            Boolean materialExists=jdbc.sql("""
+                SELECT EXISTS(SELECT 1 FROM library_materials
+                    WHERE id=:material AND owner_account_id=:owner AND state='READY')
+                """).param("material",materialId).param("owner",owner).query(Boolean.class).single();
+            if(!materialExists) throw new Failure(404,"LIBRARY_MATERIAL_NOT_FOUND");
             throw new Failure(404,"LIBRARY_ASSET_NOT_FOUND");
         }
         Map<String,Object> asset=rows.get(0);
