@@ -10,6 +10,18 @@ function MustThrow([scriptblock]$Action,[string]$Message) {
 $root=Join-Path ([IO.Path]::GetTempPath()) ('gm-recovery-test-'+[guid]::NewGuid().ToString('N'))
 New-PrivateRecoveryDirectory $root
 try {
+    $progressPath=Join-Path $root 'resume-progress.json'
+    $progress=@{steps=@{};fixture='synthetic'}
+    Set-RecoveryProgressStep $progress 'SyntheticStep' 'RUNNING' $progressPath
+    Assert (-not (Test-RecoveryProgressStep $progress 'SyntheticStep')) 'running step is not falsely marked complete'
+    Set-RecoveryProgressStep $progress 'SyntheticStep' 'PASS' $progressPath
+    $reloaded=Read-PilotJson $progressPath
+    Assert (Test-RecoveryProgressStep $reloaded 'SyntheticStep') 'completed step survives atomic progress reload'
+    Set-RecoveryProgressStep $reloaded 'SyntheticStep' 'FAIL' $progressPath 'synthetic failure'
+    Assert (-not (Test-RecoveryProgressStep (Read-PilotJson $progressPath) 'SyntheticStep')) 'failed step is eligible for resume'
+    Set-RecoveryProgressStep (Read-PilotJson $progressPath) 'SyntheticStep' 'RUNNING' $progressPath
+    Set-RecoveryProgressStep (Read-PilotJson $progressPath) 'SyntheticStep' 'PASS' $progressPath
+    Assert (Test-RecoveryProgressStep (Read-PilotJson $progressPath) 'SyntheticStep') 'resumed step can complete without resetting other progress'
     foreach ($file in Get-ChildItem (Join-Path $PSScriptRoot '..') -Filter '*.ps1' -Recurse) {
         $tokens=$null;$errors=$null
         $null=[Management.Automation.Language.Parser]::ParseFile($file.FullName,[ref]$tokens,[ref]$errors)
