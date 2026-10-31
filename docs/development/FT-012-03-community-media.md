@@ -74,19 +74,6 @@ See [`TC-167-community-media.md`](../testing/TC-167-community-media.md) for the 
 
 ## Existing PDF viewer isolation (reviewed; no duplicate renderer)
 
-The existing `frontend/src/shared/score/ScoreReader.vue` already implements the CATALOG-03 isolation model: sandboxed iframe with only `allow-scripts` (no `allow-same-origin`), CSP with `connect-src 'none'`, locally bundled pinned PDF.js (`pdfjs-dist` 5.4.394), parent-to-frame `MessageChannel` plus nonce and exact `WindowProxy` check, bounded same-origin PDF fetch (20 MiB), ≤100 pages, ≤8 MP canvas, 10-second page render timeout, no XFA/eval, and teardown/cancellation on close or identity change. No second viewer or PDF server renderer is introduced by #167.
+The existing `frontend/src/shared/score/ScoreReader.vue` already implements the CATALOG-03 isolation model: sandboxed iframe with only `allow-scripts` (no `allow-same-origin`), CSP with `default-src 'none'` / `connect-src 'none'`, locally bundled pinned PDF.js (`pdfjs-dist` 5.4.394), parent-to-frame `MessageChannel` plus nonce and exact `WindowProxy` check, bounded same-origin PDF fetch (20 MiB), ≤100 pages, ≤8 MP canvas, 10-second page render timeout, no XFA/eval, and teardown/cancellation on close, exercise switch or unmount. The browser runner checks the actual sandbox attribute. No second viewer or PDF server renderer is introduced by #167.
 
 The current `pinnedPdfUrl` allowlist is intentionally exercise-specific (`/api/v1/exercises/.../preview/pdf`). #167 does not build the library UI. #168 must extend the URL/identity allowlist for the exact private library and published community `/content` routes while reusing this existing sandbox renderer; it must not accept arbitrary caller URLs or create another PDF viewer. This is the only remaining frontend integration boundary identified by the #167 review.
-
-## PDF isolation reuse audit (frontend boundary)
-
-CATALOG-03 also requires isolated PDF rendering. No second viewer or #168 library UI was introduced in #167. The existing `ScoreReader.vue` was inspected on the current main and already provides the required isolation primitives:
-
-- iframe sandbox is exactly `allow-scripts`; it does not grant `allow-same-origin`, forms, popups, downloads, or navigation privileges;
-- parent accepts READY only from the exact iframe `WindowProxy` and a per-open nonce; it transfers bytes and a one-use `MessageChannel` only to that frame;
-- iframe accepts INIT only from `window.parent` with the matching nonce and transferred port; opaque iframe origin is not treated as a trusted sender;
-- CSP uses `default-src 'none'` and `connect-src 'none'`, with only nonce/blob scripts and blob worker required for the locally bundled renderer;
-- `pdfjs-dist` is pinned at 5.4.394; `isEvalSupported:false` and `enableXfa:false` are set; no CDN is used;
-- authenticated same-origin fetch is allowlisted to the existing exercise PDF route, capped at 20 MiB, checks MIME and PDF signature, aborts on close/exercise switch/unmount; renderer caps 100 pages/8 MP, 10 s/page and destroys PDF/ports/blob URLs on teardown.
-
-The existing `frontend/tests/score-reader-browser-runner.mjs` runs actual Chromium rendering and asserts the sandbox attribute. This is evidence for the viewer's isolation, not evidence that #168 library integration is implemented. #167 therefore keeps the PDF viewer/UI unchanged; #168 must adapt/reuse this component for the private library `/content` endpoint rather than creating a second viewer. No frontend defect requiring a #167 change was found in the existing isolation boundary.
