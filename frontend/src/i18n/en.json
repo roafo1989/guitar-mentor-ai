@@ -958,6 +958,7 @@
       "disabled": "Service temporarily unavailable. Retry reading later.",
       "network": "Cannot reach server. Check connection and retry reading.",
       "invalid": "Invalid server response."
-    }
+    },
+    "removeTag": "Remove tag {tag}"
   }
 }

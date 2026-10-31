@@ -39,6 +39,8 @@ watch(filterKey,()=>{
 watch(()=>[route.query.q,route.query.type,route.query.tags,route.query.hasAudio],()=>{q.value=scalar(route.query.q).slice(0,100);type.value=scalar(route.query.type);tags.value=scalar(route.query.tags);hasAudio.value=scalar(route.query.hasAudio);});
 watch(()=>auth.actor?.accountId,()=>{clear();if(auth.actor)void load();},{immediate:true,flush:'sync'});
 onBeforeUnmount(()=>{active=false;clear();});
+const tagChips=computed(()=>tags.value.split(',').map(s=>s.trim().toLowerCase()).filter(Boolean));
+function removeTag(tag:string){tags.value=tagChips.value.filter(s=>s!==tag).join(', ');}
 function reset(){q.value='';type.value='';tags.value='';hasAudio.value='';}
 function close(){selected.value=null;++detailGeneration;detailController?.abort();lastId.value='';detailError.value='';}
 </script>
@@ -52,6 +54,7 @@ function close(){selected.value=null;++detailGeneration;detailController?.abort(
     <label>{{t('community.audio')}}<select v-model="hasAudio"><option value="">{{t('community.all')}}</option><option value="true">{{t('community.yes')}}</option><option value="false">{{t('community.no')}}</option></select></label>
     <button type="button" @click="reset">{{t('community.reset')}}</button>
   </form>
+  <div class="tag-chips"><button v-for="tag in tagChips" :key="tag" @click="removeTag(tag)" :aria-label="t('community.removeTag',{tag})">{{tag}} ×</button></div>
   <p id="tag-help">{{t('community.tagHelp')}}</p>
   <p v-if="loading" role="status">{{t('library.loading')}}</p>
   <div v-if="error" role="alert"><p>{{error}}</p><button :disabled="loading" @click="load()">{{t('community.retry')}}</button></div>

@@ -36,6 +36,7 @@ const uploadOpen = ref(false);
 const editOpen = ref(false);
 const actionFor = ref<string | null>(null);
 const actionBusyId = ref<string | null>(null);
+let mutationController=new AbortController();
 let readController=new AbortController();
 let detailController=new AbortController();
 let active = true;
@@ -45,7 +46,7 @@ let pendingKey: string | null = null;
 let lastUploadFingerprint = '';
 
 function clearPrivate(): void {
-  readController.abort();detailController.abort();readController=new AbortController();detailController=new AbortController();
+  mutationController.abort();mutationController=new AbortController();readController.abort();detailController.abort();readController=new AbortController();detailController=new AbortController();
   ++generation;
   ++detailGeneration;
   entries.value = [];
@@ -149,7 +150,7 @@ async function upload(): Promise<void> {
   if (!owner) return;
   busy.value = true;
   try {
-    const saved = await libraryService.upload(metadata(), files.value, pendingKey);
+    const saved = await libraryService.upload(metadata(), files.value, pendingKey,mutationController.signal);
     if (!active || ticket !== generation || auth.actor?.accountId !== owner) return;
     notice.value = t('library.uploaded');
     title.value = ''; titleEditedByUser.value = false; author.value = ''; type.value = 'COMPOSITION';
@@ -158,7 +159,7 @@ async function upload(): Promise<void> {
     uploadOpen.value = false;
     await load(null, []);
     // Even if listing is transiently unavailable, show the successfully persisted card.
-    if (active && auth.actor?.accountId === owner) selected.value = saved;
+    if (active && ticket + 1 === generation && auth.actor?.accountId === owner) selected.value = saved;
   } catch (cause) {
     if (active && ticket === generation && !(cause instanceof Error && cause.name==='AbortError')) error.value = message(cause);
   } finally { if (active && auth.actor?.accountId === owner) busy.value = false; }
@@ -189,7 +190,7 @@ async function saveCard(): Promise<void> {
   try {
     const updated = await libraryService.edit(card.id, card.revision, {
       title: editTitle.value.trim(), type: editType.value, author: editAuthor.value.trim() || null,
-    });
+    },mutationController.signal);
     if (!active || ticket !== generation || auth.actor?.accountId !== owner) return;
     selected.value = updated; editing.value = false; editOpen.value = false;
     entries.value = entries.value.map(item => item.id === updated.id ? updated : item);
@@ -202,7 +203,7 @@ async function removeCard(): Promise<void> {
   const owner = auth.actor?.accountId, ticket = generation, card = selected.value;
   busy.value = true; error.value = ''; notice.value = '';
   try {
-    await libraryService.remove(card.id, card.revision);
+    await libraryService.remove(card.id, card.revision,mutationController.signal);
     if (!active || ticket !== generation || auth.actor?.accountId !== owner) return;
     selected.value = null; removing.value = false; actionFor.value = null;
     notice.value = t('library.deleted');
@@ -215,7 +216,7 @@ async function download(file: LibraryMaterial['files'][number]): Promise<void> {
   const ticket = generation, owner = auth.actor?.accountId;
   busy.value = true; error.value = '';
   try { await libraryService.download(selected.value.id, file,
-    () => active && ticket === generation && auth.actor?.accountId === owner); }
+    () => active && ticket === generation && auth.actor?.accountId === owner,mutationController.signal); }
   catch (cause) { if (active && ticket === generation && auth.actor?.accountId === owner) error.value = message(cause); }
   finally { if (active && auth.actor?.accountId === owner) busy.value = false; }
 }

@@ -21,7 +21,7 @@ import org.springframework.test.context.DynamicPropertySource;
 
 /** #168: real TCP, independent cookie jars, real local login/CSRF and PostgreSQL. No MockMvc. */
 @SpringBootTest(webEnvironment=SpringBootTest.WebEnvironment.RANDOM_PORT,properties={
-    "guitar-mentor.security.enabled=true", "guitar-mentor.library.enabled=true",
+    "guitar-mentor.security.enabled=true", "guitar-mentor.library.enabled=true", "guitar-mentor.security.local-http=true",
     "server.address=127.0.0.1", "server.servlet.session.cookie.secure=false",
     "guitar-mentor.library.cursor-secret=qa168-only-isolated-cursor-secret-long-enough"
 })
@@ -85,6 +85,15 @@ class CommunityLibraryLiveHttpPostgresTest {
             System.out.println("QA168 LIVE HTTP/PostgreSQL PASS: independent A/B cookie jars, guest deny, publish replay, draft private, snapshot stable, withdraw revokes detail+bytes");
         } finally {
             // Only synthetic accounts made by this test; all paths live under a unique temp root.
+            for(String sql:List.of(
+                "DELETE FROM library_publication_tags WHERE publication_id IN (SELECT id FROM library_publications WHERE owner_account_id=:a)",
+                "DELETE FROM library_publication_events WHERE actor_account_id=:a",
+                "DELETE FROM library_publication_assets WHERE publication_id IN (SELECT id FROM library_publications WHERE owner_account_id=:a)",
+                "DELETE FROM library_publications WHERE owner_account_id=:a",
+                "DELETE FROM library_upload_operations WHERE owner_account_id=:a",
+                "DELETE FROM library_assets WHERE material_id IN (SELECT id FROM library_materials WHERE owner_account_id=:a)",
+                "DELETE FROM library_materials WHERE owner_account_id=:a",
+                "DELETE FROM library_account_usage WHERE account_id=:a")) jdbc.sql(sql).param("a",a).update();
             jdbc.sql("DELETE FROM accounts WHERE id IN (:a,:b)").param("a",a).param("b",b).update();
             try(var paths=Files.walk(ROOT)){for(Path p:paths.sorted(Comparator.reverseOrder()).toList())Files.deleteIfExists(p);}
         }

@@ -186,7 +186,9 @@ const iframeDocument = computed(() => {
         const ctx = canvas.getContext('2d',{alpha:false});
         if (!ctx) throw Error('NO_CONTEXT');
         holder.replaceChildren(canvas);
-        rendering = p.render({canvasContext:ctx,viewport:view});
+        // Print intent uses deterministic canvas scheduling: display intent stalls
+        // requestAnimationFrame in offscreen sandbox frames below a long material card.
+        rendering = p.render({canvasContext:ctx,viewport:view,intent:'print'});
         await Promise.race([
           rendering.promise,
           new Promise((_, reject)=>{ deadline=setTimeout(()=>reject(Error('RENDER_TIMEOUT')),10000); })
@@ -272,7 +274,7 @@ async function openReader() {
     timeout=null;
   }
 }
-watch(() => [props.exerciseKey,props.pdfUrl,JSON.stringify(props.source)], () => {
+watch(() => JSON.stringify([props.exerciseKey,props.pdfUrl,props.source]), () => {
   reset();
   if(props.open)emit('update:open',false);
   else transition('CLOSED');

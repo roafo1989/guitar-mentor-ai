@@ -9,6 +9,7 @@ import LibraryAssets from './LibraryAssets.vue';
 const props=defineProps<{material:LibraryMaterial}>(), emit=defineEmits<{'updated':[material:LibraryMaterial]}>();
 const {t}=useI18n();
 const publications=ref<Publication[]>([]), capabilities=ref<Capabilities|null>(null), loading=ref(false), historyReady=ref(false), busy=ref(false), error=ref(''), notice=ref(''), capabilityError=ref('');
+const root=ref<HTMLElement|null>(null);
 const rightsOpen=ref(false), rights=ref<(AssetRight & {chosen:boolean})[]>([]), tags=ref(''), confirm=ref(false), replace=ref(false), withdrawn=ref(false);
 const role=ref<AssetRole>('PHOTO_ORIGINAL'), files=ref<File[]>([]), input=ref<HTMLInputElement|null>(null), dialog=ref<HTMLDialogElement|null>(null);
 const activePublication=computed(()=>publications.value.find(p=>p.state==='PUBLISHED'));
@@ -33,7 +34,8 @@ function openRights(update=false){
   rights.value=props.material.files.map(f=>({assetId:f.id,chosen:false,provenance:'',rightsBasis:'' as RightsBasis,rightsEvidence:'',attribution:''}));
   rightsOpen.value=true;error.value='';void nextTick(()=>dialog.value?.showModal());
 }
-function close(){if(busy.value)return;dialog.value?.close();rightsOpen.value=false;trigger?.focus();}
+function restoreFocus(){if(trigger?.isConnected)trigger.focus();else root.value?.querySelector<HTMLButtonElement>('button:not(:disabled)')?.focus();}
+function close(){if(busy.value)return;dialog.value?.close();rightsOpen.value=false;restoreFocus();}
 function basis(r:AssetRight){r.provenance=provenance[r.rightsBasis]??'';}
 async function mutate(action:()=>Promise<void>){if(busy.value)return;const ticket=generation;busy.value=true;error.value='';notice.value='';try{await action();}catch(e){if(active&&ticket===generation&&!controller.signal.aborted)error.value=libraryError(e,t);}finally{if(active&&ticket===generation)busy.value=false;}}
 async function publish(){
@@ -55,7 +57,7 @@ async function publish(){
     if(ticket!==generation)return;
     publications.value=[result,...publications.value.filter(p=>p.id!==result.id)];
     if(result.state!=='PUBLISHED'){error.value=t('community.notActive');return;}
-    notice.value=t('community.published');rightsOpen.value=false;dialog.value?.close();trigger?.focus();publishKey='';fingerprint='';withdrawn.value=false;
+    notice.value=t('community.published');rightsOpen.value=false;dialog.value?.close();restoreFocus();publishKey='';fingerprint='';withdrawn.value=false;
   });
 }
 async function withdraw(){await mutate(async()=>{const p=activePublication.value,ticket=generation;if(!p)return;const result=await communityService.withdraw(props.material.id,p,controller.signal);if(ticket!==generation)return;publications.value=publications.value.map(old=>old.id===p.id?result:old);notice.value=t('community.withdrawn');});}
@@ -72,7 +74,7 @@ async function remove(asset:string){await mutate(async()=>{const ticket=generati
 async function refresh(){const ticket=generation;try{const updated=await libraryService.detail(props.material.id,controller.signal);if(ticket!==generation)return;emit('updated',updated);await load();}catch(e){if(ticket===generation)error.value=libraryError(e,t);}}
 </script>
 <template>
-<section class="sharing">
+<section ref="root" class="sharing">
   <h2>{{material.title}}</h2><button @click="refresh" :disabled="busy||loading">{{t('library.refresh')}}</button>
   <p v-if="loading" role="status">{{t('library.loading')}}</p>
   <p v-if="historyReady">{{activePublication?t('community.publishedRevision',{version:activePublication.version}):t('community.private')}}</p>

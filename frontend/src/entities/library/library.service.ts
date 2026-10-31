@@ -72,34 +72,34 @@ export const libraryService = {
   detail(id: string, signal?: AbortSignal): Promise<LibraryMaterial> {
     return request(materialUrl(id), {signal}, validMaterial);
   },
-  upload(metadata: LibraryMetadata, files: File[], key: string): Promise<LibraryMaterial> {
+  upload(metadata: LibraryMetadata, files: File[], key: string, signal?: AbortSignal): Promise<LibraryMaterial> {
     const form = new FormData();
     form.append('metadata', new Blob([JSON.stringify(metadata)], { type: 'application/json' }));
     files.forEach(file => form.append('files', file, file.name));
-    return request(base, { method: 'POST', headers: { 'Idempotency-Key': key }, body: form }, validMaterial);
+    return request(base, { method: 'POST', headers: { 'Idempotency-Key': key }, body: form, signal }, validMaterial);
   },
-  edit(id: string, revision: number, patch: Partial<LibraryMetadata>): Promise<LibraryMaterial> {
+  edit(id: string, revision: number, patch: Partial<LibraryMetadata>, signal?: AbortSignal): Promise<LibraryMaterial> {
     return request(materialUrl(id), {
       method: 'PATCH', headers: { 'If-Match': '"' + revision + '"', 'Content-Type': 'application/json' },
-      body: JSON.stringify(patch),
+      body: JSON.stringify(patch), signal,
     }, validMaterial);
   },
-  async remove(id: string, revision: number): Promise<void> {
+  async remove(id: string, revision: number, signal?: AbortSignal): Promise<void> {
     let response: Response;
     try {
       response = await fetch(materialUrl(id), {
-        method: 'DELETE', credentials: 'same-origin', cache: 'no-store',
+        method: 'DELETE', credentials: 'same-origin', cache: 'no-store', signal,
         headers: { 'If-Match': '"' + revision + '"' },
       });
     } catch { throw new ApiFailure('NETWORK'); }
     if (response.status !== 202) throw new ApiFailure('HTTP', response.status);
   },
-  async download(id: string, file: LibraryFile, stillAuthorized: () => boolean = () => true): Promise<void> {
+  async download(id: string, file: LibraryFile, stillAuthorized: () => boolean = () => true, signal?: AbortSignal): Promise<void> {
     const expected = materialUrl(id) + '/files/' + encodeURIComponent(file.id) + '/content';
     // Use only same-origin routes derived from trusted IDs, never arbitrary server URLs.
     if (file.downloadUrl !== expected) throw new ApiFailure('INVALID_RESPONSE');
     let response: Response;
-    try { response = await fetch(expected, { cache: 'no-store', credentials: 'same-origin' }); }
+    try { response = await fetch(expected, { cache: 'no-store', credentials: 'same-origin', signal }); }
     catch { throw new ApiFailure('NETWORK'); }
     if (!response.ok) throw new ApiFailure('HTTP', response.status);
     const blob = await response.blob();

@@ -46,6 +46,7 @@ async function view(asset: LibraryFile|PublicationAsset, download = false) {
     <article v-for="asset in assets" :key="asset.id">
       <strong>{{asset.originalName}}</strong> · {{asset.format}} · {{(asset.byteSize/1024/1024).toFixed(2)}} MB
       <p>{{t('community.roles.'+asset.role)}}</p>
+      <p v-if="'rightsBasis' in asset">{{t('community.bases.'+asset.rightsBasis)}} · {{t('community.provenances.'+asset.provenance)}}</p>
       <p v-if="'attribution' in asset && asset.attribution">{{t('community.attribution')}}: {{asset.attribution}}</p>
       <p v-if="'processingState' in asset && asset.processingState!=='READY'">{{t('community.unavailable')}}</p>
       <template v-else>
