@@ -49,7 +49,7 @@ function Copy-RecoveryTree([string]$Source, [string]$Destination, [string[]]$Exc
 }
 
 function Get-RecoveryFailureHint([string]$ErrorText) {
-    if ($ErrorText -match '(?i)not enough space|no space left|disk full|quota exceeded|there is insufficient space|недостаточно места|квот.*превыш') {
+    if ($ErrorText -match '(?i)not enough space|no space left|disk full|quota exceeded|there is insufficient space|недостаточно.*мест|квот.*превыш') {
         return 'Недостаточно места или превышена квота хранилища. Освободите место/увеличьте квоту и повторите только неуспешный шаг.'
     }
     if ($ErrorText -match '(?i)unauthorized|forbidden|invalid_grant|authentication failed|access denied|permission denied|401|403') {
@@ -126,6 +126,9 @@ function Assert-RecoveryConfig([hashtable]$Config) {
         $ids += $folder.id
     }
     if ($Config.devEnabled -and $Config.devDatabase.name -eq 'guitar_mentor_pilot') { throw 'DEV и PILOT должны иметь отдельные БД.' }
+    if ($Config.minimumFreeBytes -and ([long]$Config.minimumFreeBytes -lt 268435456 -or [long]$Config.minimumFreeBytes -gt 1099511627776)) {
+        throw 'minimumFreeBytes должен быть от 256 MiB до 1 TiB.'
+    }
 }
 
 function Read-RecoveryPassword {
@@ -383,4 +386,19 @@ function Set-RecoveryProgressStep([hashtable]$State, [string]$Name, [ValidateSet
 
 function Test-RecoveryProgressStep([hashtable]$State, [string]$Name) {
     return ($State.steps -and $State.steps.ContainsKey($Name) -and $State.steps[$Name].status -eq 'PASS')
+}
+
+function Assert-RecoveryStageCapacity([string]$Path, [long]$MinimumFreeBytes = 1073741824) {
+    if ($MinimumFreeBytes -lt 268435456 -or $MinimumFreeBytes -gt 1099511627776) {
+        throw 'Резерв свободного места должен быть от 256 MiB до 1 TiB.'
+    }
+    $root = [IO.Path]::GetPathRoot((Expand-RecoveryPath $Path))
+    $drive = [IO.DriveInfo]::new($root)
+    if (-not $drive.IsReady) { throw 'Диск для staging недоступен.' }
+    if ($drive.AvailableFreeSpace -lt $MinimumFreeBytes) {
+        $available = [math]::Round($drive.AvailableFreeSpace / 1GB,2)
+        $required = [math]::Round($MinimumFreeBytes / 1GB,2)
+        throw "Недостаточно свободного места на диске staging: доступно $available GiB, защитный резерв $required GiB. Перенесите stageRoot на диск со свободным местом."
+    }
+    return $drive.AvailableFreeSpace
 }
