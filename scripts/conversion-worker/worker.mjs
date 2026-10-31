@@ -101,18 +101,22 @@ try {
   let renderFailed = false;
   renderer.error.on(() => { renderFailed = true; });
   renderer.partialLayoutFinished.on(result => {
-    layoutById.set(result.id, { width: result.width, height: result.height });
+    layoutById.set(result.id, { width: result.width, height: result.height,
+      firstBar: result.firstMasterBarIndex + 1, lastBar: result.lastMasterBarIndex + 1 });
     renderer.renderResult(result.id);
   });
   renderer.partialRenderFinished.on(result => {
-    if (typeof result.renderResult === 'string' && layoutById.has(result.id)) {
-      const layout = layoutById.get(result.id);
+    const layout = layoutById.get(result.id);
+    if (typeof result.renderResult === 'string' && layout
+        && layout.firstBar >= 1 && layout.lastBar >= layout.firstBar) {
       systems.push({ svg: result.renderResult.replace(/class="at"/g, 'class="at" font-family="alphaTab" font-size="34px"'),
-        width: layout.width, height: layout.height });
+        width: layout.width, height: layout.height, firstBar: layout.firstBar, lastBar: layout.lastBar });
     }
   });
   renderer.renderScore(score, [selectedIndex]);
   if (renderFailed || systems.length === 0) fail('PDF_RENDER_FAILED');
+  if (systems[0].lastBar - systems[0].firstBar + 1 !== 4
+      || systems[systems.length - 1].lastBar !== score.masterBars.length) fail('PDF_LAYOUT_VALIDATION_FAILED');
   const pdfPath = path.join(OUTPUT, 'score.pdf');
   const pdf = new PDFDocument({ size: 'A4', margin: 24, autoFirstPage: false, compress: true });
   const pdfStream = fs.createWriteStream(pdfPath);
