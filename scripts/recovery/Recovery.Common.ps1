@@ -61,6 +61,15 @@ function ConvertTo-RecoveryUtcDateTime([object]$Value) {
 }
 
 function Get-RecoveryFailureHint([string]$ErrorText) {
+    if ($ErrorText -match 'Корневой каталог комплекта является ссылкой') {
+        return 'Корневой каталог подготовленного комплекта является ссылкой. Облачная загрузка не выполнялась.'
+    }
+    if ($ErrorText -match 'В комплекте обнаружена ссылка \(reparse point\): ([^\r\n]+)') {
+        return "В подготовленный комплект попала ссылка вместо самостоятельных данных: $($Matches[1]). Облачная загрузка не выполнялась."
+    }
+    if ($ErrorText -match 'Не удалось прочитать каталог комплекта: ([^\r\n]+)') {
+        return "Не удалось прочитать каталог подготовленного комплекта: $($Matches[1]). Проверьте права доступа и занятость файла. Облачная загрузка не выполнялась."
+    }
     if ($ErrorText -match 'Комплект содержит недопустимую ссылку или недоступный каталог') {
         return 'Локальный комплект содержит ссылку или недоступный каталог. Требуется проверить состав staging; облачная загрузка не выполнялась.'
     }
@@ -259,19 +268,34 @@ function Invoke-RecoveryRestic([hashtable]$Config, [string]$Password, [string[]]
 }
 
 function Get-RecoveryFileIndex([string]$Root) {
-    try { Assert-RecoveryTree $Root }
-    catch { throw "Комплект содержит недопустимую ссылку или недоступный каталог (проверка структуры)." }
+    $rootItem = Get-Item -LiteralPath $Root -Force -ErrorAction Stop
+    if ($rootItem.Attributes -band [IO.FileAttributes]::ReparsePoint) {
+        throw 'Корневой каталог комплекта является ссылкой (reparse point).'
+    }
     $index = @{}
-    foreach ($file in Get-ChildItem -LiteralPath $Root -Force -File -Recurse) {
-        $relative = [IO.Path]::GetRelativePath($Root,$file.FullName).Replace('\','/')
-        if ($relative -ne 'gm-recovery-set.json') {
+    $pending = [Collections.Generic.Stack[IO.FileSystemInfo]]::new()
+    foreach ($item in Get-ChildItem -LiteralPath $Root -Force -ErrorAction Stop) { $pending.Push($item) }
+    while ($pending.Count -gt 0) {
+        $item = $pending.Pop()
+        $relative = [IO.Path]::GetRelativePath($Root,$item.FullName).Replace('\','/')
+        if ($item.Attributes -band [IO.FileAttributes]::ReparsePoint) {
+            throw "В комплекте обнаружена ссылка (reparse point): $relative"
+        }
+        if ($item.PSIsContainer) {
             try {
-                $hash = (Get-FileHash -LiteralPath $file.FullName -Algorithm SHA256 -ErrorAction Stop).Hash
-                $length = (Get-Item -LiteralPath $file.FullName -Force -ErrorAction Stop).Length
-                $index[$relative] = @{bytes=$length; sha256=$hash}
+                foreach ($child in Get-ChildItem -LiteralPath $item.FullName -Force -ErrorAction Stop) { $pending.Push($child) }
             } catch {
-                throw "Не удалось прочитать/посчитать SHA-256 файла комплекта: $relative"
+                throw "Не удалось прочитать каталог комплекта: $relative"
             }
+            continue
+        }
+        if ($relative -eq 'gm-recovery-set.json') { continue }
+        try {
+            $hash = (Get-FileHash -LiteralPath $item.FullName -Algorithm SHA256 -ErrorAction Stop).Hash
+            $length = (Get-Item -LiteralPath $item.FullName -Force -ErrorAction Stop).Length
+            $index[$relative] = @{bytes=$length; sha256=$hash}
+        } catch {
+            throw "Не удалось прочитать/посчитать SHA-256 файла комплекта: $relative"
         }
     }
     return $index
