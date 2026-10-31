@@ -5,6 +5,7 @@ import java.util.List;
 import java.util.UUID;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.jdbc.core.simple.JdbcClient;
 import org.springframework.scheduling.annotation.Scheduled;
@@ -27,6 +28,7 @@ public class LibraryDeletionWorker {
     private final LibraryConversionDeletionGuard conversionGuard;
     private final boolean enabled;
 
+    @Autowired
     public LibraryDeletionWorker(JdbcClient jdbc,TransactionTemplate transactions,
             LibraryObjectStore store,LibraryConversionDeletionGuard conversionGuard,
             @Value("${guitar-mentor.library.enabled:false}") boolean enabled) {
