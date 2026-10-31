@@ -70,7 +70,9 @@ ALTER TABLE library_assets
             AND width IS NOT NULL AND height IS NOT NULL AND preview_object_key IS NOT NULL AND preview_byte_size IS NOT NULL)
         OR (role IN ('ORIGINAL_RECORDING','SYNTHESIZED_PREVIEW') AND format IN ('MP3','WAV')
             AND media_type=CASE WHEN format='MP3' THEN 'audio/mpeg' ELSE 'audio/wav' END
-            AND duration_millis BETWEEN 1 AND 600000 AND channels IN (1,2) AND sample_rate BETWEEN 8000 AND 48000
+            AND duration_millis IS NOT NULL AND duration_millis BETWEEN 1 AND 600000
+            AND channels IS NOT NULL AND channels IN (1,2)
+            AND sample_rate IS NOT NULL AND sample_rate BETWEEN 8000 AND 48000
             AND width IS NULL AND height IS NULL AND preview_object_key IS NULL AND preview_byte_size IS NULL)
     );
 
@@ -82,7 +84,8 @@ ALTER TABLE library_publication_assets
         OR (role='PHOTO_ORIGINAL' AND format IN ('JPEG','PNG')
             AND media_type=CASE WHEN format='JPEG' THEN 'image/jpeg' ELSE 'image/png' END
             AND duration_millis IS NULL AND channels IS NULL AND sample_rate IS NULL
-            AND width IS NOT NULL AND height IS NOT NULL AND preview_object_key IS NOT NULL AND preview_byte_size BETWEEN 1 AND 5242880)
+            AND width IS NOT NULL AND height IS NOT NULL AND preview_object_key IS NOT NULL
+            AND preview_byte_size IS NOT NULL AND preview_byte_size BETWEEN 1 AND 5242880)
         OR (role IN ('ORIGINAL_RECORDING','SYNTHESIZED_PREVIEW') AND format IN ('MP3','WAV')
             AND media_type=CASE WHEN format='MP3' THEN 'audio/mpeg' ELSE 'audio/wav' END
             AND duration_millis BETWEEN 1 AND 600000 AND channels IN (1,2) AND sample_rate BETWEEN 8000 AND 48000
