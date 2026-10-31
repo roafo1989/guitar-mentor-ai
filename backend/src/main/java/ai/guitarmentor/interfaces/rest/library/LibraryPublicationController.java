@@ -26,10 +26,12 @@ public class LibraryPublicationController {
     private final JdbcClient jdbc;
     private final LibraryObjectStore storage;
     private final boolean enabled;
+    private final boolean mediaEnabled;
 
     public LibraryPublicationController(JdbcClient jdbc,LibraryObjectStore storage,
-            @Value("${guitar-mentor.library.enabled:false}") boolean enabled) {
-        this.jdbc=jdbc;this.storage=storage;this.enabled=enabled;
+            @Value("${guitar-mentor.library.enabled:false}") boolean enabled,
+            @Value("${guitar-mentor.library.community-media-enabled:false}") boolean mediaEnabled) {
+        this.jdbc=jdbc;this.storage=storage;this.enabled=enabled;this.mediaEnabled=mediaEnabled;
     }
     public record AssetRight(UUID assetId,String provenance, @com.fasterxml.jackson.annotation.JsonAlias("basis") String rightsBasis, @com.fasterxml.jackson.annotation.JsonAlias("evidence") String rightsEvidence, String attribution) { public AssetRight(UUID id,String p,String b,String e){ this(id,p,b,e,""); } }
     public record PublishRequest(
@@ -38,9 +40,11 @@ public class LibraryPublicationController {
         public PublishRequest(List<AssetRight> assets) {this(assets,List.of());}
     }
     public record AssetSnapshot(UUID id,String originalName,String format,long byteSize,String sha256,
-            String provenance,String rightsBasis,String rightsEvidence,String attribution,String downloadUrl) {}
+            String role,String mediaType,Long durationMillis,Integer channels,Integer sampleRate,
+            Integer width,Integer height,String provenance,String rightsBasis,String rightsEvidence,
+            String attribution,String downloadUrl,String previewUrl) {}
     @com.fasterxml.jackson.annotation.JsonInclude(com.fasterxml.jackson.annotation.JsonInclude.Include.NON_NULL)
-    public record Publication(UUID id,UUID materialId,UUID ownerAccountId,long version,
+    public record Publication(UUID id,UUID materialId,UUID ownerAccountId,long version,long sourceRevision,
             String title,String type,String author,String state,long revision,List<AssetSnapshot> assets,
             List<String> tags) {}
     public record HideRequest(String reason) {}
@@ -75,17 +79,30 @@ public class LibraryPublicationController {
             SELECT tag FROM library_publication_tags WHERE publication_id=:id ORDER BY tag
             """).param("id",id).query(String.class).list();
         var files=jdbc.sql("""
-            SELECT asset_id,original_name,format,byte_size,sha256,provenance,rights_basis,rights_evidence,attribution
-            FROM library_publication_assets WHERE publication_id=:id ORDER BY asset_id
-            """).param("id",id).query().listOfRows().stream().map(a->new AssetSnapshot(
+            SELECT a.asset_id,a.original_name,a.format,a.byte_size,a.sha256,a.role,a.media_type,
+                a.duration_millis,a.channels,a.sample_rate,a.width,a.height,a.provenance,a.rights_basis,
+                a.rights_evidence,a.attribution,a.preview_object_key,source.processing_state
+            FROM library_publication_assets a LEFT JOIN library_assets source ON source.id=a.asset_id
+            WHERE a.publication_id=:id ORDER BY a.asset_id
+            """).param("id",id).query().listOfRows().stream()
+            .filter(a->mediaEnabled || "SCORE_ORIGINAL".equals(a.get("role")))
+            .map(a->new AssetSnapshot(
                 (UUID)a.get("asset_id"),(String)a.get("original_name"),
                 (String)a.get("format"),((Number)a.get("byte_size")).longValue(),
-                (String)a.get("sha256"),(String)a.get("provenance"),
-                (String)a.get("rights_basis"),includePrivateEvidence?(String)a.get("rights_evidence"):null,
-                (String)a.get("attribution"),"PUBLISHED".equals(row.get("state"))?filePath(id,(UUID)a.get("asset_id")):null)).toList();
+                (String)a.get("sha256"),(String)a.get("role"),(String)a.get("media_type"),
+                a.get("duration_millis")==null?null:((Number)a.get("duration_millis")).longValue(),
+                a.get("channels")==null?null:((Number)a.get("channels")).intValue(),
+                a.get("sample_rate")==null?null:((Number)a.get("sample_rate")).intValue(),
+                a.get("width")==null?null:((Number)a.get("width")).intValue(),
+                a.get("height")==null?null:((Number)a.get("height")).intValue(),
+                (String)a.get("provenance"),(String)a.get("rights_basis"),
+                includePrivateEvidence?(String)a.get("rights_evidence"):null,(String)a.get("attribution"),
+                "PUBLISHED".equals(row.get("state"))?filePath(id,(UUID)a.get("asset_id")):null,
+                "PUBLISHED".equals(row.get("state")) && "READY".equals(a.get("processing_state")) && a.get("preview_object_key")!=null?
+                    "/api/v1/community/publications/"+id+"/files/"+a.get("asset_id")+"/preview":null)).toList();
         return new Publication(id,includePrivateEvidence?(UUID)row.get("material_id"):null,
             includePrivateEvidence?(UUID)row.get("owner_account_id"):null,((Number)row.get("version")).longValue(),
-            (String)row.get("title"),(String)row.get("material_type"),
+            ((Number)row.get("material_revision")).longValue(),(String)row.get("title"),(String)row.get("material_type"),
             (String)row.get("author"),(String)row.get("state"),
             ((Number)row.get("publication_revision")).longValue(),files,tags);
     }
@@ -171,12 +188,27 @@ public class LibraryPublicationController {
         if(already!=0) throw new Failure(409,"PUBLICATION_ALREADY_ACTIVE");
 
         var assets=jdbc.sql("""
-            SELECT id,original_name,format,byte_size,sha256,object_key
+            SELECT id,original_name,format,byte_size,sha256,object_key,role,media_type,
+                duration_millis,channels,sample_rate,width,height,preview_object_key,preview_byte_size,processing_state
             FROM library_assets WHERE material_id=:id ORDER BY id FOR SHARE
             """).param("id",materialId).query().listOfRows();
-        if(assets.isEmpty() || assets.size()>5 || payload==null || payload.assets()==null
-                || payload.assets().size()!=assets.size())
+        long scorePhoto=assets.stream().filter(a->Set.of("SCORE_ORIGINAL","PHOTO_ORIGINAL").contains(a.get("role"))).count();
+        long audio=assets.stream().filter(a->Set.of("ORIGINAL_RECORDING","SYNTHESIZED_PREVIEW").contains(a.get("role"))).count();
+        if(assets.isEmpty() || assets.size()>7 || scorePhoto<1 || scorePhoto>5 || audio>2
+                || payload==null || payload.assets()==null || payload.assets().size()!=assets.size())
             throw new Failure(400,"PUBLICATION_INVALID_RIGHTS");
+        if(assets.stream().anyMatch(a->!"READY".equals(a.get("processing_state"))
+                || ("PHOTO_ORIGINAL".equals(a.get("role")) && a.get("preview_object_key")==null)))
+            throw new Failure(409,"CATALOG_ASSET_NOT_READY");
+        if(!mediaEnabled && assets.stream().anyMatch(a->!"SCORE_ORIGINAL".equals(a.get("role"))))
+            throw new Failure(503,"COMMUNITY_MEDIA_DISABLED");
+        try {
+            for(var asset:assets) {
+                storage.file((String)asset.get("object_key"));
+                if("PHOTO_ORIGINAL".equals(asset.get("role"))) storage.file((String)asset.get("preview_object_key"));
+            }
+        } catch(java.nio.file.NoSuchFileException e) { throw new Failure(409,"CATALOG_ASSET_NOT_READY"); }
+          catch(IOException e) { throw new Failure(503,"PUBLICATION_STORAGE_UNAVAILABLE"); }
         Map<UUID,AssetRight> rights=new HashMap<>();
         for(var right:payload.assets()) {
             if(right==null || right.assetId()==null || right.rightsBasis()==null
@@ -214,12 +246,18 @@ public class LibraryPublicationController {
             jdbc.sql("""
                 INSERT INTO library_publication_assets
                   (publication_id,asset_id,original_name,format,byte_size,sha256,object_key,
+                   role,media_type,duration_millis,channels,sample_rate,width,height,preview_object_key,preview_byte_size,
                    provenance,rights_basis,rights_evidence,attribution)
-                VALUES(:publication,:id,:name,:format,:size,:sha,:key,:provenance,:basis,:evidence,:attribution)
+                VALUES(:publication,:id,:name,:format,:size,:sha,:key,:role,:mime,:duration,:channels,:rate,
+                   :width,:height,:preview,:previewSize,:provenance,:basis,:evidence,:attribution)
                 """).param("publication",pub).param("id",asset.get("id"))
                 .param("name",asset.get("original_name")).param("format",asset.get("format"))
                 .param("size",asset.get("byte_size")).param("sha",asset.get("sha256"))
-                .param("key",asset.get("object_key"))
+                .param("key",asset.get("object_key")).param("role",asset.get("role"))
+                .param("mime",asset.get("media_type")).param("duration",asset.get("duration_millis"))
+                .param("channels",asset.get("channels")).param("rate",asset.get("sample_rate"))
+                .param("width",asset.get("width")).param("height",asset.get("height"))
+                .param("preview",asset.get("preview_object_key")).param("previewSize",asset.get("preview_byte_size"))
                 .param("provenance",right.provenance()==null?switch(right.rightsBasis()) {
                     case "OWN_WORK" -> "CREATED";
                     case "LICENSE" -> "LICENSED";
@@ -382,30 +420,113 @@ public class LibraryPublicationController {
             @PathVariable UUID publicationId,@PathVariable UUID assetId) {
         actor(request);
         var rows=jdbc.sql("""
-            SELECT a.object_key,a.original_name,a.format,a.byte_size
+            SELECT a.object_key,a.original_name,a.format,a.byte_size,a.role,a.media_type
             FROM library_publications p
             JOIN library_materials m ON m.id=p.material_id AND m.state='READY'
             JOIN library_publication_assets a ON a.publication_id=p.id
             JOIN library_assets source ON source.id=a.asset_id
                  AND source.material_id=p.material_id AND source.object_key=a.object_key
+                 AND source.processing_state='READY' AND source.role=a.role
+                 AND source.media_type=a.media_type
             WHERE p.id=:publication AND p.state='PUBLISHED' AND a.asset_id=:asset
             """).param("publication",publicationId).param("asset",assetId).query().listOfRows();
-        if(rows.isEmpty()) throw new Failure(404,"PUBLICATION_NOT_FOUND");
+        if(rows.isEmpty()) {
+            var unavailable=jdbc.sql("""
+                SELECT a.role FROM library_publications p JOIN library_publication_assets a ON a.publication_id=p.id
+                LEFT JOIN library_assets source ON source.id=a.asset_id
+                WHERE p.id=:publication AND p.state='PUBLISHED' AND a.asset_id=:asset
+                  AND (source.id IS NULL OR source.processing_state<>'READY')
+                """).param("publication",publicationId).param("asset",assetId).query().listOfRows();
+            if(!unavailable.isEmpty()) {
+                if(!Set.of("SCORE_ORIGINAL").contains(unavailable.getFirst().get("role")) && !mediaEnabled)
+                    throw new Failure(503,"COMMUNITY_MEDIA_DISABLED");
+                throw new Failure(404,"CATALOG_FILE_UNAVAILABLE");
+            }
+            throw new Failure(404,"PUBLICATION_NOT_FOUND");
+        }
         var asset=rows.getFirst();
+        if(!Set.of("SCORE_ORIGINAL").contains(asset.get("role")) && !mediaEnabled)
+            throw new Failure(503,"COMMUNITY_MEDIA_DISABLED");
         try {
             var path=storage.file((String)asset.get("object_key"));
             var headers=new HttpHeaders();
             headers.setCacheControl(CacheControl.noStore());
             headers.add("X-Content-Type-Options","nosniff");
-            headers.setContentDisposition(ContentDisposition.attachment()
-                .filename((String)asset.get("original_name"),StandardCharsets.UTF_8).build());
-            headers.setContentType("PDF".equals(asset.get("format"))?
-                MediaType.APPLICATION_PDF:MediaType.APPLICATION_OCTET_STREAM);
-            headers.setContentLength(Files.size(path));
-            if("HEAD".equals(request.getMethod()))
-                return ResponseEntity.ok().headers(headers).build();
+            boolean audio=Set.of("ORIGINAL_RECORDING","SYNTHESIZED_PREVIEW").contains(asset.get("role"));
+            headers.setContentDisposition(audio?ContentDisposition.inline().filename((String)asset.get("original_name"),StandardCharsets.UTF_8).build():
+                ContentDisposition.attachment().filename((String)asset.get("original_name"),StandardCharsets.UTF_8).build());
+            headers.setContentType(MediaType.parseMediaType(Objects.toString(asset.get("media_type"),
+                "PDF".equals(asset.get("format"))?"application/pdf":"application/octet-stream")));
+            long length=Files.size(path); headers.setContentLength(length); headers.set(HttpHeaders.ACCEPT_RANGES,audio?"bytes":"none");
+            if("HEAD".equals(request.getMethod())) return ResponseEntity.ok().headers(headers).build();
+            String range=request.getHeader(HttpHeaders.RANGE);
+            if(range!=null) {
+                if(!audio) return ResponseEntity.status(HttpStatus.REQUESTED_RANGE_NOT_SATISFIABLE)
+                    .header(HttpHeaders.CONTENT_RANGE,"bytes */"+length).cacheControl(CacheControl.noStore()).build();
+                long[] bounds;
+                try { bounds=parseRange(range,length); }
+                catch(Failure invalid) { if(invalid.status==416) return ResponseEntity.status(416)
+                    .header(HttpHeaders.CONTENT_RANGE,"bytes */"+length).cacheControl(CacheControl.noStore()).build(); throw invalid; }
+                long count=bounds[1]-bounds[0]+1;
+                headers.set(HttpHeaders.CONTENT_RANGE,"bytes "+bounds[0]+"-"+bounds[1]+"/"+length); headers.setContentLength(count);
+                return ResponseEntity.status(HttpStatus.PARTIAL_CONTENT).headers(headers)
+                    .body(new org.springframework.core.io.support.ResourceRegion(new FileSystemResource(path),bounds[0],count));
+            }
             return ResponseEntity.ok().headers(headers).body(new FileSystemResource(path));
-        } catch(IOException e) {throw new Failure(503,"PUBLICATION_STORAGE_UNAVAILABLE");}
+        } catch(java.nio.file.NoSuchFileException e) {throw new Failure(404,"CATALOG_FILE_UNAVAILABLE");}
+          catch(IOException e) {throw new Failure(503,"PUBLICATION_STORAGE_UNAVAILABLE");}
+    }
+
+    @RequestMapping(path="/api/v1/community/publications/{publicationId}/files/{assetId}/preview",
+        method={RequestMethod.GET,RequestMethod.HEAD})
+    public ResponseEntity<?> publishedPreview(HttpServletRequest request,
+            @PathVariable UUID publicationId,@PathVariable UUID assetId) {
+        actor(request);
+        if(!mediaEnabled) throw new Failure(503,"COMMUNITY_MEDIA_DISABLED");
+        var rows=jdbc.sql("""
+            SELECT a.preview_object_key,a.media_type
+            FROM library_publications p
+            JOIN library_materials m ON m.id=p.material_id AND m.state='READY'
+            JOIN library_publication_assets a ON a.publication_id=p.id AND a.asset_id=:asset
+            JOIN library_assets source ON source.id=a.asset_id AND source.material_id=p.material_id
+              AND source.processing_state='READY' AND source.role='PHOTO_ORIGINAL'
+              AND source.role=a.role AND source.media_type=a.media_type
+              AND source.preview_object_key=a.preview_object_key AND a.preview_object_key IS NOT NULL
+            WHERE p.id=:publication AND p.state='PUBLISHED'
+            """).param("publication",publicationId).param("asset",assetId).query().listOfRows();
+        if(rows.isEmpty()) {
+            var unavailable=jdbc.sql("""
+                SELECT a.asset_id FROM library_publications p JOIN library_publication_assets a ON a.publication_id=p.id
+                LEFT JOIN library_assets source ON source.id=a.asset_id
+                WHERE p.id=:publication AND p.state='PUBLISHED' AND a.asset_id=:asset
+                  AND (source.id IS NULL OR source.processing_state<>'READY' OR source.preview_object_key IS NULL)
+                """).param("publication",publicationId).param("asset",assetId).query().listOfRows();
+            if(!unavailable.isEmpty()) throw new Failure(404,"CATALOG_FILE_UNAVAILABLE");
+            throw new Failure(404,"PUBLICATION_PREVIEW_NOT_FOUND");
+        }
+        try {
+            var row=rows.getFirst(); var path=storage.file((String)row.get("preview_object_key"));
+            HttpHeaders headers=new HttpHeaders(); headers.setCacheControl(CacheControl.noStore());
+            headers.add("X-Content-Type-Options","nosniff"); headers.setContentType(MediaType.parseMediaType((String)row.get("media_type")));
+            headers.setContentLength(Files.size(path)); headers.setContentDisposition(ContentDisposition.inline().filename("preview."+
+                (((String)row.get("media_type")).endsWith("png")?"png":"jpg")).build());
+            if("HEAD".equals(request.getMethod())) return ResponseEntity.ok().headers(headers).build();
+            return ResponseEntity.ok().headers(headers).body(new FileSystemResource(path));
+        } catch(java.nio.file.NoSuchFileException e) { throw new Failure(404,"CATALOG_FILE_UNAVAILABLE"); }
+          catch(IOException e) { throw new Failure(503,"PUBLICATION_STORAGE_UNAVAILABLE"); }
+    }
+
+    private static long[] parseRange(String raw,long length) {
+        if(!raw.startsWith("bytes=") || raw.indexOf(',')>=0) throw new Failure(416,"LIBRARY_INVALID_RANGE");
+        String[] parts=raw.substring(6).split("-",-1);
+        if(parts.length!=2) throw new Failure(416,"LIBRARY_INVALID_RANGE");
+        try {
+            long start,end;
+            if(parts[0].isEmpty()) {long suffix=Long.parseLong(parts[1]); if(suffix<=0) throw new NumberFormatException(); start=Math.max(0,length-suffix); end=length-1;}
+            else {start=Long.parseLong(parts[0]); end=parts[1].isEmpty()?length-1:Long.parseLong(parts[1]);}
+            if(start<0 || start>=length || end<start) throw new NumberFormatException();
+            return new long[]{start,Math.min(end,length-1)};
+        } catch(NumberFormatException e) {throw new Failure(416,"LIBRARY_INVALID_RANGE");}
     }
 
     static final class Failure extends RuntimeException {

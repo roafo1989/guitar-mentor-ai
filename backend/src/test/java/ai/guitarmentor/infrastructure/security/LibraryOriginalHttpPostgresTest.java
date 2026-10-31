@@ -114,4 +114,39 @@ class LibraryOriginalHttpPostgresTest {
             .andExpect(status().isOk())
             .andExpect(jsonPath("$.items[0].id").value(material));
     }
+    @Test void communityMediaFlagOffDoesNotBreakPdfGpLibraryContract() throws Exception {
+        UUID owner=account();
+        when(actors.findActive("https://issuer.example","media-disabled"))
+            .thenReturn(Optional.of(new CurrentActor(owner,null,"LEARNER")));
+        when(actors.localVersion(owner)).thenReturn(Optional.of(0L));
+        var identity=oidcLogin().idToken(t->t.claim("iss","https://issuer.example").subject("media-disabled"));
+        byte[] pdf="%PDF-1.7\nlegacy library remains enabled\n".getBytes(java.nio.charset.StandardCharsets.UTF_8);
+        var metadata=new MockMultipartFile("metadata","","application/json",
+            new com.fasterxml.jackson.databind.ObjectMapper().writeValueAsBytes(
+                java.util.Map.of("title","Legacy PDF","type","ETUDE")));
+        var original=new MockMultipartFile("files","legacy.pdf","application/pdf",pdf);
+        String body=mvc.perform(org.springframework.test.web.servlet.request.MockMvcRequestBuilders
+            .multipart("/api/v1/library/materials").file(metadata).file(original).with(identity).with(csrf())
+            .sessionAttr("guitarMentorAccessVersion",0L).header("Idempotency-Key",UUID.randomUUID().toString()))
+            .andExpect(status().isCreated()).andReturn().getResponse().getContentAsString();
+        var card=new com.fasterxml.jackson.databind.ObjectMapper().readTree(body);
+        String material=card.path("id").asText(),asset=card.path("files").get(0).path("id").asText();
+        var mediaMetadata=new MockMultipartFile("metadata","","application/json",
+            new com.fasterxml.jackson.databind.ObjectMapper().writeValueAsBytes(java.util.Map.of("role","PHOTO_ORIGINAL")));
+        var photo=new MockMultipartFile("files","photo.png","image/png",new byte[]{1,2,3});
+        mvc.perform(org.springframework.test.web.servlet.request.MockMvcRequestBuilders
+            .multipart("/api/v1/library/materials/"+material+"/files").file(mediaMetadata).file(photo)
+            .with(identity).with(csrf()).sessionAttr("guitarMentorAccessVersion",0L)
+            .header("If-Match","\"1\"").header("Idempotency-Key",UUID.randomUUID().toString()))
+            .andExpect(status().isServiceUnavailable());
+        mvc.perform(org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get("/api/v1/library/capabilities")
+            .with(identity).sessionAttr("guitarMentorAccessVersion",0L))
+            .andExpect(status().isOk()).andExpect(jsonPath("$.enabled").value(false))
+            .andExpect(jsonPath("$.roles.length()").value(0));
+        mvc.perform(org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get(
+            "/api/v1/library/materials/"+material+"/files/"+asset+"/content")
+            .with(identity).sessionAttr("guitarMentorAccessVersion",0L))
+            .andExpect(status().isOk()).andExpect(result->assertArrayEquals(pdf,result.getResponse().getContentAsByteArray()));
+    }
+
 }

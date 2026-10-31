@@ -1,0 +1,60 @@
+# TC-167 — community photo/audio media
+
+Basis: CATALOG-03 §5–8 (recovered from the immutable specification link in Issue #167), MUSIC-01 ownership rules, existing #160–166 APIs and the accepted private-storage/recovery implementation. `AGENTS.md` and the referenced pre-existing `TC-CATALOG-02-community.md` are not present in current `main`; this test plan is the implementation-specific traceability record, not a claim that those files were executed.
+
+## Automated evidence and test layers
+
+| Layer | Test | Intended evidence |
+|---|---|---|
+| Unit | `LibraryMediaInspectorTest` | Real JDK ImageIO decode/re-encode, EXIF removal, JPEG/PNG signatures, dimension/size bounds, MP3 frame parsing, WAV RIFF/PCM16 metadata, duration/channel/sample-rate/format rejection. |
+| PostgreSQL + Spring Security + MockMvc | `LibraryMediaHttpPostgresTest` | Actual Flyway schema and PostgreSQL transactions; real Spring Security filter chain with OIDC test identities, CSRF, CurrentActor resolution, two account identities, private/publication membership, protected preview/content, ETag/idempotency, Range/HEAD, withdrawal, quota and deletion worker. |
+| Existing PostgreSQL regressions | `LibraryOriginalPostgresTest`, `LibraryOriginalHttpPostgresTest`, `LibraryPublicationPostgresTest`, `LibraryPublicationHttpPostgresTest`, `LibraryDeletionWorkerPostgresTest`, `LibraryOrphanRecovery` coverage | PDF/GP upload/download, ownership, existing storage reservations/recovery, publication lifecycle and previous quota/deletion behavior. |
+| CI bootstrap | `.github/workflows/java-ci.yml` | Flyway migration and full backend verify on PostgreSQL 17; application bootstrap/HTTP smoke. |
+
+Do not interpret unit tests as HTTP, direct controller tests as independent sessions, or MockMvc as a live browser. The media HTTP test uses separate authenticated test identities and the real configured security filter chain, but it is not an external browser test.
+
+## Test cases
+
+| ID | Scenario | Expected result | Automated coverage |
+|---|---|---|---|
+| M-01 | Valid JPEG and PNG | Decode; dimensions recorded; sanitized preview available; original remains byte-exact | Inspector unit + PostgreSQL HTTP |
+| M-02 | JPEG EXIF metadata | Preview is re-encoded and contains no EXIF marker; original remains unchanged | Inspector unit |
+| M-03 | Spoofed extension, MIME or signature | Reject; no asset/revision/quota mutation | Inspector unit; HTTP atomic-invalid batch |
+| M-04 | Corrupt image / unsupported image | 400; no preview; no READY asset | Inspector unit |
+| M-05 | Photo >5 MiB, side >12,000 px, >20 MP | Reject before full decode; 413 | Inspector unit |
+| M-06 | Valid MP3 frames and WAV PCM16 | Correct duration, channels and sample rate persisted | Inspector unit + PostgreSQL HTTP |
+| M-07 | Fake MP3/WAV, extension/MIME mismatch, corrupt/truncated stream | Reject; no READY asset | Inspector unit |
+| M-08 | WAV non-PCM16, >2 channels, out-of-range sample rate or >10 min | Reject | Inspector unit |
+| M-09 | MP3 >10 min or >20 MiB | Reject | Inspector unit |
+| M-10 | More than 2 files/request or >20 MiB aggregate | Reject before commit | Controller validation; CI HTTP suite |
+| M-11 | Multiple files where second file is invalid | No first-file residue, no revision increment, no retained reservation/quota | PostgreSQL HTTP |
+| M-12 | Stale material ETag | 412; no mutation | PostgreSQL HTTP |
+| M-13 | Same idempotency key + same bytes + old original ETag | 200 replay; same assets/revision; no duplicate bytes/files/quota | PostgreSQL HTTP |
+| M-14 | Same key + different file fingerprint | 409; no duplicate asset/quota | PostgreSQL HTTP |
+| M-15 | Two accounts, guest and CSRF | Owner access succeeds; foreign private draft/preview is 404; guest 401; write without CSRF 403 | PostgreSQL HTTP |
+| M-16 | Private sanitized preview vs original | Preview URL serves derivative only; original endpoint serves original attachment bytes | PostgreSQL HTTP |
+| M-17 | Private and published audio GET/HEAD | Correct MIME, no-store/nosniff; HEAD has no body | PostgreSQL HTTP |
+| M-18 | Single valid byte range | 206 with exact Content-Range and byte count | PostgreSQL HTTP |
+| M-19 | Multiple/invalid/unsatisfiable range | 416 with `Content-Range: bytes */length` | PostgreSQL HTTP |
+| M-20 | Published media membership | Other admitted account can read only snapshot assets; private draft remains hidden | PostgreSQL HTTP |
+| M-21 | `hasAudio=true` / `false` / omitted | True includes only published READY audio; false excludes audio; omitted has no audio filter | PostgreSQL HTTP |
+| M-22 | Withdraw/HIDE publication | New content/preview requests return 404; no stale snapshot bytes | PostgreSQL HTTP + existing publication tests |
+| M-23 | Delete asset referenced by active publication | 409; no mutation | PostgreSQL HTTP |
+| M-24 | Delete unreferenced audio asset | 202; worker removes original/derivative and releases physical quota; repeated/missing cleanup is safe | PostgreSQL HTTP + worker test |
+| M-25 | Last score/photo deletion | 409 `CATALOG_LAST_SCORE` | PostgreSQL HTTP (`LibraryMediaHttpPostgresTest`) |
+| M-26 | Missing original/preview bytes | 404 on read; recovery marks damaged READY row REJECTED; no empty 200 | PostgreSQL HTTP + recovery in `LibraryMediaHttpPostgresTest` |
+| M-27 | Media feature flag off | New media upload/delete/preview/media-content 503; PDF/GP create/download unchanged | PostgreSQL HTTP (`LibraryOriginalHttpPostgresTest`) |
+| M-28 | Recovery after interrupted staging/commit | Existing manifest releases reservation and sweeps only unreferenced original/preview keys | PostgreSQL recovery test (`LibraryMediaConcurrencyPostgresTest`) |
+| M-29 | Concurrency: same account starts two media uploads | Per-account gate admits one; second receives 409; no lost quota, duplicate asset or revision | PostgreSQL direct-controller concurrency test (`LibraryMediaConcurrencyPostgresTest`); not an HTTP-session test |
+| M-30 | Add photo after publication | Draft revision advances; existing publication keeps original `sourceRevision` and asset set | PostgreSQL HTTP (`LibraryMediaHttpPostgresTest`) |
+| M-31 | `SYNTHESIZED_PREVIEW` role | MP3/WAV metadata validated; role is explicit; review remains UNREVIEWED and no musical approval is inferred | PostgreSQL HTTP (`LibraryMediaHttpPostgresTest`) |
+
+| M-32 | Existing PDF sandbox viewer regression | Keep iframe sandbox/CSP/no-network, pinned PDF.js, bounded same-origin bytes, page/canvas/render limits and cleanup; #168 extends exact library route allowlist while reusing this renderer | Source/lockfile review; no frontend files changed by #167 |
+
+## CI acceptance gate
+
+Before the task can be moved to `Тестирование / В очереди`, the final PR head must have successful applicable Java CI on its exact SHA, including PostgreSQL 17 migration/verify and HTTP bootstrap. The CI run, commit SHA and exact test result counts must be copied into the final report. Any failed test is a defect to fix, not an item to hand to the owner as optional checking.
+
+## Owner acceptance (after PR is ready)
+
+The owner need only review the PR summary and, if desired, exercise one product flow after the feature is deliberately enabled in a non-production/test environment. No PILOT deployment or flag activation is part of #167. The task is not merged or closed until explicit owner acceptance.

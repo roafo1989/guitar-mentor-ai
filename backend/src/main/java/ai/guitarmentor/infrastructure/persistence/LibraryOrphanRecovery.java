@@ -28,7 +28,7 @@ public class LibraryOrphanRecovery {
     }
     @Scheduled(fixedDelayString="${guitar-mentor.library.reconcile-delay-ms:600000}")
     public void reconcile() {
-        if(!enabled) return;
+        if(!enabled || !store.isAvailable()) return;
         try {
             // Release abandoned quota reservations before scavenging physical objects.
             for(var stale:jdbc.sql("""
@@ -62,6 +62,24 @@ public class LibraryOrphanRecovery {
                         """).param("id",operation).update();
                 });
             }
+            // A READY row without its original or derivative bytes is not usable. Fail closed;
+            // retain the charged quota conservatively until the owner removes the damaged asset.
+            for(var asset:jdbc.sql("""
+                SELECT id,object_key,preview_object_key FROM library_assets
+                WHERE processing_state='READY' AND (last_storage_check_at IS NULL OR last_storage_check_at<now()-interval '10 minutes')
+                ORDER BY last_storage_check_at NULLS FIRST,id LIMIT 100
+                """).query().listOfRows()) {
+                boolean missing=false;
+                try { store.file((String)asset.get("object_key")); }
+                catch(IOException e) { if(!store.isAvailable()) return; missing=true; }
+                String preview=(String)asset.get("preview_object_key");
+                if(preview!=null) {
+                    try { store.file(preview); }
+                    catch(IOException e) { if(!store.isAvailable()) return; missing=true; }
+                }
+                jdbc.sql("UPDATE library_assets SET processing_state=CASE WHEN :missing THEN 'REJECTED' ELSE processing_state END,last_storage_check_at=now() WHERE id=:id AND processing_state='READY'")
+                    .param("missing",missing).param("id",asset.get("id")).update();
+            }
             for(Path candidate:store.expiredCandidates(Duration.ofMinutes(60),100)) {
                 String name=candidate.getFileName().toString();
                 if(name.startsWith(".staging-")) {
@@ -71,7 +89,7 @@ public class LibraryOrphanRecovery {
                 }
                 Boolean referenced=jdbc.sql("""
                     SELECT
-                      EXISTS (SELECT 1 FROM library_assets WHERE object_key=:key)
+                      EXISTS (SELECT 1 FROM library_assets WHERE object_key=:key OR preview_object_key=:key)
                       OR EXISTS (
                         SELECT 1 FROM library_upload_operations
                         WHERE state IN ('RECEIVING','COMMITTING')
