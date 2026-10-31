@@ -40,6 +40,7 @@ if ($Mode -eq 'Inventory') {
 }
 $password = Read-RecoveryPassword
 $stage = $null; $lock = $null
+$backupPhase = 'initialization'
 try {
     switch ($Mode) {
         Init {
@@ -55,20 +56,24 @@ try {
         }
         Backup {
             if (-not $config.inventoryReviewed) { throw 'Сначала Inventory и проверка extraFolders; затем inventoryReviewed=true в личном config.' }
+            $backupPhase = 'cloud repository preflight'
             # Fail before upload if the cloud is inaccessible. No automatic init.
             $null = Invoke-RecoveryRestic $config $password @('cat','config') $PSScriptRoot
+            $backupPhase = 'PILOT lock and release validation'
             $lock = Enter-PilotLock $config.pilotRoot
             Assert-PilotReady $config.pilotRoot
             Assert-PilotStopped
             if (@(Get-NetTCPConnection -State Listen | Where-Object { $_.LocalPort -in 8080,5173 }).Count) {
                 throw 'Остановите DEV backend/Vite и SQL-клиенты перед согласованной копией.'
             }
+            $backupPhase = 'PILOT configuration and Funnel validation'
             $pilotConfig = Read-PilotJson (Join-Path $config.pilotRoot 'pilot-tools.json')
             Get-PilotFunnelStatus $config.pilotRoot $pilotConfig
             $state = Read-PilotJson (Join-Path $config.pilotRoot 'release-state.json')
             $minimumFreeBytes = if ($config.minimumFreeBytes) { [long]$config.minimumFreeBytes } else { 1073741824 }
             $availableFreeBytes = Assert-RecoveryStageCapacity $config.stageRoot $minimumFreeBytes
             Write-Host ("Свободное место staging: {0:N2} GiB; защитный резерв: {1:N2} GiB." -f ($availableFreeBytes/1GB),($minimumFreeBytes/1GB))
+            $backupPhase = 'staging directory and encrypted secrets'
             $stage = Join-Path $config.stageRoot ('set-' + [guid]::NewGuid().ToString('N'))
             New-PrivateRecoveryDirectory $stage
             $null = New-Item -ItemType Directory -Path (Join-Path $stage 'databases')
@@ -77,6 +82,7 @@ try {
             $secrets = Unprotect-RecoverySecrets $envelope $password
             $dbInfo = @{}
             Write-Host 'Создание согласованных копий PILOT/DEV. Приложения должны оставаться остановленными.'
+            $backupPhase = 'PostgreSQL consistent dumps'
             try {
                 $pilotDb = @{host='127.0.0.1';port=5432;name='guitar_mentor_pilot';user='guitar_mentor_pilot'}
                 $dbInfo.pilot = Backup-RecoveryDatabase $config.postgresBin $pilotDb $secrets.files['pilot-database-password.txt'] (Join-Path $stage 'databases/pilot.dump')
@@ -84,6 +90,7 @@ try {
                     $dbInfo.dev = Backup-RecoveryDatabase $config.postgresBin $config.devDatabase $secrets.settings.databaseSecret (Join-Path $stage 'databases/dev.dump')
                 }
             } finally { $secrets.Clear() }
+            $backupPhase = 'PILOT configuration and release files'
             foreach ($name in 'application-pilot.yml','pilot-tools.json','release-state.json') {
                 Copy-RecoveryTree (Join-Path $config.pilotRoot $name) (Join-Path $stage "pilot/$name")
             }
@@ -92,12 +99,14 @@ try {
                 $null = Test-PilotRelease $release
                 Copy-RecoveryTree $release (Get-PilotRelease (Join-Path $stage 'pilot') $id)
             }
+            $backupPhase = 'PILOT launchers and PowerShell tooling'
             # Preserve installed launchers/tool versions, including scripts created locally.
             foreach ($item in Get-ChildItem -LiteralPath $config.pilotRoot -Force) {
                 if (($item.PSIsContainer -and $item.Name -eq 'tools') -or (-not $item.PSIsContainer -and $item.Extension -in '.ps1','.cmd','.bat','.caddyfile')) {
                     Copy-RecoveryTree $item.FullName (Join-Path $stage "pilot/$($item.Name)")
                 }
             }
+            $backupPhase = 'permanent library originals'
             $library = Join-Path $config.pilotRoot 'data/library'
             Write-Host 'Сохранение постоянной библиотеки, сборок, настроек и локальных изменений кода.'
             if (Test-Path -LiteralPath $library) { Copy-RecoveryTree $library (Join-Path $stage 'pilot/data/library') }
@@ -106,20 +115,24 @@ try {
             if ($config.devEnabled -and (Test-Path -LiteralPath $devLibrary)) {
                 Copy-RecoveryTree $devLibrary (Join-Path $stage 'dev-library')
             }
+            $backupPhase = 'workspace and local source changes'
             $excluded = @('.git','node_modules','target','dist','.vite','.local-media','data','media','uploads','.qa-local','qa-reports','.venv','__pycache__')
             Copy-RecoveryTree $config.sourceRoot (Join-Path $stage 'workspace') $excluded
             $git = (Get-Command git.exe -ErrorAction Stop).Source
             $null = Invoke-RecoveryNative $git @('bundle','create',(Join-Path $stage 'workspace.bundle'),'--all') $config.sourceRoot
             $null = Invoke-RecoveryNative $git @('bundle','verify',(Join-Path $stage 'workspace.bundle')) $config.sourceRoot
+            $backupPhase = 'additional inventoried folders'
             foreach ($folder in $config.extraFolders) {
                 Copy-RecoveryTree (Expand-RecoveryPath $folder.path) (Join-Path $stage "extra/$($folder.id)")
             }
+            $backupPhase = 'recovery configuration and tooling'
             # Cloud OAuth config is sensitive, but needed for repeat backups after recovery.
             Copy-RecoveryTree $config.rcloneConfig (Join-Path $stage 'cloud/rclone.conf')
             Write-PilotJson (Join-Path $stage 'recovery-config.json') $config
             Copy-RecoveryTree $PSScriptRoot (Join-Path $stage 'recovery-tools') @('tests')
             Copy-RecoveryTree (Join-Path $PSScriptRoot '../pilot') (Join-Path $stage 'pilot-tools') @('tests')
             Copy-RecoveryTree (Join-Path $PSScriptRoot '../../docs/operations/disaster-recovery.md') (Join-Path $stage 'START-HERE.md')
+            $backupPhase = 'local manifest and file integrity validation'
             $head = (Invoke-RecoveryNative $git @('rev-parse','HEAD') $config.sourceRoot).Trim()
             $branch = (Invoke-RecoveryNative $git @('rev-parse','--abbrev-ref','HEAD') $config.sourceRoot).Trim()
             $patch = Invoke-RecoveryNative $git @('diff','--binary','--no-ext-diff','--no-textconv','HEAD','--') $config.sourceRoot
@@ -132,9 +145,11 @@ try {
             $null = Test-RecoverySet $stage
             # Do not publish until every included path and every DPAPI credential passed.
             Write-Host 'Проверки локального комплекта пройдены. Отправка зашифрованной копии в облако; дождитесь snapshot ID.'
+            $backupPhase = 'encrypted OneDrive upload (restic backup)'
             $output = Invoke-RecoveryRestic $config $password @('backup','--json','--tag','gm-dr-v1','.') $stage
             $summary = @($output -split '\r?\n' | Where-Object { $_ } | ForEach-Object { $_ | ConvertFrom-Json -AsHashtable } | Where-Object { $_.message_type -eq 'summary' })
             if ($summary.Count -ne 1 -or $summary[0].snapshot_id -notmatch '^[a-f0-9]{64}$') { throw 'Не получен точный ID успешного snapshot.' }
+            $backupPhase = 'post-upload repository check'
             $null = Invoke-RecoveryRestic $config $password @('check') $stage
             Write-PilotJson $statusPath @{
                 lastSuccessUtc=[DateTime]::UtcNow.ToString('o');snapshot=$summary[0].snapshot_id
@@ -162,6 +177,13 @@ try {
             Write-Host "Файлы восстановлены и проверены: $Destination. БД, Windows-секреты и сайт ещё не активированы."
         }
     }
+} catch {
+    if ($Mode -eq 'Backup') {
+        $line = if ($_.InvocationInfo.ScriptLineNumber) { [int]$_.InvocationInfo.ScriptLineNumber } else { 0 }
+        $type = $_.Exception.GetType().Name
+        throw "Резервная копия остановлена на этапе '$backupPhase' (тип ошибки: $type; Recovery.ps1:$line). Секретные данные и исходный текст исключения скрыты."
+    }
+    throw
 } finally {
     $password = $null
     if ($null -ne $lock) { $lock.Dispose() }
