@@ -32,6 +32,12 @@ try {
     Set-RecoveryProgressStep $progress 'SyntheticStep' 'PASS' $progressPath
     $reloaded=Read-PilotJson $progressPath
     Assert (Test-RecoveryProgressStep $reloaded 'SyntheticStep') 'completed step survives atomic progress reload'
+    $savedProgressCulture=[Globalization.CultureInfo]::CurrentCulture
+    try {
+        [Globalization.CultureInfo]::CurrentCulture=[Globalization.CultureInfo]::GetCultureInfo('ru-RU')
+        Set-RecoveryProgressStep $reloaded 'SyntheticStep' 'PASS' $progressPath
+        Assert ($reloaded.steps.SyntheticStep.elapsedSeconds -ge 0) 'resumed progress elapsed time is culture independent under ru-RU'
+    } finally { [Globalization.CultureInfo]::CurrentCulture=$savedProgressCulture }
     Set-RecoveryProgressStep $reloaded 'SyntheticStep' 'FAIL' $progressPath 'synthetic failure'
     Assert (-not (Test-RecoveryProgressStep (Read-PilotJson $progressPath) 'SyntheticStep')) 'failed step is eligible for resume'
     Set-RecoveryProgressStep (Read-PilotJson $progressPath) 'SyntheticStep' 'RUNNING' $progressPath
