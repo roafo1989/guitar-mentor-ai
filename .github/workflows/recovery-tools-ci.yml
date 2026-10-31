@@ -1,0 +1,41 @@
+name: Disaster recovery tools
+on:
+  pull_request:
+    paths:
+      - 'scripts/recovery/**'
+      - 'scripts/pilot/**'
+      - '.github/workflows/recovery-tools-ci.yml'
+  push:
+    branches: [main, ops/40-disaster-recovery]
+    paths:
+      - 'scripts/recovery/**'
+      - 'scripts/pilot/**'
+      - '.github/workflows/recovery-tools-ci.yml'
+jobs:
+  windows-recovery:
+    runs-on: windows-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+      - name: Install pinned restic for synthetic encryption/restore test
+        shell: pwsh
+        run: |
+          $uri = 'https://github.com/restic/restic/releases/download/v0.18.0/'
+          $archive = 'restic_0.18.0_windows_amd64.zip'
+          Invoke-WebRequest ($uri + $archive) -OutFile $archive
+          Invoke-WebRequest ($uri + 'SHA256SUMS') -OutFile SHA256SUMS
+          $expected = ((Get-Content SHA256SUMS | Where-Object { $_ -match ([regex]::Escape($archive) + '$') }) -split '\s+')[0]
+          if (-not $expected -or (Get-FileHash $archive -Algorithm SHA256).Hash -ne $expected) { throw 'Restic archive hash mismatch.' }
+          Expand-Archive $archive "$env:RUNNER_TEMP/restic"
+          $restic = (Get-ChildItem "$env:RUNNER_TEMP/restic" -Filter '*.exe' -Recurse | Select-Object -First 1).FullName
+          "GM_TEST_RESTIC=$restic" >> $env:GITHUB_ENV
+      - name: Encryption, private ACL, DPAPI portability, native restic snapshot and restore
+        shell: pwsh
+        run: ./scripts/recovery/tests/Recovery.Tests.ps1 -ResticPath $env:GM_TEST_RESTIC
+      - name: Real restore on an isolated PostgreSQL cluster; no user database
+        timeout-minutes: 5
+        shell: pwsh
+        run: ./scripts/recovery/tests/Recovery.Postgres.Tests.ps1
+      - name: Existing release safety regression
+        shell: pwsh
+        run: ./scripts/pilot/tests/Pilot.Tests.ps1
