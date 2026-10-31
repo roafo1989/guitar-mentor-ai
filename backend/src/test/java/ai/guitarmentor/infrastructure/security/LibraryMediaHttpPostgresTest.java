@@ -87,6 +87,7 @@ class LibraryMediaHttpPostgresTest {
             JSON.writeValueAsBytes(Map.of("title","Media integration score","type","ETUDE")));
         var pdf=new MockMultipartFile("files","score.pdf","application/pdf","%PDF-1.7\nscore\n".getBytes());
         String body=mvc.perform(MockMvcRequestBuilders.multipart(BASE).file(metadata).file(pdf)
+            .with(req->{req.setRemoteAddr("198.51.100."+(Math.abs(sub.hashCode())%200+1));return req;})
             .with(login(sub)).with(csrf()).sessionAttr("guitarMentorAccessVersion",0L)
             .header("Idempotency-Key",UUID.randomUUID().toString()))
             .andExpect(status().isCreated()).andReturn().getResponse().getContentAsString();
