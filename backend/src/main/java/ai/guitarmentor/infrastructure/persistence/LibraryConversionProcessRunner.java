@@ -82,6 +82,10 @@ public final class LibraryConversionProcessRunner {
                 PosixFilePermission.GROUP_EXECUTE, PosixFilePermission.OTHERS_READ,
                 PosixFilePermission.OTHERS_EXECUTE));
         Files.copy(source, inputFile, StandardCopyOption.COPY_ATTRIBUTES);
+        if (!actualSha.equals(sha256(inputFile))) {
+            deleteWorkspace(workspace);
+            return failure("SOURCE_CHANGED_DURING_COPY");
+        }
         setPermissions(inputFile, EnumSet.of(PosixFilePermission.OWNER_READ,
                 PosixFilePermission.GROUP_READ, PosixFilePermission.OTHERS_READ));
         setPermissions(outputDir, EnumSet.allOf(PosixFilePermission.class));
