@@ -15,6 +15,12 @@ const file={id:asset,originalName:'score.pdf',format:'PDF',byteSize:12,sha256:'a
 const publication={id,version:1,sourceRevision:1,revision:1,title:'Test',type:'ETUDE',author:null,state:'PUBLISHED',assets:[file],tags:[]};
 const before=globalThis.fetch;
 test.afterEach(()=>{globalThis.fetch=before;});
+test('publication accepts omitted nullable author emitted by NON_NULL backend DTO',()=>{
+ const {author,...withoutAuthor}=publication;
+ assert.equal(validPublication(withoutAuthor),true);
+ assert.equal(validPublication({...publication,author:null}),true);
+ assert.equal(validPublication({...publication,author:42}),false);
+});
 test('typed publication rejects foreign routes, arbitrary bytes, broken DTOs; common DTO needs no owner fields',()=>{
  assert.ok(validPublication(publication));
  for(const url of ['https://evil.example/a','/api/v1/community/publications/'+asset+'/files/'+asset+'/content',file.downloadUrl+'?x=1',file.downloadUrl+'/x'])assert.equal(validPublication({...publication,assets:[{...file,downloadUrl:url}]}),false);
