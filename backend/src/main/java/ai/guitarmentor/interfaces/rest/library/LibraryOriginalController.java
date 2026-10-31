@@ -425,6 +425,15 @@ public final class LibraryOriginalController {
         } catch(NoSuchAlgorithmException e) {throw new IllegalStateException(e);}
     }
 
+    /** Private conversion outputs are part of the core library, not community-media uploads. */
+    private boolean isConversionOutput(UUID assetId,String role) {
+        if("DERIVED_SCORE_PDF".equals(role)) return true;
+        if(!"SYNTHESIZED_PREVIEW".equals(role)) return false;
+        return Boolean.TRUE.equals(jdbc.sql("""
+            SELECT EXISTS(SELECT 1 FROM library_conversion_output_lineage WHERE audio_asset_id=:asset)
+            """).param("asset",assetId).query(Boolean.class).single());
+    }
+
     @RequestMapping(path="/{materialId}/files/{assetId}/content",method={RequestMethod.GET,RequestMethod.HEAD})
     public ResponseEntity<?> content(HttpServletRequest request,
             @PathVariable UUID materialId,@PathVariable UUID assetId) {
@@ -440,8 +449,9 @@ public final class LibraryOriginalController {
             var damaged=jdbc.sql("SELECT a.role FROM library_assets a JOIN library_materials m ON m.id=a.material_id WHERE m.owner_account_id=:owner AND m.id=:material AND m.state='READY' AND a.id=:asset AND a.processing_state='REJECTED'")
                 .param("owner",owner).param("material",materialId).param("asset",assetId).query().listOfRows();
             if(!damaged.isEmpty()) {
-                if(!"SCORE_ORIGINAL".equals(damaged.getFirst().get("role")) && !mediaEnabled)
-                    throw new Failure(503,"COMMUNITY_MEDIA_DISABLED");
+                if(!"SCORE_ORIGINAL".equals(damaged.getFirst().get("role"))
+                        && !isConversionOutput(assetId,Objects.toString(damaged.getFirst().get("role"),""))
+                        && !mediaEnabled) throw new Failure(503,"COMMUNITY_MEDIA_DISABLED");
                 throw new Failure(404,"LIBRARY_FILE_UNAVAILABLE");
             }
             Boolean materialExists=jdbc.sql("""
@@ -452,7 +462,8 @@ public final class LibraryOriginalController {
             throw new Failure(404,"LIBRARY_ASSET_NOT_FOUND");
         }
         Map<String,Object> asset=rows.get(0);
-        if(!"SCORE_ORIGINAL".equals(asset.get("role")) && !mediaEnabled)
+        if(!"SCORE_ORIGINAL".equals(asset.get("role"))
+                && !isConversionOutput(assetId,Objects.toString(asset.get("role"),"")) && !mediaEnabled)
             throw new Failure(503,"COMMUNITY_MEDIA_DISABLED");
         try {
             var path=storage.file((String)asset.get("object_key"));
