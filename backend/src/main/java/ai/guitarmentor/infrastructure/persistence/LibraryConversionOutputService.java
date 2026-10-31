@@ -98,8 +98,26 @@ public final class LibraryConversionOutputService {
             Object selected=job.get("selected_track_index");
             if(selected==null || ((Number)selected).intValue()!=selectedTrack)
                 throw new IllegalStateException("Selected track changed during conversion");
-            if(!"NONE".equals(job.get("output_reservation_state")))
-                throw new IllegalStateException("Output quota already reserved");
+            String reservationState=Objects.toString(job.get("output_reservation_state"),"NONE");
+            if("RESERVED".equals(reservationState)) {
+                int priorAttempt=((Number)job.get("output_reservation_attempt")).intValue();
+                if(priorAttempt>=lease.attemptCount())
+                    throw new IllegalStateException("Output quota is already reserved for this worker attempt");
+                int released=jdbc.sql("""
+                    UPDATE library_account_usage SET reserved_bytes=reserved_bytes-:bytes,
+                        reserved_files=reserved_files-:files,revision=revision+1
+                    WHERE account_id=:owner AND reserved_bytes>=:bytes AND reserved_files>=:files
+                    """).param("bytes",job.get("output_reserved_bytes"))
+                    .param("files",job.get("output_reserved_files")).param("owner",lease.ownerAccountId()).update();
+                if(released!=1) throw new IllegalStateException("Stale conversion reservation invariant violated");
+                jdbc.sql("""
+                    UPDATE library_conversion_jobs SET output_reserved_bytes=0,output_reserved_files=0,
+                        output_reservation_state='RELEASED'
+                    WHERE id=:job AND output_reservation_state='RESERVED'
+                    """).param("job",lease.jobId()).update();
+            } else if(!List.of("NONE","RELEASED").contains(reservationState)) {
+                throw new IllegalStateException("Output quota reservation is already committed");
+            }
             ensureMaterialCapacity(lease.materialId());
             Map<String,Object> usage=jdbc.sql("""
                 SELECT charged_bytes,charged_files,reserved_bytes,reserved_files
@@ -116,11 +134,12 @@ public final class LibraryConversionOutputService {
                 .param("owner",lease.ownerAccountId()).update();
             int updated=jdbc.sql("""
                 UPDATE library_conversion_jobs SET output_reserved_bytes=:bytes,
-                    output_reserved_files=:files,output_reservation_state='RESERVED',
+                    output_reserved_files=:files,output_reservation_attempt=:attempt,
+                    output_reservation_state='RESERVED',
                     updated_at=now(),revision=revision+1
                 WHERE id=:job AND state='RUNNING' AND output_reservation_state='NONE'
                 """).param("bytes",RESERVED_BYTES).param("files",RESERVED_FILES)
-                .param("job",lease.jobId()).update();
+                .param("attempt",lease.attemptCount()).param("job",lease.jobId()).update();
             if(updated!=1) throw new IllegalStateException("Conversion reservation race");
         });
     }
@@ -136,6 +155,7 @@ public final class LibraryConversionOutputService {
                 || !"RESERVED".equals(job.get("output_reservation_state"))
                 || ((Number)job.get("output_reserved_bytes")).longValue()!=RESERVED_BYTES
                 || ((Number)job.get("output_reserved_files")).intValue()!=RESERVED_FILES
+                || ((Number)job.get("output_reservation_attempt")).intValue()!=lease.attemptCount()
                 || job.get("selected_track_index")==null
                 || ((Number)job.get("selected_track_index")).intValue()!=output.selectedTrackIndex())
             throw new IllegalStateException("Conversion job changed before output commit");
@@ -280,10 +300,11 @@ public final class LibraryConversionOutputService {
                     """).param("job",jobId).param("worker",lease.leaseOwner()).query(Integer.class).list();
                 if(live.size()!=1) return; // Expired/lost leases are handled by scheduled recovery.
                 var rows=jdbc.sql("""
-                    SELECT output_reserved_bytes,output_reserved_files,output_reservation_state
+                    SELECT output_reserved_bytes,output_reserved_files,output_reservation_state,output_reservation_attempt
                     FROM library_conversion_jobs WHERE id=:job AND owner_account_id=:owner FOR UPDATE
                     """).param("job",jobId).param("owner",owner).query().listOfRows();
-                if(rows.isEmpty() || !"RESERVED".equals(rows.getFirst().get("output_reservation_state"))) return;
+                if(rows.isEmpty() || !"RESERVED".equals(rows.getFirst().get("output_reservation_state"))
+                        || ((Number)rows.getFirst().get("output_reservation_attempt")).intValue()!=lease.attemptCount()) return;
                 long bytes=((Number)rows.getFirst().get("output_reserved_bytes")).longValue();
                 int files=((Number)rows.getFirst().get("output_reserved_files")).intValue();
                 int updated=jdbc.sql("""
