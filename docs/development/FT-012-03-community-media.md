@@ -29,7 +29,7 @@ The repository's established public catalogue route is `/api/v1/community/public
 | Role | Accepted extensions | Stored original MIME | Additional validation |
 |---|---|---|---|
 | `PHOTO_ORIGINAL` | JPG/JPEG, PNG | `image/jpeg`, `image/png` | Signature + declared MIME + extension + ImageIO decode; width/height and total pixels checked before decode; preview re-encoded to same image format without EXIF/metadata. |
-| `ORIGINAL_RECORDING` | MP3, WAV | `audio/mpeg`, `audio/wav` | Bounded in-process MP3 frame parser or RIFF/WAVE PCM16 parser. |
+| `ORIGINAL_RECORDING` | MP3, WAV | `audio/mpeg`, `audio/wav` | Bounded MP3 frame parser plus full in-process JLayer frame decode, or RIFF/WAVE PCM16 parser. |
 | `SYNTHESIZED_PREVIEW` | MP3, WAV | `audio/mpeg`, `audio/wav` | Same technical validation as recording; the role remains a user declaration, not proof of origin or score correspondence. |
 
 Numerical limits from CATALOG-03:
@@ -38,7 +38,7 @@ Numerical limits from CATALOG-03:
 - ≤7 logical assets/material; ≤5 combined score/photo; ≤2 audio.
 - Photo ≤5 MiB, ≤20,000,000 pixels and each side ≤12,000 px.
 - Audio ≤20 MiB/file, ≤10 minutes, mono/stereo, 8–48 kHz.
-- WAV: PCM format 1, 16-bit; MP3: MPEG Layer III frames. No arbitrary native process or `ffprobe` invocation.
+- WAV: PCM format 1, 16-bit; MP3: MPEG Layer III frames plus successful decode of every frame by pinned `javazoom:jlayer:1.0.1` (LGPL-2.1). No arbitrary native process or `ffprobe` invocation.
 - Preview output ≤5 MiB. Original and preview are separate objects and separately charged.
 - Existing account quota remains the configured 200 MiB / 100 physical files by default; defaults are not raised by this feature. Derivative files count toward both physical byte and file usage.
 
@@ -58,7 +58,7 @@ Numerical limits from CATALOG-03:
 - `guitar-mentor.library.enabled` remains the existing base-library flag.
 - New `guitar-mentor.library.community-media-enabled` / `GUITAR_MENTOR_COMMUNITY_MEDIA_ENABLED` defaults to `false`. It requires the base library flag. When off, media upload/delete/preview and media content return 503; the original PDF/GP flow remains available.
 - Global media upload concurrency is 2; per-account upload concurrency is 1; media mutations are limited to 10/minute/account. Image decode uses a fixed 2-thread executor with a bounded queue, 30-second timeout, max 20 MP input and 5 MiB input/output. Media-enabled startup requires JVM max heap ≥512 MiB.
-- Image/audio parsers are JDK/in-process only, no native command or network fetch. MP3 parsing is bounded by the 20 MiB input limit; WAV parsing validates chunk lengths and caps chunk count at 1,024.
+- Image/audio parsers are in-process only, no native command or network fetch. MP3 uses exact-pinned JLayer 1.0.1 (LGPL-2.1) to decode every frame after a 20 MiB / 10-minute structural scan; decode has a 30-second timeout, two fixed workers and a queue of two. WAV parsing validates chunk lengths and caps chunk count at 1,024.
 - Multipart transport remains the existing 20 MiB per-file / 32 MiB request configuration. Application-level aggregate media cap remains 20 MiB.
 - GET/HEAD use no-store and nosniff. Audio supports exactly one byte range; multiple/invalid/unsatisfiable ranges return 416 with `Content-Range: bytes */<length>`. A missing individual object returns 404 `LIBRARY_FILE_UNAVAILABLE` / `CATALOG_FILE_UNAVAILABLE`; an unavailable storage root returns 503. Deletion/recovery workers pause while the root is unavailable so they cannot release quota or mark every asset missing during a mount outage. HEAD returns headers and no body.
 
@@ -87,6 +87,6 @@ CATALOG-03 also requires isolated PDF rendering. No second viewer or #168 librar
 - iframe accepts INIT only from `window.parent` with the matching nonce and transferred port; opaque iframe origin is not treated as a trusted sender;
 - CSP uses `default-src 'none'` and `connect-src 'none'`, with only nonce/blob scripts and blob worker required for the locally bundled renderer;
 - `pdfjs-dist` is pinned at 5.4.394; `isEvalSupported:false` and `enableXfa:false` are set; no CDN is used;
-- authenticated same-origin fetch is allowlisted to the existing exercise PDF route, capped at 20 MiB, checks MIME and PDF signature, aborts on deselection/logout; renderer caps 100 pages/8 MP, 10 s/page and destroys PDF/ports/blob URLs on teardown.
+- authenticated same-origin fetch is allowlisted to the existing exercise PDF route, capped at 20 MiB, checks MIME and PDF signature, aborts on close/exercise switch/unmount; renderer caps 100 pages/8 MP, 10 s/page and destroys PDF/ports/blob URLs on teardown.
 
 The existing `frontend/tests/score-reader-browser-runner.mjs` runs actual Chromium rendering and asserts the sandbox attribute. This is evidence for the viewer's isolation, not evidence that #168 library integration is implemented. #167 therefore keeps the PDF viewer/UI unchanged; #168 must adapt/reuse this component for the private library `/content` endpoint rather than creating a second viewer. No frontend defect requiring a #167 change was found in the existing isolation boundary.
