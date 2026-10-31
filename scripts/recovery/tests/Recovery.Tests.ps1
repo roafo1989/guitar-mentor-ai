@@ -88,6 +88,14 @@ try {
         MustThrow { Copy-RecoveryTree $source (Join-Path $root 'bad-copy') } 'symlink escape/cycle refused'
         Remove-Item -LiteralPath $link
     }
+    if ($IsWindows) {
+        $tree=Join-Path $root 'tree-with-junction';$null=New-Item -ItemType Directory -Path $tree
+        $target=Join-Path $root 'junction-target';$null=New-Item -ItemType Directory -Path $target
+        $null=New-Item -ItemType Junction -Path (Join-Path $tree 'linked-folder') -Target $target
+        $treeError=$null
+        try { $null=Get-RecoveryFileIndex $tree } catch { $treeError=$_.Exception.Message }
+        Assert ($treeError -like '*linked-folder*') 'manifest indexing identifies Windows junction by safe relative path'
+    }
     $config=Read-PilotJson (Join-Path $PSScriptRoot '../recovery.example.json')
     $config.pilotRoot=Join-Path $root 'pilot';$config.sourceRoot=Join-Path $root 'repo'
     $config.settingsRoot=Join-Path $root 'settings';$config.stageRoot=Join-Path $root 'stage'
