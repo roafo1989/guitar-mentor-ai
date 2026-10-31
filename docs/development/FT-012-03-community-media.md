@@ -70,10 +70,22 @@ Rollback: set `GUITAR_MENTOR_COMMUNITY_MEDIA_ENABLED=false`, stop new media oper
 
 ## Evidence / acceptance matrix
 
-See [`TC-167-community-media.md`](../testing/TC-167-community-media.md) for the test-by-test evidence classification. CI must run Java backend verify with PostgreSQL 17 and real Spring Security/MockMvc HTTP tests. Unit tests and direct controller calls are not counted as independent HTTP sessions. No PILOT/deploy/flag activation is part of this task.
+See [`TC-167-community-media.md`](../testing/TC-167-community-media.md) for the test-by-test evidence classification. Java backend verify runs against PostgreSQL 17 with Spring Security/MockMvc tests for the new media routes. Unit tests and direct controller calls are not counted as independent HTTP sessions; the new media endpoints have not been claimed as live-network HTTP smoke. No PILOT/deploy/flag activation is part of this task.
 
 ## Existing PDF viewer isolation (reviewed; no duplicate renderer)
 
 The existing `frontend/src/shared/score/ScoreReader.vue` already implements the CATALOG-03 isolation model: sandboxed iframe with only `allow-scripts` (no `allow-same-origin`), CSP with `default-src 'none'` / `connect-src 'none'`, locally bundled pinned PDF.js (`pdfjs-dist` 5.4.394), parent-to-frame `MessageChannel` plus nonce and exact `WindowProxy` check, bounded same-origin PDF fetch (20 MiB), ≤100 pages, ≤8 MP canvas, 10-second page render timeout, no XFA/eval, and teardown/cancellation on close, exercise switch or unmount. The browser runner checks the actual sandbox attribute. No second viewer or PDF server renderer is introduced by #167.
 
 The current `pinnedPdfUrl` allowlist is intentionally exercise-specific (`/api/v1/exercises/.../preview/pdf`). #167 does not build the library UI. #168 must extend the URL/identity allowlist for the exact private library and published community `/content` routes while reusing this existing sandbox renderer; it must not accept arbitrary caller URLs or create another PDF viewer. This is the only remaining frontend integration boundary identified by the #167 review.
+
+## Review findings and final CI evidence
+
+Self-review (not an independent human review) found and corrected: SQL predicate closure in `hasAudio`; Spring's lack of a `ResourceRegion` converter (both private and published Range routes now stream a bounded `InputStreamResource`); legacy PDF MIME backfill and MIME on new P0 uploads; last-usable-score/photo deletion guard; queued per-asset deletion jobs during whole-material deletion; stale `If-Match` on repeated deletion; flag-off capability values; and decoder-only MP3 header acceptance. MP3 now has structural bounds plus full pinned JLayer frame decoding with a 30-second timeout and fixed two-worker/bounded-queue executor. Tests use the tracked real MP3 fixture and preserve valid silent MPEG frames.
+
+Final verification before this documentation-only evidence update (implementation tree unchanged):
+- Java backend CI run `41222830562` — SUCCESS on `df4dde97b990dbd58431a500efb744df653a8762`; Java 21, PostgreSQL 17.11; **401 tests, 0 failures, 0 errors, 4 skips**; Flyway V32 applied; Spring Boot/PostgreSQL bootstrap and existing live HTTP smoke passed.
+- Vue frontend CI run `41222830486` — SUCCESS on the same SHA; typecheck/build, PDF.js provenance audit and real Chromium isolated PDF reader passed.
+- Audio benchmark validator run `41222830483` — SUCCESS on the same SHA; positive and negative corpus checks passed.
+
+Evidence types are deliberately distinct: `LibraryMediaInspectorTest` is unit; `LibraryMediaHttpPostgresTest` is Spring Security/MockMvc backed by PostgreSQL (two separate mock identities/sessions, not independent live HTTP clients); `LibraryMediaConcurrencyPostgresTest` exercises concurrent controller operations against PostgreSQL, not HTTP; Java CI additionally performs a live app/bootstrap smoke for the existing application endpoints, not the new media upload routes. The real-Chromium test validates the existing ScoreReader isolation, not #168 library route integration.
+
