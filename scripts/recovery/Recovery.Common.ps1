@@ -348,3 +348,36 @@ function Restore-RecoveryWorkspace([string]$RecoveryRoot, [string]$Destination, 
     Copy-RecoveryTree (Join-Path $RecoveryRoot 'workspace') $Destination
     $null=Invoke-RecoveryNative $Git @('remote','set-url','origin','https://github.com/roafo1989/guitar-mentor-ai.git') $Destination
 }
+
+function Write-RecoveryProgress([string]$Path, [hashtable]$State) {
+    $directory = Split-Path -Parent $Path
+    if (-not (Test-Path -LiteralPath $directory)) { $null = New-Item -ItemType Directory -Path $directory -Force }
+    $temporary = Join-Path $directory ('.' + [IO.Path]::GetFileName($Path) + '.' + [guid]::NewGuid().ToString('N') + '.tmp')
+    try {
+        [IO.File]::WriteAllText($temporary,($State | ConvertTo-Json -Depth 24),[Text.UTF8Encoding]::new($false))
+        if (Test-Path -LiteralPath $Path) {
+            [IO.File]::Replace($temporary,$Path,$null,$true)
+        } else {
+            [IO.File]::Move($temporary,$Path)
+        }
+    } finally {
+        if (Test-Path -LiteralPath $temporary) { Remove-Item -LiteralPath $temporary -Force }
+    }
+}
+
+function Set-RecoveryProgressStep([hashtable]$State, [string]$Name, [ValidateSet('RUNNING','PASS','FAIL','NOT_RUN')][string]$Status,
+    [string]$ProgressPath, [string]$Detail = '') {
+    if (-not $State.steps) { $State.steps = @{} }
+    $now = [DateTime]::UtcNow.ToString('o')
+    $previous = $State.steps[$Name]
+    $started = if ($Status -eq 'RUNNING') { $now } elseif ($previous.startedUtc) { $previous.startedUtc } else { $now }
+    $elapsed = if ($Status -in @('PASS','FAIL') -and $previous.startedUtc) {
+        [math]::Round(([DateTime]::UtcNow - [DateTime]::Parse($previous.startedUtc).ToUniversalTime()).TotalSeconds,1)
+    } else { 0 }
+    $State.steps[$Name] = @{status=$Status;startedUtc=$started;updatedUtc=$now;elapsedSeconds=$elapsed;detail=$Detail}
+    Write-RecoveryProgress $ProgressPath $State
+}
+
+function Test-RecoveryProgressStep([hashtable]$State, [string]$Name) {
+    return ($State.steps -and $State.steps.ContainsKey($Name) -and $State.steps[$Name].status -eq 'PASS')
+}
