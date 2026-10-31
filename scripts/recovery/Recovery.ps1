@@ -184,7 +184,12 @@ try {
         $type = $caughtError.Exception.GetType().Name
         $diagnostic = Get-RecoveryFailureHint -ErrorText ([string]$caughtError.Exception.Message)
         if ([string]::IsNullOrWhiteSpace($diagnostic)) {
-            $diagnostic = 'Причина не классифицирована; локальная проверка остановлена до облачной загрузки. Сохраните отчёт и не повторяйте запуск до анализа.'
+            $errorId = ([string]$caughtError.FullyQualifiedErrorId -replace '[^A-Za-z0-9_.-]','')
+            $category = ([string]$caughtError.CategoryInfo.Category -replace '[^A-Za-z0-9_.-]','')
+            $command = ([string]$caughtError.InvocationInfo.MyCommand.Name -replace '[^A-Za-z0-9_.-]','')
+            if ($errorId.Length -gt 100) { $errorId = $errorId.Substring(0,100) }
+            if ($command.Length -gt 80) { $command = $command.Substring(0,80) }
+            $diagnostic = "Причина не классифицирована (ErrorId: $errorId; категория: $category; команда: $command; строка: $line). Локальная проверка остановлена до облачной загрузки; секреты и исходный текст исключения скрыты."
         }
         throw "Резервная копия остановлена на этапе '$backupPhase' (тип ошибки: $type; Recovery.ps1:$line). $diagnostic Секретные данные и исходный текст исключения скрыты."
     }

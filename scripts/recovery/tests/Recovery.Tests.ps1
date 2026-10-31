@@ -121,6 +121,10 @@ try {
     Assert ((Get-RecoveryFailureHint 'Не удалось прочитать/посчитать SHA-256 файла комплекта: pilot/data/library/asset.bin') -like '*pilot/data/library/asset.bin*') 'local unreadable file diagnostic preserves safe relative path'
     Assert ((Get-RecoveryFailureHint 'В комплекте обнаружена ссылка (reparse point): pilot/tools/current') -like '*pilot/tools/current*') 'local reparse point diagnostic preserves safe relative path'
     Assert ((Get-RecoveryFailureHint 'Не удалось прочитать каталог комплекта: pilot/data/library') -like '*pilot/data/library*') 'local directory access diagnostic preserves safe relative path'
+    $wrappedBackupError = "Резервная копия остановлена на этапе 'local manifest and file integrity validation' (тип ошибки: RuntimeException; Recovery.ps1:331). Причина не классифицирована (ErrorId: InvalidOperation; категория: InvalidOperation; команда: Test-RecoverySet; строка: 331). Секретные данные и исходный текст исключения скрыты."
+    $wrappedHint = Get-RecoveryFailureHint $wrappedBackupError
+    Assert ($wrappedHint -like '*ErrorId: InvalidOperation*' -and $wrappedHint -like '*Test-RecoverySet*') 'outer acceptance classifier preserves sanitized unknown backup cause'
+    Assert ($wrappedHint -notlike '*Секретные данные*') 'outer acceptance classifier strips secret disclaimer from preserved diagnostic'
     Assert ((Get-RecoveryFailureHint 'Корневой каталог комплекта является ссылкой (reparse point).') -like '*корневой каталог*') 'local root reparse point diagnostic is actionable'
     Assert ((Get-RecoveryFailureHint 'Не совпала контрольная сумма: pilot/application-pilot.yml') -like '*pilot/application-pilot.yml*') 'manifest checksum diagnostic preserves safe relative path'
     Assert ((Get-RecoveryFailureHint 'Оригинал библиотеки не соответствует SHA/размеру из БД.') -like '*не совпадает с SHA-256*') 'library DB/file mismatch gets precise safe diagnostic'

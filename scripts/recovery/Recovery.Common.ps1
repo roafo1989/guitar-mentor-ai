@@ -91,9 +91,14 @@ function Get-RecoveryFailureHint([string]$ErrorText) {
     if ($ErrorText -match 'Неполная копия: нет ([^\r\n]+)') {
         return "В комплекте отсутствует обязательный файл: $($Matches[1]). Облачная загрузка не выполнялась."
     }
-    # Preserve the deliberately sanitized phase diagnostic emitted by Recovery.ps1.
-    if ($ErrorText -match "Резервная копия остановлена на этапе '([^']+)' \(тип ошибки: ([^;]+); Recovery\.ps1:(\d+)\)") {
-        return "Резервная копия остановлена на этапе '$($Matches[1])' (тип ошибки: $($Matches[2]); Recovery.ps1:$($Matches[3]))."
+    # Preserve the complete deliberately sanitized diagnostic emitted by Recovery.ps1.
+    # The outer acceptance workflow classifies the message a second time; do not
+    # discard the safe detail suffix when the underlying error is not recognized.
+    if ($ErrorText -match "(?s)Резервная копия остановлена на этапе '([^']+)' \(тип ошибки: ([^;]+); Recovery\.ps1:(\d+)\)\.\s*(.*?)\s*(?:Секретные данные и исходный текст исключения скрыты\.)?$") {
+        $detail = [string]$Matches[4]
+        $prefix = "Резервная копия остановлена на этапе '$($Matches[1])' (тип ошибки: $($Matches[2]); Recovery.ps1:$($Matches[3]))."
+        if ([string]::IsNullOrWhiteSpace($detail)) { return $prefix }
+        return "$prefix $detail"
     }
     # Invoke-RecoveryNative already converts provider stderr into one of these
     # safe actionable messages. Preserve that classification when outer
