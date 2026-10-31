@@ -21,6 +21,8 @@ try {
     $freeBytes=Assert-RecoveryStageCapacity $root 268435456
     Assert ($freeBytes -ge 268435456) 'staging disk reserve accepts available free space'
     MustThrow { Assert-RecoveryStageCapacity $root 1099511627776 } 'staging disk reserve blocks insufficient free space'
+    Assert ((Get-RecoveryLoopbackOrigin 54321) -eq 'http://127.0.0.1:54321') 'application smoke origin is derived from its isolated loopback port'
+    MustThrow { Get-RecoveryLoopbackOrigin 0 } 'invalid loopback origin port is rejected'
     Assert ((Get-RecoveryFailureHint 'Недостаточно свободного места на диске staging') -like '*Недостаточно места*') 'disk reserve failure receives actionable safe diagnostic'
     $safeDiagnostic=Protect-RecoveryDiagnostic 'Win32Exception: access denied; password=top-secret https://user:secret@example.invalid/path'
     Assert ($safeDiagnostic.Contains('password=[REDACTED]') -and $safeDiagnostic.Contains('https://user:[REDACTED]@example.invalid/path')) 'application diagnostics redact credentials while preserving useful error detail'
