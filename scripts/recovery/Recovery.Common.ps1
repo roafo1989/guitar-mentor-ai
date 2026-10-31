@@ -370,8 +370,9 @@ function Set-RecoveryProgressStep([hashtable]$State, [string]$Name, [ValidateSet
     if (-not $State.steps) { $State.steps = @{} }
     $now = [DateTime]::UtcNow.ToString('o')
     $previous = $State.steps[$Name]
-    $started = if ($Status -eq 'RUNNING') { $now } elseif ($previous.startedUtc) { $previous.startedUtc } else { $now }
-    $elapsed = if ($Status -in @('PASS','FAIL') -and $previous.startedUtc) {
+    $hasPreviousStart = ($null -ne $previous -and $previous.startedUtc)
+    $started = if ($Status -eq 'RUNNING') { $now } elseif ($hasPreviousStart) { $previous.startedUtc } else { $now }
+    $elapsed = if ($Status -in @('PASS','FAIL') -and $hasPreviousStart) {
         [math]::Round(([DateTime]::UtcNow - [DateTime]::Parse($previous.startedUtc).ToUniversalTime()).TotalSeconds,1)
     } else { 0 }
     $State.steps[$Name] = @{status=$Status;startedUtc=$started;updatedUtc=$now;elapsedSeconds=$elapsed;detail=$Detail}
