@@ -55,7 +55,7 @@ public final class LibraryAssetDeletionWorker {
         UUID owner=(UUID)ownerRow.get("owner_account_id"), material=(UUID)ownerRow.get("material_id");
         if(!"READY".equals(ownerRow.get("state"))) return false; // Whole-material worker owns this deletion.
         jdbc.sql("INSERT INTO library_account_usage(account_id) VALUES(:owner) ON CONFLICT DO NOTHING").param("owner",owner).update();
-        jdbc.sql("SELECT account_id FROM library_account_usage WHERE account_id=:owner FOR UPDATE").param("owner",owner).query().single();
+        jdbc.sql("SELECT account_id FROM library_account_usage WHERE account_id=:owner FOR UPDATE").param("owner",owner).query().singleRow();
         var materialRows=jdbc.sql("SELECT state FROM library_materials WHERE id=:id AND owner_account_id=:owner FOR UPDATE")
             .param("id",material).param("owner",owner).query().listOfRows();
         if(materialRows.isEmpty() || !"READY".equals(materialRows.getFirst().get("state"))) return false;
@@ -71,7 +71,7 @@ public final class LibraryAssetDeletionWorker {
             return false;
         }
         Long published=jdbc.sql("SELECT count(*) FROM library_publication_assets a JOIN library_publications p ON p.id=a.publication_id WHERE a.asset_id=:id AND p.state='PUBLISHED'")
-            .param("id",assetId).query(Long.class).singleRow();
+            .param("id",assetId).query(Long.class).single();
         if(published>0) {
             String restoredState="READY";
             try {
