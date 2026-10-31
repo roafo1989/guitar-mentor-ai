@@ -6,7 +6,7 @@ Basis: CATALOG-03 §5–8 (recovered from the immutable specification link in Is
 
 | Layer | Test | Intended evidence |
 |---|---|---|
-| Unit | `LibraryMediaInspectorTest` | Real JDK ImageIO decode/re-encode, EXIF removal, JPEG/PNG signatures, dimension/size bounds, MP3 frame parsing, WAV RIFF/PCM16 metadata, duration/channel/sample-rate/format rejection. |
+| Unit | `LibraryMediaInspectorTest` | Real JDK ImageIO decode/re-encode, EXIF removal, JPEG/PNG signatures, dimension/size bounds, MP3 frame structure plus full pinned JLayer payload decoding (valid tracked MP3 fixture; header-only forged frames rejected), WAV RIFF/PCM16 metadata, duration/channel/sample-rate/format rejection. |
 | PostgreSQL + Spring Security + MockMvc | `LibraryMediaHttpPostgresTest` | Actual Flyway schema and PostgreSQL transactions; real Spring Security filter chain with OIDC test identities, CSRF, CurrentActor resolution, two account identities, private/publication membership, protected preview/content, ETag/idempotency, Range/HEAD, withdrawal, quota and deletion worker. |
 | Existing PostgreSQL regressions | `LibraryOriginalPostgresTest`, `LibraryOriginalHttpPostgresTest`, `LibraryPublicationPostgresTest`, `LibraryPublicationHttpPostgresTest`, `LibraryDeletionWorkerPostgresTest`, `LibraryOrphanRecovery` coverage | PDF/GP upload/download, ownership, existing storage reservations/recovery, publication lifecycle and previous quota/deletion behavior. |
 | CI bootstrap | `.github/workflows/java-ci.yml` | Flyway migration and full backend verify on PostgreSQL 17; application bootstrap/HTTP smoke. |
@@ -23,9 +23,9 @@ Do not interpret unit tests as HTTP, direct controller tests as independent sess
 | M-04 | Corrupt image / unsupported image | 400; no preview; no READY asset | Inspector unit |
 | M-05 | Photo >5 MiB, side >12,000 px, >20 MP | Reject before full decode; 413 | Inspector unit |
 | M-06 | Valid MP3 frames and WAV PCM16 | Correct duration, channels and sample rate persisted | Inspector unit + PostgreSQL HTTP |
-| M-07 | Fake MP3/WAV, extension/MIME mismatch, corrupt/truncated stream | Reject; no READY asset | Inspector unit |
+| M-07 | Header-only fake MP3, fake WAV, extension/MIME mismatch, corrupt/truncated stream | Reject; no READY asset | Inspector unit; real MP3 payload decoded with JLayer |
 | M-08 | WAV non-PCM16, >2 channels, out-of-range sample rate or >10 min | Reject | Inspector unit |
-| M-09 | MP3 >10 min or >20 MiB | Reject | Inspector unit |
+| M-09 | MP3 >10 min or >20 MiB; MP3 decode exceeds 30 s or decoder queue is saturated | Reject with bounded failure; no READY asset | Inspector unit / bounded 2-worker decoder; CI PostgreSQL |
 | M-10 | More than 2 files/request or >20 MiB aggregate | Reject before commit | Controller validation; CI HTTP suite |
 | M-11 | Multiple files where second file is invalid | No first-file residue, no revision increment, no retained reservation/quota | PostgreSQL HTTP |
 | M-12 | Stale material ETag | 412; no mutation | PostgreSQL HTTP |
@@ -43,7 +43,7 @@ Do not interpret unit tests as HTTP, direct controller tests as independent sess
 | M-24 | Delete unreferenced audio asset | 202; worker removes original/derivative and releases physical quota; repeated/missing cleanup is safe | PostgreSQL HTTP + worker test |
 | M-25 | Last score/photo deletion | 409 `CATALOG_LAST_SCORE` | PostgreSQL HTTP (`LibraryMediaHttpPostgresTest`) |
 | M-26 | Missing original/preview bytes | 404 on read; recovery marks damaged READY row REJECTED; no empty 200 | PostgreSQL HTTP + recovery in `LibraryMediaHttpPostgresTest` |
-| M-27 | Media feature flag off | New media upload/delete/preview/media-content 503; PDF/GP create/download unchanged | PostgreSQL HTTP (`LibraryOriginalHttpPostgresTest`) |
+| M-27 | Media feature flag off | New media upload/delete/preview/media-content 503; capabilities report no media roles/limits and legacy 5-file contract; PDF/GP create/download unchanged | PostgreSQL HTTP (`LibraryOriginalHttpPostgresTest`) |
 | M-28 | Recovery after interrupted staging/commit | Existing manifest releases reservation and sweeps only unreferenced original/preview keys | PostgreSQL recovery test (`LibraryMediaConcurrencyPostgresTest`) |
 | M-29 | Concurrency: same account starts two media uploads | Per-account gate admits one; second receives 409; no lost quota, duplicate asset or revision | PostgreSQL direct-controller concurrency test (`LibraryMediaConcurrencyPostgresTest`); not an HTTP-session test |
 | M-30 | Add photo after publication | Draft revision advances; existing publication keeps original `sourceRevision` and asset set | PostgreSQL HTTP (`LibraryMediaHttpPostgresTest`) |
