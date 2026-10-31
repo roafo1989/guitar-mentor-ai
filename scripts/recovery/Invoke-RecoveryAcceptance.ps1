@@ -185,31 +185,75 @@ function Invoke-DrillApplicationSmoke([hashtable]$State, [hashtable]$Config, [ha
     }
     $info=New-PilotProcessInfo $java $arguments $release $envValues
     $info.RedirectStandardOutput=$true;$info.RedirectStandardError=$true
+    $info.StandardOutputEncoding=[Text.UTF8Encoding]::new($false)
+    $info.StandardErrorEncoding=[Text.UTF8Encoding]::new($false)
     $process=[Diagnostics.Process]::new();$process.StartInfo=$info
+    $outTask=$null;$errTask=$null;$client=$null
+    $failureReason='';$lastHttpStatus=$null;$lastHttpError=''
+    $exitCode=$null;$stdout='';$stderr=''
     try {
         if(-not $process.Start()){throw 'Не удалось запустить восстановленный JAR.'}
-        $outTask=$process.StandardOutput.ReadToEndAsync();$errTask=$process.StandardError.ReadToEndAsync()
+        $outTask=$process.StandardOutput.ReadToEndAsync()
+        $errTask=$process.StandardError.ReadToEndAsync()
         $client=[Net.Http.HttpClient]::new();$client.Timeout=[TimeSpan]::FromSeconds(3)
-        try {
-            $ready=$false
-            for($i=0;$i -lt $TimeoutSeconds;$i++){
-                if($process.HasExited){throw 'Восстановленное приложение завершилось до готовности.'}
-                try {
-                    $response=$client.GetAsync("http://127.0.0.1:$port/api/v1/csrf").GetAwaiter().GetResult()
-                    try {
-                        $body=$response.Content.ReadAsStringAsync().GetAwaiter().GetResult() | ConvertFrom-Json
-                        if([int]$response.StatusCode -eq 200 -and $body.token){$ready=$true;break}
-                    } finally {$response.Dispose()}
-                } catch {}
-                Start-Sleep -Seconds 1
+        $ready=$false
+        for($i=0;$i -lt $TimeoutSeconds;$i++){
+            if($process.HasExited){
+                $exitCode=$process.ExitCode
+                $failureReason="Java завершился до готовности (exit code $exitCode)."
+                break
             }
-            if(-not $ready){throw 'Приложение не прошло локальную HTTP/CSRF-проверку за отведённое время.'}
-        } finally {$client.Dispose()}
+            try {
+                $response=$client.GetAsync("http://127.0.0.1:$port/api/v1/csrf").GetAwaiter().GetResult()
+                try {
+                    $lastHttpStatus=[int]$response.StatusCode
+                    if($lastHttpStatus -eq 200){
+                        $body=$response.Content.ReadAsStringAsync().GetAwaiter().GetResult() | ConvertFrom-Json
+                        if($body.token){$ready=$true;break}
+                        $lastHttpError='HTTP 200 вернул ответ без CSRF token.'
+                    }
+                } finally {$response.Dispose()}
+            } catch {
+                $lastHttpError=$_.Exception.GetType().Name
+            }
+            Start-Sleep -Seconds 1
+        }
+        if(-not $ready -and -not $failureReason){
+            $failureReason="HTTP/CSRF не готов за $TimeoutSeconds сек."
+            if($lastHttpStatus){$failureReason+=" Последний HTTP status: $lastHttpStatus."}
+            if($lastHttpError){$failureReason+=" Последняя ошибка запроса: $lastHttpError."}
+        }
+    } catch {
+        $failureReason="Ошибка запуска/проверки Java: $($_.Exception.GetType().Name): $($_.Exception.Message)"
     } finally {
-        if(-not $process.HasExited){$process.Kill($true);$process.WaitForExit()}
+        if($client){$client.Dispose()}
+        if($process -and -not $process.HasExited){
+            try {$process.Kill($true);$process.WaitForExit(10000)} catch {}
+        }
+        if($process -and $process.HasExited -and $null -eq $exitCode){$exitCode=$process.ExitCode}
+        if($outTask){try {$stdout=$outTask.GetAwaiter().GetResult()} catch {}}
+        if($errTask){try {$stderr=$errTask.GetAwaiter().GetResult()} catch {}}
         $process.Dispose()
     }
-    return @{status='PASS';http='PASS';csrf='PASS';webBundle='PASS';publicAccess='OFF'}
+    if(-not $ready){
+        # Preserve useful startup diagnostics, but redact credential-bearing lines
+        # before they reach the local acceptance report.
+        $safeOutput = foreach($stream in @($stderr,$stdout)){
+            foreach($line in ($stream -split '\r?\n' | Select-Object -Last 80)){
+                if([string]::IsNullOrWhiteSpace($line)){continue}
+                $safe=[string]$line
+                $safe=$safe -replace '(?i)(password|passwd|secret|token|authorization|client-secret|smtp-password)(\s*[:=]\s*)[^\s,;]+','$1$2[REDACTED]'
+                $safe=$safe -replace '(?i)(https?://[^:/\s]+:)[^@/\s]+@','$1[REDACTED]@'
+                $safe
+            }
+        }
+        $diagnostic=(@($safeOutput) -join ' | ')
+        if($diagnostic.Length -gt 6000){$diagnostic=$diagnostic.Substring($diagnostic.Length-6000)}
+        if(-not $diagnostic){$diagnostic='Java не вывел диагностических сообщений.'}
+        $exitText=if($null -ne $exitCode){"exit code $exitCode"}else{'процесс остановлен по тайм-ауту'}
+        throw "ApplicationSmoke diagnostic: $failureReason Java $exitText. Последний вывод (stderr/stdout): $diagnostic"
+    }
+    return @{status='PASS';http='PASS';csrf='PASS';webBundle='PASS';publicAccess='OFF';httpStatus=200}
 }
 
 if (-not (Test-Path -LiteralPath $progressPath)) {
