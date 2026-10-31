@@ -124,10 +124,8 @@ function Invoke-DrillApplicationSmoke([hashtable]$State, [hashtable]$Config, [ha
         "--spring.datasource.username=$($entry.user)",'--guitar-mentor.security.enabled=true',
         '--guitar-mentor.local-auth.unified-local=false',"--guitar-mentor.local-auth.public-origin=$($Config.origin)",
         '--guitar-mentor.submissions.enabled=false','--guitar-mentor.library.enabled=false')
-    $info=[Diagnostics.ProcessStartInfo]::new()
-    $info.FileName=$java;$info.WorkingDirectory=$release;$info.UseShellExecute=$false
+    $info=New-PilotProcessInfo $java $arguments $release $envValues
     $info.RedirectStandardOutput=$true;$info.RedirectStandardError=$true
-    foreach($arg in $arguments){$null=$info.ArgumentList.Add($arg)}
     $envValues=@{
         SPRING_DATASOURCE_PASSWORD=$dbPassword
         GUITAR_MENTOR_OIDC_CLIENT_ID=[string]$settings.clientId
