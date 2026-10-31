@@ -100,9 +100,10 @@ try {
         effectSlur: !!note.isEffectSlurOrigin || !!note.isEffectSlurDestination || !!note.effectSlurOrigin || !!note.effectSlurDestination,
         tapped: !!note.isLeftHandTapped, slapPop: !!note.isSlapped || !!note.isPopped,
         whammy: (beat.whammyBarPoints?.length || 0) > 0,
-        beatAutomations: (beat.automations?.length || 0) > 0
       };
       if (Object.values(effectFlags).some(Boolean)) fail('UNSUPPORTED_NOTE_EFFECT', { effectFlags });
+      if (beat.automations?.length > 0)
+        fail('UNSUPPORTED_BEAT_AUTOMATION', { automationTypes: beat.automations.map(a => a.type) });
       if (note.fret < 0 || note.fret > 24 || note.string < 1 || note.string > staff.tuning.length)
         fail('INVALID_NOTE', { noteString: note.string, noteFret: note.fret, tuningLength: staff.tuning.length });
     }
