@@ -52,4 +52,6 @@ Preconditions: two independent, admitted disposable DEV accounts A and B, each w
 - **Current:** core functional acceptance passed; CI green; release gate OPEN.
 - **Never** treat a runbook as an executed test.
 - Attach outputs/evidence to PR #217 and update `docs/testing/QA-216-2026-10-25.md` only after each gate actually runs.
-- Merge #217 and update PILOT only after the release owner explicitly accepts all remaining risks.
+- PR #217 has already been merged into `main` (merge commit `ce744b38b4e5e13f6ea0108fec17c1725a86f95e`). This merge is **not** approval to deploy to PILOT.
+- Keep release gate #227 OPEN. Only after all remaining gates have real redacted execution evidence and the release owner explicitly accepts residual risk, plan and separately authorize the PILOT deployment.
+- Do not change `guitar_mentor_pilot` or running PILOT as part of #227 without explicit deployment authorization.
