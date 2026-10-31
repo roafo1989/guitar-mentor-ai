@@ -91,7 +91,7 @@ class LibraryConversionProcessRunnerTest {
     private LibraryConversionProcessRunner runner(Path docker) {
         String executable = System.getProperty("gm.test.docker", docker.toString());
         return new LibraryConversionProcessRunner(executable, "gm-conversion-worker:170b",
-                temp.resolve("work").toString(), new ObjectMapper());
+                temp.resolve("work").toString());
     }
 
     private Path stubDocker() throws Exception {
@@ -104,7 +104,7 @@ class LibraryConversionProcessRunnerTest {
                   if [ "$1" = "--mount" ]; then
                     shift
                     case "$1" in
-                      *target=/out*) out="${1#source=}"; out="${out%,target=/out*}" ;;
+                      *target=/out*) out="${1#type=bind,source=}"; out="${out%,target=/out*}" ;;
                     esac
                   fi
                   shift
