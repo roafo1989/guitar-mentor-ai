@@ -169,7 +169,7 @@ public final class LibraryConversionJobLeaseService {
         return Boolean.TRUE.equals(transactions.execute(status -> {
             var slots = jdbc.sql("""
                 SELECT slot_number FROM library_conversion_worker_slots
-                WHERE job_id=:job AND lease_owner=:worker FOR UPDATE
+                WHERE job_id=:job AND lease_owner=:worker AND lease_until>now() FOR UPDATE
                 """).param("job", jobId).param("worker", workerId).query(Integer.class).list();
             if (slots.isEmpty()) return false;
             var jobs = jdbc.sql("""
