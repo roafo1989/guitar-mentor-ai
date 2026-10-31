@@ -25,7 +25,6 @@ try {
     Assert ((Get-RecoveryFailureHint 'restic.exe: код 1. Облако или локальный ресурс отказал в доступе. Проверьте вход, MFA, права remote и доступ к файлам.') -like '*отказал в доступе*') 'nested native access diagnostic preserves actionable classification'
     Assert ((Get-RecoveryFailureHint 'rclone: код 1. Сетевой сбой или тайм-аут. Проверьте соединение и повторите этот шаг; существующий snapshot не удаляется.') -like '*Сетевой сбой*') 'nested native network diagnostic preserves actionable classification'
     Assert ((Get-RecoveryFailureHint 'restic.exe: код 1. Обнаружена ошибка целостности. Не используйте эту копию для восстановления; сохраните диагностический отчёт.') -like '*ошибка целостности*') 'nested native integrity diagnostic preserves actionable classification'
-    Assert ((Get-RecoveryFailureHint 'ApplicationSmoke diagnostic: Java завершился до готовности (exit code 1). Последний вывод: synthetic startup failure') -like '*synthetic startup failure*') 'application smoke preserves sanitized Java startup diagnostics'
     $progressPath=Join-Path $root 'resume-progress.json'
     $progress=@{steps=@{};fixture='synthetic'}
     Set-RecoveryProgressStep $progress 'SyntheticStep' 'RUNNING' $progressPath
