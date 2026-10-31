@@ -4,6 +4,7 @@
 |---|---|---|
 | 0.1 | 31.10.2026 | Анализ после завершения FT-013-01/#169; подготовлен контракт первого инкремента 170-A. |
 | 0.2 | 31.10.2026 | Уточнены PostgreSQL test harness, оценка 10ч и граница 170-A. |
+| 0.3 | 31.10.2026 | Приведена схема в соответствие с V33/Java API; отражены фактические DB slots и результаты CI. |
 
 ## 1. Назначение и границы
 
@@ -55,8 +56,8 @@ GP7 same-writer round-trip, GTP, GPX, GP8 и все неиспытанные м�
 | cancel_requested BOOLEAN | Запрос отмены |
 | attempt_count INTEGER | Число запусков |
 | retryable BOOLEAN | Разрешён ли retry |
-| lease_owner UUID / lease_until / heartbeat_at | DB lease активного worker |
-| worker_slot SMALLINT | Один из двух глобальных слотов |
+| worker_slot SMALLINT | Слот из глобального пула (lease metadata хранится в отдельной таблице) |
+| 
 | pdf_asset_id UUID / audio_asset_id UUID | ID двух производных файлов после успеха |
 | error_code VARCHAR(64) | Стабильный машинный код; без stack trace и локальных путей |
 | revision BIGINT | Optimistic concurrency для действий UI |
@@ -111,14 +112,15 @@ Stage (отдельное поле): VALIDATING_SOURCE → IMPORTING_SCORE → R
 
 ### 3.4 Idempotency и конкурентный доступ
 
-Fingerprint вычисляется из версии схемы, materialId, sourceAssetId, source SHA-256 и параметров конвертации. Повтор того же owner/key/fingerprint возвращает исходную job; тот же key с другим fingerprint → 409 IDEMPOTENCY_KEY_REUSED. Retry — отдельное действие над существующим job, а не повторный POST.
+Fingerprint вычисляется из версии схемы, materialId и sourceAssetId (`library-conversion-v1`); asset ID неизменяем, а SHA-256/format/size сохраняются в job как source snapshot. Повтор того же owner/key/fingerprint возвращает исходную job; тот же key с другим fingerprint → 409 IDEMPOTENCY_KEY_REUSED. Для защиты от гонки два одинаковых POST повторно проверяют idempotency key после блокировки owner usage row. Retry — отдельное действие над существующим job, а не повторный POST; максимум две worker attempts.
 
 Создание job транзакционно:
-1. взять lock material row и проверить owner + READY;
-2. взять lock source asset и проверить принадлежность, SCORE_ORIGINAL, READY, GP3/4/5, размер и SHA;
-3. проверить idempotency;
-4. проверить активную job пользователя;
-5. сохранить source snapshot и QUEUED.
+1. проверить существующий owner/key/fingerprint (быстрый replay);
+2. создать/взять FOR UPDATE owner row в library_account_usage и повторить idempotency check после блокировки;
+3. взять lock material row и проверить owner + READY + If-Match revision;
+4. взять lock source asset и проверить принадлежность, SCORE_ORIGINAL, READY, GP3/4/5, размер и SHA metadata;
+5. проверить активную job пользователя;
+6. сохранить source snapshot и QUEUED.
 
 Worker claim: DB transaction → свободный worker slot FOR UPDATE SKIP LOCKED → queued job FOR UPDATE SKIP LOCKED → назначить lease и slot → RUNNING. Heartbeat продлевает lease. Потерянный lease не должен позволить двум процессам одновременно публиковать output; commit результата требует совпадения lease_owner и revision.
 
@@ -173,4 +175,4 @@ Human listening, GP7 independent writer compatibility, GTP/GPX/GP8, сложны
 
 В main уже есть PostgreSQL integration test harness и CI service PostgreSQL 17 с флагом `GUITAR_MENTOR_TEST_POSTGRES=true`; новый брокер/очередь и новый тестовый сервис не нужны. Основной риск оценки — согласование lease с двумя deletion workers и гонки отмены/удаления. Output quota defaults уточнить в 170-C по фактическим ограничениям PDF/WAV.
 
-**Статус: Оценка / В очереди.** Реализация не начата. Передача в разработку — отдельным решением после оценки.
+**Статус: 170-A реализован в PR #259; automated PostgreSQL/Java CI SUCCESS.** Feature flag по умолчанию выключен. Node worker, derived assets, Vue UX и production gates не реализованы и остаются следующими отдельными инкрементами.
