@@ -199,3 +199,32 @@ Java ProcessBuilder запускает Docker напрямую без shell, с 
 PR #260 добавляет container image, CLI worker, Java execution adapter, focused tests и CI с независимыми synthetic GP3/4/5 fixtures. Runner пока не подключён к durable queue и не завершает job state: это намеренно отнесено к 170-C вместе с атомарной записью private derived assets, quota reservation/finalization, lineage и cleanup. Image должен быть заранее установлен на host; job execution не скачивает его. Windows Docker Desktop и production rollout не считаются проверенными.
 
 Feature flag `GUITAR_MENTOR_LIBRARY_CONVERSION_ENABLED` остаётся false до завершения 170-C/170-D/170-E и отдельной эксплуатационной приёмки.
+
+
+## 9. Инкремент 170-C — приватные производные assets и lineage (01.11.2026)
+
+Реализация: PR [#262](https://github.com/roafo1989/guitar-mentor-ai/pull/262), дочерняя задача [#261](https://github.com/roafo1989/guitar-mentor-ai/issues/261).
+
+### 9.1 Роли и lineage
+
+- Добавлена роль `DERIVED_SCORE_PDF`; она допустима только для PDF и `application/pdf`.
+- Аудио остаётся `SYNTHESIZED_PREVIEW` с форматом WAV и MIME `audio/wav`.
+- Таблица `library_conversion_output_lineage` хранит owner/material, source asset ID + SHA-256, выбранную дорожку, score revision, два output asset ID и их SHA-256.
+- Lineage ссылается на conversion job с RESTRICT, но не удерживает asset rows внешними ключами: удаление файлов следует штатному жизненному циклу библиотеки, история конвертации остаётся.
+
+### 9.2 Резервирование и атомарная фиксация
+
+- Перед физической записью резервируется максимум 40 MiB и 2 файла в существующем `library_account_usage`; учитываются charged + reserved и конфигурационные лимиты аккаунта.
+- Максимум каждого постоянного output — 20 MiB (ограничение существующей схемы `library_assets`). WAV дополнительно проходит `LibraryMediaInspector`; PDF проверяется по заголовку и EOF.
+- Два object store объекта создаются под случайными ключами. Затем одной PostgreSQL транзакцией вставляются оба asset rows и lineage, списываются фактические байты, освобождается резерв, увеличивается revision материала, job переводится в SUCCEEDED, а DB worker slot освобождается.
+- Любая ошибка до DB commit не создаёт видимых asset rows и запускает удаление незарегистрированных объектов; если хранилище/БД недоступны, неизвестные объекты подбирает существующий orphan recovery после grace period.
+- Успешный job требует одновременно PDF и WAV; одиночный результат не публикуется.
+- Истёкшие/потерянные lease с резервом очищаются отдельным recovery worker. Он не освобождает резерв при ещё действующем lease.
+
+### 9.3 Повторные проверки и границы
+
+Перед reservation и commit повторно проверяются owner, READY material, source asset role/format/size/SHA и наличие исходного объекта с совпадающим SHA, выбранная дорожка, RUNNING job и действующий lease. При любом mismatch транзакция откатывается. Оригинал не меняется; публикация не создаётся.
+
+PostgreSQL integration tests добавлены для успешной пары + lineage/quota, отказа на некорректном WAV без частичных записей и recovery резерва после истечения lease.
+
+**Граница 170-C:** этот инкремент предоставляет безопасный транзакционный слой persistence. Полный цикл polling/dispatch renderer и обработка всех terminal/error/cancel сценариев остаются частью 170-E; Vue UX — 170-D. Feature flags не включаются, production rollout не выполняется.
