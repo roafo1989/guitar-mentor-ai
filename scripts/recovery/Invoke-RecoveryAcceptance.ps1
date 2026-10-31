@@ -412,20 +412,9 @@ try {
     Write-Host "Длительность прогона: $([math]::Round(([DateTime]::UtcNow-$startedRun).TotalSeconds,1)) сек."
 } catch {
     $errorText=[string]$_.Exception.Message
-    if($errorText -match '(?s)^ApplicationSmoke diagnostic:\s*(.*)
-        try {
-            Set-RecoveryProgressStep $state $stepName 'FAIL' $progressPath $failure
-            Save-DrillReport $state 'FAIL' $reportPath $stepName
-        } catch {}
-    }
-    Write-Error "Приёмочная проверка остановлена на этапе $stepName. Прогресс сохранён; повторный запуск продолжит с этого этапа. $failure Отчёт: $reportPath"
-    exit 1
-} finally {
-    if($secrets){$secrets.Clear()}
-    $masterPassword=$null;$adminPassword=$null
-}
-) {
-        $failure="ApplicationSmoke: $($Matches[1])"
+    $diagnosticPrefix='ApplicationSmoke diagnostic:'
+    if($errorText.StartsWith($diagnosticPrefix,[StringComparison]::Ordinal)) {
+        $failure='ApplicationSmoke: '+$errorText.Substring($diagnosticPrefix.Length).Trim()
     } else {
         $failure=Get-RecoveryFailureHint $errorText
     }
