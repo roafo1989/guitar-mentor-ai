@@ -7,7 +7,7 @@ This image is the only supported execution boundary for the alphaTab conversion 
 - GP5 `FICHIER GUITAR PRO v5.10`
 - One selected guitar staff, standard EADGBE, 4/4, quarter-note monophonic material, no rests, repeats, tempo changes, capo, alternate tuning, or supported-effect deviations.
 
-The format is checked from the embedded version header, not inferred from a filename or caller-supplied extension. alphaTab then parses the binary content and the worker applies the supported-subset checks before rendering.
+The format is checked from the embedded version header, not inferred from a filename or caller-supplied extension. alphaTab then parses the binary content and the worker applies the supported-subset checks before rendering. The first-beat instrument marker is accepted only when it matches the selected track's initial MIDI program; mid-score instrument, tempo, balance and other beat automations are rejected.
 
 ## Build
 
