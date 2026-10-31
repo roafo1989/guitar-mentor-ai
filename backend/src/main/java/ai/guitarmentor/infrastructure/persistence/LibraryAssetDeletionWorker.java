@@ -5,6 +5,7 @@ import java.util.List;
 import java.util.UUID;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.jdbc.core.simple.JdbcClient;
 import org.springframework.scheduling.annotation.Scheduled;
@@ -18,11 +19,21 @@ public final class LibraryAssetDeletionWorker {
     private final JdbcClient jdbc;
     private final TransactionTemplate transactions;
     private final LibraryObjectStore store;
+    private final LibraryConversionDeletionGuard conversionGuard;
     private final boolean enabled;
 
+    @Autowired
     public LibraryAssetDeletionWorker(JdbcClient jdbc,TransactionTemplate transactions,
-            LibraryObjectStore store,@Value("${guitar-mentor.library.enabled:false}") boolean enabled) {
-        this.jdbc=jdbc; this.transactions=transactions; this.store=store; this.enabled=enabled;
+            LibraryObjectStore store,LibraryConversionDeletionGuard conversionGuard,
+            @Value("${guitar-mentor.library.enabled:false}") boolean enabled) {
+        this.jdbc=jdbc; this.transactions=transactions; this.store=store;
+        this.conversionGuard=conversionGuard; this.enabled=enabled;
+    }
+
+    /** Compatibility constructor for isolated tests. */
+    LibraryAssetDeletionWorker(JdbcClient jdbc,TransactionTemplate transactions,
+            LibraryObjectStore store,boolean enabled) {
+        this(jdbc,transactions,store,new LibraryConversionDeletionGuard(jdbc),enabled);
     }
 
     @Scheduled(fixedDelayString="${guitar-mentor.library.asset-deletion-delay-ms:15000}")
@@ -68,6 +79,11 @@ public final class LibraryAssetDeletionWorker {
         var asset=assets.getFirst();
         if(!"DELETING".equals(asset.get("processing_state"))) {
             jdbc.sql("DELETE FROM library_asset_deletion_jobs WHERE asset_id=:id").param("id",assetId).update();
+            return false;
+        }
+        if(!conversionGuard.cancelAndWaitForAsset(assetId)) {
+            jdbc.sql("UPDATE library_asset_deletion_jobs SET next_attempt_at=now()+interval '10 seconds' WHERE asset_id=:id")
+                .param("id",assetId).update();
             return false;
         }
         Long published=jdbc.sql("SELECT count(*) FROM library_publication_assets a JOIN library_publications p ON p.id=a.publication_id WHERE a.asset_id=:id AND p.state='PUBLISHED'")
