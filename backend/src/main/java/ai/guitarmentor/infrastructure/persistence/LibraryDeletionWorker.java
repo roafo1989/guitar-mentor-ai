@@ -24,12 +24,20 @@ public class LibraryDeletionWorker {
     private final JdbcClient jdbc;
     private final TransactionTemplate transactions;
     private final LibraryObjectStore store;
+    private final LibraryConversionDeletionGuard conversionGuard;
     private final boolean enabled;
 
     public LibraryDeletionWorker(JdbcClient jdbc,TransactionTemplate transactions,
-            LibraryObjectStore store,
+            LibraryObjectStore store,LibraryConversionDeletionGuard conversionGuard,
             @Value("${guitar-mentor.library.enabled:false}") boolean enabled) {
-        this.jdbc=jdbc;this.transactions=transactions;this.store=store;this.enabled=enabled;
+        this.jdbc=jdbc;this.transactions=transactions;this.store=store;
+        this.conversionGuard=conversionGuard;this.enabled=enabled;
+    }
+
+    /** Compatibility constructor for isolated tests. */
+    LibraryDeletionWorker(JdbcClient jdbc,TransactionTemplate transactions,
+            LibraryObjectStore store,boolean enabled) {
+        this(jdbc,transactions,store,new LibraryConversionDeletionGuard(jdbc),enabled);
     }
 
     @Scheduled(fixedDelayString="${guitar-mentor.library.deletion-delay-ms:15000}")
@@ -84,6 +92,14 @@ public class LibraryDeletionWorker {
         if(jobs.isEmpty()) return false;
         jdbc.sql("UPDATE library_deletion_jobs SET state='RUNNING' WHERE material_id=:id")
             .param("id",id).update();
+
+        // A material tombstone cancels queued jobs and asks running workers to stop.
+        // Never delete the source while a conversion lease may still be using it.
+        if(!conversionGuard.cancelAndWaitForMaterial(id)) {
+            jdbc.sql("UPDATE library_deletion_jobs SET next_attempt_at=now()+interval '10 seconds' WHERE material_id=:id")
+                .param("id",id).update();
+            return false;
+        }
 
         var assets=jdbc.sql("""
             SELECT object_key,byte_size,preview_object_key,preview_byte_size FROM library_assets
