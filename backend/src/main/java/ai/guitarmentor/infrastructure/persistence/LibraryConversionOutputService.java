@@ -229,7 +229,7 @@ public final class LibraryConversionOutputService {
         if(material.isEmpty() || !"READY".equals(material.getFirst().get("state")))
             throw new IllegalStateException("Source material is not available");
         var source=jdbc.sql("""
-            SELECT sha256,role,format,byte_size,processing_state FROM library_assets
+            SELECT sha256,role,format,byte_size,processing_state,object_key FROM library_assets
             WHERE id=:asset AND material_id=:material FOR UPDATE
             """).param("asset",lease.sourceAssetId()).param("material",lease.materialId()).query().listOfRows();
         if(source.isEmpty()) throw new IllegalStateException("Source asset is not available");
@@ -239,6 +239,13 @@ public final class LibraryConversionOutputService {
                 || !lease.sourceSha256().equals(row.get("sha256"))
                 || ((Number)row.get("byte_size")).longValue()!=lease.sourceByteSize())
             throw new IllegalStateException("Source lineage changed");
+        try {
+            Path sourceObject=store.file((String)row.get("object_key"));
+            if(!lease.sourceSha256().equals(sha256(sourceObject)))
+                throw new IllegalStateException("Stored source object hash mismatch");
+        } catch(IOException error) {
+            throw new IllegalStateException("Stored source object is unavailable",error);
+        }
     }
 
     private void requireLiveLease(LibraryConversionJobLeaseService.Lease lease) {
@@ -305,6 +312,17 @@ public final class LibraryConversionOutputService {
             if(Boolean.FALSE.equals(referenced)) store.delete(object.key());
         } catch(Exception ignored) {
             // LibraryOrphanRecovery removes unknown objects after the grace period.
+        }
+    }
+
+    private static String sha256(Path path) throws IOException {
+        try(var input=Files.newInputStream(path)) {
+            var digest=java.security.MessageDigest.getInstance("SHA-256");
+            byte[] buffer=new byte[8192];
+            for(int count;(count=input.read(buffer))!=-1;) if(count>0) digest.update(buffer,0,count);
+            return java.util.HexFormat.of().formatHex(digest.digest());
+        } catch(java.security.NoSuchAlgorithmException impossible) {
+            throw new IllegalStateException(impossible);
         }
     }
 
