@@ -361,7 +361,7 @@ public final class LibraryMediaController {
     private void cleanupKey(String key) {
         try {
             Boolean used=jdbc.sql("SELECT EXISTS(SELECT 1 FROM library_assets WHERE object_key=:key OR preview_object_key=:key)")
-                .param("key",key).query(Boolean.class).singleRow();
+                .param("key",key).query(Boolean.class).single();
             if(Boolean.FALSE.equals(used)) storage.delete(key);
         } catch(Exception ignored) { /* Orphan recovery owns uncertain keys. */ }
     }
@@ -379,7 +379,7 @@ public final class LibraryMediaController {
         UUID owner=mediaActor(request); rate(owner); long revision=parseRevision(ifMatch);
         String state=transactions.execute(status -> {
             jdbc.sql("INSERT INTO library_account_usage(account_id) VALUES(:owner) ON CONFLICT DO NOTHING").param("owner",owner).update();
-            jdbc.sql("SELECT account_id FROM library_account_usage WHERE account_id=:owner FOR UPDATE").param("owner",owner).query().single();
+            jdbc.sql("SELECT account_id FROM library_account_usage WHERE account_id=:owner FOR UPDATE").param("owner",owner).query().singleRow();
             var material=jdbc.sql("SELECT revision FROM library_materials WHERE id=:id AND owner_account_id=:owner AND state='READY' FOR UPDATE")
                 .param("id",materialId).param("owner",owner).query().listOfRows();
             if(material.isEmpty()) throw new Failure(404,"LIBRARY_MATERIAL_NOT_FOUND");
