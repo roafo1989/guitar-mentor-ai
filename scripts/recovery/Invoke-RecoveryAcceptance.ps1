@@ -188,11 +188,12 @@ function Invoke-DrillApplicationSmoke([hashtable]$State, [hashtable]$Config, [ha
     $info.StandardOutputEncoding=[Text.UTF8Encoding]::new($false)
     $info.StandardErrorEncoding=[Text.UTF8Encoding]::new($false)
     $process=[Diagnostics.Process]::new();$process.StartInfo=$info
-    $outTask=$null;$errTask=$null;$client=$null
+    $outTask=$null;$errTask=$null;$client=$null;$started=$false
     $failureReason='';$lastHttpStatus=$null;$lastHttpError=''
     $exitCode=$null;$stdout='';$stderr=''
     try {
         if(-not $process.Start()){throw 'Не удалось запустить восстановленный JAR.'}
+        $started=$true
         $outTask=$process.StandardOutput.ReadToEndAsync()
         $errTask=$process.StandardError.ReadToEndAsync()
         $client=[Net.Http.HttpClient]::new();$client.Timeout=[TimeSpan]::FromSeconds(3)
@@ -227,10 +228,10 @@ function Invoke-DrillApplicationSmoke([hashtable]$State, [hashtable]$Config, [ha
         $failureReason="Ошибка запуска/проверки Java: $($_.Exception.GetType().Name): $($_.Exception.Message)"
     } finally {
         if($client){$client.Dispose()}
-        if($process -and -not $process.HasExited){
+        if($started -and $process -and -not $process.HasExited){
             try {$process.Kill($true);$process.WaitForExit(10000)} catch {}
         }
-        if($process -and $process.HasExited -and $null -eq $exitCode){$exitCode=$process.ExitCode}
+        if($started -and $process -and $process.HasExited -and $null -eq $exitCode){$exitCode=$process.ExitCode}
         if($outTask){try {$stdout=$outTask.GetAwaiter().GetResult()} catch {}}
         if($errTask){try {$stderr=$errTask.GetAwaiter().GetResult()} catch {}}
         $process.Dispose()
