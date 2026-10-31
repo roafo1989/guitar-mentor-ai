@@ -71,6 +71,18 @@ public final class LibraryConversionJobService {
             jdbc.sql("SELECT account_id FROM library_account_usage WHERE account_id=:owner FOR UPDATE")
                 .param("owner", owner).query().singleRow();
 
+            // Recheck after the owner lock: concurrent identical POSTs must replay, not 409.
+            var replayAfterLock = jdbc.sql("""
+                SELECT * FROM library_conversion_jobs
+                WHERE owner_account_id=:owner AND idempotency_key=:key
+                """).param("owner", owner).param("key", idempotencyKey).query().listOfRows();
+            if (!replayAfterLock.isEmpty()) {
+                Map<String,Object> existing = replayAfterLock.getFirst();
+                if (!fingerprint.equals(existing.get("request_fingerprint")))
+                    throw failure(409, "IDEMPOTENCY_KEY_REUSED");
+                return new Created(view(existing), true);
+            }
+
             var materials = jdbc.sql("""
                 SELECT revision,state FROM library_materials
                 WHERE id=:material AND owner_account_id=:owner FOR UPDATE
