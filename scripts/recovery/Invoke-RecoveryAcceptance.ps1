@@ -4,6 +4,7 @@ param(
     [Parameter(Mandatory)][string]$ConfigPath,
     [Parameter(Mandatory)][string]$WorkRoot,
     [string]$Snapshot = 'latest',
+    [switch]$BackupFirst,
     [ValidateRange(30,300)][int]$ApplicationTimeoutSeconds = 120
 )
 $ErrorActionPreference = 'Stop'
@@ -181,23 +182,48 @@ if (-not (Test-Path -LiteralPath $progressPath)) {
     if (Test-Path -LiteralPath $workRoot) {
         $existing = @(Get-ChildItem -LiteralPath $workRoot -Force)
         if ($existing.Count -gt 0) { throw 'WorkRoot уже содержит файлы, но progress отсутствует. Выберите новый каталог.' }
-    } else { New-PrivateRecoveryDirectory $workRoot }
-    $masterPassword=Read-RecoveryPassword
-    $snapshots = @(Invoke-RecoveryRestic $config $masterPassword @('snapshots','--json','--tag','gm-dr-v1') $PSScriptRoot | ConvertFrom-Json -AsHashtable)
-    if (-not $snapshots.Count) { throw 'В облачном repository нет snapshot с тегом gm-dr-v1.' }
-    if ($Snapshot -eq 'latest') { $selected=$snapshots | Sort-Object time -Descending | Select-Object -First 1 }
-    else { $selected=$snapshots | Where-Object { $_.id -eq $Snapshot } | Select-Object -First 1 }
-    if (-not $selected -or $selected.id -notmatch '^[a-f0-9]{64}$') { throw 'Snapshot не найден. Укажите полный ID.' }
-    $state=@{schemaVersion=1;repository=$config.repository;snapshotId=$selected.id;snapshotTime=$selected.time
-        destination=$restoreRoot;startedUtc=[DateTime]::UtcNow.ToString('o');attemptStartedUtc=[DateTime]::UtcNow.ToString('o');steps=@{};databases=@{}}
+        Remove-Item -LiteralPath $workRoot -Force
+    }
+    New-PrivateRecoveryDirectory $workRoot
+    $state=@{schemaVersion=1;repository=$config.repository;snapshotId='';snapshotTime='';destination=$restoreRoot
+        startedUtc=[DateTime]::UtcNow.ToString('o');attemptStartedUtc=[DateTime]::UtcNow.ToString('o');steps=@{};databases=@{}}
     Write-RecoveryProgress $progressPath $state
 } else {
     $state=Read-PilotJson $progressPath
     if($state.schemaVersion -ne 1 -or $state.repository -ne $config.repository -or $state.destination -ne $restoreRoot) {
         throw 'Progress относится к другой конфигурации/каталогу. Не переиспользуйте его; проверьте исходный прогон.'
     }
-    $masterPassword=Read-RecoveryPassword
     $state.attemptStartedUtc=[DateTime]::UtcNow.ToString('o')
+    Write-RecoveryProgress $progressPath $state
+}
+
+if ($BackupFirst -and -not (Test-RecoveryProgressStep $state 'Backup')) {
+    $stepName='Backup'
+    Set-RecoveryProgressStep $state $stepName 'RUNNING' $progressPath
+    $backupScript=Join-Path $PSScriptRoot 'Recovery.ps1'
+    & $backupScript -Mode Backup -ConfigPath $configPath
+    if (-not $?) { throw 'Команда согласованного backup завершилась с ошибкой.' }
+    $masterPassword=Read-RecoveryPassword
+    $snapshots=@(Invoke-RecoveryRestic $config $masterPassword @('snapshots','--json','--tag','gm-dr-v1') $PSScriptRoot | ConvertFrom-Json -AsHashtable)
+    $selected=$snapshots | Sort-Object time -Descending | Select-Object -First 1
+    if (-not $selected -or $selected.id -notmatch '^[a-f0-9]{64}$') { throw 'Backup завершился без доступного snapshot с ожидаемым тегом.' }
+    $state.snapshotId=$selected.id
+    $state.snapshotTime=$selected.time
+    Write-RecoveryProgress $progressPath $state
+    Set-RecoveryProgressStep $state $stepName 'PASS' $progressPath
+} elseif (-not $state.snapshotId) {
+    if (-not $BackupFirst) { throw 'В progress нет snapshot. Повторите запуск с -BackupFirst.' }
+}
+
+if (-not $masterPassword) { $masterPassword=Read-RecoveryPassword }
+if (-not $state.snapshotId) {
+    $snapshots=@(Invoke-RecoveryRestic $config $masterPassword @('snapshots','--json','--tag','gm-dr-v1') $PSScriptRoot | ConvertFrom-Json -AsHashtable)
+    if (-not $snapshots.Count) { throw 'В облачном repository нет snapshot с тегом gm-dr-v1.' }
+    if ($Snapshot -eq 'latest') { $selected=$snapshots | Sort-Object time -Descending | Select-Object -First 1 }
+    else { $selected=$snapshots | Where-Object { $_.id -eq $Snapshot } | Select-Object -First 1 }
+    if (-not $selected -or $selected.id -notmatch '^[a-f0-9]{64}$') { throw 'Snapshot не найден. Укажите полный ID.' }
+    $state.snapshotId=$selected.id
+    $state.snapshotTime=$selected.time
     Write-RecoveryProgress $progressPath $state
 }
 $adminSecure=Read-Host 'Пароль локального PostgreSQL администратора (не мастер-пароль копии)' -AsSecureString
