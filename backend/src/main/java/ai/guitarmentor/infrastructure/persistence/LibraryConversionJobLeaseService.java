@@ -45,7 +45,7 @@ public final class LibraryConversionJobLeaseService {
             List<Integer> slots = jdbc.sql("""
                 SELECT slot_number FROM library_conversion_worker_slots
                 WHERE job_id IS NULL ORDER BY slot_number
-                FOR UPDATE SKIP LOCKED LIMIT 1
+                LIMIT 1 FOR UPDATE SKIP LOCKED
                 """).query(Integer.class).list();
             if (slots.isEmpty()) return null;
             int slot = slots.getFirst();
@@ -100,6 +100,21 @@ public final class LibraryConversionJobLeaseService {
                 """).param("job", jobId).update();
             return jobUpdated == 1;
         }));
+    }
+
+    /** True only while the current lease still owns a job that the user has cancelled. */
+    public boolean isCancelRequested(UUID jobId, UUID workerId) {
+        if (!enabled) return true;
+        var rows = jdbc.sql("""
+            SELECT j.cancel_requested,j.state
+            FROM library_conversion_jobs j
+            JOIN library_conversion_worker_slots s ON s.job_id=j.id
+            WHERE j.id=:job AND s.lease_owner=:worker AND s.lease_until>now()
+            """).param("job", jobId).param("worker", workerId).query().listOfRows();
+        if (rows.isEmpty()) return true; // Lost lease: caller must terminate the child process.
+        Map<String,Object> row = rows.getFirst();
+        return Boolean.TRUE.equals(row.get("cancel_requested"))
+            || "CANCEL_REQUESTED".equals(row.get("state"));
     }
 
     /** Worker publishes discovered tracks and relinquishes its global slot while awaiting user input. */
@@ -198,7 +213,7 @@ public final class LibraryConversionJobLeaseService {
             SELECT slot_number,job_id FROM library_conversion_worker_slots
             WHERE job_id IS NOT NULL AND lease_until<=now()
             ORDER BY lease_until,slot_number
-            FOR UPDATE SKIP LOCKED LIMIT :limit
+            LIMIT :limit FOR UPDATE SKIP LOCKED
             """).param("limit", maximum).query().listOfRows();
         int reclaimed = 0;
         for (Map<String,Object> slot : expired) {
