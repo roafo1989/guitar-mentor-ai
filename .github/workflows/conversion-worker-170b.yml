@@ -1,0 +1,93 @@
+name: Conversion worker 170-B CI
+
+on:
+  pull_request:
+    branches: [main]
+    paths:
+      - 'scripts/conversion-worker/**'
+      - 'scripts/research/catalog-169/**'
+      - 'fixtures/research/catalog-169/**'
+      - 'backend/src/main/java/ai/guitarmentor/infrastructure/persistence/LibraryConversionProcessRunner.java'
+      - 'backend/src/test/java/ai/guitarmentor/infrastructure/persistence/LibraryConversionProcessRunnerTest.java'
+      - '.github/workflows/conversion-worker-170b.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  isolated-gp3-gp4-gp5:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 12
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22.16.0
+      - uses: actions/setup-python@v5
+        with:
+          python-version: 3.12.10
+      - name: Generate independent synthetic GP3/4/5 fixtures
+        run: |
+          python -m pip install --disable-pip-version-check --no-cache-dir -r scripts/research/catalog-169/requirements.txt
+          python scripts/research/catalog-169/generate_fixtures.py
+          node scripts/research/catalog-169/verify-fixtures.mjs
+      - name: Install pinned renderer dependencies
+        run: npm ci --prefix scripts/research/catalog-169 --omit=dev --ignore-scripts --no-audit --no-fund
+      - name: Build isolated production worker image
+        run: docker build -f scripts/conversion-worker/Dockerfile -t gm-conversion-worker:170b .
+      - name: Verify track-selection handoff and render all supported formats
+        shell: bash
+        run: |
+          set -euo pipefail
+          mkdir -p artifacts/conversion-worker
+          for ext in gp3 gp4 gp5; do
+            input="$PWD/artifacts/conversion-worker/input-$ext"
+            output="$PWD/artifacts/conversion-worker/output-$ext"
+            mkdir -p "$input" "$output"
+            cp "fixtures/research/catalog-169/generated/gm169-synthetic.$ext" "$input/source.gp"
+            chmod 755 "$input"
+            chmod 644 "$input/source.gp"
+            chmod 777 "$output"
+            common=(--network none --memory 512m --memory-swap 512m --cpus 1 --pids-limit 64 --read-only --cap-drop ALL --security-opt no-new-privileges:true --tmpfs /tmp:rw,noexec,nosuid,size=100m --user 10001:10001 --mount "type=bind,src=$input,dst=/input,readonly" --mount "type=bind,src=$output,dst=/out" --env "GM_CONVERSION_FORMAT=${ext^^}")
+            set +e
+            docker run --rm "${common[@]}" gm-conversion-worker:170b
+            selection_exit=$?
+            set -e
+            test "$selection_exit" -eq 10
+            node -e "const fs=require('fs'); const r=JSON.parse(fs.readFileSync('$output/result.json')); if(r.code!=='TRACK_SELECTION_REQUIRED'||r.tracks.length!==2) process.exit(1)"
+            docker run --rm "${common[@]}" --env GM_CONVERSION_TRACK_INDEX=0 gm-conversion-worker:170b
+            node -e "const fs=require('fs'); const p='$output'; const r=JSON.parse(fs.readFileSync(p+'/result.json')); if(r.status!=='RENDERED'||r.format!=='${ext^^}'||r.selectedTrackIndex!==0) process.exit(1); const pdf=fs.readFileSync(p+'/score.pdf'); const wav=fs.readFileSync(p+'/preview.wav'); if(pdf.subarray(0,4).toString()!=='%PDF'||wav.subarray(0,4).toString()!=='RIFF'||wav.subarray(8,12).toString()!=='WAVE') process.exit(1);"
+          done
+          mismatch_input="$PWD/artifacts/conversion-worker/input-version-mismatch"
+          mismatch_output="$PWD/artifacts/conversion-worker/output-version-mismatch"
+          mkdir -p "$mismatch_input" "$mismatch_output"
+          cp fixtures/research/catalog-169/generated/gm169-synthetic.gp5 "$mismatch_input/source.gp"
+          chmod 755 "$mismatch_input"
+          chmod 644 "$mismatch_input/source.gp"
+          chmod 777 "$mismatch_output"
+          set +e
+          docker run --rm --network none --memory 512m --memory-swap 512m --cpus 1 --pids-limit 64 --read-only --cap-drop ALL --security-opt no-new-privileges:true --tmpfs /tmp:rw,noexec,nosuid,size=100m --user 10001:10001 --mount "type=bind,src=$mismatch_input,dst=/input,readonly" --mount "type=bind,src=$mismatch_output,dst=/out" --env GM_CONVERSION_FORMAT=GP3 gm-conversion-worker:170b
+          mismatch_exit=$?
+          set -e
+          test "$mismatch_exit" -eq 20
+          node -e "const fs=require('fs'); const r=JSON.parse(fs.readFileSync('$mismatch_output/result.json')); if(r.code!=='UNSUPPORTED_FORMAT_VERSION') process.exit(1)"
+      - name: Set up Java 21
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '21'
+      - name: Verify Java ProcessBuilder with real isolated Docker image
+        working-directory: backend
+        env:
+          GM_TEST_REAL_DOCKER: 'true'
+          GM_TEST_CONVERSION_SOURCE: ${{ github.workspace }}/fixtures/research/catalog-169/generated/gm169-synthetic.gp5
+        run: ./mvnw -B -Dtest=LibraryConversionProcessRunnerTest test
+      - name: Upload conversion worker evidence
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: conversion-worker-170b-evidence
+          path: artifacts/conversion-worker
+          if-no-files-found: warn
+          retention-days: 14

@@ -175,3 +175,27 @@ Human listening, GP7 independent writer compatibility, GTP/GPX/GP8, сложны
 В main уже есть PostgreSQL integration test harness и CI service PostgreSQL 17 с флагом `GUITAR_MENTOR_TEST_POSTGRES=true`; новый брокер/очередь и новый тестовый сервис не нужны. Основной риск оценки — согласование lease с двумя deletion workers и гонки отмены/удаления. Output quota defaults уточнить в 170-C по фактическим ограничениям PDF/WAV.
 
 **Статус: 170-A реализован в PR #259; automated PostgreSQL/Java CI SUCCESS.** Feature flag по умолчанию выключен. Node worker, derived assets, Vue UX и production gates не реализованы и остаются следующими отдельными инкрементами.
+
+
+## 8. Инкремент 170-B — изолированный renderer worker (01.11.2026)
+
+Реализация вынесена в PR [#260](https://github.com/roafo1989/guitar-mentor-ai/pull/260).
+
+### 8.1 Worker contract
+
+- Image: `gm-conversion-worker:170b`, Node 22.16.0, alphaTab 1.8.4, PDFKit 0.17.2, svg-to-pdfkit 0.1.8. npm graph переиспользует lockfile исследовательского #169.
+- Input: `/input/source.gp` (read-only), output: `/out/score.pdf`, `/out/preview.wav`, `/out/result.json`.
+- Формат проверяется по embedded version header: GP3 v3.00, GP4 v4.06, GP5 v5.10; extension и metadata из API сами по себе не являются доказательством.
+- До render проверяются размер, импорт alphaTab, guitar track selection, standard EADGBE, 4/4, четверти, одна нота на beat, отсутствие rests/secondary voice/repeats/tempo changes/capo/alternate tuning и известных note/beat effects. Допускается только начальный instrument marker, совпадающий с MIDI program выбранной дорожки; последующие instrument/tempo/balance и прочие beat automations отклоняются.
+- Если гитарных дорожек несколько, worker возвращает TRACK_SELECTION_REQUIRED и безопасный список; автоматического выбора первой дорожки нет.
+- Успех — только обе валидные пары PDF+WAV, полученные из одной imported score и выбранной дорожки. Worker не публикует и не сохраняет derived assets.
+
+### 8.2 Isolation
+
+Java ProcessBuilder запускает Docker напрямую без shell, с `--pull=never`, read-only source mount, отдельным output mount, unprivileged UID 10001, network none, read-only root, cap-drop ALL, no-new-privileges, 512 MiB RAM, 1 CPU, 64 PIDs, 100 MiB noexec/nosuid tmpfs и 60-second watchdog. Source SHA-256 сверяется до запуска; output signatures и размер проверяются после завершения. Timeout/cancel останавливают container по cidfile. Raw stdout/stderr не возвращаются API.
+
+### 8.3 Граница 170-B
+
+PR #260 добавляет container image, CLI worker, Java execution adapter, focused tests и CI с независимыми synthetic GP3/4/5 fixtures. Runner пока не подключён к durable queue и не завершает job state: это намеренно отнесено к 170-C вместе с атомарной записью private derived assets, quota reservation/finalization, lineage и cleanup. Image должен быть заранее установлен на host; job execution не скачивает его. Windows Docker Desktop и production rollout не считаются проверенными.
+
+Feature flag `GUITAR_MENTOR_LIBRARY_CONVERSION_ENABLED` остаётся false до завершения 170-C/170-D/170-E и отдельной эксплуатационной приёмки.
