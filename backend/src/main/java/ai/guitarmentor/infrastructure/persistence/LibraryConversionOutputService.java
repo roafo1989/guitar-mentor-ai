@@ -68,14 +68,12 @@ public final class LibraryConversionOutputService {
 
         reserve(lease,output.selectedTrackIndex());
         LibraryObjectStore.Stored pdf=null, wav=null;
-        boolean committed=false;
         try {
             pdf=store.put(new java.io.ByteArrayInputStream(pdfBytes),MAX_OUTPUT_BYTES);
             wav=store.put(new java.io.ByteArrayInputStream(wavBytes),MAX_OUTPUT_BYTES);
             UUID pdfId=UUID.randomUUID(), audioId=UUID.randomUUID();
             LibraryObjectStore.Stored finalPdf=pdf, finalWav=wav;
             Persisted result=transactions.execute(status -> commit(lease,output,pdfId,audioId,finalPdf,finalWav,audio));
-            committed=true;
             return result;
         } catch(RuntimeException|IOException error) {
             cleanupIfUnreferenced(pdf);
@@ -92,9 +90,9 @@ public final class LibraryConversionOutputService {
     private void reserve(LibraryConversionJobLeaseService.Lease lease,int selectedTrack) {
         transactions.executeWithoutResult(status -> {
             lockUsage(lease.ownerAccountId());
-            Map<String,Object> job=lockJob(lease);
             lockMaterialAndSource(lease);
             requireLiveLease(lease);
+            Map<String,Object> job=lockJob(lease);
             if(!"RUNNING".equals(job.get("state")) || Boolean.TRUE.equals(job.get("cancel_requested")))
                 throw new IllegalStateException("Conversion job is no longer active");
             Object selected=job.get("selected_track_index");
@@ -131,9 +129,9 @@ public final class LibraryConversionOutputService {
             LibraryConversionProcessRunner.WorkerResult output,UUID pdfId,UUID audioId,
             LibraryObjectStore.Stored pdf,LibraryObjectStore.Stored wav,Audio audio) {
         lockUsage(lease.ownerAccountId());
-        Map<String,Object> job=lockJob(lease);
         lockMaterialAndSource(lease);
         requireLiveLease(lease);
+        Map<String,Object> job=lockJob(lease);
         if(!"RUNNING".equals(job.get("state")) || Boolean.TRUE.equals(job.get("cancel_requested"))
                 || !"RESERVED".equals(job.get("output_reservation_state"))
                 || ((Number)job.get("output_reserved_bytes")).longValue()!=RESERVED_BYTES
@@ -244,13 +242,13 @@ public final class LibraryConversionOutputService {
     }
 
     private void requireLiveLease(LibraryConversionJobLeaseService.Lease lease) {
-        Long count=jdbc.sql("""
-            SELECT count(*) FROM library_conversion_worker_slots
+        List<Integer> slots=jdbc.sql("""
+            SELECT slot_number FROM library_conversion_worker_slots
             WHERE slot_number=:slot AND job_id=:job AND lease_owner=:worker AND lease_until>now()
             FOR UPDATE
             """).param("slot",lease.slotNumber()).param("job",lease.jobId())
-            .param("worker",lease.leaseOwner()).query(Long.class).single();
-        if(count!=1) throw new IllegalStateException("Conversion worker lease was lost");
+            .param("worker",lease.leaseOwner()).query(Integer.class).list();
+        if(slots.size()!=1) throw new IllegalStateException("Conversion worker lease was lost");
     }
 
     private void ensureMaterialCapacity(UUID materialId) {
