@@ -69,10 +69,12 @@ class LibraryMediaHttpPostgresTest {
         }
     }
 
-    private UUID account(String sub) {
+    private UUID account(String sub) { return account(sub,"LEARNER"); }
+    private UUID account(String sub,String role) {
         UUID id=UUID.randomUUID();
-        jdbc.sql("INSERT INTO accounts(id,role,status) VALUES(:id,'LEARNER','ACTIVE')").param("id",id).update();
-        when(actors.findActive("https://issuer.example",sub)).thenReturn(Optional.of(new CurrentActor(id,null,"LEARNER")));
+        jdbc.sql("INSERT INTO accounts(id,role,status) VALUES(:id,:role,'ACTIVE')")
+            .param("id",id).param("role",role).update();
+        when(actors.findActive("https://issuer.example",sub)).thenReturn(Optional.of(new CurrentActor(id,null,role)));
         when(actors.localVersion(id)).thenReturn(Optional.of(0L));
         return id;
     }
@@ -391,6 +393,18 @@ class LibraryMediaHttpPostgresTest {
             .with(login("snapshot-b")).sessionAttr("guitarMentorAccessVersion",0L))
             .andExpect(status().isOk()).andExpect(jsonPath("$.sourceRevision").value(2))
             .andExpect(jsonPath("$.assets.length()").value(2));
+        account("snapshot-admin","OWNER");
+        mvc.perform(MockMvcRequestBuilders.post("/api/v1/community/publications/"+replacementId+"/hide")
+            .with(login("snapshot-admin")).with(csrf()).sessionAttr("guitarMentorAccessVersion",0L)
+            .header("If-Match","\"1\"").contentType("application/json")
+            .content(JSON.writeValueAsBytes(Map.of("reason","Rights evidence needs operator review"))))
+            .andExpect(status().isOk()).andExpect(jsonPath("$.state").value("HIDDEN"));
+        mvc.perform(MockMvcRequestBuilders.get("/api/v1/community/publications/"+replacementId+"/files/"+photoId+"/preview")
+            .with(login("snapshot-b")).sessionAttr("guitarMentorAccessVersion",0L))
+            .andExpect(status().isNotFound());
+        mvc.perform(MockMvcRequestBuilders.get("/api/v1/community/publications/"+replacementId+"/files/"+photoId+"/content")
+            .with(login("snapshot-b")).sessionAttr("guitarMentorAccessVersion",0L))
+            .andExpect(status().isNotFound());
     }
 
     @Test void synthesizedPreviewIsAnExplicitAudioRoleAndNotAnApprovalSignal() throws Exception {
