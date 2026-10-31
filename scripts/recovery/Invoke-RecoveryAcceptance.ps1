@@ -209,7 +209,11 @@ if ($BackupFirst -and -not (Test-RecoveryProgressStep $state 'Backup')) {
         $masterPassword=Read-RecoveryPassword
         $snapshots=@(Invoke-RecoveryRestic $config $masterPassword @('snapshots','--json','--tag','gm-dr-v1') $PSScriptRoot | ConvertFrom-Json -AsHashtable)
         $selected=$snapshots | Sort-Object time -Descending | Select-Object -First 1
-        if (-not $selected -or $selected.id -notmatch '^[a-f0-9]{64}
+        if (-not $selected -or $selected.id.Length -ne 64 -or $selected.id -notmatch '^[a-f0-9]+$' -or
+            [DateTime]::Parse($selected.time).ToUniversalTime() -lt [DateTime]::Parse($state.startedUtc).ToUniversalTime()) {
+            throw 'После backup не найден новый snapshot с ожидаемым тегом и временем.'
+        }
+        $state.snapshotId=$selected.id
         $state.snapshotTime=$selected.time
         Write-RecoveryProgress $progressPath $state
         Set-RecoveryProgressStep $state $stepName 'PASS' $progressPath
