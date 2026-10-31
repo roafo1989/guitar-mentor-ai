@@ -71,10 +71,10 @@ The earlier `TC-CATALOG-02-community.md` was recovered from `analysis/system-ana
 
 Self-review (not an independent human review) corrected the findings recorded in FT-012-03: audio search SQL syntax; private/public audio Range response converter; old PDF MIME backfill; stale ETag on repeated deletion; deletion-job cleanup; last usable score/photo guard; disabled capability values; and MP3 payload validation. The final implementation adds bounded JLayer decoding, and the photo/audio routes are covered by PostgreSQL-backed Spring Security/MockMvc.
 
-Final PR-head verification on `14aa2c90e7935629224b864cedb88874cdc9f54b` is running; the immediately preceding implementation SHA `df4dde97b990dbd58431a500efb744df653a8762` passed all three applicable workflows:
-- Java backend CI run `41222830562`: SUCCESS; Java 21, PostgreSQL 17.11; 401 tests, 0 failures, 0 errors, 4 skips; Flyway V32, app bootstrap and existing live HTTP smoke passed.
-- Vue frontend CI run `41222830486`: SUCCESS; typecheck/build, PDF.js provenance and real Chromium isolated ScoreReader passed.
-- Audio benchmark validator run `41222830483`: SUCCESS; positive and negative corpus checks passed.
+Final PR-head verification on `4cc9d8828aa0227b1921a6b6595101b0dbaf9965` — all applicable workflows SUCCESS:
+- Java backend CI run `41223494090`: Java 21, PostgreSQL 17.11; 401 tests, 0 failures, 0 errors, 4 skips; Flyway V32, app bootstrap and existing live HTTP smoke passed.
+- Vue frontend CI run `41223494118`: typecheck/build, PDF.js provenance and real Chromium isolated ScoreReader passed.
+- Audio benchmark validator run `41223494083`: positive and negative corpus checks passed.
 
 Test-layer honesty: LibraryMediaInspectorTest is unit; LibraryMediaHttpPostgresTest is PostgreSQL-backed Spring Security/MockMvc with separate mock identities/sessions, not independent live HTTP clients; LibraryMediaConcurrencyPostgresTest is direct-controller concurrency against PostgreSQL, not HTTP; the Java workflow's live HTTP smoke covers existing app/exercise endpoints, not the new media upload routes. The #167 photo/audio secured endpoints have not been represented as live-network HTTP smoke.
 
