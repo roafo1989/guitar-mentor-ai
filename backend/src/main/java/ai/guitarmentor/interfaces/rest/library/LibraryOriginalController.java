@@ -340,8 +340,9 @@ public final class LibraryOriginalController {
                 for(Incoming input:staged) {
                     Stored obj=input.object();
                     jdbc.sql("""
-                        INSERT INTO library_assets(id,material_id,object_key,original_name,format,byte_size,sha256)
-                        VALUES(:id,:material,:object,:name,:format,:length,:digest)
+                        INSERT INTO library_assets(id,material_id,object_key,original_name,format,byte_size,sha256,media_type)
+                        VALUES(:id,:material,:object,:name,:format,:length,:digest,
+                            CASE WHEN :format='PDF' THEN 'application/pdf' ELSE 'application/octet-stream' END)
                         """).param("id",UUID.randomUUID()).param("material",id)
                         .param("object",obj.key()).param("name",input.name())
                         .param("format",input.format()).param("length",obj.length())
