@@ -51,6 +51,22 @@ Do not interpret unit tests as HTTP, direct controller tests as independent sess
 
 | M-32 | Existing PDF sandbox viewer regression | Keep iframe sandbox/CSP/no-network, pinned PDF.js, bounded same-origin bytes, page/canvas/render limits and cleanup; #168 extends exact library route allowlist while reusing this renderer | Source/lockfile review; no frontend files changed by #167 |
 
+## Traceability to the shared catalogue test plan
+
+The earlier `TC-CATALOG-02-community.md` was recovered from `analysis/system-analysis-standard` (it is absent from main). #167-specific cases are covered as follows:
+
+| TC-COM | Scope in shared plan | #167 evidence |
+|---|---|---|
+| 11 | Photo originals and sanitized preview | M-01–05, M-16 |
+| 12 | Malformed/oversize media and bounded processing | M-03–10 |
+| 13 | Add audio after publication; explicit new publish; separate source/synth roles | M-13, M-20–21, M-30–31 |
+| 14 | Audio Range/HEAD and withdrawal | M-17–19, M-22 |
+| 15–16 | Isolated PDF preview, hostile/corrupt/large PDF fallback | Existing `ScoreReader` source/lockfile/browser-contract review (M-32). Library-route integration remains #168; no second renderer is created here. |
+| 18–19 | Concurrent mutation, storage faults, commit/recovery | M-11–14, M-23–29 |
+| 22–24 | Anonymous/CSRF/rate/flag-off, delete/retry and rollback | M-15, M-23–24, M-27–29 |
+
+`TC-CATALOG-02` is a planning document whose rows are NOT_RUN; the crosswalk does not relabel its whole US end-to-end suite as passed. #167 evidence remains limited to the actual backend and viewer-source checks listed in this document.
+
 ## CI acceptance gate
 
 Before the task can be moved to `Тестирование / В очереди`, the final PR head must have successful applicable Java CI on its exact SHA, including PostgreSQL 17 migration/verify and HTTP bootstrap. The CI run, commit SHA and exact test result counts must be copied into the final report. Any failed test is a defect to fix, not an item to hand to the owner as optional checking.
