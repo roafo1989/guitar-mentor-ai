@@ -12,8 +12,6 @@ import org.springframework.stereotype.Component;
  */
 @Component
 public final class LibraryConversionDeletionGuard {
-    private static final List<String> ACTIVE = List.of(
-        "QUEUED","RUNNING","AWAITING_TRACK_SELECTION","CANCEL_REQUESTED");
     private final JdbcClient jdbc;
 
     public LibraryConversionDeletionGuard(JdbcClient jdbc) { this.jdbc = jdbc; }
