@@ -77,6 +77,97 @@ class LibraryPublicationPostgresTest {
     }
     interface Executable {void run() throws Exception;}
 
+    private UUID extraAsset(UUID material,String role,String state) throws Exception {
+        UUID id=UUID.randomUUID();
+        var stored=storage.put(new ByteArrayInputStream("synthetic private asset".getBytes()),1024);
+        boolean audio=role.equals("ORIGINAL_RECORDING");
+        jdbc.sql("""
+            INSERT INTO library_assets(id,material_id,object_key,original_name,format,byte_size,sha256,role,media_type,processing_state,duration_millis,channels,sample_rate)
+            VALUES(:id,:material,:key,:name,:format,:bytes,:sha,:role,:mime,:state,
+                CASE WHEN :role='ORIGINAL_RECORDING' THEN 1000 ELSE NULL END,
+                CASE WHEN :role='ORIGINAL_RECORDING' THEN 1 ELSE NULL END,
+                CASE WHEN :role='ORIGINAL_RECORDING' THEN 8000 ELSE NULL END)
+            """).param("id",id).param("material",material).param("key",stored.key())
+            .param("name",audio?"private.wav":"private.pdf").param("format",audio?"WAV":"PDF")
+            .param("bytes",stored.length()).param("sha",stored.sha256()).param("role",role)
+            .param("mime",audio?"audio/wav":"application/pdf").param("state",state).update();
+        return id;
+    }
+    @Test void selectedSubsetExcludesPrivateAudioAndUnavailableUnselectedAssetEvenWithMediaOff() throws Exception {
+        UUID owner=newAccount("LEARNER"),reader=newAccount("LEARNER");
+        var source=material(owner,"Subset without audio");
+        UUID audio=extraAsset(source.material(),"ORIGINAL_RECORDING","READY");
+        UUID rejected=extraAsset(source.material(),"SCORE_ORIGINAL","REJECTED");
+        String key=UUID.randomUUID().toString();
+        var selected=rights(source.asset());
+        var result=publications.publish(req(owner,"LEARNER"),source.material(),"\"1\"",key,selected).getBody();
+        assertEquals(List.of(source.asset()),result.assets().stream().map(a->a.id()).toList());
+        assertEquals(result.id(),publications.publish(req(owner,"LEARNER"),source.material(),"\"1\"",key,selected).getBody().id());
+        assertEquals("PUBLICATION_IDEMPOTENCY_CONFLICT",code(()->publications.publish(req(owner,"LEARNER"),source.material(),"\"1\"",key,rights(audio))));
+        assertEquals("PUBLICATION_NOT_FOUND",code(()->publications.publishedContent(req(reader,"LEARNER"),result.id(),audio)));
+        assertEquals("PUBLICATION_NOT_FOUND",code(()->publications.publishedContent(req(reader,"LEARNER"),result.id(),rejected)));
+        assertEquals(1,search.search(req(reader,"LEARNER"),"Subset without audio",null,null,false,20,null).getBody().items().size());
+        assertTrue(search.search(req(reader,"LEARNER"),"Subset without audio",null,null,true,20,null).getBody().items().isEmpty());
+    }
+    @Test void selectedSubsetRejectsForeignUnknownDuplicateAndAudioOnlyAssets() throws Exception {
+        UUID owner=newAccount("LEARNER");
+        var source=material(owner,"Selection validation");var other=material(owner,"Other private material");
+        UUID audio=extraAsset(source.material(),"ORIGINAL_RECORDING","READY");
+        var request=req(owner,"LEARNER");
+        for(UUID invalid:List.of(other.asset(),UUID.randomUUID())) {
+            var mixed=new LibraryPublicationController.PublishRequest(List.of(rights(source.asset()).assets().getFirst(),rights(invalid).assets().getFirst()));
+            assertEquals("PUBLICATION_INVALID_RIGHTS",code(()->publications.publish(request,source.material(),"\"1\"",mixed)));
+        }
+        assertEquals("PUBLICATION_INVALID_RIGHTS",code(()->publications.publish(request,source.material(),"\"1\"",rights(audio))));
+        var duplicate=new LibraryPublicationController.PublishRequest(List.of(rights(source.asset()).assets().getFirst(),rights(source.asset()).assets().getFirst()));
+        assertEquals("PUBLICATION_INVALID_RIGHTS",code(()->publications.publish(request,source.material(),"\"1\"",duplicate)));
+        assertEquals(0L,jdbc.sql("SELECT count(*) FROM library_publications WHERE material_id=:id").param("id",source.material()).query(Long.class).single());
+    }
+    @Test void selectedSubsetRequiresReadyAndOwnRightsForEveryIncludedAsset() throws Exception {
+        UUID owner=newAccount("LEARNER");var source=material(owner,"Ready selection");
+        UUID rejected=extraAsset(source.material(),"SCORE_ORIGINAL","REJECTED");
+        var payload=new LibraryPublicationController.PublishRequest(List.of(rights(source.asset()).assets().getFirst(),rights(rejected).assets().getFirst()));
+        assertEquals("CATALOG_ASSET_NOT_READY",code(()->publications.publish(req(owner,"LEARNER"),source.material(),"\"1\"",payload)));
+        var invalidRight=new LibraryPublicationController.AssetRight(source.asset(),"CREATED","OWN_WORK","");
+        assertEquals("PUBLICATION_INVALID_RIGHTS",code(()->publications.publish(req(owner,"LEARNER"),source.material(),"\"1\"",new LibraryPublicationController.PublishRequest(List.of(invalidRight)))));
+        assertEquals("LIBRARY_REVISION_CONFLICT",code(()->publications.publish(req(owner,"LEARNER"),source.material(),"\"2\"",rights(source.asset()))));
+    }
+
+    @Test void photoOnlySelectionCanLeaveScorePrivateWhenMediaEnabled() throws Exception {
+        UUID owner=newAccount("LEARNER");var source=material(owner,"Photo selected");
+        UUID photo=UUID.randomUUID();byte[] bytes=Base64.getDecoder().decode("iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mP8/x8AAwMCAO+a5S8AAAAASUVORK5CYII=");
+        var original=storage.put(new ByteArrayInputStream(bytes),1024);var preview=storage.put(new ByteArrayInputStream(bytes),1024);
+        jdbc.sql("""
+            INSERT INTO library_assets(id,material_id,object_key,original_name,format,byte_size,sha256,role,media_type,width,height,preview_object_key,preview_byte_size)
+            VALUES(:id,:material,:key,'selected.png','PNG',:bytes,:sha,'PHOTO_ORIGINAL','image/png',1,1,:preview,:bytes)
+            """).param("id",photo).param("material",source.material()).param("key",original.key())
+            .param("bytes",original.length()).param("sha",original.sha256()).param("preview",preview.key()).update();
+        var media=new LibraryPublicationController(jdbc,storage,true,true);
+        var published=media.publish(req(owner,"LEARNER"),source.material(),"\"1\"",rights(photo)).getBody();
+        assertEquals(List.of(photo),published.assets().stream().map(a->a.id()).toList());
+        assertNotNull(published.assets().getFirst().previewUrl());
+        assertEquals("PUBLICATION_NOT_FOUND",code(()->media.publishedContent(req(owner,"LEARNER"),published.id(),source.asset())));
+    }
+
+    @Test void allRequestedTagsAndOpaqueCursorExcludeSingleTagMatches() throws Exception {
+        UUID owner=newAccount("LEARNER"),reader=newAccount("LEARNER");
+        var a=material(owner,"AND regression A only");
+        var b=material(owner,"AND regression B only");
+        var ab1=material(owner,"AND regression AB first");
+        var ab2=material(owner,"AND regression AB second");
+        var request=req(owner,"LEARNER");
+        publications.publish(request,a.material(),"\"1\"",new LibraryPublicationController.PublishRequest(rights(a.asset()).assets(),List.of("tag-a")));
+        publications.publish(request,b.material(),"\"1\"",new LibraryPublicationController.PublishRequest(rights(b.asset()).assets(),List.of("tag-b")));
+        UUID first=publications.publish(request,ab1.material(),"\"1\"",new LibraryPublicationController.PublishRequest(rights(ab1.asset()).assets(),List.of("tag-a","tag-b"))).getBody().id();
+        UUID second=publications.publish(request,ab2.material(),"\"1\"",new LibraryPublicationController.PublishRequest(rights(ab2.asset()).assets(),List.of("tag-a","tag-b"))).getBody().id();
+        var one=search.search(req(reader,"LEARNER"),"AND regression",null,List.of("tag-a","tag-b"),null,1,null).getBody();
+        assertEquals(1,one.items().size()); assertNotNull(one.nextCursor());
+        var two=search.search(req(reader,"LEARNER"),"AND regression",null,List.of("tag-b","tag-a"),null,1,one.nextCursor()).getBody();
+        assertEquals(1,two.items().size()); assertNull(two.nextCursor());
+        assertEquals(Set.of(first,second),Set.of(one.items().getFirst().id(),two.items().getFirst().id()));
+        assertEquals(3,search.search(req(reader,"LEARNER"),"AND regression",null,List.of("tag-a"),null,20,null).getBody().items().size());
+    }
+
     @Test void sharedSearchFilterScopedPaginationAndRevocation() throws Exception {
         UUID alice=newAccount("LEARNER"),bob=newAccount("LEARNER");
         var privateDraft=material(alice,"Secret guitar draft");
@@ -108,9 +199,9 @@ class LibraryPublicationPostgresTest {
         assertEquals(List.of("blues","fingerstyle"),
             publications.publishedDetail(req(bob,"LEARNER"),pub1).getBody().tags(),
             "shared detail and search cards must expose consistent public tags");
-        assertEquals(2,search.search(req(bob,"LEARNER"),"yesterday",null,
+        assertEquals(0,search.search(req(bob,"LEARNER"),"yesterday",null,
             List.of("rock","blues"),false,20,null).getBody().items().size(),
-            "OR among tags, AND with q");
+            "ALL requested tags, AND with q");
         assertTrue(search.search(req(bob,"LEARNER"),"Secret guitar draft",null,null,
             false,20,null).getBody().items().isEmpty());
         assertTrue(search.search(req(bob,"LEARNER"),null,null,null,true,20,null)

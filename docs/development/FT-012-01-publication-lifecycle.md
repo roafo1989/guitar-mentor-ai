@@ -46,3 +46,8 @@ Flyway V28 is additive. No automatic sharing, no backfill, no migration of index
 
 ## Acceptance boundary
 This task is backend publication/withdraw/HIDE; **not** visible in the current UI until #168 and not discoverable via public search until #166. Direct public-detail links are addressable only with a known publication UUID. CI and security review must pass before user acceptance, merge and closing #165.
+
+
+## #168: explicit selected assets (01.11.2026)
+
+Owner-authorized follow-up: publish accepts a non-empty READY subset from the owner's current material, with at least one SCORE_ORIGINAL or PHOTO_ORIGINAL and independent rights for every included asset. Unselected originals/audio remain private and are absent from the immutable snapshot, search hasAudio and shared byte routes. Unknown/foreign/duplicate selections, audio-only selections and invalid selected rights fail; readiness/storage/media-flag checks apply only to selected assets. Existing whole-set requests, revision headers, idempotency replay/conflict, withdraw/HIDDEN and CSRF remain unchanged. No schema migration. Regression evidence: `docs/testing/qa168/README.md` and final PR258 CI.

@@ -22,6 +22,9 @@ async function realSetupComponent() {
   const mapped=js.replace(/from (['"])(.*?)\1/g,(_full,_q,id)=>{
     const dependencies={
       vue:vueUrl,
+      'vue-router':asModule("export const useRoute=()=>({query:{}});export const useRouter=()=>({push(){}});"),
+      './CommunityView.vue':asModule('export default {};'),
+      './MaterialSharing.vue':asModule('export default {};'),
       'vue-i18n':asModule("export const useI18n=()=>({t:key=>key});"),
       '../../core/auth/auth':asModule("export const auth=globalThis.__libraryTestAuth;"),
       '../../shared/api-failure':asModule("export const asApiFailure=e=>e; export const apiFailureKey=()=> 'apiErrors.http';"),

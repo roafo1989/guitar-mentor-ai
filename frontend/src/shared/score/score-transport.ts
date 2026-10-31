@@ -13,6 +13,19 @@ export function pinnedPdfUrl(value: string | null, exerciseKey: string, origin: 
   return url.origin === origin && !url.username && !url.password ? url.href : null;
 }
 
+export type ScoreDescriptor = { kind: 'material'; materialId: string; assetId: string }
+  | { kind: 'publication'; publicationId: string; assetId: string };
+export function pinnedAssetPdfUrl(value: string | null, source: ScoreDescriptor, origin: string): string | null {
+  const id = source.kind === 'material' ? source.materialId : source.publicationId;
+  const uuid = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+  if (!uuid.test(id) || !uuid.test(source.assetId)) return null;
+  const expected = (source.kind === 'material' ? '/api/v1/library/materials/' : '/api/v1/community/publications/')
+    + id + '/files/' + source.assetId + '/content';
+  if (value !== expected) return null;
+  const url = new URL(expected, origin);
+  return url.origin === origin && !url.username && !url.password ? url.href : null;
+}
+
 export function safeScoreLink(value: string | null, origin: string): string | null {
   if (!value || !value.startsWith('/') || value.startsWith('//') || value.includes('#')) return null;
   const url = new URL(value, origin);

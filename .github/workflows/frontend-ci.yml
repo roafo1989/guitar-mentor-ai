@@ -33,6 +33,10 @@ jobs:
         run: npm test
       - name: Tuner pitch and spectrum regression tests
         run: npm run test:tuner
+      - name: Shared library service regression
+        run: npm run test:community
+      - name: Shared library real Chromium (mock HTTP)
+        run: CHROME_PATH="$(command -v google-chrome)" npm run test:community-browser
       - name: Typecheck and build
         run: npm run build
       - name: PDF.js provenance and dependency audit
@@ -57,4 +61,12 @@ jobs:
         with:
           name: qa229-profile-ux
           path: docs/testing/qa229/*.png
+          if-no-files-found: ignore
+
+      - name: Upload shared library QA evidence
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: qa168-community-library
+          path: docs/testing/qa168/
           if-no-files-found: ignore
