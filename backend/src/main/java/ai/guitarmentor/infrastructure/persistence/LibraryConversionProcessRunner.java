@@ -160,6 +160,18 @@ public final class LibraryConversionProcessRunner {
                 deleteWorkspace(workspace);
                 return failure("WORKER_PROTOCOL_ERROR");
             }
+            String returnedFormat = result.path("format").asText("");
+            String returnedSourceHash = result.path("sourceSha256").asText("");
+            String scoreRevision = result.path("scoreRevision").asText("");
+            int selectedIndex = result.path("selectedTrackIndex").asInt(-1);
+            String selectedName = safeName(result.path("selectedTrackName").asText(""));
+            double duration = result.path("wavDurationSeconds").asDouble(-1);
+            if (!format.equals(returnedFormat) || !actualSha.equals(returnedSourceHash)
+                    || !actualSha.equals(scoreRevision) || selectedIndex < 0 || selectedName.isBlank()
+                    || !Double.isFinite(duration) || duration <= 0 || duration > 120) {
+                deleteWorkspace(workspace);
+                return failure("WORKER_RESULT_MISMATCH");
+            }
             Path pdf = outputDir.resolve("score.pdf");
             Path wav = outputDir.resolve("preview.wav");
             validateOutput(pdf, "%PDF");
@@ -170,8 +182,7 @@ public final class LibraryConversionProcessRunner {
                 return failure("OUTPUT_TOO_LARGE");
             }
             return new WorkerResult(status, null, List.copyOf(tracks),
-                    result.path("selectedTrackIndex").asInt(), safeName(result.path("selectedTrackName").asText("Guitar")),
-                    actualSha, pdfBytes, wavBytes, result.path("wavDurationSeconds").asDouble(),
+                    selectedIndex, selectedName, actualSha, pdfBytes, wavBytes, duration,
                     workspace, pdf, wav);
         } catch (IOException | RuntimeException | InterruptedException error) {
             if (process != null && process.isAlive()) process.destroyForcibly();
