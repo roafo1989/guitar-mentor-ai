@@ -225,7 +225,7 @@ function Invoke-DrillApplicationSmoke([hashtable]$State, [hashtable]$Config, [ha
             if($lastHttpError){$failureReason+=" Последняя ошибка запроса: $lastHttpError."}
         }
     } catch {
-        $failureReason="Ошибка запуска/проверки Java: $($_.Exception.GetType().Name): $($_.Exception.Message)"
+        $failureReason="Ошибка запуска/проверки Java: $($_.Exception.GetType().Name)."
     } finally {
         if($client){$client.Dispose()}
         if($started -and $process -and -not $process.HasExited){
@@ -243,6 +243,7 @@ function Invoke-DrillApplicationSmoke([hashtable]$State, [hashtable]$Config, [ha
             foreach($line in ($stream -split '\r?\n' | Select-Object -Last 80)){
                 if([string]::IsNullOrWhiteSpace($line)){continue}
                 $safe=[string]$line
+                $safe=$safe -replace '(?i)("(?:password|passwd|secret|token|authorization|client-secret|smtp-password)"\s*:\s*")[^"]*(")','$1[REDACTED]$2'
                 $safe=$safe -replace '(?i)(password|passwd|secret|token|authorization|client-secret|smtp-password)(\s*[:=]\s*)[^\s,;]+','$1$2[REDACTED]'
                 $safe=$safe -replace '(?i)(https?://[^:/\s]+:)[^@/\s]+@','$1[REDACTED]@'
                 $safe
