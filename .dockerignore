@@ -1,0 +1,6 @@
+.git
+**/node_modules
+**/target
+artifacts
+frontend/dist
+backend/target

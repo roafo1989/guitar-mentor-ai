@@ -1,0 +1,189 @@
+{
+  "source": "synthetic-score.alphatex",
+  "tuning": "standard E2-A2-D3-G3-B3-E4",
+  "tempoBpm": 96,
+  "timeSignature": "4/4",
+  "selectedTrack": "Lead Guitar",
+  "events": [
+    {
+      "bar": 1,
+      "voice": 0,
+      "string": 1,
+      "fret": 0,
+      "midi": 64,
+      "displayMidi": 76,
+      "duration": 4
+    },
+    {
+      "bar": 1,
+      "voice": 0,
+      "string": 2,
+      "fret": 2,
+      "midi": 61,
+      "displayMidi": 73,
+      "duration": 4
+    },
+    {
+      "bar": 1,
+      "voice": 0,
+      "string": 3,
+      "fret": 2,
+      "midi": 57,
+      "displayMidi": 69,
+      "duration": 4
+    },
+    {
+      "bar": 1,
+      "voice": 0,
+      "string": 4,
+      "fret": 0,
+      "midi": 50,
+      "displayMidi": 62,
+      "duration": 4
+    },
+    {
+      "bar": 2,
+      "voice": 0,
+      "string": 4,
+      "fret": 3,
+      "midi": 53,
+      "displayMidi": 65,
+      "duration": 4
+    },
+    {
+      "bar": 2,
+      "voice": 0,
+      "string": 3,
+      "fret": 2,
+      "midi": 57,
+      "displayMidi": 69,
+      "duration": 4
+    },
+    {
+      "bar": 2,
+      "voice": 0,
+      "string": 2,
+      "fret": 0,
+      "midi": 59,
+      "displayMidi": 71,
+      "duration": 4
+    },
+    {
+      "bar": 2,
+      "voice": 0,
+      "string": 1,
+      "fret": 0,
+      "midi": 64,
+      "displayMidi": 76,
+      "duration": 4
+    },
+    {
+      "bar": 3,
+      "voice": 0,
+      "string": 2,
+      "fret": 0,
+      "midi": 59,
+      "displayMidi": 71,
+      "duration": 4
+    },
+    {
+      "bar": 3,
+      "voice": 0,
+      "string": 3,
+      "fret": 2,
+      "midi": 57,
+      "displayMidi": 69,
+      "duration": 4
+    },
+    {
+      "bar": 3,
+      "voice": 0,
+      "string": 4,
+      "fret": 4,
+      "midi": 54,
+      "displayMidi": 66,
+      "duration": 4
+    },
+    {
+      "bar": 3,
+      "voice": 0,
+      "string": 5,
+      "fret": 2,
+      "midi": 47,
+      "displayMidi": 59,
+      "duration": 4
+    },
+    {
+      "bar": 4,
+      "voice": 0,
+      "string": 1,
+      "fret": 0,
+      "midi": 64,
+      "displayMidi": 76,
+      "duration": 4
+    },
+    {
+      "bar": 4,
+      "voice": 0,
+      "string": 3,
+      "fret": 0,
+      "midi": 55,
+      "displayMidi": 67,
+      "duration": 4
+    },
+    {
+      "bar": 4,
+      "voice": 0,
+      "string": 4,
+      "fret": 2,
+      "midi": 52,
+      "displayMidi": 64,
+      "duration": 4
+    },
+    {
+      "bar": 4,
+      "voice": 0,
+      "string": 5,
+      "fret": 3,
+      "midi": 48,
+      "displayMidi": 60,
+      "duration": 4
+    },
+    {
+      "bar": 5,
+      "voice": 0,
+      "string": 1,
+      "fret": 0,
+      "midi": 64,
+      "displayMidi": 76,
+      "duration": 4
+    },
+    {
+      "bar": 5,
+      "voice": 0,
+      "string": 2,
+      "fret": 2,
+      "midi": 61,
+      "displayMidi": 73,
+      "duration": 4
+    },
+    {
+      "bar": 5,
+      "voice": 0,
+      "string": 3,
+      "fret": 2,
+      "midi": 57,
+      "displayMidi": 69,
+      "duration": 4
+    },
+    {
+      "bar": 5,
+      "voice": 0,
+      "string": 4,
+      "fret": 0,
+      "midi": 50,
+      "displayMidi": 62,
+      "duration": 4
+    }
+  ]
+}

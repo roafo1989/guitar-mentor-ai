@@ -1,0 +1,45 @@
+{
+  "alphaTabVersion": "1.8.4",
+  "pythonFixtureGenerator": "PyGuitarPro 0.11 / Python 3.12.10 (fixtures only)",
+  "sourceSha256": "c81a43ed1c3ad32b6c3ea9728f366018d054836fb2cae520832775b750b40209",
+  "expectedEventsSha256": "04437c09af8d2891f93006df4134d2ac04214aa1eea9f5c0a47223432c509473",
+  "bravuraFont": {
+    "path": "alphaTab 1.8.4 dist/font/Bravura.otf",
+    "license": "Bravura-OFL.txt",
+    "sha256": "883a86a8cfe77db6597b8ef56b9cf6efb079b0631a283a323945a41f976fb483"
+  },
+  "soundFont": {
+    "path": "alphaTab 1.8.4 dist/soundfont/sonivox.sf2",
+    "license": "SoundFont-LICENSE.txt",
+    "sha256": "4978cf37e7164206f2d22dc4fdf4020ffe040787210bf781e31bdc79961f59ef"
+  },
+  "cgroupMetrics": {
+    "memoryMaxBytes": "536870912",
+    "memoryPeakBytes": "68280320",
+    "cpuMax": "100000 100000",
+    "cpuStat": "usage_usec 984669\nuser_usec 899749\nsystem_usec 84920\nnice_usec 0\ncore_sched.force_idle_usec 0\nnr_periods 10\nnr_throttled 9\nthrottled_usec 767873\nnr_bursts 0\nburst_usec 0",
+    "pidsMax": "64",
+    "scratchCapacityBytes": 104857600,
+    "scratchAvailableBytes": 104853504,
+    "scratchUsedBytes": 4096
+  },
+  "attributionIncluded": true,
+  "formats": {
+    ".gp3": { "status": "PASS", "events": 20, "bars": 5, "tracks": 2 },
+    ".gp4": { "status": "PASS", "events": 20, "bars": 5, "tracks": 2 },
+    ".gp5": { "status": "PASS", "events": 20, "bars": 5, "tracks": 2 },
+    ".gp (GP7)": { "status": "PASS", "events": 20, "bars": 5, "tracks": 2 },
+    ".gp (GP8)": { "status": "NOT_RUN", "reason": "No independent legal GP8 writer/sample" },
+    ".gtp": { "status": "NOT_RUN", "reason": "No legal synthetic GTP1/2 writer/sample" },
+    ".gpx": { "status": "NOT_RUN", "reason": "No legal synthetic GPX/GP6 writer/sample" }
+  },
+  "selectedTrackIndex": 0,
+  "selectedTrackName": "Lead Guitar",
+  "pdf": "gm169-synthetic-score-tab.pdf",
+  "pdfBytes": 15034,
+  "wav": "gm169-synthetic-audio.wav",
+  "wavBytes": 2205228,
+  "wavDurationSeconds": 12.501043083900226,
+  "audioDescription": "Synthetic SoundFont preview from same imported GP5 score revision; no human listening acceptance",
+  "systems": [{ "firstBar": 1, "lastBar": 4 }, { "firstBar": 5, "lastBar": 5 }]
+}
