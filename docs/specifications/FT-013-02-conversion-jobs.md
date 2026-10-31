@@ -186,7 +186,7 @@ Human listening, GP7 independent writer compatibility, GTP/GPX/GP8, сложны
 - Image: `gm-conversion-worker:170b`, Node 22.16.0, alphaTab 1.8.4, PDFKit 0.17.2, svg-to-pdfkit 0.1.8. npm graph переиспользует lockfile исследовательского #169.
 - Input: `/input/source.gp` (read-only), output: `/out/score.pdf`, `/out/preview.wav`, `/out/result.json`.
 - Формат проверяется по embedded version header: GP3 v3.00, GP4 v4.06, GP5 v5.10; extension и metadata из API сами по себе не являются доказательством.
-- До render проверяются размер, импорт alphaTab, guitar track selection, standard EADGBE, 4/4, четверти, одна нота на beat, отсутствие rests/secondary voice/repeats/tempo changes/capo/alternate tuning и известных note/beat effects.
+- До render проверяются размер, импорт alphaTab, guitar track selection, standard EADGBE, 4/4, четверти, одна нота на beat, отсутствие rests/secondary voice/repeats/tempo changes/capo/alternate tuning и известных note/beat effects. Допускается только начальный instrument marker, совпадающий с MIDI program выбранной дорожки; последующие instrument/tempo/balance и прочие beat automations отклоняются.
 - Если гитарных дорожек несколько, worker возвращает TRACK_SELECTION_REQUIRED и безопасный список; автоматического выбора первой дорожки нет.
 - Успех — только обе валидные пары PDF+WAV, полученные из одной imported score и выбранной дорожки. Worker не публикует и не сохраняет derived assets.
 
