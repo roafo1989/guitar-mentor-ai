@@ -23,7 +23,7 @@ Do not interpret unit tests as HTTP, direct controller tests as independent sess
 | M-04 | Corrupt image / unsupported image | 400; no preview; no READY asset | Inspector unit |
 | M-05 | Photo >5 MiB, side >12,000 px, >20 MP | Reject before full decode; 413 | Inspector unit |
 | M-06 | Valid MP3 frames and WAV PCM16 | Correct duration, channels and sample rate persisted | Inspector unit + PostgreSQL HTTP |
-| M-07 | Header-only fake MP3, fake WAV, extension/MIME mismatch, corrupt/truncated stream | Reject; no READY asset | Inspector unit; real MP3 payload decoded with JLayer |
+| M-07 | Non-decodable/truncated MP3 payload, fake WAV, extension/MIME mismatch, corrupt stream | Reject; no READY asset | Inspector unit; real MP3 payload decoded with JLayer |
 | M-08 | WAV non-PCM16, >2 channels, out-of-range sample rate or >10 min | Reject | Inspector unit |
 | M-09 | MP3 >10 min or >20 MiB; MP3 decode exceeds 30 s or decoder queue is saturated | Reject with bounded failure; no READY asset | Inspector unit / bounded 2-worker decoder; CI PostgreSQL |
 | M-10 | More than 2 files/request or >20 MiB aggregate | Reject before commit | Controller validation; CI HTTP suite |
