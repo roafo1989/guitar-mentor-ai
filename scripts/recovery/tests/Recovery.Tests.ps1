@@ -10,6 +10,10 @@ function MustThrow([scriptblock]$Action,[string]$Message) {
 $root=Join-Path ([IO.Path]::GetTempPath()) ('gm-recovery-test-'+[guid]::NewGuid().ToString('N'))
 New-PrivateRecoveryDirectory $root
 try {
+    $freeBytes=Assert-RecoveryStageCapacity $root 268435456
+    Assert ($freeBytes -ge 268435456) 'staging disk reserve accepts available free space'
+    MustThrow { Assert-RecoveryStageCapacity $root 1099511627776 } 'staging disk reserve blocks insufficient free space'
+    Assert ((Get-RecoveryFailureHint 'Недостаточно свободного места на диске staging') -like '*Недостаточно места*') 'disk reserve failure receives actionable safe diagnostic'
     $progressPath=Join-Path $root 'resume-progress.json'
     $progress=@{steps=@{};fixture='synthetic'}
     Set-RecoveryProgressStep $progress 'SyntheticStep' 'RUNNING' $progressPath
