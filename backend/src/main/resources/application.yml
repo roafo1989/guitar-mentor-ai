@@ -32,6 +32,10 @@ guitar-mentor:
     # Opt-in only after a protected private storage root and stable HMAC secret are configured.
     enabled: ${GUITAR_MENTOR_LIBRARY_ENABLED:false}
     community-media-enabled: ${GUITAR_MENTOR_COMMUNITY_MEDIA_ENABLED:false}
+    # Disabled until the renderer worker and production gates are accepted.
+    conversion-enabled: ${GUITAR_MENTOR_LIBRARY_CONVERSION_ENABLED:false}
+    conversion-lease-seconds: ${GUITAR_MENTOR_LIBRARY_CONVERSION_LEASE_SECONDS:90}
+    conversion-reclaim-delay-ms: ${GUITAR_MENTOR_LIBRARY_CONVERSION_RECLAIM_MS:10000}
     storage-path: ${GUITAR_MENTOR_LIBRARY_STORAGE_PATH:./.local-media/library}
     cursor-secret: ${GUITAR_MENTOR_LIBRARY_CURSOR_SECRET:}
     reconcile-delay-ms: ${GUITAR_MENTOR_LIBRARY_RECONCILE_MS:600000}
