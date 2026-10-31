@@ -66,6 +66,9 @@ try {
             $pilotConfig = Read-PilotJson (Join-Path $config.pilotRoot 'pilot-tools.json')
             Get-PilotFunnelStatus $config.pilotRoot $pilotConfig
             $state = Read-PilotJson (Join-Path $config.pilotRoot 'release-state.json')
+            $minimumFreeBytes = if ($config.minimumFreeBytes) { [long]$config.minimumFreeBytes } else { 1073741824 }
+            $availableFreeBytes = Assert-RecoveryStageCapacity $config.stageRoot $minimumFreeBytes
+            Write-Host ("Свободное место staging: {0:N2} GiB; защитный резерв: {1:N2} GiB." -f ($availableFreeBytes/1GB),($minimumFreeBytes/1GB))
             $stage = Join-Path $config.stageRoot ('set-' + [guid]::NewGuid().ToString('N'))
             New-PrivateRecoveryDirectory $stage
             $null = New-Item -ItemType Directory -Path (Join-Path $stage 'databases')
