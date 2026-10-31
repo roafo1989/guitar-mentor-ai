@@ -10,6 +10,7 @@ import java.security.MessageDigest;
 import java.util.HexFormat;
 import java.util.Set;
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.Assumptions;
 import org.junit.jupiter.api.io.TempDir;
 
 class LibraryConversionProcessRunnerTest {
@@ -92,6 +93,25 @@ class LibraryConversionProcessRunnerTest {
             assertNull(result.workspace());
         } finally {
             ProcessRunnerEnv.clear();
+        }
+    }
+
+    @Test
+    void launchesTheRealPinnedContainerThroughJavaProcessBuilderWhenCiEnablesIt() throws Exception {
+        Assumptions.assumeTrue("true".equalsIgnoreCase(System.getenv("GM_TEST_REAL_DOCKER")),
+                "Real Docker integration is executed only by the dedicated conversion-worker CI job");
+        Path source = Path.of(System.getenv("GM_TEST_CONVERSION_SOURCE"));
+        assertTrue(Files.isRegularFile(source));
+        var runner = new LibraryConversionProcessRunner("docker", "gm-conversion-worker:170b",
+                temp.resolve("real-docker-work").toString());
+        var result = runner.execute(source, "GP5", sha256(source), 0, () -> false);
+        try {
+            assertTrue(result.rendered(), "Worker result: " + result.errorCode());
+            assertEquals(0, result.selectedTrackIndex());
+            assertTrue(Files.size(result.pdfPath()) > 1000);
+            assertTrue(Files.size(result.wavPath()) > 1000);
+        } finally {
+            if (result.workspace() != null) runner.deleteWorkspace(result.workspace());
         }
     }
 
