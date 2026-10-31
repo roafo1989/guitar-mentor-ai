@@ -60,6 +60,17 @@ function ConvertTo-RecoveryUtcDateTime([object]$Value) {
     return $parsed.UtcDateTime
 }
 
+function Protect-RecoveryDiagnostic([AllowNull()][string]$Text, [int]$MaxLength = 6000) {
+    if ([string]::IsNullOrWhiteSpace($Text)) { return '' }
+    $safe = [string]$Text
+    $safe = $safe -replace '(?i)("(?:password|passwd|secret|token|authorization|client-secret|smtp-password)"\s*:\s*")[^"]*(")','$1[REDACTED]$2'
+    $safe = $safe -replace '(?i)(password|passwd|secret|token|authorization|client-secret|smtp-password)(\s*[:=]\s*)[^\s,;]+','$1$2[REDACTED]'
+    $safe = $safe -replace '(?i)(https?://[^:/\s]+:)[^@/\s]+@','$1[REDACTED]@'
+    $safe = $safe -replace '(?i)(--(?:password|token|secret)\s+)\S+','$1[REDACTED]'
+    if ($safe.Length -gt $MaxLength) { $safe = $safe.Substring($safe.Length - $MaxLength) }
+    return $safe.Trim()
+}
+
 function Get-RecoveryFailureHint([string]$ErrorText) {
     if ($ErrorText -match 'Корневой каталог комплекта является ссылкой') {
         return 'Корневой каталог подготовленного комплекта является ссылкой. Облачная загрузка не выполнялась.'
