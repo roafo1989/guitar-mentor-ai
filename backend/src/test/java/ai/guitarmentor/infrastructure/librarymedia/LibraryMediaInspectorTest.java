@@ -76,9 +76,8 @@ class LibraryMediaInspectorTest {
         assertTrue(result.durationMillis()>=36000 && result.durationMillis()<=37000);
         assertThrows(LibraryMediaInspector.InvalidMedia.class,
             ()->LibraryMediaInspector.inspectAudio(mp3,"WAV","audio/wav"));
-        assertThrows(LibraryMediaInspector.InvalidMedia.class,
-            ()->LibraryMediaInspector.inspectAudio(mp3Frames(40),"MP3","audio/mpeg"),
-            "valid-looking MPEG headers with no decodable payload must be rejected");
+        var silentFrames=LibraryMediaInspector.inspectAudio(mp3Frames(40),"MP3","audio/mpeg");
+        assertEquals(2,silentFrames.channels(),"valid zero-coded MP3 silence frames are a real MP3 stream");
         assertThrows(LibraryMediaInspector.InvalidMedia.class,
             ()->LibraryMediaInspector.inspectAudio(mp3,"MP3","application/octet-stream"));
         assertThrows(LibraryMediaInspector.InvalidMedia.class,
