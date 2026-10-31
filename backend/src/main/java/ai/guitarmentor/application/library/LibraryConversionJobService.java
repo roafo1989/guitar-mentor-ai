@@ -22,20 +22,18 @@ import org.springframework.transaction.support.TransactionTemplate;
 @Service
 public final class LibraryConversionJobService {
     private static final long MAX_SOURCE_BYTES = 20L * 1024 * 1024;
+    private static final ObjectMapper MAPPER = new ObjectMapper();
     private static final TypeReference<List<TrackView>> TRACKS = new TypeReference<>() {};
     private final JdbcClient jdbc;
     private final TransactionTemplate transactions;
-    private final ObjectMapper mapper;
     private final boolean libraryEnabled;
     private final boolean conversionEnabled;
 
     public LibraryConversionJobService(JdbcClient jdbc, TransactionTemplate transactions,
-            ObjectMapper mapper,
             @Value("${guitar-mentor.library.enabled:false}") boolean libraryEnabled,
             @Value("${guitar-mentor.library.conversion-enabled:false}") boolean conversionEnabled) {
         this.jdbc = jdbc;
         this.transactions = transactions;
-        this.mapper = mapper;
         this.libraryEnabled = libraryEnabled;
         this.conversionEnabled = conversionEnabled;
     }
@@ -240,7 +238,7 @@ public final class LibraryConversionJobService {
 
     private List<TrackView> tracks(Object json) {
         try {
-            return mapper.readValue(Objects.toString(json, "[]"), TRACKS);
+            return MAPPER.readValue(Objects.toString(json, "[]"), TRACKS);
         } catch (Exception e) {
             throw new IllegalStateException("Persisted conversion track catalog is invalid", e);
         }
