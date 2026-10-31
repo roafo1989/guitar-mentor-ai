@@ -48,6 +48,22 @@ function Copy-RecoveryTree([string]$Source, [string]$Destination, [string[]]$Exc
     }
 }
 
+function Get-RecoveryFailureHint([string]$ErrorText) {
+    if ($ErrorText -match '(?i)not enough space|no space left|disk full|quota exceeded|there is insufficient space|недостаточно места|квот.*превыш') {
+        return 'Недостаточно места или превышена квота хранилища. Освободите место/увеличьте квоту и повторите только неуспешный шаг.'
+    }
+    if ($ErrorText -match '(?i)unauthorized|forbidden|invalid_grant|authentication failed|access denied|permission denied|401|403') {
+        return 'Облако или локальный ресурс отказал в доступе. Проверьте вход, MFA, права remote и доступ к файлам.'
+    }
+    if ($ErrorText -match '(?i)timeout|timed out|connection reset|network is unreachable|temporary failure|no route to host') {
+        return 'Сетевой сбой или тайм-аут. Проверьте соединение и повторите этот шаг; существующий snapshot не удаляется.'
+    }
+    if ($ErrorText -match '(?i)checksum|hash mismatch|integrity|corrupt|unexpected end|invalid data') {
+        return 'Обнаружена ошибка целостности. Не используйте эту копию для восстановления; сохраните диагностический отчёт.'
+    }
+    return 'Операция не подтверждена. Проверьте доступ, место и настройки; подробный вывод с секретами намеренно скрыт.'
+}
+
 function Invoke-RecoveryNative([string]$File, [string[]]$Arguments, [string]$Directory,
     [hashtable]$Environment = @{}, [AllowNull()][string]$InputText = $null) {
     $info = New-PilotProcessInfo $File $Arguments $Directory $Environment
@@ -74,10 +90,11 @@ function Invoke-RecoveryNative([string]$File, [string[]]$Arguments, [string]$Dir
             throw 'Команда завершилась, но оставила открытые каналы вывода. Для запуска фоновых служб используйте отдельный launcher.'
         }
         $output = $outTask.GetAwaiter().GetResult()
-        $null = $errTask.GetAwaiter().GetResult()
+        $errorText = $errTask.GetAwaiter().GetResult()
         if ($process.ExitCode -ne 0) {
-            # Never echo raw tool output: SQL, providers and config may contain secrets.
-            throw "$([IO.Path]::GetFileName($File)): код $($process.ExitCode). Операция не подтверждена; проверьте доступ, место и настройки."
+            # Classify the failure without exposing raw provider/SQL output.
+            $hint = Get-RecoveryFailureHint $errorText
+            throw "$([IO.Path]::GetFileName($File)): код $($process.ExitCode). $hint"
         }
         return $output
     } finally {
