@@ -43,7 +43,7 @@ public final class LibraryConversionOutputService {
             @Value("${guitar-mentor.library.max-account-files:100}") int maxAccountFiles) {
         this.jdbc=jdbc; this.transactions=transactions; this.store=store;
         this.maxAccountBytes=maxAccountBytes; this.maxAccountFiles=maxAccountFiles;
-        if(maxAccountBytes<MAX_RESERVATION_BYTES || maxAccountFiles<RESERVED_FILES)
+        if(maxAccountBytes<1 || maxAccountFiles<RESERVED_FILES)
             throw new IllegalStateException("Library quota must accommodate one conversion reservation");
     }
 
