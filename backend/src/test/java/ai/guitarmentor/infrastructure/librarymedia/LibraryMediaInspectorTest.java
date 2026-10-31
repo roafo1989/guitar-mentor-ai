@@ -70,12 +70,15 @@ class LibraryMediaInspectorTest {
     }
 
     @Test void mp3FramesAreParsedWithoutNativeToolsAndFormatSpoofingIsRejected() throws Exception {
-        byte[] mp3=mp3Frames(40);
+        byte[] mp3=mp3Sample();
         var result=LibraryMediaInspector.inspectAudio(mp3,"MP3","audio/mpeg");
         assertEquals(2,result.channels()); assertEquals(44100,result.sampleRate());
         assertTrue(result.durationMillis()>=1000 && result.durationMillis()<=1100);
         assertThrows(LibraryMediaInspector.InvalidMedia.class,
             ()->LibraryMediaInspector.inspectAudio(mp3,"WAV","audio/wav"));
+        assertThrows(LibraryMediaInspector.InvalidMedia.class,
+            ()->LibraryMediaInspector.inspectAudio(mp3Frames(40),"MP3","audio/mpeg"),
+            "valid-looking MPEG headers with no decodable payload must be rejected");
         assertThrows(LibraryMediaInspector.InvalidMedia.class,
             ()->LibraryMediaInspector.inspectAudio(mp3,"MP3","application/octet-stream"));
         assertThrows(LibraryMediaInspector.InvalidMedia.class,
@@ -104,6 +107,13 @@ class LibraryMediaInspectorTest {
         BufferedImage image=new BufferedImage(width,height,BufferedImage.TYPE_INT_RGB);
         ByteArrayOutputStream output=new ByteArrayOutputStream();
         assertTrue(ImageIO.write(image,format,output)); image.flush(); return output.toByteArray();
+    }
+
+    private static byte[] mp3Sample() throws Exception {
+        try(var input=LibraryMediaInspectorTest.class.getResourceAsStream("/exercises/GM-EB01/preview_v08B.mp3")) {
+            assertNotNull(input,"tracked real MP3 fixture");
+            return input.readAllBytes();
+        }
     }
 
     private static byte[] mp3Frames(int count) {
