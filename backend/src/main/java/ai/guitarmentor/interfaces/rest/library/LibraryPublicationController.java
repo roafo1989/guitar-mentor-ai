@@ -4,6 +4,9 @@ import ai.guitarmentor.infrastructure.persistence.LibraryObjectStore;
 import ai.guitarmentor.infrastructure.security.CurrentActor;
 import jakarta.servlet.http.HttpServletRequest;
 import java.io.IOException;
+import java.io.FilterInputStream;
+import java.io.InputStream;
+import java.nio.file.Path;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.util.*;
@@ -470,7 +473,7 @@ public class LibraryPublicationController {
                 long count=bounds[1]-bounds[0]+1;
                 headers.set(HttpHeaders.CONTENT_RANGE,"bytes "+bounds[0]+"-"+bounds[1]+"/"+length); headers.setContentLength(count);
                 return ResponseEntity.status(HttpStatus.PARTIAL_CONTENT).headers(headers)
-                    .body(new org.springframework.core.io.support.ResourceRegion(new FileSystemResource(path),bounds[0],count));
+                    .body(new org.springframework.core.io.InputStreamResource(rangeStream(path,bounds[0],count)));
             }
             return ResponseEntity.ok().headers(headers).body(new FileSystemResource(path));
         } catch(java.nio.file.NoSuchFileException e) {throw new Failure(404,"CATALOG_FILE_UNAVAILABLE");}
@@ -514,6 +517,31 @@ public class LibraryPublicationController {
             return ResponseEntity.ok().headers(headers).body(new FileSystemResource(path));
         } catch(java.nio.file.NoSuchFileException e) { throw new Failure(404,"CATALOG_FILE_UNAVAILABLE"); }
           catch(IOException e) { throw new Failure(503,"PUBLICATION_STORAGE_UNAVAILABLE"); }
+    }
+
+    private static InputStream rangeStream(Path path,long start,long count) throws IOException {
+        InputStream input=Files.newInputStream(path);
+        try {
+            input.skipNBytes(start);
+            return new FilterInputStream(input) {
+                private long remaining=count;
+                @Override public int read() throws IOException {
+                    if(remaining<=0) return -1;
+                    int value=super.read();
+                    if(value>=0) remaining--;
+                    return value;
+                }
+                @Override public int read(byte[] bytes,int offset,int length) throws IOException {
+                    if(remaining<=0) return -1;
+                    int read=super.read(bytes,offset,(int)Math.min((long)length,remaining));
+                    if(read>0) remaining-=read;
+                    return read;
+                }
+            };
+        } catch(IOException e) {
+            try { input.close(); } catch(IOException ignored) {}
+            throw e;
+        }
     }
 
     private static long[] parseRange(String raw,long length) {
