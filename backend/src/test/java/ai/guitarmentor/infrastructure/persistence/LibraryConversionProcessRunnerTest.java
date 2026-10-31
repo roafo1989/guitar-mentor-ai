@@ -82,6 +82,20 @@ class LibraryConversionProcessRunnerTest {
     }
 
     @Test
+    void rejectsWorkerResultWithDifferentSourceLineage() throws Exception {
+        Path source = Files.writeString(temp.resolve("lineage-source.gp"), "synthetic GP5 source");
+        Path docker = stubDocker();
+        ProcessRunnerEnv.set(docker, temp.resolve("lineage-args.txt"), temp.resolve("lineage-log.txt"), "RENDERED");
+        try {
+            var result = runner(docker).execute(source, "GP5", sha256(source), 1, () -> false);
+            assertEquals("WORKER_RESULT_MISMATCH", result.errorCode());
+            assertNull(result.workspace());
+        } finally {
+            ProcessRunnerEnv.clear();
+        }
+    }
+
+    @Test
     void rejectsWorkspaceOutsideConfiguredRoot() throws Exception {
         LibraryConversionProcessRunner runner = runner(stubDocker());
         assertThrows(java.io.IOException.class,
