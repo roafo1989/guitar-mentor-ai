@@ -102,6 +102,7 @@ try {
   if (!fs.existsSync(fontPath)) fail('RENDERER_ASSET_MISSING');
   pdf.registerFont('Bravura', fontPath);
   pdf.pipe(pdfStream);
+  pdf.addPage({ size: 'A4', margin: 24 });
   let y = 24;
   const maxWidth = 547, maxBottom = 818;
   for (const system of systems) {
