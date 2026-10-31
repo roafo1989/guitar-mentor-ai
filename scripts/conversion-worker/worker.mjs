@@ -12,7 +12,9 @@ const MAX_OUTPUT = 80 * 1024 * 1024;
 const FORMAT = process.env.GM_CONVERSION_FORMAT || '';
 const selectedArg = process.env.GM_CONVERSION_TRACK_INDEX;
 const fail = (code, details = {}) => {
-  fs.writeFileSync(path.join(OUTPUT, 'result.json'), JSON.stringify({ status: 'ERROR', code, ...details }));
+  const result = { status: 'ERROR', code, ...details };
+  fs.writeFileSync(path.join(OUTPUT, 'result.json'), JSON.stringify(result));
+  console.log(JSON.stringify(result));
   process.exit(code === 'TRACK_SELECTION_REQUIRED' ? 10 : 20);
 };
 fs.mkdirSync(OUTPUT, { recursive: true });
