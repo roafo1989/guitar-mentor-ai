@@ -199,22 +199,27 @@ if (-not (Test-Path -LiteralPath $progressPath)) {
 
 if ($BackupFirst -and -not (Test-RecoveryProgressStep $state 'Backup')) {
     $stepName='Backup'
-    Set-RecoveryProgressStep $state $stepName 'RUNNING' $progressPath
-    $backupScript=Join-Path $PSScriptRoot 'Recovery.ps1'
-    & $backupScript -Mode Backup -ConfigPath $configPath
-    if (-not $?) { throw 'Команда согласованного backup завершилась с ошибкой.' }
-    $masterPassword=Read-RecoveryPassword
-    $snapshots=@(Invoke-RecoveryRestic $config $masterPassword @('snapshots','--json','--tag','gm-dr-v1') $PSScriptRoot | ConvertFrom-Json -AsHashtable)
-    $selected=$snapshots | Sort-Object time -Descending | Select-Object -First 1
-    if (-not $selected -or $selected.id -notmatch '^[a-f0-9]{64}$') { throw 'Backup завершился без доступного snapshot с ожидаемым тегом.' }
-    $state.snapshotId=$selected.id
-    $state.snapshotTime=$selected.time
-    Write-RecoveryProgress $progressPath $state
-    Set-RecoveryProgressStep $state $stepName 'PASS' $progressPath
-} elseif (-not $state.snapshotId) {
-    if (-not $BackupFirst) { throw 'В progress нет snapshot. Повторите запуск с -BackupFirst.' }
+    try {
+        Set-RecoveryProgressStep $state $stepName 'RUNNING' $progressPath
+        $backupScript=Join-Path $PSScriptRoot 'Recovery.ps1'
+        & $backupScript -Mode Backup -ConfigPath $configPath
+        if (-not $?) { throw 'Команда согласованного backup завершилась с ошибкой.' }
+        $masterPassword=Read-RecoveryPassword
+        $snapshots=@(Invoke-RecoveryRestic $config $masterPassword @('snapshots','--json','--tag','gm-dr-v1') $PSScriptRoot | ConvertFrom-Json -AsHashtable)
+        $selected=$snapshots | Sort-Object time -Descending | Select-Object -First 1
+        if (-not $selected -or $selected.id -notmatch '^[a-f0-9]{64}$') { throw 'Backup завершился без доступного snapshot с ожидаемым тегом.' }
+        $state.snapshotId=$selected.id
+        $state.snapshotTime=$selected.time
+        Write-RecoveryProgress $progressPath $state
+        Set-RecoveryProgressStep $state $stepName 'PASS' $progressPath
+    } catch {
+        $failure=Get-RecoveryFailureHint $_.Exception.Message
+        Set-RecoveryProgressStep $state $stepName 'FAIL' $progressPath $failure
+        Save-DrillReport $state 'FAIL' $reportPath $stepName
+        Write-Error "Backup не завершён. Прогресс сохранён; повторный запуск продолжит с backup. $failure Отчёт: $reportPath"
+        exit 1
+    }
 }
-
 if (-not $masterPassword) { $masterPassword=Read-RecoveryPassword }
 if (-not $state.snapshotId) {
     $snapshots=@(Invoke-RecoveryRestic $config $masterPassword @('snapshots','--json','--tag','gm-dr-v1') $PSScriptRoot | ConvertFrom-Json -AsHashtable)
