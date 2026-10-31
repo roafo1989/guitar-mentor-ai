@@ -116,6 +116,7 @@ class LibraryDeletionWorkerPostgresTest {
         jdbc.sql("UPDATE library_deletion_jobs SET next_attempt_at=now()-interval '1 second' WHERE material_id=:id")
             .param("id",id).update();
         reset(storage);
+        when(storage.isAvailable()).thenReturn(true);
         assertEquals(1,worker.processBatch(10));
         assertEquals(0,count("library_assets",id));
         assertEquals(0,count("library_deletion_jobs",id));
