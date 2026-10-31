@@ -48,6 +48,18 @@ function Copy-RecoveryTree([string]$Source, [string]$Destination, [string[]]$Exc
     }
 }
 
+function ConvertTo-RecoveryUtcDateTime([object]$Value) {
+    if ($null -eq $Value) { throw 'Не задано время для recovery.' }
+    if ($Value -is [DateTimeOffset]) { return $Value.UtcDateTime }
+    if ($Value -is [DateTime]) { return $Value.ToUniversalTime() }
+    $parsed = [DateTimeOffset]::Parse(
+        [string]$Value,
+        [Globalization.CultureInfo]::InvariantCulture,
+        [Globalization.DateTimeStyles]::AssumeUniversal
+    )
+    return $parsed.UtcDateTime
+}
+
 function Get-RecoveryFailureHint([string]$ErrorText) {
     # Invoke-RecoveryNative already converts provider stderr into one of these
     # safe actionable messages. Preserve that classification when outer
