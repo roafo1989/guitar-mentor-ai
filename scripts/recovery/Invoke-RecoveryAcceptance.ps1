@@ -225,7 +225,14 @@ function Invoke-DrillApplicationSmoke([hashtable]$State, [hashtable]$Config, [ha
             if($lastHttpError){$failureReason+=" Последняя ошибка запроса: $lastHttpError."}
         }
     } catch {
-        $failureReason="Ошибка запуска/проверки Java: $($_.Exception.GetType().Name)."
+        $exception=$_.Exception
+        $failureReason="Ошибка запуска/проверки Java: $($exception.GetType().FullName): $($exception.Message)"
+        if($exception -is [ComponentModel.Win32Exception]) {
+            $failureReason+=" (Win32 error $($exception.NativeErrorCode); HRESULT $($exception.HResult))"
+        } elseif($exception.InnerException) {
+            $failureReason+=" Inner: $($exception.InnerException.GetType().FullName): $($exception.InnerException.Message)"
+        }
+        $failureReason=Protect-RecoveryDiagnostic $failureReason 3000
     } finally {
         if($client){$client.Dispose()}
         if($started -and $process -and -not $process.HasExited){
@@ -240,17 +247,9 @@ function Invoke-DrillApplicationSmoke([hashtable]$State, [hashtable]$Config, [ha
         # Preserve useful startup diagnostics, but redact credential-bearing lines
         # before they reach the local acceptance report.
         $safeOutput = foreach($stream in @($stderr,$stdout)){
-            foreach($line in ($stream -split '\r?\n' | Select-Object -Last 80)){
-                if([string]::IsNullOrWhiteSpace($line)){continue}
-                $safe=[string]$line
-                $safe=$safe -replace '(?i)("(?:password|passwd|secret|token|authorization|client-secret|smtp-password)"\s*:\s*")[^"]*(")','$1[REDACTED]$2'
-                $safe=$safe -replace '(?i)(password|passwd|secret|token|authorization|client-secret|smtp-password)(\s*[:=]\s*)[^\s,;]+','$1$2[REDACTED]'
-                $safe=$safe -replace '(?i)(https?://[^:/\s]+:)[^@/\s]+@','$1[REDACTED]@'
-                $safe
-            }
+            @($stream -split '\r?\n' | Select-Object -Last 80)
         }
-        $diagnostic=(@($safeOutput) -join ' | ')
-        if($diagnostic.Length -gt 6000){$diagnostic=$diagnostic.Substring($diagnostic.Length-6000)}
+        $diagnostic=Protect-RecoveryDiagnostic (@($safeOutput) -join ' | ') 6000
         if(-not $diagnostic){$diagnostic='Java не вывел диагностических сообщений.'}
         $exitText=if($null -ne $exitCode){"exit code $exitCode"}else{'процесс остановлен по тайм-ауту'}
         throw "ApplicationSmoke diagnostic: $failureReason Java $exitText. Последний вывод (stderr/stdout): $diagnostic"
@@ -423,11 +422,7 @@ try {
         } else {
             $safeFailure=$errorText
         }
-        $safeFailure=$safeFailure -replace '(?i)("(?:password|passwd|secret|token|authorization|client-secret|smtp-password)"\s*:\s*")[^"]*(")','$1[REDACTED]$2'
-        $safeFailure=$safeFailure -replace '(?i)(password|passwd|secret|token|authorization|client-secret|smtp-password)(\s*[:=]\s*)[^\s,;]+','$1$2[REDACTED]'
-        $safeFailure=$safeFailure -replace '(?i)(https?://[^:/\s]+:)[^@/\s]+@','$1[REDACTED]@'
-        if($safeFailure.Length -gt 6000){$safeFailure=$safeFailure.Substring(0,6000)}
-        if([string]::IsNullOrWhiteSpace($safeFailure)){$safeFailure='Причина не возвращена исключением; требуется проверить запуск JAR.'}
+        $safeFailure=Protect-RecoveryDiagnostic $safeFailure 6000
         $failure='ApplicationSmoke: '+$safeFailure
         if($state){$state.applicationSmoke=@{status='FAIL';diagnostic=$safeFailure}}
     } else {
