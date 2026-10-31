@@ -67,10 +67,15 @@ try {
   if (!staff.showStandardNotation || !staff.showTablature) fail('UNSUPPORTED_NOTATION');
   if (!score.masterBars?.length || score.masterBars.length > 256) fail('INVALID_BAR_COUNT');
   if (score.tempoAutomations?.length > 1) fail('UNSUPPORTED_TEMPO_CHANGE');
-  for (const bar of score.masterBars) {
+  for (let barIndex = 0; barIndex < score.masterBars.length; barIndex++) {
+    const bar = score.masterBars[barIndex];
     if (bar.timeSignatureNumerator !== 4 || bar.timeSignatureDenominator !== 4) fail('UNSUPPORTED_TIME_SIGNATURE');
     if (bar.isRepeatStart || bar.isRepeatEnd || bar.repeatCount > 0 || bar.alternateEndings) fail('UNSUPPORTED_REPEATS');
-    if (bar.tempoAutomations?.length > 0) fail('UNSUPPORTED_TEMPO_CHANGE');
+    const tempos = bar.tempoAutomations || [];
+    for (const automation of tempos) {
+      const isInitialTempo = barIndex === 0 && automation.ratioPosition === 0 && automation.value === score.tempo;
+      if (!isInitialTempo) fail('UNSUPPORTED_TEMPO_CHANGE');
+    }
   }
   for (const bar of staff.bars) {
     if (bar.voices.length > 2 || bar.voices[1]?.beats?.length > 0) fail('UNSUPPORTED_POLYPHONY');
