@@ -361,7 +361,7 @@ public final class LibraryMediaController {
     private void cleanupKey(String key) {
         try {
             Boolean used=jdbc.sql("SELECT EXISTS(SELECT 1 FROM library_assets WHERE object_key=:key OR preview_object_key=:key)")
-                .param("key",key).query(Boolean.class).single();
+                .param("key",key).query(Boolean.class).singleRow();
             if(Boolean.FALSE.equals(used)) storage.delete(key);
         } catch(Exception ignored) { /* Orphan recovery owns uncertain keys. */ }
     }
