@@ -49,6 +49,21 @@ function Copy-RecoveryTree([string]$Source, [string]$Destination, [string[]]$Exc
 }
 
 function Get-RecoveryFailureHint([string]$ErrorText) {
+    # Invoke-RecoveryNative already converts provider stderr into one of these
+    # safe actionable messages. Preserve that classification when outer
+    # workflow catches classify the exception again (idempotent diagnostics).
+    if ($ErrorText -match 'Недостаточно места или превышена квота хранилища') {
+        return 'Недостаточно места или превышена квота хранилища. Освободите место/увеличьте квоту и повторите только неуспешный шаг.'
+    }
+    if ($ErrorText -match 'Облако или локальный ресурс отказал в доступе') {
+        return 'Облако или локальный ресурс отказал в доступе. Проверьте вход, MFA, права remote и доступ к файлам.'
+    }
+    if ($ErrorText -match 'Сетевой сбой или тайм-аут') {
+        return 'Сетевой сбой или тайм-аут. Проверьте соединение и повторите этот шаг; существующий snapshot не удаляется.'
+    }
+    if ($ErrorText -match 'Обнаружена ошибка целостности') {
+        return 'Обнаружена ошибка целостности. Не используйте эту копию для восстановления; сохраните диагностический отчёт.'
+    }
     if ($ErrorText -match '(?i)not enough space|no space left|disk full|quota exceeded|there is insufficient space|недостаточно.*мест|квот.*превыш') {
         return 'Недостаточно места или превышена квота хранилища. Освободите место/увеличьте квоту и повторите только неуспешный шаг.'
     }
