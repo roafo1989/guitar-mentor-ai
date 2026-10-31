@@ -41,6 +41,9 @@ function Save-DrillReport([hashtable]$State, [string]$Result, [string]$Path, [st
         $ageMinutes = [math]::Round(($now - [DateTime]::Parse($manifest.createdUtc).ToUniversalTime()).TotalMinutes,1)
         try { $releaseId = (Read-PilotJson (Join-Path $State.destination 'pilot/release-state.json')).current } catch {}
     }
+    $restoredFileCount = if ($manifest) { $manifest.files.Count } else { $null }
+    $restoredBytes = $null
+    if ($manifest) { $restoredBytes = [long]0; foreach ($file in $manifest.files.Values) { $restoredBytes += [long]$file.bytes } }
     $dbSummary = @{}
     foreach ($kind in @('pilot','dev')) {
         if ($State.databases.ContainsKey($kind)) {
@@ -60,6 +63,7 @@ function Save-DrillReport([hashtable]$State, [string]$Result, [string]$Path, [st
         sourceDataAgeMinutes=$ageMinutes;snapshotShort=if ($State.snapshotId) { $State.snapshotId.Substring(0,8) } else { $null }
         sourceHead=if ($manifest) { $manifest.sourceHead } else { $null };pilotReleaseId=$releaseId
         database=$dbSummary;libraryOriginalCount=if ($manifest) { @($manifest.databases.pilot.libraryReady).Count } else { $null }
+        restoredFileCount=$restoredFileCount;restoredBytes=$restoredBytes;applicationSmoke=$State.applicationSmoke
         steps=$State.steps;failureCode=$FailureCode
         limitations=@('Только изолированная проверка; production/PILOT/DEV не изменялись.',
             'Измерено время данного прогона, не полное время восстановления чистого ноутбука.',
