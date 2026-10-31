@@ -1,0 +1,30 @@
+name: Pilot release tools
+on:
+  pull_request:
+    paths:
+      - 'scripts/pilot/**'
+      - '.github/workflows/pilot-tools-ci.yml'
+  push:
+    branches: [main]
+    paths:
+      - 'scripts/pilot/**'
+      - '.github/workflows/pilot-tools-ci.yml'
+jobs:
+  release-safety:
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Parse scripts and exercise release failure paths
+        shell: pwsh
+        run: ./scripts/pilot/tests/Pilot.Tests.ps1
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '21'
+          cache: maven
+          cache-dependency-path: backend/pom.xml
+      - name: Build backend against an isolated temporary PostgreSQL on Windows
+        shell: pwsh
+        run: |
+          . ./scripts/pilot/Pilot.Common.ps1
+          Invoke-PilotBackendBuild (Join-Path $PWD 'backend') 'C:\Program Files\PostgreSQL\17\bin'
