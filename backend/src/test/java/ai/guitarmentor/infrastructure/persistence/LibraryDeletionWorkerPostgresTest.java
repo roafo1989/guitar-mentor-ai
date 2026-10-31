@@ -59,6 +59,7 @@ class LibraryDeletionWorkerPostgresTest {
         assertEquals(0,materials.page(owner,null,null,20).size());
 
         var storage=mock(LibraryObjectStore.class);
+        when(storage.isAvailable()).thenReturn(true);
         var worker=new LibraryDeletionWorker(jdbc,transactions,storage,true);
         assertEquals(1,worker.processBatch(10));
         verify(storage).delete(key.toString());
@@ -96,6 +97,7 @@ class LibraryDeletionWorkerPostgresTest {
         assertEquals(1,materials.markDeleting(owner,id,1));
         materials.queueDeletion(id);
         var storage=mock(LibraryObjectStore.class);
+        when(storage.isAvailable()).thenReturn(true);
         doThrow(new IOException("synthetic disk failure")).when(storage).delete(key.toString());
         var worker=new LibraryDeletionWorker(jdbc,transactions,storage,true);
         assertEquals(0,worker.processBatch(10));
