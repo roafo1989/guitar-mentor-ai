@@ -363,10 +363,12 @@ class LibraryMediaHttpPostgresTest {
         JsonNode publication=JSON.readTree(body);
         String publicationId=publication.path("id").asText();
         var photo=new MockMultipartFile("files","later.png","image/png",png(13,15));
-        mvc.perform(MockMvcRequestBuilders.multipart(BASE+"/"+material+"/files").file(metadata("PHOTO_ORIGINAL"))
+        String draftBody=mvc.perform(MockMvcRequestBuilders.multipart(BASE+"/"+material+"/files").file(metadata("PHOTO_ORIGINAL"))
             .file(photo).with(login("snapshot-a")).with(csrf()).sessionAttr("guitarMentorAccessVersion",0L)
             .header("If-Match","\"1\"").header("Idempotency-Key",UUID.randomUUID().toString()))
-            .andExpect(status().isCreated()).andExpect(jsonPath("$.revision").value(2));
+            .andExpect(status().isCreated()).andExpect(jsonPath("$.revision").value(2))
+            .andReturn().getResponse().getContentAsString();
+        String photoId=asset(JSON.readTree(draftBody),"PHOTO_ORIGINAL").path("id").asText();
         mvc.perform(MockMvcRequestBuilders.get("/api/v1/community/publications/"+publicationId)
             .with(login("snapshot-b")).sessionAttr("guitarMentorAccessVersion",0L))
             .andExpect(status().isOk()).andExpect(jsonPath("$.sourceRevision").value(1))
@@ -375,6 +377,20 @@ class LibraryMediaHttpPostgresTest {
         mvc.perform(MockMvcRequestBuilders.get(BASE+"/"+material).with(login("snapshot-a"))
             .sessionAttr("guitarMentorAccessVersion",0L)).andExpect(status().isOk())
             .andExpect(jsonPath("$.revision").value(2)).andExpect(jsonPath("$.files.length()").value(2));
+        String replacementBody=mvc.perform(MockMvcRequestBuilders.post(BASE+"/"+material+"/publications")
+            .with(login("snapshot-a")).with(csrf()).sessionAttr("guitarMentorAccessVersion",0L)
+            .header("If-Match","\"2\"").header("Idempotency-Key",UUID.randomUUID().toString())
+            .contentType("application/json").content(JSON.writeValueAsBytes(Map.of(
+                "assets",List.of(right(scoreId),right(photoId)),"replacePublicationId",publicationId))))
+            .andExpect(status().isCreated()).andReturn().getResponse().getContentAsString();
+        String replacementId=JSON.readTree(replacementBody).path("id").asText();
+        mvc.perform(MockMvcRequestBuilders.get("/api/v1/community/publications/"+publicationId)
+            .with(login("snapshot-b")).sessionAttr("guitarMentorAccessVersion",0L))
+            .andExpect(status().isNotFound());
+        mvc.perform(MockMvcRequestBuilders.get("/api/v1/community/publications/"+replacementId)
+            .with(login("snapshot-b")).sessionAttr("guitarMentorAccessVersion",0L))
+            .andExpect(status().isOk()).andExpect(jsonPath("$.sourceRevision").value(2))
+            .andExpect(jsonPath("$.assets.length()").value(2));
     }
 
     @Test void synthesizedPreviewIsAnExplicitAudioRoleAndNotAnApprovalSignal() throws Exception {
