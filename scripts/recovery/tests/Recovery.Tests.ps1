@@ -73,6 +73,10 @@ try {
         'if($env:PGSERVICE -or $env:SPRING_DATASOURCE_PASSWORD -or $env:RESTIC_PASSWORD_COMMAND){exit 4}; [Console]::Out.Write([Console]::In.ReadToEnd())') $root @{} 'stdin secret fixture'
     Assert ($output -eq 'stdin secret fixture') 'secret input through pipe; inherited credentials stripped'
     MustThrow { Invoke-RecoveryNative $native @('-NoProfile','-Command','[Console]::Error.Write("sensitive-output");exit 3') $root } 'native nonzero fails backup'
+    Assert ((Get-RecoveryFailureHint 'ERROR: no space left on device') -like '*Недостаточно места*') 'disk/quota failures receive actionable safe diagnostics'
+    Assert ((Get-RecoveryFailureHint 'HTTP 403 forbidden') -like '*отказал в доступе*') 'cloud permission failures receive actionable safe diagnostics'
+    Assert ((Get-RecoveryFailureHint 'connection reset by peer') -like '*Сетевой сбой*') 'network failures receive actionable safe diagnostics'
+    Assert ((Get-RecoveryFailureHint 'checksum mismatch') -like '*целостности*') 'integrity failures receive actionable safe diagnostics'
     try { Invoke-RecoveryNative $native @('-NoProfile','-Command','[Console]::Error.Write("sensitive-output");exit 1') $root } catch {
         Assert ($_.Exception.Message -notlike '*sensitive-output*') 'tool errors do not leak output'
     }
