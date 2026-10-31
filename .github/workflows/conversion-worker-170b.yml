@@ -55,7 +55,7 @@ jobs:
             selection_exit=$?
             set -e
             test "$selection_exit" -eq 10
-            node -e "const r=require('./$PWD/$output/result.json'); if(r.code!=='TRACK_SELECTION_REQUIRED'||r.tracks.length!==2) process.exit(1)"
+            node -e "const fs=require('fs'); const r=JSON.parse(fs.readFileSync('$output/result.json')); if(r.code!=='TRACK_SELECTION_REQUIRED'||r.tracks.length!==2) process.exit(1)"
             docker run --rm "${common[@]}" --env GM_CONVERSION_TRACK_INDEX=0 gm-conversion-worker:170b
             node -e "const fs=require('fs'); const p='$output'; const r=JSON.parse(fs.readFileSync(p+'/result.json')); if(r.status!=='RENDERED'||r.format!=='${ext^^}'||r.selectedTrackIndex!==0) process.exit(1); const pdf=fs.readFileSync(p+'/score.pdf'); const wav=fs.readFileSync(p+'/preview.wav'); if(pdf.subarray(0,4).toString()!=='%PDF'||wav.subarray(0,4).toString()!=='RIFF'||wav.subarray(8,12).toString()!=='WAVE') process.exit(1);"
           done
