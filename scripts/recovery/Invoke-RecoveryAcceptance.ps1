@@ -413,8 +413,23 @@ try {
 } catch {
     $errorText=[string]$_.Exception.Message
     $diagnosticPrefix='ApplicationSmoke diagnostic:'
-    if($errorText.StartsWith($diagnosticPrefix,[StringComparison]::Ordinal)) {
-        $failure='ApplicationSmoke: '+$errorText.Substring($diagnosticPrefix.Length).Trim()
+    if($stepName -eq 'ApplicationSmoke') {
+        # Application startup errors can occur before the smoke function reaches
+        # its own diagnostic wrapper. Preserve a sanitized, actionable message
+        # in both progress and the final report instead of collapsing it to the
+        # generic recovery hint.
+        if($errorText.StartsWith($diagnosticPrefix,[StringComparison]::Ordinal)) {
+            $safeFailure=$errorText.Substring($diagnosticPrefix.Length).Trim()
+        } else {
+            $safeFailure=$errorText
+        }
+        $safeFailure=$safeFailure -replace '(?i)("(?:password|passwd|secret|token|authorization|client-secret|smtp-password)"\s*:\s*")[^"]*(")','$1[REDACTED]$2'
+        $safeFailure=$safeFailure -replace '(?i)(password|passwd|secret|token|authorization|client-secret|smtp-password)(\s*[:=]\s*)[^\s,;]+','$1$2[REDACTED]'
+        $safeFailure=$safeFailure -replace '(?i)(https?://[^:/\s]+:)[^@/\s]+@','$1[REDACTED]@'
+        if($safeFailure.Length -gt 6000){$safeFailure=$safeFailure.Substring(0,6000)}
+        if([string]::IsNullOrWhiteSpace($safeFailure)){$safeFailure='Причина не возвращена исключением; требуется проверить запуск JAR.'}
+        $failure='ApplicationSmoke: '+$safeFailure
+        if($state){$state.applicationSmoke=@{status='FAIL';diagnostic=$safeFailure}}
     } else {
         $failure=Get-RecoveryFailureHint $errorText
     }
