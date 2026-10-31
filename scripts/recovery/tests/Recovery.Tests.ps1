@@ -110,6 +110,10 @@ try {
     Assert ((Get-RecoveryFailureHint 'HTTP 403 forbidden') -like '*отказал в доступе*') 'cloud permission failures receive actionable safe diagnostics'
     Assert ((Get-RecoveryFailureHint 'connection reset by peer') -like '*Сетевой сбой*') 'network failures receive actionable safe diagnostics'
     Assert ((Get-RecoveryFailureHint 'checksum mismatch') -like '*целостности*') 'integrity failures receive actionable safe diagnostics'
+    Assert ((Get-RecoveryFailureHint 'Не удалось прочитать/посчитать SHA-256 файла комплекта: pilot/data/library/asset.bin') -like '*pilot/data/library/asset.bin*') 'local unreadable file diagnostic preserves safe relative path'
+    Assert ((Get-RecoveryFailureHint 'Не совпала контрольная сумма: pilot/application-pilot.yml') -like '*pilot/application-pilot.yml*') 'manifest checksum diagnostic preserves safe relative path'
+    Assert ((Get-RecoveryFailureHint 'Оригинал библиотеки не соответствует SHA/размеру из БД.') -like '*не совпадает с SHA-256*') 'library DB/file mismatch gets precise safe diagnostic'
+    Assert ((Get-RecoveryFailureHint 'Отсутствует оригинал READY-материала. Проверьте путь библиотеки.') -like '*оригинал отсутствует*') 'missing library original gets precise safe diagnostic'
     try { Invoke-RecoveryNative $native @('-NoProfile','-Command','[Console]::Error.Write("sensitive-output");exit 1') $root } catch {
         Assert ($_.Exception.Message -notlike '*sensitive-output*') 'tool errors do not leak output'
     }
