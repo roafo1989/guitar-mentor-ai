@@ -49,7 +49,7 @@ export interface Publication {
   sourceRevision: number;
   title: string;
   type: MaterialType;
-  author: string | null;
+  author?: string | null;
   state: "PUBLISHED" | "WITHDRAWN" | "HIDDEN";
   revision: number;
   assets: PublicationAsset[];
@@ -146,7 +146,7 @@ export function validPublication(v: unknown): v is Publication {
     !positive(v.revision) ||
     !isString(v.title) ||
     !materialType(v.type) ||
-    !nullableString(v.author) ||
+    !(v.author === undefined || nullableString(v.author)) ||
     !stringList(v.tags) ||
     !["PUBLISHED", "WITHDRAWN", "HIDDEN"].includes(String(v.state)) ||
     !Array.isArray(v.assets)
