@@ -213,7 +213,8 @@ public final class LibraryConversionProcessRunner {
     }
 
     private static String safeName(String value) {
-        return value.replaceAll("[\\p{Cntrl}]", "").substring(0, Math.min(value.length(), 80));
+        String safe = value.replaceAll("[\\p{Cntrl}]", "");
+        return safe.substring(0, Math.min(safe.length(), 80));
     }
 
     private static String sha256(Path file) throws IOException {
