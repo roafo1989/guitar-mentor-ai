@@ -189,7 +189,7 @@ function Invoke-DrillApplicationSmoke([hashtable]$State, [hashtable]$Config, [ha
     $info.StandardErrorEncoding=[Text.UTF8Encoding]::new($false)
     $process=[Diagnostics.Process]::new();$process.StartInfo=$info
     $outTask=$null;$errTask=$null;$client=$null;$started=$false
-    $failureReason='';$lastHttpStatus=$null;$lastHttpError=''
+    $failureReason='';$lastHttpStatus=$null;$lastHttpError='';$ready=$false
     $exitCode=$null;$stdout='';$stderr=''
     try {
         if(-not $process.Start()){throw 'Не удалось запустить восстановленный JAR.'}
