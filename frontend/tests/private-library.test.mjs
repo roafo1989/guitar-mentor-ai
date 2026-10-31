@@ -90,7 +90,7 @@ const material = {
   state: 'READY', visibility: 'PRIVATE', reviewStatus: 'UNREVIEWED',
   revision: 1, createdAt: '2026-10-25T00:00:00Z', updatedAt: '2026-10-25T00:00:00Z',
   files: [{ id: fileId, originalName: 'Yesterday.pdf', format: 'PDF',
-    byteSize: 5, sha256: 'a'.repeat(64), validationStatus: 'PDF_HEADER_CHECKED', downloadUrl }],
+    byteSize: 5, sha256: 'a'.repeat(64), validationStatus: 'PDF_HEADER_CHECKED', downloadUrl, role:'SCORE_ORIGINAL', mediaType:'application/pdf', processingState:'READY',previewAvailable:false,previewUrl:null,previewReasonCode:null,durationMillis:null,channels:null,sampleRate:null,width:null,height:null }],
 };
 async function mockFetch(fn, work) {
   const before = globalThis.fetch;

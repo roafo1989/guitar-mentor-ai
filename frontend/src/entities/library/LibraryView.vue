@@ -1,10 +1,16 @@
 <script setup lang="ts">
-import { onBeforeUnmount, onMounted, ref, watch } from 'vue';
+import { computed, onBeforeUnmount, onMounted, ref, watch } from 'vue';
 import { useI18n } from 'vue-i18n';
 import { auth } from '../../core/auth/auth';
 import { asApiFailure, apiFailureKey } from '../../shared/api-failure';
 import { libraryService, validateUpload, type LibraryMaterial, type LibraryMetadata, type MaterialType } from './library.service';
 
+import { useRoute, useRouter } from 'vue-router';
+import CommunityView from './CommunityView.vue';
+import MaterialSharing from './MaterialSharing.vue';
+const route=useRoute(), router=useRouter();
+const common=computed(()=>route.query.mode==='common');
+function mode(value: boolean){clearPrivate();void router.push({query:value?{mode:'common'}:{}});}
 const { t, locale } = useI18n();
 const entries = ref<LibraryMaterial[]>([]);
 const selected = ref<LibraryMaterial | null>(null);
@@ -30,6 +36,9 @@ const uploadOpen = ref(false);
 const editOpen = ref(false);
 const actionFor = ref<string | null>(null);
 const actionBusyId = ref<string | null>(null);
+let mutationController=new AbortController();
+let readController=new AbortController();
+let detailController=new AbortController();
 let active = true;
 let generation = 0;
 let detailGeneration = 0;
@@ -37,6 +46,7 @@ let pendingKey: string | null = null;
 let lastUploadFingerprint = '';
 
 function clearPrivate(): void {
+  mutationController.abort();mutationController=new AbortController();readController.abort();detailController.abort();readController=new AbortController();detailController=new AbortController();
   ++generation;
   ++detailGeneration;
   entries.value = [];
@@ -69,10 +79,11 @@ function clearPrivate(): void {
 watch(() => auth.actor?.accountId, (a, b) => {
   if (a === b) return;
   clearPrivate();
-  if (a) void load(null, []);
+  if (a && !common.value) void load(null, []);
 });
+watch(common,()=>{clearPrivate();if(!common.value&&auth.actor)void load(null,[]);});
 onBeforeUnmount(() => { active = false; clearPrivate(); });
-onMounted(() => { if (auth.actor) void load(null, []); });
+onMounted(() => { if (auth.actor && !common.value) void load(null, []); });
 
 function message(cause: unknown): string {
   const failure = asApiFailure(cause);
@@ -84,13 +95,14 @@ function message(cause: unknown): string {
 }
 async function load(nextCursor: string | null, previous: (string | null)[]): Promise<void> {
   ++detailGeneration;
+  readController.abort();readController=new AbortController();
   const ticket = ++generation;
   const owner = auth.actor?.accountId;
   if (!owner) return;
   loading.value = true;
   error.value = '';
   try {
-    const page = await libraryService.page(nextCursor || undefined);
+    const page = await libraryService.page(nextCursor || undefined,readController.signal);
     if (!active || ticket !== generation || auth.actor?.accountId !== owner) return;
     entries.value = page.items;
     cursor.value = page.nextCursor;
@@ -98,7 +110,7 @@ async function load(nextCursor: string | null, previous: (string | null)[]): Pro
     currentCursor.value = nextCursor;
     if (selected.value) selected.value = page.items.find(item => item.id === selected.value?.id) ?? null;
   } catch (cause) {
-    if (active && ticket === generation) error.value = message(cause);
+    if (active && ticket === generation && !(cause instanceof Error && cause.name==='AbortError')) error.value = message(cause);
   } finally {
     if (active && ticket === generation) loading.value = false;
   }
@@ -138,7 +150,7 @@ async function upload(): Promise<void> {
   if (!owner) return;
   busy.value = true;
   try {
-    const saved = await libraryService.upload(metadata(), files.value, pendingKey);
+    const saved = await libraryService.upload(metadata(), files.value, pendingKey,mutationController.signal);
     if (!active || ticket !== generation || auth.actor?.accountId !== owner) return;
     notice.value = t('library.uploaded');
     title.value = ''; titleEditedByUser.value = false; author.value = ''; type.value = 'COMPOSITION';
@@ -147,19 +159,21 @@ async function upload(): Promise<void> {
     uploadOpen.value = false;
     await load(null, []);
     // Even if listing is transiently unavailable, show the successfully persisted card.
-    if (active && auth.actor?.accountId === owner) selected.value = saved;
+    if (active && ticket + 1 === generation && auth.actor?.accountId === owner) selected.value = saved;
   } catch (cause) {
-    if (active && ticket === generation) error.value = message(cause);
+    if (active && ticket === generation && !(cause instanceof Error && cause.name==='AbortError')) error.value = message(cause);
   } finally { if (active && auth.actor?.accountId === owner) busy.value = false; }
 }
 async function openCard(id: string): Promise<void> {
+  if (busy.value) return;
   const ticket = generation;
+  detailController.abort();detailController=new AbortController();selected.value=null;
   const requestId = ++detailGeneration;
   const owner = auth.actor?.accountId;
   if (!owner) return;
   error.value = '';
   try {
-    const card = await libraryService.detail(id);
+    const card = await libraryService.detail(id,detailController.signal);
     if (active && ticket === generation && requestId === detailGeneration && auth.actor?.accountId === owner) {
       selected.value = card;
       editing.value = false; removing.value = false;
@@ -177,12 +191,12 @@ async function saveCard(): Promise<void> {
   try {
     const updated = await libraryService.edit(card.id, card.revision, {
       title: editTitle.value.trim(), type: editType.value, author: editAuthor.value.trim() || null,
-    });
+    },mutationController.signal);
     if (!active || ticket !== generation || auth.actor?.accountId !== owner) return;
     selected.value = updated; editing.value = false; editOpen.value = false;
     entries.value = entries.value.map(item => item.id === updated.id ? updated : item);
     notice.value = t('library.saved');
-  } catch (cause) { if (active && ticket === generation) error.value = message(cause); }
+  } catch (cause) { if (active && ticket === generation && !(cause instanceof Error && cause.name==='AbortError')) error.value = message(cause); }
   finally { if (active && auth.actor?.accountId === owner) busy.value = false; }
 }
 async function removeCard(): Promise<void> {
@@ -190,12 +204,12 @@ async function removeCard(): Promise<void> {
   const owner = auth.actor?.accountId, ticket = generation, card = selected.value;
   busy.value = true; error.value = ''; notice.value = '';
   try {
-    await libraryService.remove(card.id, card.revision);
+    await libraryService.remove(card.id, card.revision,mutationController.signal);
     if (!active || ticket !== generation || auth.actor?.accountId !== owner) return;
     selected.value = null; removing.value = false; actionFor.value = null;
     notice.value = t('library.deleted');
     await load(null, []);
-  } catch (cause) { if (active && ticket === generation) error.value = message(cause); }
+  } catch (cause) { if (active && ticket === generation && !(cause instanceof Error && cause.name==='AbortError')) error.value = message(cause); }
   finally { if (active && auth.actor?.accountId === owner) busy.value = false; }
 }
 async function download(file: LibraryMaterial['files'][number]): Promise<void> {
@@ -203,7 +217,7 @@ async function download(file: LibraryMaterial['files'][number]): Promise<void> {
   const ticket = generation, owner = auth.actor?.accountId;
   busy.value = true; error.value = '';
   try { await libraryService.download(selected.value.id, file,
-    () => active && ticket === generation && auth.actor?.accountId === owner); }
+    () => active && ticket === generation && auth.actor?.accountId === owner,mutationController.signal); }
   catch (cause) { if (active && ticket === generation && auth.actor?.accountId === owner) error.value = message(cause); }
   finally { if (active && auth.actor?.accountId === owner) busy.value = false; }
 }
@@ -259,7 +273,12 @@ function onPageKeydown(event: KeyboardEvent): void {
 
 <template>
   <section class="library-page" aria-labelledby="library-title" @keydown="onPageKeydown">
-    <div class="library-toolbar">
+    <nav class="library-modes" :aria-label="t('community.mode')">
+      <button :aria-pressed="!common" @click="mode(false)">{{t('community.mine')}}</button>
+      <button :aria-pressed="common" @click="mode(true)">{{t('community.common')}}</button>
+    </nav>
+    <CommunityView v-if="common" />
+    <div v-if="!common" class="library-toolbar">
       <div class="library-intro">
         <p class="library-eyebrow">{{ t('library.eyebrow') }}</p>
         <h1 id="library-title">{{ t('library.title') }}</h1>
@@ -272,7 +291,7 @@ function onPageKeydown(event: KeyboardEvent): void {
     <p v-if="error" class="library-error" role="alert">{{ error }}</p>
     <p v-if="notice" class="library-success" role="status">{{ notice }}</p>
 
-    <section class="library-panel" aria-labelledby="library-list-heading">
+    <section v-if="!common" class="library-panel" aria-labelledby="library-list-heading">
       <div class="library-table-heading">
         <div>
           <h2 id="library-list-heading">{{ t('library.myMaterials') }}</h2>
@@ -296,7 +315,7 @@ function onPageKeydown(event: KeyboardEvent): void {
           </thead>
           <tbody>
             <tr v-for="item in entries" :key="item.id">
-              <td class="name-cell"><strong>{{ item.title }}</strong></td>
+              <td class="name-cell"><button class="library-quiet" :disabled="busy" @click="openCard(item.id)">{{ item.title }}</button></td>
               <td>{{ t('library.types.' + item.type) }}</td>
               <td>{{ item.author || '—' }}</td>
               <td>{{ item.files.length }}</td>
@@ -334,6 +353,7 @@ function onPageKeydown(event: KeyboardEvent): void {
       </div>
     </section>
 
+    <MaterialSharing v-if="!common && selected" :key="selected.id" :material="selected" @updated="selected=$event;entries=entries.map(m=>m.id===$event.id?$event:m)" />
     <div v-if="uploadOpen" class="library-overlay" @click.self="closeUpload">
       <section class="library-dialog" role="dialog" aria-modal="true" aria-labelledby="upload-heading">
         <div class="dialog-header">
@@ -421,6 +441,7 @@ function onPageKeydown(event: KeyboardEvent): void {
   </section>
 </template>
 <style scoped>
+.library-modes{display:flex;gap:8px;margin-bottom:20px}.library-modes button{font:inherit;min-height:44px;border:1px solid #b9d0ca;border-radius:9px;background:white;padding:10px 20px;color:#285a54;cursor:pointer}.library-modes button[aria-pressed=true]{background:#28776d;color:white}
 .library-page{max-width:1160px;margin:0 auto;padding:48px 24px 80px;color:var(--text-primary,#243345)}
 .library-toolbar,.library-table-heading,.dialog-header,.dialog-footer,.library-pagination{display:flex;align-items:center;justify-content:space-between;gap:18px}
 .library-toolbar{margin-bottom:28px;align-items:end}

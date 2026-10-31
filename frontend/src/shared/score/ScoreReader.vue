@@ -1,11 +1,11 @@
 <script setup lang="ts">
 import { computed, nextTick, onBeforeUnmount, ref, watch } from 'vue';
 import { useI18n } from 'vue-i18n';
-import { fetchBoundedPdf, pinnedPdfUrl, safeScoreLink, ScoreFetchError } from './score-transport';
+import { fetchBoundedPdf, pinnedPdfUrl, pinnedAssetPdfUrl, type ScoreDescriptor, safeScoreLink, ScoreFetchError } from './score-transport';
 
 type ViewerState = 'CLOSED' | 'CHECKING' | 'LOADING' | 'READY' | 'UNAVAILABLE' | 'ERROR';
 const props = defineProps<{
-  exerciseKey: string; pdfUrl: string | null; scoreUrl: string | null;
+  exerciseKey?: string; source?: ScoreDescriptor; pdfUrl: string | null; scoreUrl: string | null;
   title: string; open: boolean;
 }>();
 const emit = defineEmits<{
@@ -27,7 +27,7 @@ const focusButton = ref<HTMLButtonElement | null>(null);
 const focusTrigger = ref<HTMLButtonElement | null>(null);
 const frame = ref<HTMLIFrameElement | null>(null);
 const container = ref<HTMLElement | null>(null);
-const safeUrl = computed(() => pinnedPdfUrl(props.pdfUrl, props.exerciseKey, window.location.origin));
+const safeUrl = computed(() => props.source ? pinnedAssetPdfUrl(props.pdfUrl, props.source, window.location.origin) : pinnedPdfUrl(props.pdfUrl, props.exerciseKey ?? '', window.location.origin));
 const fallback = computed(() => safeScoreLink(props.scoreUrl, window.location.origin));
 let controller: AbortController | null = null;
 let channel: MessageChannel | null = null;
@@ -186,7 +186,9 @@ const iframeDocument = computed(() => {
         const ctx = canvas.getContext('2d',{alpha:false});
         if (!ctx) throw Error('NO_CONTEXT');
         holder.replaceChildren(canvas);
-        rendering = p.render({canvasContext:ctx,viewport:view});
+        // Print intent uses deterministic canvas scheduling: display intent stalls
+        // requestAnimationFrame in offscreen sandbox frames below a long material card.
+        rendering = p.render({canvasContext:ctx,viewport:view,intent:'print'});
         await Promise.race([
           rendering.promise,
           new Promise((_, reject)=>{ deadline=setTimeout(()=>reject(Error('RENDER_TIMEOUT')),10000); })
@@ -272,7 +274,7 @@ async function openReader() {
     timeout=null;
   }
 }
-watch(() => [props.exerciseKey,props.pdfUrl], () => {
+watch(() => JSON.stringify([props.exerciseKey,props.pdfUrl,props.source]), () => {
   reset();
   if(props.open)emit('update:open',false);
   else transition('CLOSED');
