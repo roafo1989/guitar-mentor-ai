@@ -9,7 +9,7 @@
   "zoom": "200%",
   "pdfRendered": true,
   "checks": [
-    "explicit no-audio publish",
+    "selected score subset leaves existing audio private",
     "draft vs snapshot",
     "withdraw/publish failure and identical retry key",
     "stale search",

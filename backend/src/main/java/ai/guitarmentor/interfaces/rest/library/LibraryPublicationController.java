@@ -190,15 +190,30 @@ public class LibraryPublicationController {
             """).param("id",materialId).query(Long.class).single();
         if(already!=0) throw new Failure(409,"PUBLICATION_ALREADY_ACTIVE");
 
-        var assets=jdbc.sql("""
+        Map<UUID,AssetRight> rights=new HashMap<>();
+        for(var right:payload.assets()) {
+            if(right==null || right.assetId()==null || right.rightsBasis()==null
+                    || !BASES.contains(right.rightsBasis())
+                    || (right.provenance()!=null && !PROVENANCES.contains(right.provenance()))
+                    || (right.attribution()!=null && right.attribution().length()>2000)
+                    || right.rightsEvidence()==null || right.rightsEvidence().isBlank()
+                    || right.rightsEvidence().trim().length()<8
+                    || right.rightsEvidence().length()>500
+                    || rights.putIfAbsent(right.assetId(),right)!=null)
+                throw new Failure(400,"PUBLICATION_INVALID_RIGHTS");
+        }
+        var sourceAssets=jdbc.sql("""
             SELECT id,original_name,format,byte_size,sha256,object_key,role,media_type,
                 duration_millis,channels,sample_rate,width,height,preview_object_key,preview_byte_size,processing_state
             FROM library_assets WHERE material_id=:id ORDER BY id FOR SHARE
             """).param("id",materialId).query().listOfRows();
+        // Select only explicitly attested assets belonging to this material. Never infer
+        // membership from an asset UUID, title or owner supplied by the client.
+        var assets=sourceAssets.stream().filter(asset->rights.containsKey((UUID)asset.get("id"))).toList();
         long scorePhoto=assets.stream().filter(a->Set.of("SCORE_ORIGINAL","PHOTO_ORIGINAL").contains(a.get("role"))).count();
         long audio=assets.stream().filter(a->Set.of("ORIGINAL_RECORDING","SYNTHESIZED_PREVIEW").contains(a.get("role"))).count();
         if(assets.isEmpty() || assets.size()>7 || scorePhoto<1 || scorePhoto>5 || audio>2
-                || payload==null || payload.assets()==null || payload.assets().size()!=assets.size())
+                || assets.size()!=rights.size())
             throw new Failure(400,"PUBLICATION_INVALID_RIGHTS");
         if(assets.stream().anyMatch(a->!"READY".equals(a.get("processing_state"))
                 || ("PHOTO_ORIGINAL".equals(a.get("role")) && a.get("preview_object_key")==null)))
@@ -212,24 +227,6 @@ public class LibraryPublicationController {
             }
         } catch(java.nio.file.NoSuchFileException e) { throw new Failure(409,"CATALOG_ASSET_NOT_READY"); }
           catch(IOException e) { throw new Failure(503,"PUBLICATION_STORAGE_UNAVAILABLE"); }
-        Map<UUID,AssetRight> rights=new HashMap<>();
-        for(var right:payload.assets()) {
-            if(right==null || right.assetId()==null || right.rightsBasis()==null
-                    || !BASES.contains(right.rightsBasis())
-                    || (right.provenance()!=null && !PROVENANCES.contains(right.provenance()))
-                    || (right.attribution()!=null && right.attribution().length()>2000)
-                    || right.rightsEvidence()==null || right.rightsEvidence().isBlank()
-                    || right.rightsEvidence().trim().length()<8
-                    || right.rightsEvidence().length()>500
-                    || rights.putIfAbsent(right.assetId(),right)!=null)
-                throw new Failure(400,"PUBLICATION_INVALID_RIGHTS");
-        }
-        // Assertions must be made independently for every asset. A material-level checkbox
-        // cannot attest rights to a second file. Evidence is recorded, not independently verified.
-        for(var asset:assets) {
-            UUID assetId=(UUID)asset.get("id");
-            if(!rights.containsKey(assetId)) throw new Failure(400,"PUBLICATION_INVALID_RIGHTS");
-        }
         long latest=jdbc.sql("""
             SELECT COALESCE(max(version),0) FROM library_publications WHERE material_id=:id
             """).param("id",materialId).query(Long.class).single();

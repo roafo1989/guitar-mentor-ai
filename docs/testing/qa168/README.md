@@ -2,6 +2,7 @@
 
 | Версия | Дата | Изменение |
 |---|---|---|
+| 1.1 | 01.11.2026 | По разрешению владельца снят блокер выбора файлов: READY-подмножество, guards и новые PostgreSQL/live HTTP/browser regression |
 | 1.0 | 31.10.2026 | Общий поиск, публикации, media UI, ALL-tags SQL fix, матрица и QA |
 
 [PR #258](https://github.com/roafo1989/guitar-mentor-ai/pull/258). Контракт — верхний блок #168 «Готовность к разработке — 31.10.2026». Перед кодом учтён main 7b940366 поверх базы b9f922bb, повторная сверка main 202925f1 (только пустой файл чужой #170, не изменён). AGENTS.md отсутствует в repo и родительских каталогах. Применены development-workflow.md/kanban-workflow.md; исторические блокировки/URL не используются.
@@ -20,11 +21,11 @@ ScoreReader один: exercise descriptors сохранены, добавлен�
 
 При смене карточки/режима/аккаунта/logout/unmount отменяются запросы, очищаются данные, останавливается audio, отзываются blob URLs, снимается viewer. Private PDF/GP CRUD, архив и Light Minimal сохранены. Новых миграций нет. Production/PILOT/реальные данные/секреты/флаги стенда не использовались. #204/#169/#170/#40/#245 не изменялись.
 
-## Блокер полного соответствия
+## Выбор файлов — блокер устранён 01.11.2026
 
-**Принятый backend не поддерживает публикацию подмножества source files.** `LibraryPublicationController.publish` требует `payload.assets.size()==всех library_assets` и права для каждого файла, включая уже добавленное необязательное аудио. Подмножество READY assets отклоняется `PUBLICATION_INVALID_RIGHTS`. UI явно требует отдельный выбор/права на все файлы; публикация материала без аудио работает, но исключить существующее аудио нельзя.
+Владелец явно разрешил минимальное расширение backend в продолжении задачи. Publish теперь принимает выбранное непустое READY-подмножество assets текущего material. Нужен минимум один score/photo; аудио необязательно, включая материал, к которому уже прикреплено аудио. Проверяются rights каждого выбранного файла и принадлежность material; unknown/foreign/duplicate IDs отклоняются. Права, обработка, feature flag и наличие bytes проверяются только у выбранных assets, поэтому невыбранный REJECTED файл или отключённое private media не блокируют публикацию PDF. Все прежние ограничения snapshot, ревизий, идемпотентности, withdraw/HIDDEN и CSRF сохранены. Новых миграций нет.
 
-Серверный lifecycle не расширен: пользователь разрешил только точечный search predicate fix. Для полного соответствия нужна резолюция владельца: разрешить минимальную поддержку выбранного READY-подмножества (с обязательным score/photo, правами и regression) либо принять ограничение «публикуется весь набор». До решения полный #168 не объявляется PASS, PR draft, merge/закрытие не выполняются.
+UI не требует прав на невыбранные файлы: их controls disabled и не участвуют в native required validation. Никакого автоматического выбора/публикации нет. PostgreSQL покрывает subset с исключённым audio и REJECTED asset при media-off, photo-only selection существующего material, foreign/unknown/duplicate/audio-only/неполные права, stale revision, replay/payload conflict и недоступность omitted bytes. Live HTTP сценарий публикует один из двух private originals и подтверждает 404 для невыбранного файла. Chromium публикует только PDF при наличии private audio и не требует attestation для него. AC168-04 больше не имеет продуктового блокера; финальные CI/SHA зафиксированы в комментариях #168/PR258.
 
 ## Матрица критериев
 
@@ -33,7 +34,7 @@ ScoreReader один: exercise descriptors сохранены, добавлен�
 | AC168-01 | Private PDF/GP CRUD, архив, прежний путь | 240 frontend regression + 57 intake/component; fixtures обновлены до реального FileView #167; Chromium private edit/view |
 | AC168-02 | Server filters ALL tags, cursor, abort/guards/reset/empty | Service + Chromium stale-search/cursor/empty; PostgreSQL A-only/B-only/A+B×2 с limit1 и opaque cursor |
 | AC168-03 | Управление только своим material, чужое чтение snapshot | Existing PostgreSQL/MockMvc rights + новый независимый TCP HTTP A/B/guest |
-| AC168-04 | Rights, явность, no-audio, partial withdraw→publish, стабильный key/revisions | Unit + Chromium + live replay; **PARTIAL: выбор подмножества source assets, см. блокер** |
+| AC168-04 | Rights, явность, no-audio, partial withdraw→publish, стабильный key/revisions | Unit + Chromium + live replay; выбранное подмножество/невыбранное audio/guards проверяются PostgreSQL и live HTTP (см. выше) |
 | AC168-05 | Capabilities, photo/audio upload/delete/limits/flag off | Chromium DOM + mock HTTP: роли, фото/аудио, count, published-reference; unit quota/last-score mapping; существующие #167 PostgreSQL media/security tests в CI |
 | AC168-06 | Один sandbox reader, exact routes, sanitized photo, audio cleanup, GP | Negative URL/foreign-ID unit; Chromium private/common PDF canvas, sandbox, photo и audio teardown; exercise runner в CI |
 | AC168-07 | Разные 401/404/409/412/413/415/429/503, Retry-After, account cleanup | 7 service/error tests; Chromium read-only retry и смена auth actor с остановкой audio; private component race regression |
@@ -76,3 +77,5 @@ Self-review точного diff (не независимое human review):
 - Новые модули отформатированы. Playwright pin — только dev dependency; runtime зависимостей не добавлено.
 
 Результаты принадлежат одной qa168 папке. Ненужные failed screenshots удалены. PowerShell-скрипты, второй каталог, второй viewer, Work merging и конвертер не создавались.
+
+Ревью продолжения 01.11: отбор assets выполняется после owner/material lock; полнота rights сверяется с выбранным набором, unknown IDs не игнорируются. Snapshot insert и bytes membership используют только этот набор. Старый fingerprint сохраняет различение payload, old whole-set requests остаются совместимыми. Расширение согласовано владельцем; прежний запрет менять lifecycle снят только в этой части.

@@ -198,11 +198,11 @@ async function publish() {
     const selected = rights.value
       .filter((r) => r.chosen)
       .map(({ chosen: _, ...r }) => r);
-    // Accepted backend currently requires rights for every source asset, not a subset.
     if (
       !confirm.value ||
-      selected.length !== material.files.length ||
       !selected.length ||
+      !selected.some(r=>material.files.some(f=>f.id===r.assetId && ['SCORE_ORIGINAL','PHOTO_ORIGINAL'].includes(f.role))) ||
+      selected.some(r=>!material.files.some(f=>f.id===r.assetId && f.processingState==='READY')) ||
       selected.some(
         (r) =>
           !r.rightsBasis ||
@@ -524,7 +524,7 @@ async function refresh() {
           >
           <label
             >{{ t("community.basis")
-            }}<select v-model="r.rightsBasis" required @change="basis(r)">
+            }}<select v-model="r.rightsBasis" :required="r.chosen" :disabled="!r.chosen" @change="basis(r)">
               <option disabled value="">{{ t("community.choose") }}</option>
               <option v-for="b in bases" :key="b" :value="b">
                 {{ t("community.bases." + b) }}
@@ -541,14 +541,14 @@ async function refresh() {
             >{{ t("community.evidence")
             }}<textarea
               v-model="r.rightsEvidence"
-              required
+              :required="r.chosen" :disabled="!r.chosen"
               minlength="8"
               maxlength="500"
             />
           </label>
           <label
             >{{ t("community.attribution")
-            }}<textarea v-model="r.attribution" maxlength="2000" />
+            }}<textarea v-model="r.attribution" :disabled="!r.chosen" maxlength="2000" />
           </label>
         </fieldset>
         <label

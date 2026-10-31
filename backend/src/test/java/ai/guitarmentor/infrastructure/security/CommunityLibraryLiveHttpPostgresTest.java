@@ -63,8 +63,10 @@ class CommunityLibraryLiveHttpPostgresTest {
             var alice=new Session();var bob=new Session();var guest=new Session();alice.login(nameA);bob.login(nameB);
             String boundary="qa168"+suffix;
             String multipart="--"+boundary+"\r\nContent-Disposition: form-data; name=\"metadata\"\r\nContent-Type: application/json\r\n\r\n{\"title\":\"QA168 original\",\"type\":\"ETUDE\"}\r\n--"+boundary+"\r\nContent-Disposition: form-data; name=\"files\"; filename=\"synthetic.pdf\"\r\nContent-Type: application/pdf\r\n\r\n%PDF-1.7\nSynthetic QA168 score\n\r\n--"+boundary+"--\r\n";
+            multipart=multipart.replace("--"+boundary+"--\r\n", "--"+boundary+"\r\nContent-Disposition: form-data; name=\"files\"; filename=\"private-only.pdf\"\r\nContent-Type: application/pdf\r\n\r\n%PDF-1.7\nPrivate omitted score\n\r\n--"+boundary+"--\r\n");
             var created=alice.request("POST","/api/v1/library/materials",multipart,Map.of("Content-Type","multipart/form-data; boundary="+boundary,"Idempotency-Key",UUID.randomUUID().toString()));
             assertEquals(201,created.statusCode(),created.body());JsonNode material=JSON.readTree(created.body());String id=material.path("id").asText(),asset=material.path("files").get(0).path("id").asText();
+            String omitted=material.path("files").get(1).path("id").asText();
             String own="/api/v1/library/materials/"+id;
             assertEquals(404,bob.request("GET",own,null,Map.of()).statusCode());
             assertEquals(404,bob.request("GET",own+"/publications",null,Map.of()).statusCode());
@@ -76,13 +78,15 @@ class CommunityLibraryLiveHttpPostgresTest {
             assertEquals(200,alice.request("POST",own+"/publications",body,headers).statusCode());
             assertEquals(401,guest.request("GET",common,null,Map.of()).statusCode());
             var read=bob.request("GET",common,null,Map.of());assertEquals(200,read.statusCode(),read.body());assertEquals("QA168 original",JSON.readTree(read.body()).path("title").asText());
+            assertEquals(1,JSON.readTree(read.body()).path("assets").size());
+            assertEquals(404,bob.request("GET",common+"/files/"+omitted+"/content",null,Map.of()).statusCode(),"an omitted source asset is never shared");
             assertFalse(JSON.readTree(read.body()).has("ownerAccountId"));assertFalse(JSON.readTree(read.body()).has("materialId"));
             assertEquals(200,bob.request("GET",common+"/files/"+asset+"/content",null,Map.of()).statusCode());
             var edited=alice.request("PATCH",own,"{\"title\":\"QA168 changed draft\"}",Map.of("Content-Type","application/json","If-Match","\"1\""));assertEquals(200,edited.statusCode(),edited.body());
             var stable=bob.request("GET",common,null,Map.of());assertEquals(JSON.readTree(read.body()),JSON.readTree(stable.body()),"draft edit cannot change snapshot");
             var withdrawn=alice.request("POST",own+"/publications/"+snapshot.path("id").asText()+"/withdraw","{}",Map.of("Content-Type","application/json","If-Match","\""+snapshot.path("revision").asLong()+"\""));assertEquals(200,withdrawn.statusCode(),withdrawn.body());
             assertEquals(404,bob.request("GET",common,null,Map.of()).statusCode());assertEquals(404,bob.request("GET",common+"/files/"+asset+"/content",null,Map.of()).statusCode());
-            System.out.println("QA168 LIVE HTTP/PostgreSQL PASS: independent A/B cookie jars, guest deny, publish replay, draft private, snapshot stable, withdraw revokes detail+bytes");
+            System.out.println("QA168 LIVE HTTP/PostgreSQL PASS: independent A/B cookie jars, guest deny, selected subset + omitted bytes denied, publish replay, draft private, snapshot stable, withdraw revokes detail+bytes");
         } finally {
             // Only synthetic accounts made by this test; all paths live under a unique temp root.
             for(String sql:List.of(
