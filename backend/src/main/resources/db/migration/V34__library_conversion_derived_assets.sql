@@ -49,6 +49,7 @@ ALTER TABLE library_publication_assets ADD CONSTRAINT library_publication_asset_
 ALTER TABLE library_conversion_jobs
     ADD COLUMN output_reserved_bytes BIGINT NOT NULL DEFAULT 0 CHECK(output_reserved_bytes BETWEEN 0 AND 41943040),
     ADD COLUMN output_reserved_files SMALLINT NOT NULL DEFAULT 0 CHECK(output_reserved_files BETWEEN 0 AND 2),
+    ADD COLUMN output_reservation_attempt SMALLINT NOT NULL DEFAULT 0 CHECK(output_reservation_attempt BETWEEN 0 AND 2),
     ADD COLUMN output_reservation_state VARCHAR(16) NOT NULL DEFAULT 'NONE'
         CHECK(output_reservation_state IN ('NONE','RESERVED','COMMITTED','RELEASED')),
     ADD CONSTRAINT library_conversion_output_reservation_consistent CHECK (
