@@ -29,6 +29,14 @@ function Fixture([string]$Id, [string]$Sql) {
     return $release
 }
 try {
+    # Shortcuts resolve PowerShell at launch time and fail clearly when absent.
+    foreach ($mode in 'Start','Update','Rollback') {
+        $launcher = New-PilotShortcutCommand -Mode $mode
+        Assert ($launcher.Contains('where.exe pwsh.exe')) "$mode shortcut checks PowerShell availability dynamically"
+        Assert ($launcher.Contains("pwsh.exe -NoLogo -NoProfile -File `"%~dp0$mode-Pilot.ps1`"")) "$mode shortcut targets its own entry script"
+        Assert ($launcher.Contains('PowerShell 7.4 or later (pwsh.exe) was not found on PATH')) "$mode shortcut reports a missing runtime clearly"
+        Assert ($launcher.Contains('exit /b 9009')) "$mode shortcut returns a stable missing-runtime exit code"
+    }
     # Parse every shipped file, including Windows-only entry points.
     foreach ($file in (Get-ChildItem (Join-Path $PSScriptRoot '..') -Filter '*.ps1' -Recurse)) {
         $tokens = $null; $errors = $null
