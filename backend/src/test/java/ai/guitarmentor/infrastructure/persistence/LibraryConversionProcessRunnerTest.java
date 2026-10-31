@@ -21,7 +21,7 @@ class LibraryConversionProcessRunnerTest {
         Path docker = stubDocker();
         Path args = temp.resolve("docker-args.txt");
         Path log = temp.resolve("docker-stub.log");
-        ProcessRunnerEnv.set(docker, args, log, "RENDERED");
+        ProcessRunnerEnv.set(docker, args, log, "RENDERED", sha256(source));
         try {
             LibraryConversionProcessRunner runner = runner(docker);
             var result = runner.execute(source, "GP5", sha256(source), 1, () -> false);
@@ -114,7 +114,7 @@ class LibraryConversionProcessRunnerTest {
                   printf '%s' '{"status":"ERROR","code":"TRACK_SELECTION_REQUIRED","tracks":[{"trackIndex":0,"name":"Rhythm","guitar":true,"instrument":"Guitar"},{"trackIndex":1,"name":"Lead","guitar":true,"instrument":"Guitar"}]}' > "$out/result.json"
                   exit 10
                 fi
-                printf '%s' '{"status":"RENDERED","selectedTrackIndex":1,"selectedTrackName":"Lead Guitar","wavDurationSeconds":2.0}' > "$out/result.json"
+                printf '{"status":"RENDERED","format":"GP5","sourceSha256":"%s","scoreRevision":"%s","selectedTrackIndex":1,"selectedTrackName":"Lead Guitar","wavDurationSeconds":2.0}' "$GM_STUB_SOURCE_SHA" "$GM_STUB_SOURCE_SHA" > "$out/result.json"
                 printf '%%PDF' > "$out/score.pdf"
                 dd if=/dev/zero bs=1 count=1200 >> "$out/score.pdf" 2>/dev/null
                 printf 'RIFF\\000\\004\\000\\000WAVE' > "$out/preview.wav"
@@ -133,14 +133,15 @@ class LibraryConversionProcessRunnerTest {
 
     /** Keep environment mutation isolated and restore it after every test. */
     private static final class ProcessRunnerEnv {
-        static void set(Path docker, Path args, Path log, String mode) {
+        static void set(Path docker, Path args, Path log, String mode) { set(docker, args, log, mode, ""); }
+        static void set(Path docker, Path args, Path log, String mode, String sourceSha) {
             System.setProperty("gm.test.docker", docker.toString());
             // The stub reads these inherited values; ProcessBuilder inherits the test process environment.
             // Values are injected through a wrapper script to avoid changing global process state.
             try {
                 Path wrapper = docker.resolveSibling("docker-wrapper.sh");
                 Files.writeString(wrapper, "#!/bin/sh\nGM_DOCKER_ARGS='" + args + "' GM_STUB_MODE='" + mode
-                        + "' exec '" + docker + "' \"$@\"");
+                        + "' GM_STUB_SOURCE_SHA='" + sourceSha + "' exec '" + docker + "' \"$@\"");
                 Files.setPosixFilePermissions(wrapper, Set.of(PosixFilePermission.OWNER_READ,
                         PosixFilePermission.OWNER_WRITE, PosixFilePermission.OWNER_EXECUTE));
                 System.setProperty("gm.test.docker", wrapper.toString());
