@@ -10,43 +10,45 @@ participant "Isolated renderer" as Renderer
 participant "LibraryObjectStore" as Store
 
 Student -> UI: Convert original GP
-UI -> API: POST conversion-jobs
-Idempotency-Key + If-Match + sourceAssetId
+UI -> API: POST conversion-jobs\nIdempotency-Key + If-Match + sourceAssetId
 API -> DB: Lock owner material + source asset
 API -> DB: Check owner, role, format, state, SHA, quota
 API -> DB: Insert QUEUED job + request fingerprint
 DB --> API: jobId, revision
 API --> UI: 202 Accepted + job URL
 
-Worker -> DB: Claim slot + QUEUED job
-FOR UPDATE SKIP LOCKED
+Worker -> DB: Claim slot + QUEUED job\nFOR UPDATE SKIP LOCKED
 DB --> Worker: leaseOwner, leaseUntil, source snapshot
 Worker -> Store: Open source object read-only
-Worker -> Renderer: Import + inspect tracks
-(no network, bounded resources)
+Worker -> Renderer: Import + inspect tracks\n(no network, bounded resources)
 Renderer --> Worker: Track catalog
 
 alt Several guitar tracks
-  Worker -> DB: Save tracks; state AWAITING_TRACK_SELECTION
-release global worker slot
-  DB --> UI: Poll state + track list
+  Worker -> DB: Save tracks; state AWAITING_TRACK_SELECTION\nrelease global worker slot
+  UI -> API: GET conversion job
+  API -> DB: Read owner-scoped job
+  DB --> API: state + safe track catalog
+  API --> UI: AWAITING_TRACK_SELECTION + tracks
   Student -> UI: Select track
   UI -> API: POST track-selection + If-Match
   API -> DB: Validate trackIndex; state QUEUED
+  DB --> API: Updated revision
+  API --> UI: Selection accepted
   Worker -> DB: Claim slot + selected job
 else One guitar track
   Worker -> DB: Save automatic selection; continue
 end
 
-Worker -> Renderer: Render PDF + synthesize WAV
-same imported score revision
+Worker -> Renderer: Render PDF + synthesize WAV\nsame imported score revision
 Renderer --> Worker: Temporary PDF + WAV
 Worker -> Worker: Validate both outputs and sizes
 Worker -> DB: Reserve actual output quota
 Worker -> Store: Store both derived assets
-Worker -> DB: Atomic commit both assets + SUCCEEDED
-only if leaseOwner/revision still match
-DB --> UI: SUCCEEDED + PDF/WAV links
+Worker -> DB: Atomic commit both assets + SUCCEEDED\nonly if leaseOwner/revision still match
+UI -> API: GET conversion job
+API -> DB: Read owner-scoped job
+DB --> API: SUCCEEDED + output asset IDs
+API --> UI: PDF/WAV links
 
 opt Cancel
   Student -> UI: Cancel
@@ -59,7 +61,6 @@ end
 opt Failure / timeout
   Worker -> Renderer: Kill at 60s watchdog or capture safe error code
   Worker -> Worker: Delete temp/partial output
-  Worker -> DB: FAILED / UNSUPPORTED / TIMED_OUT
-release lease/slot; keep original unchanged
+  Worker -> DB: FAILED / UNSUPPORTED / TIMED_OUT\nrelease lease/slot; keep original unchanged
 end
 @enduml
