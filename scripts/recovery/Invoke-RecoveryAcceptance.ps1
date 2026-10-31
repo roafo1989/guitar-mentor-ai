@@ -79,8 +79,8 @@ function Get-DrillDbSummary([string]$Kind, [hashtable]$State, [hashtable]$Manife
             if ($target.name -notmatch '^gm_dr_[a-f0-9]{16}$' -or $target.user -ne $target.name) {
                 throw 'Частично созданная БД/роль не прошла защитную проверку; автоматическая очистка запрещена.'
             }
-            $sql = "DROP DATABASE IF EXISTS $($target.name) WITH (FORCE); DROP ROLE IF EXISTS $($target.user);"
-            $null = Invoke-RecoverySql $Bin $admin $AdminPassword $sql
+            $null = Invoke-RecoverySql $Bin $admin $AdminPassword "DROP DATABASE IF EXISTS $($target.name) WITH (FORCE);"
+            $null = Invoke-RecoverySql $Bin $admin $AdminPassword "DROP ROLE IF EXISTS $($target.user);"
             $actual = Restore-RecoveryDatabase $Bin (Join-Path $State.destination "databases/$Kind.dump") $Manifest.databases[$Kind] $target $appPassword $AdminUser $AdminPassword
         } else {
             $actual = Get-RecoveryDatabaseSummary $Bin $target $appPassword
@@ -93,8 +93,8 @@ function Get-DrillDbSummary([string]$Kind, [hashtable]$State, [hashtable]$Manife
                 if ($target.name -notmatch '^gm_dr_[a-f0-9]{16}$' -or $target.user -ne $target.name) {
                     throw 'Изолированная БД не совпадает с источником; имя не прошло защитную проверку, автоматическая очистка запрещена.'
                 }
-                $sql = "DROP DATABASE IF EXISTS $($target.name) WITH (FORCE); DROP ROLE IF EXISTS $($target.user);"
-                $null = Invoke-RecoverySql $Bin $admin $AdminPassword $sql
+                $null = Invoke-RecoverySql $Bin $admin $AdminPassword "DROP DATABASE IF EXISTS $($target.name) WITH (FORCE);"
+                $null = Invoke-RecoverySql $Bin $admin $AdminPassword "DROP ROLE IF EXISTS $($target.user);"
                 $actual = Restore-RecoveryDatabase $Bin (Join-Path $State.destination "databases/$Kind.dump") $expected $target $appPassword $AdminUser $AdminPassword
             }
         }
