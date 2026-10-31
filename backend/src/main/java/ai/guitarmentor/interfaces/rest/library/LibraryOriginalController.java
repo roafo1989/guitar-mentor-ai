@@ -6,8 +6,11 @@ import ai.guitarmentor.infrastructure.persistence.LibraryObjectStore.Stored;
 import ai.guitarmentor.infrastructure.security.CurrentActor;
 import jakarta.servlet.http.HttpServletRequest;
 import java.io.IOException;
+import java.io.FilterInputStream;
+import java.io.InputStream;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
+import java.nio.file.Path;
 import java.security.MessageDigest;
 import java.security.NoSuchAlgorithmException;
 import java.util.ArrayList;
@@ -15,11 +18,14 @@ import java.util.HexFormat;
 import java.util.List;
 import java.util.Locale;
 import java.util.Map;
+import java.util.Objects;
 import java.util.Set;
 import java.util.UUID;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.http.CacheControl;
 import org.springframework.http.HttpHeaders;
+import org.springframework.http.HttpStatus;
 import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
 import org.springframework.jdbc.core.simple.JdbcClient;
@@ -42,6 +48,7 @@ public final class LibraryOriginalController {
     private final LibraryMaterialRepository repository;
     private final LibraryObjectStore storage;
     private final boolean enabled;
+    private final boolean mediaEnabled;
     @Value("${guitar-mentor.library.max-upload-bytes:20971520}")
     private long maxUploadBytes=MAX_FILE_BYTES;
     @Value("${guitar-mentor.library.max-account-bytes:209715200}")
@@ -59,11 +66,17 @@ public final class LibraryOriginalController {
             throw new IllegalStateException("Invalid private library quota configuration");
     }
 
+    @Autowired
     public LibraryOriginalController(JdbcClient jdbc, TransactionTemplate transactions,
             LibraryMaterialRepository repository, LibraryObjectStore storage,
-            @Value("${guitar-mentor.library.enabled:false}") boolean enabled) {
+            @Value("${guitar-mentor.library.enabled:false}") boolean enabled,
+            @Value("${guitar-mentor.library.community-media-enabled:false}") boolean mediaEnabled) {
         this.jdbc=jdbc; this.transactions=transactions; this.repository=repository;
-        this.storage=storage; this.enabled=enabled;
+        this.storage=storage; this.enabled=enabled; this.mediaEnabled=mediaEnabled;
+    }
+    LibraryOriginalController(JdbcClient jdbc,TransactionTemplate transactions,
+            LibraryMaterialRepository repository,LibraryObjectStore storage,boolean enabled) {
+        this(jdbc,transactions,repository,storage,enabled,false);
     }
 
     public record Metadata(String title,String type,String author) {}
@@ -330,8 +343,9 @@ public final class LibraryOriginalController {
                 for(Incoming input:staged) {
                     Stored obj=input.object();
                     jdbc.sql("""
-                        INSERT INTO library_assets(id,material_id,object_key,original_name,format,byte_size,sha256)
-                        VALUES(:id,:material,:object,:name,:format,:length,:digest)
+                        INSERT INTO library_assets(id,material_id,object_key,original_name,format,byte_size,sha256,media_type)
+                        VALUES(:id,:material,:object,:name,:format,:length,:digest,
+                            CASE WHEN :format='PDF' THEN 'application/pdf' ELSE 'application/octet-stream' END)
                         """).param("id",UUID.randomUUID()).param("material",id)
                         .param("object",obj.key()).param("name",input.name())
                         .param("format",input.format()).param("length",obj.length())
@@ -366,8 +380,13 @@ public final class LibraryOriginalController {
                     repository.assets(owner,material.id()).stream()
                         .map(a->new LibraryMaterialController.FileView(a.id(),a.originalName(),
                             a.format(),a.byteSize(),a.sha256(),
-                            a.format().equals("PDF")?"PDF_HEADER_CHECKED":"ORIGINAL_UNVERIFIED",
-                            "/api/v1/library/materials/"+material.id()+"/files/"+a.id()+"/content"))
+                            "REJECTED".equals(a.processingState())?"MEDIA_UNAVAILABLE":
+                                (a.format().equals("PDF")?"PDF_HEADER_CHECKED":"ORIGINAL_UNVERIFIED"),
+                            "/api/v1/library/materials/"+material.id()+"/files/"+a.id()+"/content",
+                            a.role(),a.mediaType(),a.durationMillis(),a.channels(),a.sampleRate(),a.width(),a.height(),
+                            a.processingState(),a.previewAvailable(),
+                            "PHOTO_ORIGINAL".equals(a.role())&&!a.previewAvailable()?"MEDIA_UNAVAILABLE":null,
+                            a.previewAvailable()?"/api/v1/library/materials/"+material.id()+"/files/"+a.id()+"/preview":null))
                         .toList()));
         } catch(LibraryObjectStore.FileTooLarge e) {
             if(!committed) {cleanup(staged); if(!replay) abort(owner,key,"LIBRARY_UPLOAD_TOO_LARGE");} throw new Failure(413,"LIBRARY_UPLOAD_TOO_LARGE");
@@ -411,25 +430,100 @@ public final class LibraryOriginalController {
             @PathVariable UUID materialId,@PathVariable UUID assetId) {
         UUID owner=actor(request);
         List<Map<String,Object>> rows=jdbc.sql("""
-            SELECT a.object_key,a.original_name,a.format,a.byte_size
+            SELECT a.object_key,a.original_name,a.format,a.byte_size,a.role,a.media_type
             FROM library_assets a JOIN library_materials m ON m.id=a.material_id
             WHERE m.owner_account_id=:owner AND m.id=:material AND m.state='READY' AND a.id=:asset
+              AND a.processing_state='READY'
             """).param("owner",owner).param("material",materialId)
             .param("asset",assetId).query().listOfRows();
-        if(rows.isEmpty()) throw new Failure(404,"LIBRARY_MATERIAL_NOT_FOUND");
+        if(rows.isEmpty()) {
+            var damaged=jdbc.sql("SELECT a.role FROM library_assets a JOIN library_materials m ON m.id=a.material_id WHERE m.owner_account_id=:owner AND m.id=:material AND m.state='READY' AND a.id=:asset AND a.processing_state='REJECTED'")
+                .param("owner",owner).param("material",materialId).param("asset",assetId).query().listOfRows();
+            if(!damaged.isEmpty()) {
+                if(!"SCORE_ORIGINAL".equals(damaged.getFirst().get("role")) && !mediaEnabled)
+                    throw new Failure(503,"COMMUNITY_MEDIA_DISABLED");
+                throw new Failure(404,"LIBRARY_FILE_UNAVAILABLE");
+            }
+            Boolean materialExists=jdbc.sql("""
+                SELECT EXISTS(SELECT 1 FROM library_materials
+                    WHERE id=:material AND owner_account_id=:owner AND state='READY')
+                """).param("material",materialId).param("owner",owner).query(Boolean.class).single();
+            if(!materialExists) throw new Failure(404,"LIBRARY_MATERIAL_NOT_FOUND");
+            throw new Failure(404,"LIBRARY_ASSET_NOT_FOUND");
+        }
         Map<String,Object> asset=rows.get(0);
+        if(!"SCORE_ORIGINAL".equals(asset.get("role")) && !mediaEnabled)
+            throw new Failure(503,"COMMUNITY_MEDIA_DISABLED");
         try {
             var path=storage.file((String)asset.get("object_key"));
             var headers=new HttpHeaders();
             headers.setCacheControl(CacheControl.noStore());
             headers.add("X-Content-Type-Options","nosniff");
-            headers.setContentDisposition(org.springframework.http.ContentDisposition.attachment()
+            boolean audio=Set.of("ORIGINAL_RECORDING","SYNTHESIZED_PREVIEW").contains(asset.get("role"));
+            headers.setContentDisposition(audio?org.springframework.http.ContentDisposition.inline()
+                .filename((String)asset.get("original_name"),StandardCharsets.UTF_8).build():
+                org.springframework.http.ContentDisposition.attachment()
                 .filename((String)asset.get("original_name"),StandardCharsets.UTF_8).build());
-            headers.setContentType("PDF".equals(asset.get("format"))?MediaType.APPLICATION_PDF:MediaType.APPLICATION_OCTET_STREAM);
-            headers.setContentLength(Files.size(path));
+            headers.setContentType(MediaType.parseMediaType(Objects.toString(asset.get("media_type"),
+                "PDF".equals(asset.get("format"))?"application/pdf":"application/octet-stream")));
+            long length=Files.size(path);
+            headers.set(HttpHeaders.ACCEPT_RANGES,audio?"bytes":"none");
+            headers.setContentLength(length);
             if("HEAD".equals(request.getMethod())) return ResponseEntity.ok().headers(headers).build();
+            String range=request.getHeader(HttpHeaders.RANGE);
+            if(range!=null) {
+                if(!audio) return ResponseEntity.status(HttpStatus.REQUESTED_RANGE_NOT_SATISFIABLE)
+                    .header(HttpHeaders.CONTENT_RANGE,"bytes */"+length).cacheControl(CacheControl.noStore()).build();
+                long[] bounds;
+                try { bounds=parseAudioRange(range,length); }
+                catch(Failure invalid) { if(invalid.status==416) return ResponseEntity.status(416)
+                    .header(HttpHeaders.CONTENT_RANGE,"bytes */"+length).cacheControl(CacheControl.noStore()).build(); throw invalid; }
+                long count=bounds[1]-bounds[0]+1;
+                headers.set(HttpHeaders.CONTENT_RANGE,"bytes "+bounds[0]+"-"+bounds[1]+"/"+length);
+                headers.setContentLength(count);
+                return ResponseEntity.status(HttpStatus.PARTIAL_CONTENT).headers(headers)
+                    .body(new org.springframework.core.io.InputStreamResource(rangeStream(path,bounds[0],count)));
+            }
             return ResponseEntity.ok().headers(headers).body(new FileSystemResource(path));
-        } catch(IOException e) {throw new Failure(503,"LIBRARY_STORAGE_UNAVAILABLE");}
+        } catch(java.nio.file.NoSuchFileException e) {throw new Failure(404,"LIBRARY_FILE_UNAVAILABLE");}
+          catch(IOException e) {throw new Failure(503,"LIBRARY_STORAGE_UNAVAILABLE");}
+    }
+    private static InputStream rangeStream(Path path,long start,long count) throws IOException {
+        InputStream input=Files.newInputStream(path);
+        try {
+            input.skipNBytes(start);
+            return new FilterInputStream(input) {
+                private long remaining=count;
+                @Override public int read() throws IOException {
+                    if(remaining<=0) return -1;
+                    int value=super.read();
+                    if(value>=0) remaining--;
+                    return value;
+                }
+                @Override public int read(byte[] bytes,int offset,int length) throws IOException {
+                    if(remaining<=0) return -1;
+                    int read=super.read(bytes,offset,(int)Math.min((long)length,remaining));
+                    if(read>0) remaining-=read;
+                    return read;
+                }
+            };
+        } catch(IOException e) {
+            try { input.close(); } catch(IOException ignored) {}
+            throw e;
+        }
+    }
+
+    private static long[] parseAudioRange(String raw,long length) {
+        if(!raw.startsWith("bytes=") || raw.indexOf(',')>=0) throw new Failure(416,"LIBRARY_INVALID_RANGE");
+        String[] parts=raw.substring(6).split("-",-1);
+        if(parts.length!=2) throw new Failure(416,"LIBRARY_INVALID_RANGE");
+        try {
+            long start,end;
+            if(parts[0].isEmpty()) { long suffix=Long.parseLong(parts[1]); if(suffix<=0) throw new NumberFormatException(); start=Math.max(0,length-suffix); end=length-1; }
+            else { start=Long.parseLong(parts[0]); end=parts[1].isEmpty()?length-1:Long.parseLong(parts[1]); }
+            if(start<0 || start>=length || end<start) throw new NumberFormatException();
+            return new long[]{start,Math.min(end,length-1)};
+        } catch(NumberFormatException e) { throw new Failure(416,"LIBRARY_INVALID_RANGE"); }
     }
     static final class Failure extends RuntimeException {
         final int status; final String code;

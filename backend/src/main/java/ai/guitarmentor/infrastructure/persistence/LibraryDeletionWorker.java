@@ -44,6 +44,7 @@ public class LibraryDeletionWorker {
     /** Public for isolated fault-recovery tests; enabled gate applies to scheduler only. */
     public int processBatch(int maximum) {
         if(maximum<1 || maximum>100) throw new IllegalArgumentException("Invalid batch size");
+        if(!store.isAvailable()) return 0;
         // Candidates are only hints; each item is locked and rechecked in one transaction.
         List<UUID> ids=jdbc.sql("""
             SELECT material_id FROM library_deletion_jobs
@@ -85,11 +86,16 @@ public class LibraryDeletionWorker {
             .param("id",id).update();
 
         var assets=jdbc.sql("""
-            SELECT object_key,byte_size FROM library_assets
+            SELECT object_key,byte_size,preview_object_key,preview_byte_size FROM library_assets
             WHERE material_id=:id ORDER BY id FOR UPDATE
             """).param("id",id).query().listOfRows();
         long bytes=0;
-        for(var asset:assets) bytes+=((Number)asset.get("byte_size")).longValue();
+        long physicalFiles=0;
+        for(var asset:assets) {
+            bytes+=((Number)asset.get("byte_size")).longValue();
+            physicalFiles++;
+            if(asset.get("preview_byte_size")!=null) { bytes+=((Number)asset.get("preview_byte_size")).longValue(); physicalFiles++; }
+        }
 
         // Always check for future references; never erase an object still used elsewhere.
         try {
@@ -100,6 +106,13 @@ public class LibraryDeletionWorker {
                     """).param("key",key).query(Long.class).single();
                 if(references!=1) throw new IOException("Ambiguous object reference");
                 store.delete(key); // no-op if a previous attempt removed this exact key
+                String preview=(String)asset.get("preview_object_key");
+                if(preview!=null) {
+                    Long previewReferences=jdbc.sql("SELECT count(*) FROM library_assets WHERE preview_object_key=:key")
+                        .param("key",preview).query(Long.class).single();
+                    if(previewReferences!=1) throw new IOException("Ambiguous preview reference");
+                    store.delete(preview);
+                }
             }
         } catch(IOException | RuntimeException failure) {
             // No DB asset or quota mutation; physical deletion may have partially occurred.
@@ -116,13 +129,14 @@ public class LibraryDeletionWorker {
         }
 
         // Only after all physical objects are absent may quotas and DB references go.
+        jdbc.sql("DELETE FROM library_asset_deletion_jobs WHERE material_id=:id").param("id",id).update();
         jdbc.sql("DELETE FROM library_assets WHERE material_id=:id").param("id",id).update();
         int updated=jdbc.sql("""
             UPDATE library_account_usage
             SET charged_bytes=charged_bytes-:bytes,
                 charged_files=charged_files-:files,revision=revision+1
             WHERE account_id=:owner AND charged_bytes>=:bytes AND charged_files>=:files
-            """).param("bytes",bytes).param("files",assets.size()).param("owner",owner).update();
+            """).param("bytes",bytes).param("files",physicalFiles).param("owner",owner).update();
         if(updated!=1) throw new IllegalStateException("Library quota invariant violated");
         long remaining=jdbc.sql("""
             SELECT count(*) FROM library_assets WHERE material_id=:id

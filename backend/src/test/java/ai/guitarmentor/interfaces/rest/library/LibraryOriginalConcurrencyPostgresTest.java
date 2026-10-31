@@ -30,6 +30,7 @@ class LibraryOriginalConcurrencyPostgresTest {
     private MockHttpServletRequest request(UUID id) {
         var req=new MockHttpServletRequest();
         req.setAttribute("guitarMentorActor",new CurrentActor(id,null,"LEARNER"));
+        req.setRemoteAddr(id.toString());
         return req;
     }
     @Test void concurrentCallsNeverChargeBeyondAvailableQuota() throws Exception {

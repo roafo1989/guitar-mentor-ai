@@ -38,7 +38,9 @@ class ApiRouteOwnershipInventoryTest {
         "/api/v1/local-auth/link/google/start",
         "/api/v1/local-auth/link/password/start",
         "/api/v1/local-auth/link/password/verify",
-        "/api/v1/system/ping"
+        "/api/v1/system/ping",
+        // CurrentActor-only feature capabilities; no caller-selected object id.
+        "/api/v1/library/capabilities"
     );
     @Autowired
     @Qualifier("requestMappingHandlerMapping")
@@ -66,6 +68,7 @@ class ApiRouteOwnershipInventoryTest {
                     continue; // #166: admitted-only published search; never returns private sources.
                 if (path.equals("/api/v1/community/publications/{publicationId}")
                     || path.equals("/api/v1/community/publications/{publicationId}/files/{assetId}/content")
+                    || path.equals("/api/v1/community/publications/{publicationId}/files/{assetId}/preview")
                     || path.equals("/api/v1/community/publications/{publicationId}/hide")
                     || path.equals("/api/v1/admin/catalog/publications/{publicationId}/hide"))
                     continue; // #165: authenticated PUBLISHED+READY checks per object; hide requires OWNER and audit.

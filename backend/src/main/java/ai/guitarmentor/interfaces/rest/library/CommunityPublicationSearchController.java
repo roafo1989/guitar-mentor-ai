@@ -33,10 +33,10 @@ public class CommunityPublicationSearchController {
         SELECT p.id,p.title,p.author,p.material_type,p.version,p.created_at,
           COALESCE((SELECT array_agg(t.tag ORDER BY t.tag)
             FROM library_publication_tags t WHERE t.publication_id=p.id), ARRAY[]::text[]) AS tags,
-          EXISTS(SELECT 1 FROM library_publication_assets a
+          (:media_enabled AND EXISTS(SELECT 1 FROM library_publication_assets a
             JOIN library_assets source ON source.id=a.asset_id
-              AND source.material_id=p.material_id AND source.object_key=a.object_key
-            WHERE a.publication_id=p.id AND a.format IN ('MP3','WAV','OGG','M4A','WEBM')) AS has_audio
+              AND source.material_id=p.material_id AND source.object_key=a.object_key AND source.role=a.role AND source.processing_state='READY'
+            WHERE a.publication_id=p.id AND a.role IN ('ORIGINAL_RECORDING','SYNTHESIZED_PREVIEW'))) AS has_audio
         FROM library_publications p
         JOIN library_materials m ON m.id=p.material_id AND m.state='READY'
         WHERE p.state='PUBLISHED'
@@ -46,22 +46,24 @@ public class CommunityPublicationSearchController {
           AND (:tag_count=0 OR EXISTS(
              SELECT 1 FROM library_publication_tags t
              WHERE t.publication_id=p.id AND t.tag IN (:tags)))
-          AND (:audio=false OR EXISTS(
+          AND (CAST(:audio AS boolean) IS NULL OR ((:media_enabled AND EXISTS(
              SELECT 1 FROM library_publication_assets a
              JOIN library_assets source ON source.id=a.asset_id
-               AND source.material_id=p.material_id AND source.object_key=a.object_key
-             WHERE a.publication_id=p.id AND a.format IN ('MP3','WAV','OGG','M4A','WEBM')))
+               AND source.material_id=p.material_id AND source.object_key=a.object_key AND source.role=a.role AND source.processing_state='READY'
+             WHERE a.publication_id=p.id AND a.role IN ('ORIGINAL_RECORDING','SYNTHESIZED_PREVIEW'))) = CAST(:audio AS boolean)))
           AND (CAST(:before AS timestamptz) IS NULL OR (p.created_at,p.id)<(CAST(:before AS timestamptz),CAST(:before_id AS uuid)))
         ORDER BY p.created_at DESC,p.id DESC LIMIT :max
         """;
     private final JdbcClient jdbc;
     private final byte[] secret;
     private final boolean enabled;
+    private final boolean mediaEnabled;
     public CommunityPublicationSearchController(JdbcClient jdbc,
             @Value("${guitar-mentor.library.cursor-secret:}") String secret,
-            @Value("${guitar-mentor.library.enabled:false}") boolean enabled) {
+            @Value("${guitar-mentor.library.enabled:false}") boolean enabled,
+            @Value("${guitar-mentor.library.community-media-enabled:false}") boolean mediaEnabled) {
         this.jdbc=jdbc;this.secret=secret.getBytes(StandardCharsets.UTF_8);
-        this.enabled=enabled;
+        this.enabled=enabled;this.mediaEnabled=mediaEnabled;
         if(enabled && this.secret.length<32)
             throw new IllegalStateException("Library search cursor secret requires >=32 UTF-8 bytes");
     }
@@ -119,7 +121,7 @@ public class CommunityPublicationSearchController {
             @RequestParam(required=false) String q,
             @RequestParam(required=false) String type,
             @RequestParam(name="tag",required=false) List<String> tag,
-            @RequestParam(defaultValue="false") boolean hasAudio,
+            @RequestParam(required=false) Boolean hasAudio,
             @RequestParam(defaultValue="20") int limit,
             @RequestParam(required=false) String cursor) {
         authorize(request);
@@ -153,6 +155,7 @@ public class CommunityPublicationSearchController {
         List<Map<String,Object>> rows=jdbc.sql(SQL)
             .param("q",query).param("needle",needle).param("type",kind)
             .param("tag_count",tags.size()).param("tags",predicateTags).param("audio",hasAudio)
+            .param("media_enabled",mediaEnabled)
             .param("before",before).param("before_id",beforeId).param("max",limit+1)
             .query().listOfRows();
         boolean more=rows.size()>limit;

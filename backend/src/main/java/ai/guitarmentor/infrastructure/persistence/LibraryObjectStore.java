@@ -100,10 +100,17 @@ public final class LibraryObjectStore {
             throw new IOException("Invalid cleanup path");
         Files.deleteIfExists(path);
     }
+    public boolean isReadable() {
+        return Files.isDirectory(root,LinkOption.NOFOLLOW_LINKS) && !Files.isSymbolicLink(root)
+            && Files.isReadable(root);
+    }
+    public boolean isAvailable() { return isReadable() && Files.isWritable(root); }
     public Path file(String key) throws IOException {
         if (!key.matches("[a-f0-9-]{36}")) throw new IOException("Invalid object key");
+        if(!isReadable()) throw new IOException("Library storage root unavailable");
         Path result=safe(key);
-        if (!Files.isRegularFile(result,LinkOption.NOFOLLOW_LINKS)) throw new IOException("Missing object");
+        if (!Files.isRegularFile(result,LinkOption.NOFOLLOW_LINKS))
+            throw new java.nio.file.NoSuchFileException("Library object unavailable");
         return result;
     }
     private static void restrictPermissions(Path path,boolean directory) throws IOException {

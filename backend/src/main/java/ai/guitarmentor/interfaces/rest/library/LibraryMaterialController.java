@@ -55,7 +55,9 @@ public class LibraryMaterialController {
     }
 
     public record FileView(UUID id,String originalName,String format,long byteSize,
-            String sha256,String validationStatus,String downloadUrl) {}
+            String sha256,String validationStatus,String downloadUrl,String role,String mediaType,
+            Long durationMillis,Integer channels,Integer sampleRate,Integer width,Integer height,
+            String processingState,boolean previewAvailable,String previewReasonCode,String previewUrl) {}
     public record MaterialView(UUID id,String title,String type,String author,
             String state,String visibility,String reviewStatus,long revision,
             OffsetDateTime createdAt,OffsetDateTime updatedAt,List<FileView> files) {}
@@ -65,8 +67,12 @@ public class LibraryMaterialController {
     private MaterialView view(UUID owner,Material m) {
         List<FileView> files=repository.assets(owner,m.id()).stream().map(a -> new FileView(
             a.id(),a.originalName(),a.format(),a.byteSize(),a.sha256(),
-            a.format().equals("PDF")?"PDF_HEADER_CHECKED":"ORIGINAL_UNVERIFIED",
-            "/api/v1/library/materials/"+m.id()+"/files/"+a.id()+"/content")).toList();
+            "REJECTED".equals(a.processingState())?"MEDIA_UNAVAILABLE":
+                (a.format().equals("PDF")?"PDF_HEADER_CHECKED":"ORIGINAL_UNVERIFIED"),
+            "/api/v1/library/materials/"+m.id()+"/files/"+a.id()+"/content",a.role(),a.mediaType(),
+            a.durationMillis(),a.channels(),a.sampleRate(),a.width(),a.height(),a.processingState(),a.previewAvailable(),
+            "PHOTO_ORIGINAL".equals(a.role())&&!a.previewAvailable()?"MEDIA_UNAVAILABLE":null,
+            a.previewAvailable()?"/api/v1/library/materials/"+m.id()+"/files/"+a.id()+"/preview":null)).toList();
         return new MaterialView(m.id(),m.title(),m.type(),m.author(),m.state(),
                 "PRIVATE","UNREVIEWED",m.revision(),m.createdAt(),m.updatedAt(),files);
     }

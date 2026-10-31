@@ -15,7 +15,8 @@ public class LibraryMaterialRepository {
     public record Material(UUID id, String title, String type, String author,
             String state, long revision, OffsetDateTime createdAt, OffsetDateTime updatedAt) {}
     public record Asset(UUID id, String originalName, String format, long byteSize,
-            String sha256) {}
+            String sha256,String role,String mediaType,Long durationMillis,Integer channels,
+            Integer sampleRate,Integer width,Integer height,String processingState,boolean previewAvailable) {}
 
     private static final org.springframework.jdbc.core.RowMapper<Material> MATERIAL =
         (rs,n) -> new Material(rs.getObject("id",UUID.class), rs.getString("title"),
@@ -58,15 +59,20 @@ public class LibraryMaterialRepository {
 
     public List<Asset> assets(UUID owner, UUID materialId) {
         return jdbc.sql("""
-            SELECT a.id,a.original_name,a.format,a.byte_size,a.sha256
+            SELECT a.id,a.original_name,a.format,a.byte_size,a.sha256,a.role,a.media_type,
+                a.duration_millis,a.channels,a.sample_rate,a.width,a.height,
+                a.processing_state,(a.preview_object_key IS NOT NULL AND a.processing_state='READY') AS preview_available
             FROM library_assets a
             JOIN library_materials m ON m.id=a.material_id
-            WHERE m.owner_account_id=:owner AND m.id=:id AND m.state='READY'
+            WHERE m.owner_account_id=:owner AND m.id=:id AND m.state='READY' AND a.processing_state IN ('READY','REJECTED')
             ORDER BY a.created_at,a.id
             """).param("owner",owner).param("id",materialId)
             .query((rs,n)->new Asset(rs.getObject("id",UUID.class),
                 rs.getString("original_name"),rs.getString("format"),rs.getLong("byte_size"),
-                rs.getString("sha256"))).list();
+                rs.getString("sha256"),rs.getString("role"),rs.getString("media_type"),
+                rs.getObject("duration_millis",Long.class),rs.getObject("channels",Integer.class),
+                rs.getObject("sample_rate",Integer.class),rs.getObject("width",Integer.class),
+                rs.getObject("height",Integer.class),rs.getString("processing_state"),rs.getBoolean("preview_available"))).list();
     }
 
     public int update(UUID owner, UUID id, long revision, String title, String type, String author) {

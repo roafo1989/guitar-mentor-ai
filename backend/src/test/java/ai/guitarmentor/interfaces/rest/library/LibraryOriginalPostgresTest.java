@@ -37,6 +37,7 @@ class LibraryOriginalPostgresTest {
     }
     private MockHttpServletRequest actor(UUID owner) {
         var req=new MockHttpServletRequest();
+        req.setRemoteAddr(owner.toString());
         req.setAttribute("guitarMentorActor",new CurrentActor(owner,null,"LEARNER"));
         return req;
     }
