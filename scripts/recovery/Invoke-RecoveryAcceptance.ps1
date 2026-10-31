@@ -410,7 +410,24 @@ try {
     Write-Host "Восстановление и локальный smoke пройдены. Обезличенный отчёт: $reportPath"
     Write-Host "Длительность прогона: $([math]::Round(([DateTime]::UtcNow-$startedRun).TotalSeconds,1)) сек."
 } catch {
-    $failure=Get-RecoveryFailureHint $_.Exception.Message
+    $errorText=[string]$_.Exception.Message
+    if($errorText -match '(?s)^ApplicationSmoke diagnostic:\s*(.*)
+        try {
+            Set-RecoveryProgressStep $state $stepName 'FAIL' $progressPath $failure
+            Save-DrillReport $state 'FAIL' $reportPath $stepName
+        } catch {}
+    }
+    Write-Error "Приёмочная проверка остановлена на этапе $stepName. Прогресс сохранён; повторный запуск продолжит с этого этапа. $failure Отчёт: $reportPath"
+    exit 1
+} finally {
+    if($secrets){$secrets.Clear()}
+    $masterPassword=$null;$adminPassword=$null
+}
+) {
+        $failure="ApplicationSmoke: $($Matches[1])"
+    } else {
+        $failure=Get-RecoveryFailureHint $errorText
+    }
     if($state){
         try {
             Set-RecoveryProgressStep $state $stepName 'FAIL' $progressPath $failure
