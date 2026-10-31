@@ -48,7 +48,7 @@ public final class LibraryConversionOutputRecovery {
                 jdbc.sql("SELECT account_id FROM library_account_usage WHERE account_id=:owner FOR UPDATE")
                     .param("owner",owner).query().singleRow();
                 jdbc.sql("SELECT id FROM library_materials WHERE id=:material FOR UPDATE")
-                    .param("material",material).query().list();
+                    .param("material",material).query(UUID.class).list();
                 List<Integer> liveSlots=jdbc.sql("""
                     SELECT slot_number FROM library_conversion_worker_slots
                     WHERE job_id=:job AND lease_until>now() FOR UPDATE
