@@ -90,7 +90,7 @@ try {
           || note.isPalmMute || note.isLetRing || note.isStaccato
           || note.isSlapped || note.isPopped || beat.whammyBarPoints?.length > 0)
         fail('UNSUPPORTED_NOTE_EFFECT');
-      if (note.fret < 0 || note.fret > 24 || note.string < 0 || note.string >= staff.tuning.length) fail('INVALID_NOTE');
+      if (note.fret < 0 || note.fret > 24 || note.string < 1 || note.string > staff.tuning.length) fail('INVALID_NOTE');
     }
   }
 
