@@ -59,3 +59,10 @@ uploads/
 # Original generated GM-EB01 0.8B package, restored for reproducible installs (#237).
 !/backend/src/main/resources/exercises/GM-EB01/score_v08B.pdf
 !/backend/src/main/resources/exercises/GM-EB01/preview_v08B.mp3
+
+# Disaster recovery: local configuration/reports and cloud credentials never enter Git
+.recovery-local/
+recovery.local.json
+recovery-status.local.json
+rclone.conf
+*.bundle
