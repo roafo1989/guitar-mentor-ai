@@ -56,7 +56,6 @@ GP7 same-writer round-trip, GTP, GPX, GP8 и все неиспытанные м�
 | cancel_requested BOOLEAN | Запрос отмены |
 | attempt_count INTEGER | Число запусков |
 | retryable BOOLEAN | Разрешён ли retry |
-| worker_slot SMALLINT | Слот из глобального пула (lease metadata хранится в отдельной таблице) |
 | 
 | pdf_asset_id UUID / audio_asset_id UUID | ID двух производных файлов после успеха |
 | error_code VARCHAR(64) | Стабильный машинный код; без stack trace и локальных путей |
