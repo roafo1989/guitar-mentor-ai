@@ -379,11 +379,15 @@ class LibraryMediaHttpPostgresTest {
         mvc.perform(MockMvcRequestBuilders.get(BASE+"/"+material).with(login("snapshot-a"))
             .sessionAttr("guitarMentorAccessVersion",0L)).andExpect(status().isOk())
             .andExpect(jsonPath("$.revision").value(2)).andExpect(jsonPath("$.files.length()").value(2));
+        mvc.perform(MockMvcRequestBuilders.post(BASE+"/"+material+"/publications/"+publicationId+"/withdraw")
+            .with(login("snapshot-a")).with(csrf()).sessionAttr("guitarMentorAccessVersion",0L)
+            .header("If-Match","\"1\""))
+            .andExpect(status().isOk()).andExpect(jsonPath("$.state").value("WITHDRAWN"));
         String replacementBody=mvc.perform(MockMvcRequestBuilders.post(BASE+"/"+material+"/publications")
             .with(login("snapshot-a")).with(csrf()).sessionAttr("guitarMentorAccessVersion",0L)
             .header("If-Match","\"2\"").header("Idempotency-Key",UUID.randomUUID().toString())
             .contentType("application/json").content(JSON.writeValueAsBytes(Map.of(
-                "assets",List.of(right(scoreId),right(photoId)),"replacePublicationId",publicationId))))
+                "assets",List.of(right(scoreId),right(photoId))))))
             .andExpect(status().isCreated()).andReturn().getResponse().getContentAsString();
         String replacementId=JSON.readTree(replacementBody).path("id").asText();
         mvc.perform(MockMvcRequestBuilders.get("/api/v1/community/publications/"+publicationId)
