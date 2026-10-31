@@ -356,7 +356,9 @@ function Write-RecoveryProgress([string]$Path, [hashtable]$State) {
     try {
         [IO.File]::WriteAllText($temporary,($State | ConvertTo-Json -Depth 24),[Text.UTF8Encoding]::new($false))
         if (Test-Path -LiteralPath $Path) {
-            [IO.File]::Replace($temporary,$Path,$null,$true)
+            $backup = $temporary + '.previous'
+            try { [IO.File]::Replace($temporary,$Path,$backup,$true) }
+            finally { if (Test-Path -LiteralPath $backup) { Remove-Item -LiteralPath $backup -Force } }
         } else {
             [IO.File]::Move($temporary,$Path)
         }
