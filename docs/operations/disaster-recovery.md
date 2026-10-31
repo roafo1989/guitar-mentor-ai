@@ -86,23 +86,35 @@ PostgreSQL уже установлен: не переустанавливайт�
 инструментов заново откройте PowerShell, чтобы обновился PATH. Скрипты winget
 не меняют настройки PostgreSQL, Google, домена и не публикуют сайт.
 
-Подключите своё облако:
+**Выбранное хранилище: Microsoft OneDrive Personal, аккаунт `afoninre@outlook.com`.**
+Используем remote с точным именем `gm-backup`, поэтому путь restic в конфигурации
+остаётся `rclone:gm-backup:guitar-mentor-ai/restic`. Никакой публичный доступ
+к папке не включать.
+
+На Windows выполните:
 
 ```powershell
 rclone config
-# n → имя gm-backup → выбрать провайдера (например drive для Google Drive)
-# Войти в выбранный аккаунт в браузере. НЕ создавать публичную ссылку.
+# n → name: gm-backup → Storage: onedrive
+# client_id и client_secret оставить пустыми (Enter)
+# advanced config: n
+# use auto config: y
+# в браузере войти именно как afoninre@outlook.com и разрешить rclone
+# выбрать "OneDrive Personal or Business" → личный OneDrive → подтвердить
+# keep this remote: y
 rclone config file
 rclone lsd gm-backup:
 ```
 
-Названия/номера пунктов выбора провайдера могут меняться: выбирайте по имени.
-`gm-backup` должен указывать на реальное облако, не на backend local/alias
-этого компьютера. Для Google Drive без ограничения app-folder используйте
-доступ, позволяющий новому входу найти ранее созданную папку restic; ограниченный
-`drive.file` может затруднить восстановление после смены OAuth-клиента.
-Проверьте выбранный аккаунт и возможность повторного входа с другого устройства.
-Если `rclone config file` показал другой путь, измените `rcloneConfig` ниже.
+После авторизации проверьте, что Microsoft показал именно личный OneDrive
+нужного аккаунта, а не чужой/рабочий SharePoint. В `rclone lsd` должен открываться
+корень этого OneDrive. Rclone получает OAuth-токен через браузер; пароль Microsoft
+не вводится в PowerShell и не передаётся мне. Не присылайте token, содержимое
+`rclone.conf`, коды подтверждения или recovery-коды. Сохраните доступ к аккаунту
+и MFA независимо от ноутбука. Если `rclone config file` показал другой путь,
+измените `rcloneConfig` в личном JSON. При первом входе OneDrive может попросить
+дополнительное подтверждение безопасности.
+
 
 Личный config держите вне Git:
 
