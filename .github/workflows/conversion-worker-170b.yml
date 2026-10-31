@@ -77,8 +77,11 @@ jobs:
         with:
           distribution: temurin
           java-version: '21'
-      - name: Verify Java backend compilation and focused tests
+      - name: Verify Java ProcessBuilder with real isolated Docker image
         working-directory: backend
+        env:
+          GM_TEST_REAL_DOCKER: 'true'
+          GM_TEST_CONVERSION_SOURCE: ${{ github.workspace }}/fixtures/research/catalog-169/generated/gm169-synthetic.gp5
         run: ./mvnw -B -Dtest=LibraryConversionProcessRunnerTest test
       - name: Upload conversion worker evidence
         if: always()
