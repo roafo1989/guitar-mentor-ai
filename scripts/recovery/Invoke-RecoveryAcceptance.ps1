@@ -76,18 +76,28 @@ function Get-DrillDbSummary([string]$Kind, [hashtable]$State, [hashtable]$Manife
         $hasDb = (Invoke-RecoverySql $Bin $admin $AdminPassword "SELECT EXISTS(SELECT 1 FROM pg_database WHERE datname='$($target.name)')::int;").Trim()
         $hasRole = (Invoke-RecoverySql $Bin $admin $AdminPassword "SELECT EXISTS(SELECT 1 FROM pg_roles WHERE rolname='$($target.user)')::int;").Trim()
         if ($hasDb -ne '1' -or $hasRole -ne '1') {
-            throw 'Найден частично созданный изолированный объект БД/роль. Рабочие БД не затронуты; требуется удалить только созданные этим прогоном объекты и повторить этот этап.'
+            if ($target.name -notmatch '^gm_dr_[a-f0-9]{16}$' -or $target.user -ne $target.name) {
+                throw 'Частично созданная БД/роль не прошла защитную проверку; автоматическая очистка запрещена.'
+            }
+            $sql = "DROP DATABASE IF EXISTS $($target.name) WITH (FORCE); DROP ROLE IF EXISTS $($target.user);"
+            $null = Invoke-RecoverySql $Bin $admin $AdminPassword $sql
+            $actual = Restore-RecoveryDatabase $Bin (Join-Path $State.destination "databases/$Kind.dump") $Manifest.databases[$Kind] $target $appPassword $AdminUser $AdminPassword
+        } else {
+            $actual = Get-RecoveryDatabaseSummary $Bin $target $appPassword
+            $expected = $Manifest.databases[$Kind]
+            $matches = ($actual.counts.Count -eq $expected.counts.Count -and $actual.flyway -eq $expected.flyway)
+            foreach ($table in $expected.counts.Keys) {
+                if (-not $actual.counts.ContainsKey($table) -or $actual.counts[$table] -ne $expected.counts[$table]) { $matches=$false }
+            }
+            if (-not $matches) {
+                if ($target.name -notmatch '^gm_dr_[a-f0-9]{16}$' -or $target.user -ne $target.name) {
+                    throw 'Изолированная БД не совпадает с источником; имя не прошло защитную проверку, автоматическая очистка запрещена.'
+                }
+                $sql = "DROP DATABASE IF EXISTS $($target.name) WITH (FORCE); DROP ROLE IF EXISTS $($target.user);"
+                $null = Invoke-RecoverySql $Bin $admin $AdminPassword $sql
+                $actual = Restore-RecoveryDatabase $Bin (Join-Path $State.destination "databases/$Kind.dump") $expected $target $appPassword $AdminUser $AdminPassword
+            }
         }
-        $actual = Get-RecoveryDatabaseSummary $Bin $target $appPassword
-        $expected = $Manifest.databases[$Kind]
-        $matches = ($actual.counts.Count -eq $expected.counts.Count -and $actual.flyway -eq $expected.flyway)
-        foreach ($table in $expected.counts.Keys) {
-            if (-not $actual.counts.ContainsKey($table) -or $actual.counts[$table] -ne $expected.counts[$table]) { $matches=$false }
-        }
-        if (-not $matches) {
-            # Names are random and stored in this run's private progress file. Only
-            # these exact isolated drill objects may be cleaned for a safe retry.
-            if ($target.name -notmatch '^gm_dr_[a-f0-9]{16}
     }
     $rows = [long]0
     foreach ($value in $actual.counts.Values) { $rows += [long]$value }
