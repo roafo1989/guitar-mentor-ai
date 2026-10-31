@@ -383,13 +383,13 @@ public final class LibraryMediaController {
             var material=jdbc.sql("SELECT revision FROM library_materials WHERE id=:id AND owner_account_id=:owner AND state='READY' FOR UPDATE")
                 .param("id",materialId).param("owner",owner).query().listOfRows();
             if(material.isEmpty()) throw new Failure(404,"LIBRARY_MATERIAL_NOT_FOUND");
+            if(((Number)material.getFirst().get("revision")).longValue()!=revision) throw new Failure(412,"LIBRARY_REVISION_CONFLICT");
             var assets=jdbc.sql("SELECT role,processing_state FROM library_assets WHERE id=:asset AND material_id=:material FOR UPDATE")
                 .param("asset",assetId).param("material",materialId).query().listOfRows();
             if(assets.isEmpty()) throw new Failure(404,"LIBRARY_ASSET_NOT_FOUND");
             String assetState=(String)assets.getFirst().get("processing_state");
             if("DELETING".equals(assetState)) return "DELETING";
             if(!Set.of("READY","REJECTED").contains(assetState)) throw new Failure(409,"LIBRARY_ASSET_NOT_READY");
-            if(((Number)material.getFirst().get("revision")).longValue()!=revision) throw new Failure(412,"LIBRARY_REVISION_CONFLICT");
             Long published=jdbc.sql("SELECT count(*) FROM library_publication_assets a JOIN library_publications p ON p.id=a.publication_id WHERE a.asset_id=:asset AND p.state='PUBLISHED'")
                 .param("asset",assetId).query(Long.class).single();
             if(published>0) throw new Failure(409,"CATALOG_ASSET_PUBLISHED");
