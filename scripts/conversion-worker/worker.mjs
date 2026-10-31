@@ -59,18 +59,25 @@ try {
   if (staff.capo !== 0) fail('UNSUPPORTED_CAPO');
   if (!staff.showStandardNotation || !staff.showTablature) fail('UNSUPPORTED_NOTATION');
   if (!score.masterBars?.length || score.masterBars.length > 256) fail('INVALID_BAR_COUNT');
+  if (score.tempoAutomations?.length > 1) fail('UNSUPPORTED_TEMPO_CHANGE');
   for (const bar of score.masterBars) {
     if (bar.timeSignatureNumerator !== 4 || bar.timeSignatureDenominator !== 4) fail('UNSUPPORTED_TIME_SIGNATURE');
+    if (bar.isRepeatStart || bar.isRepeatEnd || bar.repeatCount > 0 || bar.alternateEndings) fail('UNSUPPORTED_REPEATS');
     if (bar.tempoAutomations?.length > 0) fail('UNSUPPORTED_TEMPO_CHANGE');
   }
   for (const bar of staff.bars) {
-    if (bar.voices.length !== 1) fail('UNSUPPORTED_POLYPHONY');
+    if (bar.voices.length > 2 || bar.voices[1]?.beats?.length > 0) fail('UNSUPPORTED_POLYPHONY');
     const voice = bar.voices[0];
     if (!voice.beats?.length) fail('UNSUPPORTED_EMPTY_BAR');
     for (const beat of voice.beats) {
       if (beat.duration !== 4 || beat.notes?.length !== 1) fail('UNSUPPORTED_RHYTHM_OR_REST');
       const note = beat.notes[0];
-      if (note.isDead || note.isGhost || note.isTieDestination || note.vibrato || note.trill || note.slideInType || note.slideOutType) fail('UNSUPPORTED_NOTE_EFFECT');
+      if (note.isDead || note.isGhost || note.isTieDestination || note.tieOrigin
+          || note.vibrato || note.trill || note.bend || note.harmonicType
+          || note.slideInType || note.slideOutType || note.isHammerPullOrigin
+          || note.isPalmMute || note.isLetRing || note.isStaccato
+          || note.isSlapped || note.isPopped || beat.whammyBarPoints?.length > 0)
+        fail('UNSUPPORTED_NOTE_EFFECT');
       if (note.fret < 0 || note.fret > 24 || note.string < 0 || note.string >= staff.tuning.length) fail('INVALID_NOTE');
     }
   }
