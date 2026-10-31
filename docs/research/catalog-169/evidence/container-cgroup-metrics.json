@@ -1,0 +1,10 @@
+{
+  "memoryMaxBytes": "536870912",
+  "memoryPeakBytes": "68505600",
+  "cpuMax": "100000 100000",
+  "cpuStat": "usage_usec 975729\nuser_usec 909612\nsystem_usec 66117\nnice_usec 0\ncore_sched.force_idle_usec 0\nnr_periods 10\nnr_throttled 9\nthrottled_usec 720923\nnr_bursts 0\nburst_usec 0",
+  "pidsMax": "64",
+  "scratchCapacityBytes": 104857600,
+  "scratchAvailableBytes": 104853504,
+  "scratchUsedBytes": 4096
+}

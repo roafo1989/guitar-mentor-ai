@@ -1,0 +1,17 @@
+{
+  "file": "gm169-synthetic-audio.wav",
+  "sha256": "55837bbc89d6bdd3248dba7bccb090ee2c509837de9301b486e3ca202869b6c2",
+  "bytes": 2205228,
+  "container": "WAV/RIFF PCM",
+  "channels": 2,
+  "sampleWidthBits": 16,
+  "sampleRateHz": 44100,
+  "framesPerChannel": 551296,
+  "durationSeconds": 12.501043083900226,
+  "expectedDurationSeconds": 12.5,
+  "durationDeltaSeconds": 0.0010430839002264491,
+  "peakAbsoluteSample": 0.207763671875,
+  "rms": 0.0361835010025325,
+  "nonZeroSampleRatio": 0.9994739667982354,
+  "interpretation": "Non-silent technical synthesis output; human listening was not performed."
+}
