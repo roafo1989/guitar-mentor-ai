@@ -25,10 +25,16 @@
 - [ADR-0002 — Временные медиа и сроки хранения](adr/0002-media-storage-and-retention.md)
 - [ADR-0003 — Оценка агента и решение ученика](adr/0003-diagnostic-feedback-and-student-decision.md)
 
+## Спецификации
+
+- [FT-013-02 — Job API и безопасная конвертация Guitar Pro](specifications/FT-013-02-conversion-jobs.md) — анализ 170-A, состояния, idempotency, DB lease и production gates.
+
 ## Диаграммы PlantUML
 
 - [Состояния диагностической сессии](diagrams/diagnostic-session-states.puml)
 - [Последовательность начала диагностики](diagrams/diagnostic-intake-sequence.puml)
+- [Последовательность конвертации Guitar Pro](diagrams/conversion-job-sequence.puml)
+- [Состояния conversion job](diagrams/conversion-job-states.puml)
 
 ## Разработка
 
