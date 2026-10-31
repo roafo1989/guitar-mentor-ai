@@ -151,7 +151,7 @@ class LibraryConversionOutputPostgresTest {
             var usage=jdbc.sql("SELECT charged_bytes,charged_files,reserved_bytes,reserved_files FROM library_account_usage WHERE account_id=:owner")
                 .param("owner",f.owner()).query().singleRow();
             assertEquals(Files.size(pdf)+Files.size(wav),((Number)usage.get("charged_bytes")).longValue());
-            assertEquals(3,((Number)usage.get("charged_files")).longValue()); // original + two derivatives
+            assertEquals(2,((Number)usage.get("charged_files")).longValue()); // two derivative assets
             assertEquals(0,((Number)usage.get("reserved_bytes")).longValue());
             assertEquals(0,((Number)usage.get("reserved_files")).longValue());
             String pdfKey=jdbc.sql("SELECT object_key FROM library_assets WHERE id=:id").param("id",pdfId).query(String.class).single();
