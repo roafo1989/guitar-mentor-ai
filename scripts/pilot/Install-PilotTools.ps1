@@ -72,7 +72,7 @@ try {
         $scriptPath = (Join-Path $installation 'Pilot.ps1').Replace("'","''")
         $rootLiteral = $Root.Replace("'","''")
         "& '$scriptPath' -Mode $($item.mode) -Root '$rootLiteral'" | Set-Content -LiteralPath $entry -Encoding utf8
-        $launcher = Join-Path $Root ($item.file -replace '\\.ps1$','.cmd')
+        $launcher = Join-Path $Root ($item.file -replace '\.ps1)
         $launcherText = New-PilotShortcutCommand -Mode $item.mode
         [IO.File]::WriteAllText($launcher, ($launcherText -replace "`r?`n", "`r`n") + "`r`n", [Text.Encoding]::ASCII)
         $shortcut = $shell.CreateShortcut((Join-Path $desktop ($item.title + '.lnk')))
