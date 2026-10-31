@@ -60,6 +60,11 @@ function ConvertTo-RecoveryUtcDateTime([object]$Value) {
     return $parsed.UtcDateTime
 }
 
+function Get-RecoveryLoopbackOrigin([int]$Port) {
+    if ($Port -lt 1 -or $Port -gt 65535) { throw 'Порт локальной проверки должен быть от 1 до 65535.' }
+    return "http://127.0.0.1:$Port"
+}
+
 function Protect-RecoveryDiagnostic([AllowNull()][string]$Text, [int]$MaxLength = 6000) {
     if ([string]::IsNullOrWhiteSpace($Text)) { return '' }
     $safe = [string]$Text
