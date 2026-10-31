@@ -59,6 +59,19 @@ jobs:
             docker run --rm "${common[@]}" --env GM_CONVERSION_TRACK_INDEX=0 gm-conversion-worker:170b
             node -e "const fs=require('fs'); const p='$output'; const r=JSON.parse(fs.readFileSync(p+'/result.json')); if(r.status!=='RENDERED'||r.format!=='${ext^^}'||r.selectedTrackIndex!==0) process.exit(1); const pdf=fs.readFileSync(p+'/score.pdf'); const wav=fs.readFileSync(p+'/preview.wav'); if(pdf.subarray(0,4).toString()!=='%PDF'||wav.subarray(0,4).toString()!=='RIFF'||wav.subarray(8,12).toString()!=='WAVE') process.exit(1);"
           done
+          mismatch_input="$PWD/artifacts/conversion-worker/input-version-mismatch"
+          mismatch_output="$PWD/artifacts/conversion-worker/output-version-mismatch"
+          mkdir -p "$mismatch_input" "$mismatch_output"
+          cp fixtures/research/catalog-169/generated/gm169-synthetic.gp5 "$mismatch_input/source.gp"
+          chmod 755 "$mismatch_input"
+          chmod 644 "$mismatch_input/source.gp"
+          chmod 777 "$mismatch_output"
+          set +e
+          docker run --rm --network none --memory 512m --memory-swap 512m --cpus 1 --pids-limit 64 --read-only --cap-drop ALL --security-opt no-new-privileges:true --tmpfs /tmp:rw,noexec,nosuid,size=100m --user 10001:10001 --mount "type=bind,src=$mismatch_input,dst=/input,readonly" --mount "type=bind,src=$mismatch_output,dst=/out" --env GM_CONVERSION_FORMAT=GP3 gm-conversion-worker:170b
+          mismatch_exit=$?
+          set -e
+          test "$mismatch_exit" -eq 20
+          node -e "const fs=require('fs'); const r=JSON.parse(fs.readFileSync('$mismatch_output/result.json')); if(r.code!=='UNSUPPORTED_FORMAT_VERSION') process.exit(1)"
       - name: Verify Java backend compilation and focused tests
         working-directory: backend
         run: ./mvnw -B -Dtest=LibraryConversionProcessRunnerTest test
