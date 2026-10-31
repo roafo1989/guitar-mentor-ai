@@ -30,17 +30,15 @@ public final class LibraryConversionProcessRunner {
     private final String dockerExecutable;
     private final String image;
     private final Path workspaceRoot;
-    private final ObjectMapper mapper;
+    private final ObjectMapper mapper = new ObjectMapper();
 
     public LibraryConversionProcessRunner(
             @Value("${guitar-mentor.library.conversion-docker-executable:docker}") String dockerExecutable,
             @Value("${guitar-mentor.library.conversion-image:gm-conversion-worker:170b}") String image,
-            @Value("${guitar-mentor.library.conversion-workspace:./.local-media/conversion-work}") String workspaceRoot,
-            ObjectMapper mapper) {
+            @Value("${guitar-mentor.library.conversion-workspace:./.local-media/conversion-work}") String workspaceRoot) {
         this.dockerExecutable = dockerExecutable;
         this.image = image;
         this.workspaceRoot = Path.of(workspaceRoot).toAbsolutePath().normalize();
-        this.mapper = mapper;
         if (dockerExecutable == null || dockerExecutable.isBlank()
                 || image == null || !image.matches("[a-zA-Z0-9._/:@-]{1,160}"))
             throw new IllegalArgumentException("Invalid conversion worker configuration");
