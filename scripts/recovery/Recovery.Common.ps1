@@ -126,7 +126,7 @@ function Assert-RecoveryConfig([hashtable]$Config) {
         $ids += $folder.id
     }
     if ($Config.devEnabled -and $Config.devDatabase.name -eq 'guitar_mentor_pilot') { throw 'DEV и PILOT должны иметь отдельные БД.' }
-    if ($Config.minimumFreeBytes -and ([long]$Config.minimumFreeBytes -lt 268435456 -or [long]$Config.minimumFreeBytes -gt 1099511627776)) {
+    if ($Config.ContainsKey('minimumFreeBytes') -and $null -ne $Config.minimumFreeBytes -and ([long]$Config.minimumFreeBytes -lt 268435456 -or [long]$Config.minimumFreeBytes -gt 1099511627776)) {
         throw 'minimumFreeBytes должен быть от 256 MiB до 1 TiB.'
     }
 }
