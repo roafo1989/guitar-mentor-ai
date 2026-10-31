@@ -13,8 +13,6 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.jdbc.core.simple.JdbcClient;
 import org.springframework.mock.web.MockHttpServletRequest;
-import org.springframework.test.context.DynamicPropertyRegistry;
-import org.springframework.test.context.DynamicPropertySource;
 import org.springframework.transaction.annotation.Transactional;
 
 /** Real PostgreSQL checks for idempotency, owner scoping, state transitions and durable leases. */
@@ -177,14 +175,22 @@ class LibraryConversionJobPostgresTest {
 
     @Test void databaseSlotsCapGlobalConcurrencyAndRecoverExpiredLeases() {
         Fixture one=fixture("GP3"),two=fixture("GP4"),three=fixture("GP5");
-        create(one,UUID.randomUUID());
-        create(two,UUID.randomUUID());
-        create(three,UUID.randomUUID());
+        var job1=create(one,UUID.randomUUID());
+        var job2=create(two,UUID.randomUUID());
+        var job3=create(three,UUID.randomUUID());
+        jdbc.sql("UPDATE library_conversion_jobs SET created_at=now()-interval '3 seconds' WHERE id=:id")
+            .param("id",job1.id()).update();
+        jdbc.sql("UPDATE library_conversion_jobs SET created_at=now()-interval '2 seconds' WHERE id=:id")
+            .param("id",job2.id()).update();
+        jdbc.sql("UPDATE library_conversion_jobs SET created_at=now()-interval '1 second' WHERE id=:id")
+            .param("id",job3.id()).update();
 
         UUID worker1=UUID.randomUUID(),worker2=UUID.randomUUID(),worker3=UUID.randomUUID();
         var lease1=leases.claimNext(worker1).orElseThrow();
         var lease2=leases.claimNext(worker2).orElseThrow();
         assertTrue(leases.claimNext(worker3).isEmpty());
+        assertEquals(job1.id(),lease1.jobId());
+        assertEquals(job2.id(),lease2.jobId());
         assertTrue(leases.heartbeat(lease1.jobId(),worker1));
         assertTrue(leases.updateProgress(lease1.jobId(),worker1,"IMPORTING_SCORE",20));
         assertTrue(leases.awaitTrackSelection(lease1.jobId(),worker1,TRACKS_JSON));
