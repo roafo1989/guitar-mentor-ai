@@ -8,6 +8,7 @@
   "settingsRoot": "%LOCALAPPDATA%\\GuitarMentorAI",
   "postgresBin": "C:\\Program Files\\PostgreSQL\\17\\bin",
   "stageRoot": "%LOCALAPPDATA%\\GuitarMentorRecovery",
+  "minimumFreeBytes": 1073741824,
   "devEnabled": true,
   "devDatabase": {
     "host": "127.0.0.1",
