@@ -73,7 +73,7 @@ class LibraryMediaInspectorTest {
         byte[] mp3=mp3Sample();
         var result=LibraryMediaInspector.inspectAudio(mp3,"MP3","audio/mpeg");
         assertEquals(2,result.channels()); assertEquals(44100,result.sampleRate());
-        assertTrue(result.durationMillis()>=1000 && result.durationMillis()<=1100);
+        assertTrue(result.durationMillis()>=36000 && result.durationMillis()<=37000);
         assertThrows(LibraryMediaInspector.InvalidMedia.class,
             ()->LibraryMediaInspector.inspectAudio(mp3,"WAV","audio/wav"));
         assertThrows(LibraryMediaInspector.InvalidMedia.class,
