@@ -61,6 +61,27 @@ function ConvertTo-RecoveryUtcDateTime([object]$Value) {
 }
 
 function Get-RecoveryFailureHint([string]$ErrorText) {
+    if ($ErrorText -match 'Комплект содержит недопустимую ссылку или недоступный каталог') {
+        return 'Локальный комплект содержит ссылку или недоступный каталог. Требуется проверить состав staging; облачная загрузка не выполнялась.'
+    }
+    if ($ErrorText -match 'Не удалось прочитать/посчитать SHA-256 файла комплекта: ([^\r\n]+)') {
+        return "Не удалось прочитать один из подготовленных файлов: $($Matches[1]). Облачная загрузка не выполнялась."
+    }
+    if ($ErrorText -match 'Не совпала контрольная сумма: ([^\r\n]+)') {
+        return "Контрольная сумма не совпала у файла комплекта: $($Matches[1]). Облачная загрузка не выполнялась."
+    }
+    if ($ErrorText -match 'Оригинал библиотеки не соответствует SHA/размеру из БД') {
+        return 'Оригинал постоянной библиотеки не совпадает с SHA-256 или размером, записанным в PostgreSQL. Облачная загрузка не выполнялась.'
+    }
+    if ($ErrorText -match 'Отсутствует оригинал READY-материала') {
+        return 'В PostgreSQL есть READY-материал, но его оригинал отсутствует в постоянной библиотеке. Облачная загрузка не выполнялась.'
+    }
+    if ($ErrorText -match 'Набор файлов копии не совпадает с манифестом') {
+        return 'Количество файлов подготовленного комплекта не совпало с манифестом. Облачная загрузка не выполнялась.'
+    }
+    if ($ErrorText -match 'Неполная копия: нет ([^\r\n]+)') {
+        return "В комплекте отсутствует обязательный файл: $($Matches[1]). Облачная загрузка не выполнялась."
+    }
     # Preserve the deliberately sanitized phase diagnostic emitted by Recovery.ps1.
     if ($ErrorText -match "Резервная копия остановлена на этапе '([^']+)' \(тип ошибки: ([^;]+); Recovery\.ps1:(\d+)\)") {
         return "Резервная копия остановлена на этапе '$($Matches[1])' (тип ошибки: $($Matches[2]); Recovery.ps1:$($Matches[3]))."
@@ -238,12 +259,19 @@ function Invoke-RecoveryRestic([hashtable]$Config, [string]$Password, [string[]]
 }
 
 function Get-RecoveryFileIndex([string]$Root) {
-    Assert-RecoveryTree $Root
+    try { Assert-RecoveryTree $Root }
+    catch { throw "Комплект содержит недопустимую ссылку или недоступный каталог (проверка структуры)." }
     $index = @{}
     foreach ($file in Get-ChildItem -LiteralPath $Root -Force -File -Recurse) {
         $relative = [IO.Path]::GetRelativePath($Root,$file.FullName).Replace('\','/')
         if ($relative -ne 'gm-recovery-set.json') {
-            $index[$relative] = @{bytes=$file.Length; sha256=(Get-FileHash -LiteralPath $file.FullName -Algorithm SHA256).Hash}
+            try {
+                $hash = (Get-FileHash -LiteralPath $file.FullName -Algorithm SHA256 -ErrorAction Stop).Hash
+                $length = (Get-Item -LiteralPath $file.FullName -Force -ErrorAction Stop).Length
+                $index[$relative] = @{bytes=$length; sha256=$hash}
+            } catch {
+                throw "Не удалось прочитать/посчитать SHA-256 файла комплекта: $relative"
+            }
         }
     }
     return $index
