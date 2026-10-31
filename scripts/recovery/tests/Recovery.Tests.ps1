@@ -88,6 +88,14 @@ try {
         MustThrow { Copy-RecoveryTree $source (Join-Path $root 'bad-copy') } 'symlink escape/cycle refused'
         Remove-Item -LiteralPath $link
     }
+    if ($IsWindows) {
+        $tree=Join-Path $root 'tree-with-junction';$null=New-Item -ItemType Directory -Path $tree
+        $target=Join-Path $root 'junction-target';$null=New-Item -ItemType Directory -Path $target
+        $null=New-Item -ItemType Junction -Path (Join-Path $tree 'linked-folder') -Target $target
+        $treeError=$null
+        try { $null=Get-RecoveryFileIndex $tree } catch { $treeError=$_.Exception.Message }
+        Assert ($treeError -like '*linked-folder*') 'manifest indexing identifies Windows junction by safe relative path'
+    }
     $config=Read-PilotJson (Join-Path $PSScriptRoot '../recovery.example.json')
     $config.pilotRoot=Join-Path $root 'pilot';$config.sourceRoot=Join-Path $root 'repo'
     $config.settingsRoot=Join-Path $root 'settings';$config.stageRoot=Join-Path $root 'stage'
@@ -111,6 +119,9 @@ try {
     Assert ((Get-RecoveryFailureHint 'connection reset by peer') -like '*Сетевой сбой*') 'network failures receive actionable safe diagnostics'
     Assert ((Get-RecoveryFailureHint 'checksum mismatch') -like '*целостности*') 'integrity failures receive actionable safe diagnostics'
     Assert ((Get-RecoveryFailureHint 'Не удалось прочитать/посчитать SHA-256 файла комплекта: pilot/data/library/asset.bin') -like '*pilot/data/library/asset.bin*') 'local unreadable file diagnostic preserves safe relative path'
+    Assert ((Get-RecoveryFailureHint 'В комплекте обнаружена ссылка (reparse point): pilot/tools/current') -like '*pilot/tools/current*') 'local reparse point diagnostic preserves safe relative path'
+    Assert ((Get-RecoveryFailureHint 'Не удалось прочитать каталог комплекта: pilot/data/library') -like '*pilot/data/library*') 'local directory access diagnostic preserves safe relative path'
+    Assert ((Get-RecoveryFailureHint 'Корневой каталог комплекта является ссылкой (reparse point).') -like '*корневой каталог*') 'local root reparse point diagnostic is actionable'
     Assert ((Get-RecoveryFailureHint 'Не совпала контрольная сумма: pilot/application-pilot.yml') -like '*pilot/application-pilot.yml*') 'manifest checksum diagnostic preserves safe relative path'
     Assert ((Get-RecoveryFailureHint 'Оригинал библиотеки не соответствует SHA/размеру из БД.') -like '*не совпадает с SHA-256*') 'library DB/file mismatch gets precise safe diagnostic'
     Assert ((Get-RecoveryFailureHint 'Отсутствует оригинал READY-материала. Проверьте путь библиотеки.') -like '*оригинал отсутствует*') 'missing library original gets precise safe diagnostic'

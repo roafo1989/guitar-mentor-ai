@@ -179,9 +179,13 @@ try {
     }
 } catch {
     if ($Mode -eq 'Backup') {
-        $line = if ($_.InvocationInfo.ScriptLineNumber) { [int]$_.InvocationInfo.ScriptLineNumber } else { 0 }
-        $type = $_.Exception.GetType().Name
-        $diagnostic = Get-RecoveryFailureHint $_.Exception.Message
+        $caughtError = $_
+        $line = if ($caughtError.InvocationInfo.ScriptLineNumber) { [int]$caughtError.InvocationInfo.ScriptLineNumber } else { 0 }
+        $type = $caughtError.Exception.GetType().Name
+        $diagnostic = Get-RecoveryFailureHint -ErrorText ([string]$caughtError.Exception.Message)
+        if ([string]::IsNullOrWhiteSpace($diagnostic)) {
+            $diagnostic = 'Причина не классифицирована; локальная проверка остановлена до облачной загрузки. Сохраните отчёт и не повторяйте запуск до анализа.'
+        }
         throw "Резервная копия остановлена на этапе '$backupPhase' (тип ошибки: $type; Recovery.ps1:$line). $diagnostic Секретные данные и исходный текст исключения скрыты."
     }
     throw
