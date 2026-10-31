@@ -140,7 +140,7 @@ class LibraryConversionProcessRunnerTest {
             try {
                 Path wrapper = docker.resolveSibling("docker-wrapper.sh");
                 Files.writeString(wrapper, "#!/bin/sh\nGM_DOCKER_ARGS='" + args + "' GM_STUB_MODE='" + mode
-                        + "' exec '" + docker + "' \"$@\"\\n");
+                        + "' exec '" + docker + "' \"$@\"");
                 Files.setPosixFilePermissions(wrapper, Set.of(PosixFilePermission.OWNER_READ,
                         PosixFilePermission.OWNER_WRITE, PosixFilePermission.OWNER_EXECUTE));
                 System.setProperty("gm.test.docker", wrapper.toString());
