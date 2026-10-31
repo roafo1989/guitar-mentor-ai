@@ -1,0 +1,21 @@
+@startuml
+title FT-013-02 — Conversion job states
+
+[*] --> QUEUED
+QUEUED --> RUNNING : worker claims lease
+RUNNING --> AWAITING_TRACK_SELECTION : multiple guitar tracks
+AWAITING_TRACK_SELECTION --> QUEUED : valid trackIndex selected
+RUNNING --> SUCCEEDED : both PDF and WAV verified + committed
+RUNNING --> UNSUPPORTED : format/score outside subset
+RUNNING --> FAILED : non-retryable error
+RUNNING --> TIMED_OUT : 60s watchdog
+RUNNING --> CANCEL_REQUESTED : user cancel
+CANCEL_REQUESTED --> CANCELLED : process stopped + scratch removed
+QUEUED --> CANCELLED : user cancel
+AWAITING_TRACK_SELECTION --> CANCELLED : user cancel
+FAILED --> QUEUED : explicit retry when retryable
+TIMED_OUT --> QUEUED : explicit retry when retryable
+SUCCEEDED --> [*]
+UNSUPPORTED --> [*]
+CANCELLED --> [*]
+@enduml
