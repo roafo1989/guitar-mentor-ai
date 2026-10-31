@@ -53,7 +53,7 @@ ALTER TABLE library_conversion_jobs
     ADD COLUMN output_reservation_state VARCHAR(16) NOT NULL DEFAULT 'NONE'
         CHECK(output_reservation_state IN ('NONE','RESERVED','COMMITTED','RELEASED')),
     ADD CONSTRAINT library_conversion_output_reservation_consistent CHECK (
-        (output_reservation_state='RESERVED' AND output_reserved_bytes=41943040 AND output_reserved_files=2)
+        (output_reservation_state='RESERVED' AND output_reserved_bytes BETWEEN 1 AND 41943040 AND output_reserved_files=2)
         OR (output_reservation_state<>'RESERVED' AND output_reserved_bytes=0 AND output_reserved_files=0)
     );
 
