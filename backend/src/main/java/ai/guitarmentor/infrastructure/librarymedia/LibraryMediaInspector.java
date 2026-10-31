@@ -7,6 +7,11 @@ import java.io.IOException;
 import java.io.OutputStream;
 import java.nio.ByteBuffer;
 import java.nio.ByteOrder;
+import java.util.Arrays;
+import javazoom.jl.decoder.Bitstream;
+import javazoom.jl.decoder.Decoder;
+import javazoom.jl.decoder.Header;
+import javazoom.jl.decoder.SampleBuffer;
 import java.util.Iterator;
 import javax.imageio.ImageIO;
 import javax.imageio.ImageReader;
@@ -197,7 +202,35 @@ public final class LibraryMediaInspector {
         long duration = samples * 1000L / commonRate;
         if (commonRate < 8000 || commonRate > 48000 || duration < 1 || duration > MAX_DURATION_MILLIS)
             throw new InvalidMedia("AUDIO_PARAMETERS_INVALID");
+        // Headers alone can be forged. Decode every bounded frame with a pinned pure-Java
+        // decoder and require the decoded frame count/format to match the structural scan.
+        verifyMp3Payload(b, firstFrame, pos, frames, commonRate, commonChannels);
         return new Audio("MP3", "audio/mpeg", duration, commonChannels, commonRate);
+    }
+
+    private static void verifyMp3Payload(byte[] bytes,int start,int end,int expectedFrames,
+            int expectedRate,int expectedChannels) throws IOException {
+        Bitstream stream = new Bitstream(new ByteArrayInputStream(Arrays.copyOfRange(bytes,start,end)));
+        Decoder decoder = new Decoder();
+        int decodedFrames=0;
+        try {
+            Header header;
+            while((header=stream.readFrame())!=null) {
+                SampleBuffer output=(SampleBuffer)decoder.decodeFrame(header,stream);
+                if(output.getBufferLength()<=0 || output.getSampleFrequency()!=expectedRate
+                        || output.getChannelCount()!=expectedChannels)
+                    throw new InvalidMedia("MP3_DECODED_PARAMETERS_INVALID");
+                decodedFrames++;
+                stream.closeFrame();
+            }
+        } catch(InvalidMedia e) {
+            throw e;
+        } catch(Exception | LinkageError e) {
+            throw new InvalidMedia("MP3_FRAME_DECODE_FAILED",e);
+        } finally {
+            try { stream.close(); } catch(Exception ignored) { /* bounded in-memory source */ }
+        }
+        if(decodedFrames!=expectedFrames) throw new InvalidMedia("MP3_FRAME_COUNT_MISMATCH");
     }
 
     private static boolean validMp3Header(byte[] b, int p) {
