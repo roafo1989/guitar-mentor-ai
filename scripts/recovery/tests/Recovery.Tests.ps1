@@ -10,6 +10,14 @@ function MustThrow([scriptblock]$Action,[string]$Message) {
 $root=Join-Path ([IO.Path]::GetTempPath()) ('gm-recovery-test-'+[guid]::NewGuid().ToString('N'))
 New-PrivateRecoveryDirectory $root
 try {
+    $savedCulture=[Globalization.CultureInfo]::CurrentCulture
+    try {
+        [Globalization.CultureInfo]::CurrentCulture=[Globalization.CultureInfo]::GetCultureInfo('ru-RU')
+        $jsonDate=ConvertTo-RecoveryUtcDateTime '2026-10-31T16:57:26Z'
+        Assert ($jsonDate.ToString('yyyy-MM-ddTHH:mm:ssZ',[Globalization.CultureInfo]::InvariantCulture) -eq '2026-10-31T16:57:26Z') 'ISO snapshot timestamp parses under ru-RU'
+        $jsonDateObject=ConvertTo-RecoveryUtcDateTime ([DateTime]::new(2026,10,31,16,57,26,[DateTimeKind]::Utc))
+        Assert ($jsonDateObject -eq $jsonDate) 'JSON-converted DateTime snapshot timestamp is culture independent'
+    } finally { [Globalization.CultureInfo]::CurrentCulture=$savedCulture }
     $freeBytes=Assert-RecoveryStageCapacity $root 268435456
     Assert ($freeBytes -ge 268435456) 'staging disk reserve accepts available free space'
     MustThrow { Assert-RecoveryStageCapacity $root 1099511627776 } 'staging disk reserve blocks insufficient free space'
