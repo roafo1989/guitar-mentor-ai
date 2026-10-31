@@ -36,8 +36,10 @@ function Save-DrillReport([hashtable]$State, [string]$Result, [string]$Path, [st
         try { $manifest = Read-PilotJson (Join-Path $State.destination 'gm-recovery-set.json') } catch {}
     }
     $ageMinutes = $null
+    $releaseId = $null
     if ($manifest -and $manifest.createdUtc) {
         $ageMinutes = [math]::Round(($now - [DateTime]::Parse($manifest.createdUtc).ToUniversalTime()).TotalMinutes,1)
+        try { $releaseId = (Read-PilotJson (Join-Path $State.destination 'pilot/release-state.json')).current } catch {}
     }
     $dbSummary = @{}
     foreach ($kind in @('pilot','dev')) {
@@ -56,6 +58,7 @@ function Save-DrillReport([hashtable]$State, [string]$Result, [string]$Path, [st
         durationSeconds=[math]::Round(($now - [DateTime]::Parse($State.attemptStartedUtc).ToUniversalTime()).TotalSeconds,1)
         totalElapsedWallClockSeconds=[math]::Round(($now - [DateTime]::Parse($State.startedUtc).ToUniversalTime()).TotalSeconds,1)
         sourceDataAgeMinutes=$ageMinutes;snapshotShort=if ($State.snapshotId) { $State.snapshotId.Substring(0,8) } else { $null }
+        sourceHead=if ($manifest) { $manifest.sourceHead } else { $null };pilotReleaseId=$releaseId
         database=$dbSummary;libraryOriginalCount=if ($manifest) { @($manifest.databases.pilot.libraryReady).Count } else { $null }
         steps=$State.steps;failureCode=$FailureCode
         limitations=@('Только изолированная проверка; production/PILOT/DEV не изменялись.',
