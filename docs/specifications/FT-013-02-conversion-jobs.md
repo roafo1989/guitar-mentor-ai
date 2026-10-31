@@ -3,6 +3,7 @@
 | Версия | Дата | Изменение |
 |---|---|---|
 | 0.1 | 31.10.2026 | Анализ после завершения FT-013-01/#169; подготовлен контракт первого инкремента 170-A. |
+| 0.2 | 31.10.2026 | Уточнены PostgreSQL test harness, оценка 10ч и граница 170-A. |
 
 ## 1. Назначение и границы
 
@@ -157,6 +158,19 @@ Worker claim: DB transaction → свободный worker slot FOR UPDATE SKIP 
 
 Human listening, GP7 independent writer compatibility, GTP/GPX/GP8, сложные размеры, rests/repeats/polyphony/tempo changes/capo/alternate tuning/effects, corrupt/zip-bomb corpus, Windows host и production rollout не считаются пройденными. До production exposure обязательны 170-E и отдельная эксплуатационная приёмка.
 
-## 7. Статус
+## 7. Оценка и статус
 
-170-A подготовлен к оценке. Реализация не начата. Перед передачей в разработку следует подтвердить оценку и точные output quota defaults; остальные ограничения зафиксированы выше.
+**Оценка 170-A: 10 часов (диапазон 8–12ч), P2, Java backend.** Разбивка:
+
+| Работа | Оценка |
+|---|---:|
+| Flyway schema, repository, DB worker slots и индексы/ограничения | 2ч |
+| Job service + REST API, owner checks, idempotency, revision, track selection/cancel/retry | 2.5ч |
+| Claim/lease/heartbeat/reclaim и координация удаления source | 2.5ч |
+| PostgreSQL integration tests: race, idempotency, state transitions, lease expiry, cancel, delete guard | 2ч |
+| Документация, CI и итоговая проверка | 1ч |
+| **Итого** | **10ч** |
+
+В main уже есть PostgreSQL integration test harness и CI service PostgreSQL 17 с флагом `GUITAR_MENTOR_TEST_POSTGRES=true`; новый брокер/очередь и новый тестовый сервис не нужны. Основной риск оценки — согласование lease с двумя deletion workers и гонки отмены/удаления. Output quota defaults уточнить в 170-C по фактическим ограничениям PDF/WAV.
+
+**Статус: Оценка / В очереди.** Реализация не начата. Передача в разработку — отдельным решением после оценки.
