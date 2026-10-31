@@ -70,7 +70,7 @@ Release tooling находится в актуальном `main` (PR #246 merge
 и оставшиеся пункты Windows/реального облака из QA-отчёта.
 
 ```powershell
-git clone --branch ops/40-disaster-recovery https://github.com/roafo1989/guitar-mentor-ai.git D:\Development\guitar-mentor-recovery
+git clone --branch main https://github.com/roafo1989/guitar-mentor-ai.git D:\Development\guitar-mentor-recovery
 cd D:\Development\guitar-mentor-recovery
 pwsh -NoProfile -File .\scripts\recovery\Install-RecoveryDependencies.ps1
 # Только если нужно установить недостающие инструменты:
@@ -199,22 +199,59 @@ retention отдельно через restic, сначала с `--dry-run`, с 
 копию repository на USB, если позже появится диск; облачный аккаунт с правом
 удаления не является защитой от всех последствий компрометации ноутбука.
 
-## 3. Репетиция без изменения PILOT
+## 3. Единый приёмочный прогон (одна команда)
+
+Перед запуском: облако уже подключено через rclone, repository инициализирован
+один раз, `inventoryReviewed=true`, список `extraFolders` проверен. Остановите
+PILOT, DEV backend/Vite и Funnel; закройте SQL-клиенты. Backup сам проверит
+остановку сервисов и отсутствие активных подключений к базам. Он не остановит
+рабочие процессы автоматически и не меняет их данные.
+
+Из корня recovery checkout выполните **одну команду**:
 
 ```powershell
-pwsh -NoProfile -File .\scripts\recovery\Recovery.ps1 -Mode Snapshots -ConfigPath $cfg
-pwsh -NoProfile -File .\scripts\recovery\Recovery.ps1 -Mode Restore -ConfigPath $cfg -Snapshot <ПОЛНЫЙ_ID> -Destination D:\RecoveryDrill\gm-01
-pwsh -NoProfile -File .\scripts\recovery\Restore-Database.ps1 -RecoveryRoot D:\RecoveryDrill\gm-01 -Kind Pilot
-pwsh -NoProfile -File .\scripts\recovery\Restore-Database.ps1 -RecoveryRoot D:\RecoveryDrill\gm-01 -Kind Dev
+pwsh -NoProfile -File .\scripts\recovery\Invoke-RecoveryAcceptance.ps1 -ConfigPath $cfg -WorkRoot D:\RecoveryAcceptance\run-01 -BackupFirst
 ```
 
-Потребуются мастер-пароль и пароль локального PostgreSQL-администратора.
-По умолчанию `Purpose=Drill`: случайная новая БД и отдельная непривилегированная
-роль `gm_dr_*`, никакого DROP, --clean, repair и подключения к PILOT на запись.
-Скрипт проверяет все хеши, реально выполняет pg_restore, сверяет количество
-строк каждой public-таблицы и историю Flyway; отчёт создаёт **рядом** с комплектом.
-Изменять сам комплект нельзя: его файлы привязаны к хешам. Восстановление SQL
-из дампа выполняйте только для своего доверенного repository.
+Сценарий:
+1. Запускает согласованный backup через уже проверенный `Recovery.ps1 -Mode Backup`.
+2. Проверяет чтение зашифрованного repository целиком (`restic check --read-data`).
+3. Восстанавливает новый snapshot в отдельный каталог и проверяет манифест, SHA256,
+   размеры файлов, постоянные оригиналы библиотеки и согласованность с БД.
+4. Создаёт отдельные случайные роли/БД `gm_dr_*` для PILOT и DEV, выполняет
+   реальный `pg_restore`, сверяет таблицы, число строк и историю Flyway.
+5. Запускает восстановленный JAR на loopback и временном порту с изолированной БД,
+   проверяет HTTP/CSRF и наличие frontend bundle. Funnel не включается; письма
+   и внешние OAuth-провайдеры не вызываются.
+
+Мастер-пароль потребуется для backup и повторно для чтения копии; пароль локального
+PostgreSQL администратора вводится отдельно. Пароли не передаются в аргументах
+команд и не попадают в отчёт. Временные пароли drill-БД хранятся только в локальном
+progress-файле, зашифрованном DPAPI текущего Windows-пользователя.
+
+Прогресс и отчёт находятся в закрытом `WorkRoot`:
+- `acceptance-progress.local.json` — успешные этапы, snapshot ID и зашифрованные
+  временные реквизиты drill-БД;
+- `recovery-acceptance-report.json` — обезличенный итог, возраст исходных данных,
+  длительность, статусы БД/таблиц/Flyway и локального smoke.
+
+При сбое повторите **ту же команду с тем же WorkRoot**. Успешные этапы не выполняются
+повторно. Прерванная загрузка комплекта будет повторена; частично созданные БД/роли
+удаляются только при точном совпадении с непубличным случайным идентификатором
+этого прогона, затем соответствующий restore повторяется. Рабочие БД не затрагиваются.
+Не удаляйте progress до получения итогового отчёта.
+
+Если хотите проверить уже существующий snapshot без создания новой копии,
+уберите `-BackupFirst`; можно указать `-Snapshot <ПОЛНЫЙ_ID>`. Для полного
+приёмочного прогона предпочтителен `-BackupFirst`, чтобы возраст данных и
+результат backup относились к одной проверке.
+
+Отчёт измеряет фактическую длительность этого прогона и возраст данных на момент
+проверки. Это не обещание RPO/RTO: длительность подготовки нового Windows,
+установки инструментов, входа в аккаунты и настройки внешних сервисов измеряется
+отдельно. Отчёт не включает пути, имена пользователей, пароли, OAuth/SMTP и
+содержимое пользовательских записей. Не загружайте в публичную Issue дампы,
+progress-файл или секретные конфиги.
 
 Для полного приёмочного прогона используйте новую Windows VM/другой ПК с копией
 инструментов и выполните следующий раздел, **не включайте Funnel**. На существующем
