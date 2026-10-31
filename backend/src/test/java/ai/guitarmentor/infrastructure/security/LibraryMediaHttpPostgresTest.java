@@ -109,11 +109,11 @@ class LibraryMediaHttpPostgresTest {
             .sessionAttr("guitarMentorAccessVersion",0L).header("If-Match","\"1\"")
             .header("Idempotency-Key",photoIdempotency))
             .andExpect(status().isCreated()).andExpect(jsonPath("$.revision").value(2))
-            .andExpect(jsonPath("$.files[1].role").value("PHOTO_ORIGINAL"))
-            .andExpect(jsonPath("$.files[1].previewAvailable").value(true))
             .andReturn().getResponse().getContentAsString();
         JsonNode photoResult=JSON.readTree(photoBody);
-        String photoAsset=photoResult.path("files").get(1).path("id").asText();
+        JsonNode photoAssetView=asset(photoResult,"PHOTO_ORIGINAL");
+        assertTrue(photoAssetView.path("previewAvailable").asBoolean());
+        String photoAsset=photoAssetView.path("id").asText();
         String privatePreview=photoPath+"/"+photoAsset+"/preview";
         mvc.perform(MockMvcRequestBuilders.get(privatePreview).with(login("media-a"))
             .sessionAttr("guitarMentorAccessVersion",0L)).andExpect(status().isOk())
@@ -239,7 +239,8 @@ class LibraryMediaHttpPostgresTest {
         recovery.reconcile();
         mvc.perform(MockMvcRequestBuilders.get(BASE+"/"+material).with(login("media-a"))
             .sessionAttr("guitarMentorAccessVersion",0L)).andExpect(status().isOk())
-            .andExpect(jsonPath("$.files[1].processingState").value("REJECTED"));
+            .andExpect(result->assertEquals("REJECTED",asset(JSON.readTree(result.getResponse().getContentAsString()),
+                "PHOTO_ORIGINAL").path("processingState").asText()));
         mvc.perform(MockMvcRequestBuilders.delete(photoPath+"/"+photoAsset).with(login("media-a")).with(csrf())
             .sessionAttr("guitarMentorAccessVersion",0L).header("If-Match","\"4\""))
             .andExpect(status().isAccepted());
@@ -375,13 +376,20 @@ class LibraryMediaHttpPostgresTest {
         JsonNode card=createPdf("synth-a");
         String material=card.path("id").asText();
         byte[] wav=wav(2,48000,192000);
-        mvc.perform(MockMvcRequestBuilders.multipart(BASE+"/"+material+"/files").file(metadata("SYNTHESIZED_PREVIEW"))
+        String body=mvc.perform(MockMvcRequestBuilders.multipart(BASE+"/"+material+"/files").file(metadata("SYNTHESIZED_PREVIEW"))
             .file(new MockMultipartFile("files","preview.wav","audio/wav",wav))
             .with(login("synth-a")).with(csrf()).sessionAttr("guitarMentorAccessVersion",0L)
             .header("If-Match","\"1\"").header("Idempotency-Key",UUID.randomUUID().toString()))
-            .andExpect(status().isCreated()).andExpect(jsonPath("$.files[1].role").value("SYNTHESIZED_PREVIEW"))
-            .andExpect(jsonPath("$.files[1].durationMillis").value(1000))
-            .andExpect(jsonPath("$.reviewStatus").value("UNREVIEWED"));
+            .andExpect(status().isCreated()).andExpect(jsonPath("$.reviewStatus").value("UNREVIEWED"))
+            .andReturn().getResponse().getContentAsString();
+        JsonNode audioAsset=asset(JSON.readTree(body),"SYNTHESIZED_PREVIEW");
+        assertEquals(1000,audioAsset.path("durationMillis").asLong());
+    }
+
+    private static JsonNode asset(JsonNode material,String role) {
+        for(JsonNode file:material.path("files"))
+            if(role.equals(file.path("role").asText())) return file;
+        throw new AssertionError("Asset role not found: "+role);
     }
 
     private static Map<String,Object> right(String id) {
