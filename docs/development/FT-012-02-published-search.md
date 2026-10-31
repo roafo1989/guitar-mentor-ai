@@ -1,40 +1,68 @@
 # FT-012-02 / #166 — общий поиск опубликованных материалов
 
-Дата: 2026-10-25 · PR #218 · основа: реализованный publication lifecycle #165.
+Актуализация: 2026-10-31 · Реализация #218 · исправление Flyway #234 · текущий main `da8f73386ee9efea66d683dba779d435ca6acc07`.
 
-## Область задачи
+## Итог
 
-GET `/api/v1/community/publications` доступен **только аутентифицированным допущенным** пользователям, независимо от owner публикации. Источник данных — строго `library_publications` со `state='PUBLISHED'` и `library_materials.state='READY'`; **никакой** прямой поиск по приватным `library_materials` или импортированному `music-catalog` корпусу не выполняется. GET detail и авторизованная выдача исходных файлов уже реализованы в #165, их политики не ослабляются.
+Функциональность backend общего каталога реализована и принята владельцем ранее. PR #218 объединён в main. После интеграции обнаружена коллизия V29 с миграцией #216; исправление PR #234 также объединено. В текущем main миграции не конфликтуют:
 
-HTTP параметры:
+- `V29__manual_next_lesson.sql` (#216) сохранена без изменения содержимого и checksum.
+- `V30__unicode_account_logins.sql` сохранена.
+- `V31__library_publication_search_tags.sql` содержит исходное содержимое миграции тегов из #166.
+- GitHub compare для PR #234 показывает только rename `V29__library_publication_search_tags.sql` → `V31__library_publication_search_tags.sql`, 0 additions / 0 deletions / 0 changes.
+- Подтверждённая ранее локальная `flyway_schema_history`: V28, V29 manual-next-lesson, V30 применены успешно; публикационная V29 отсутствовала. Для этой истории новая V31 является следующей миграцией; ручное изменение history и Flyway repair не требуются.
+
+## Область API
+
+GET `/api/v1/community/publications` доступен только аутентифицированным допущенным пользователям, независимо от владельца публикации. Источник — только `library_publications.state='PUBLISHED'` и `library_materials.state='READY'`. Поиск не обращается к приватным материалам или импортированному музыкальному каталогу.
 
 | Параметр | Правило |
 |---|---|
-| `q` | Необязательная строка до 100 символов; Unicode trim/lower, буквальный case-insensitive поиск подстроки по опубликованным `title` **ИЛИ** `author`; символы SQL LIKE `%`, `_`, `!` экранированы и не являются wildcard |
-| `type` | Необязательный `COMPOSITION`, `ETUDE`, `EXERCISE`, `OTHER`, нечувствительно к регистру |
-| `tag` | Необязательный повторяемый ключ, до 10 тегов, 1–40 Unicode букв/цифр/пробелов, `_` и `-`; trim/lower/deduplicate; **OR внутри списка тегов**, AND с остальными фильтрами |
-| `hasAudio` | `false` по умолчанию, `true` требует соответствующего физическому исходному audio asset published snapshot; пока в #165 допустимы только PDF/GP, поэтому `true` корректно возвращает пустой список до расширения типов в #167 |
+| `q` | До 100 символов; Unicode trim/lower; буквальный case-insensitive поиск подстроки по title ИЛИ author; LIKE-символы %, _ и ! экранируются |
+| `type` | COMPOSITION, ETUDE, EXERCISE, OTHER; регистр не важен |
+| `tag` | Повторяемый параметр, до 10 тегов; нормализация trim/lower/deduplicate; OR между тегами, AND с другими фильтрами |
+| `hasAudio` | По реальному исходному audio asset в опубликованном snapshot; до поддержки аудиоформатов в #167 true возвращает пустой результат |
 | `limit` | 1–50, по умолчанию 20 |
-| `cursor` | Непрозрачный HMAC-SHA256 ключ страницы; привязан к нормализованным `q`, `type`, `tag`, `hasAudio`, `limit`; чужой scope, испорченная подпись или формат → 400 |
+| `cursor` | HMAC-SHA256 signed keyset cursor, привязанный к нормализованным фильтрам и limit; неверный формат, подпись или scope → 400 |
 
-Результат: `{"items":[{"id","title","author","type","version","publishedAt","tags","hasAudio","detailUrl"}],"nextCursor":null}`. Сортировка строго `created_at DESC,id DESC`; nextCursor выдаётся только при наличии следующей страницы. `Cache-Control: no-store`. Нет totalCount, ownerId, rightsEvidence, storage key, локального пути, данных PRIVATE или скрытых snapshot.
+Сортировка: `created_at DESC, id DESC`. Cursor выдаётся только при наличии следующей страницы. Ответ no-store и не раскрывает ownerId, rightsEvidence, storage key, локальные пути, PRIVATE или скрытые snapshot.
 
-Теги при публикации передаются необязательным полем `tags` в существующем owner-only POST `/api/v1/library/materials/{id}/publications`, например `"tags":["Fingerstyle","Blues"]`. Сохраняются в аддитивной Flyway V29 как нормализованные immutable значения, до 10 уникальных тегов на publication. Пустые/непереданные теги для существующих V28 публикаций имеют прежний idempotency fingerprint: неизменённый повтор POST того же старого запроса должен по-прежнему отвечать 200. При непустом наборе тегов fingerprint учитывает их нормализованный набор.
+Теги передаются необязательным полем `tags` при owner-only публикации и хранятся как нормализованные immutable значения на revision. Старые V28 idempotency keys без тегов сохраняют совместимость.
 
-## Трассировка требований и тесты
+## Тестирование и доказательства
 
-- **AC-COM-03**: cross-account admitted search, q title/author, type, tags, strict AND между группами и OR внутри tags, hasAudio truthfully tied to original.
-- **AC-COM-05**: DRAFT/PRIVATE, WITHDRAWN, HIDDEN, DELETING не видны ни в list, ни в detail/bytes и не образуют косвенные счётчики.
-- **AC-COM-06**: signed cursor scope, стабильное keyset листание; нельзя передавать cursor при других фильтрах.
-- Real PostgreSQL: `LibraryPublicationPostgresTest.sharedSearchFilterScopedPaginationAndRevocation` — два аккаунта, three publications, отдельный draft, фильтры, теги, две страницы, неправомерная подмена cursor, withdraw и 404 старого detail.
-- Real Spring Security HTTP: `LibraryPublicationHttpPostgresTest.publisherAndReaderSeparatedAndWithdrawRevokesDirectUrl` — анонимный GET → 401, B видит A, затем revoke → пустой список.
-- Negative client requests: 400 для неверного type, filter and cursor; 503 если library отключена.
-- Полный `Java backend CI` выполняет тесты на PostgreSQL с Flyway V29; независимый `Vue frontend CI` — регрессию текущего клиента. Финальные результаты фиксировать по текущему SHA, не по старой успешной ветке.
+### GitHub Actions PR #234
 
-## Границы и нагрузка
+Проверен merge-ref PR #234 (`24fcad582a1db4bcf239bd1ab333d912d68e846d`) и фактические логи:
 
-Индексы V29 поддерживают type/date, lookup тега; `ILIKE/LIKE '%substring%'` **не ускоряется B-tree** `lower(title)`/ `lower(author)`. Для крупного корпуса нужен отдельный benchmark с `EXPLAIN (ANALYZE,BUFFERS)` и, при необходимости, `pg_trgm` индекс (потребует проверки прав на extension). Нельзя объявлять требования по задержке поиска выполненными без измерения. Задача #204 — объединение разных аранжировок в один Work; #167 — аудио/фото; #168 — UI общего каталога; они не включены в данный PR. Импортированный музыкальный индекс не публикуется автоматически.
+- Java backend CI, run [40397327791](https://github.com/roafo1989/guitar-mentor-ai/actions/runs/40397327791): SUCCESS.
+- Vue frontend CI, run [40397327938](https://github.com/roafo1989/guitar-mentor-ai/actions/runs/40397327938): SUCCESS.
+- Java job использовал PostgreSQL 17.11; Maven: 361 tests, 0 failures, 0 errors, 4 pre-existing skips; BUILD SUCCESS.
+- Flyway в PostgreSQL проверил и применил миграции до v31; отдельные Spring contexts повторно валидировали полный набор миграций. Bootstrap приложения с PostgreSQL/Flyway и HTTP smoke завершился OK.
+- `LibraryPublicationPostgresTest`: 4/4 PASS.
+- `LibraryPublicationHttpPostgresTest`: 1/1 PASS.
+- В логах CI не обнаружена ошибка Flyway или duplicate version.
+- Vue CI: SUCCESS; frontend regression/typecheck/build/browser smoke пройдены. UI общего каталога не входит в #166.
 
-## Ручная приёмка
+### Реализация поиска (PR #218)
 
-На фронтенде UI общего каталога до #168 отсутствует. Для проверки #166 достаточно защищённого HTTP API и тестов двух допущенных аккаунтов; никаких реальных файлов пользователя/массового импорта использовать нельзя. Пользовательская приёмка PR обязательна до merge; без неё #166 не закрывать.
+На исходном feature head `2c8a4345db7c9e66cbd63f7f4459fff5f16cb0ea` Java backend CI и Vue frontend CI были SUCCESS. PostgreSQL/Spring Security тесты покрывали cross-account admitted search, title/author, type, нормализацию тегов, AND/OR, LIKE escaping, keyset pagination, scope/tamper cursor, отзыв публикации, отсутствие PRIVATE/WITHDRAWN/HIDDEN и anonymous 401. В PR #234 повторно выполнен полный Java/PostgreSQL suite и HTTP smoke на актуальном merge-ref.
+
+### Ограничения доказательств
+
+- Подтверждённая локальная история schema_history получена ранее от владельца; подключиться к его локальной PostgreSQL из этой сессии и повторить upgrade непосредственно на ней невозможно. CI выполняет полный PostgreSQL 17 migration/bootstrap на чистой тестовой БД и проверяет upgrade migration suite до V31.
+- Нагрузочный benchmark для крупного корпуса и EXPLAIN ANALYZE не выполнялись. B-tree индексы не ускоряют leading-wildcard substring; при необходимости pg_trgm следует оценивать отдельно.
+- UI общего каталога — #168; аудиоформаты — #167; связь разных аранжировок с Work — #204. Они не входят в #166.
+- `hasAudio=true` остаётся корректно пустым, пока #167 не добавит допустимые аудиофайлы.
+- Ручной UI UAT не применим: UI каталога ещё не реализован. API и backend проверяются через PostgreSQL/Spring Security HTTP tests.
+
+## Трассировка требований
+
+- AC-COM-03: cross-account admitted search, q title/author, type, tags, hasAudio.
+- AC-COM-05: исключение DRAFT/PRIVATE, WITHDRAWN, HIDDEN, DELETING из list/detail и косвенных данных.
+- AC-COM-06: стабильная signed keyset pagination и scope-bound cursor.
+- Безопасность: anonymous deny, admitted cross-account read, запрет приватного раскрытия и отзыв публикации.
+
+## Итоговое решение
+
+Функциональность #166 принята владельцем ранее; первоначальная реализация и миграционный конфликт устранены в main. PR #218 и PR #234 объединены. Повторный CI на исправлении успешен. Issue #166 может быть закрыта как выполненная. Production, реальные пользовательские данные, #227, #167, #168 и #204 не изменялись в рамках этой работы.
