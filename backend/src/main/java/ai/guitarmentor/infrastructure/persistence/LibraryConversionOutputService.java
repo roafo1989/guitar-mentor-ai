@@ -25,7 +25,7 @@ import org.springframework.transaction.support.TransactionTemplate;
 @Component
 public final class LibraryConversionOutputService {
     private static final long MAX_OUTPUT_BYTES = 20L * 1024 * 1024;
-    private static final long RESERVED_BYTES = MAX_OUTPUT_BYTES * 2;
+    private static final long MAX_RESERVATION_BYTES = MAX_OUTPUT_BYTES * 2;
     private static final int RESERVED_FILES = 2;
     private static final int MAX_MATERIAL_ASSETS = 7;
     private static final int MAX_SCORE_AND_PHOTO_ASSETS = 5;
@@ -43,7 +43,7 @@ public final class LibraryConversionOutputService {
             @Value("${guitar-mentor.library.max-account-files:100}") int maxAccountFiles) {
         this.jdbc=jdbc; this.transactions=transactions; this.store=store;
         this.maxAccountBytes=maxAccountBytes; this.maxAccountFiles=maxAccountFiles;
-        if(maxAccountBytes<RESERVED_BYTES || maxAccountFiles<RESERVED_FILES)
+        if(maxAccountBytes<MAX_RESERVATION_BYTES || maxAccountFiles<RESERVED_FILES)
             throw new IllegalStateException("Library quota must accommodate one conversion reservation");
     }
 
@@ -67,7 +67,8 @@ public final class LibraryConversionOutputService {
         if(audio.durationMillis()<1 || audio.durationMillis()>LibraryMediaInspector.MAX_DURATION_MILLIS)
             throw new IOException("Converted audio duration is outside library limits");
 
-        reserve(lease,output.selectedTrackIndex());
+        long reservationBytes=(long)pdfBytes.length+wavBytes.length;
+        reserve(lease,output.selectedTrackIndex(),reservationBytes);
         LibraryObjectStore.Stored pdf=null, wav=null;
         try {
             pdf=store.put(new java.io.ByteArrayInputStream(pdfBytes),MAX_OUTPUT_BYTES);
@@ -88,7 +89,9 @@ public final class LibraryConversionOutputService {
         }
     }
 
-    private void reserve(LibraryConversionJobLeaseService.Lease lease,int selectedTrack) {
+    private void reserve(LibraryConversionJobLeaseService.Lease lease,int selectedTrack,long reservationBytes) {
+        if(reservationBytes<1 || reservationBytes>MAX_RESERVATION_BYTES)
+            throw new IllegalArgumentException("Rendered output exceeds conversion persistence limit");
         transactions.executeWithoutResult(status -> {
             lockUsage(lease.ownerAccountId());
             lockMaterialAndSource(lease);
@@ -126,12 +129,12 @@ public final class LibraryConversionOutputService {
                 """).param("owner",lease.ownerAccountId()).query().singleRow();
             long used=((Number)usage.get("charged_bytes")).longValue()+((Number)usage.get("reserved_bytes")).longValue();
             long files=((Number)usage.get("charged_files")).longValue()+((Number)usage.get("reserved_files")).longValue();
-            if(used>maxAccountBytes-RESERVED_BYTES || files>maxAccountFiles-RESERVED_FILES)
+            if(used>maxAccountBytes-reservationBytes || files>maxAccountFiles-RESERVED_FILES)
                 throw new QuotaExceeded();
             jdbc.sql("""
                 UPDATE library_account_usage SET reserved_bytes=reserved_bytes+:bytes,
                     reserved_files=reserved_files+:files,revision=revision+1 WHERE account_id=:owner
-                """).param("bytes",RESERVED_BYTES).param("files",RESERVED_FILES)
+                """).param("bytes",reservationBytes).param("files",RESERVED_FILES)
                 .param("owner",lease.ownerAccountId()).update();
             int updated=jdbc.sql("""
                 UPDATE library_conversion_jobs SET output_reserved_bytes=:bytes,
@@ -139,7 +142,7 @@ public final class LibraryConversionOutputService {
                     output_reservation_state='RESERVED',
                     updated_at=now(),revision=revision+1
                 WHERE id=:job AND state='RUNNING' AND output_reservation_state='NONE'
-                """).param("bytes",RESERVED_BYTES).param("files",RESERVED_FILES)
+                """).param("bytes",reservationBytes).param("files",RESERVED_FILES)
                 .param("attempt",lease.attemptCount()).param("job",lease.jobId()).update();
             if(updated!=1) throw new IllegalStateException("Conversion reservation race");
         });
@@ -154,7 +157,8 @@ public final class LibraryConversionOutputService {
         Map<String,Object> job=lockJob(lease);
         if(!"RUNNING".equals(job.get("state")) || Boolean.TRUE.equals(job.get("cancel_requested"))
                 || !"RESERVED".equals(job.get("output_reservation_state"))
-                || ((Number)job.get("output_reserved_bytes")).longValue()!=RESERVED_BYTES
+                || ((Number)job.get("output_reserved_bytes")).longValue()<1
+                || ((Number)job.get("output_reserved_bytes")).longValue()>MAX_RESERVATION_BYTES
                 || ((Number)job.get("output_reserved_files")).intValue()!=RESERVED_FILES
                 || ((Number)job.get("output_reservation_attempt")).intValue()!=lease.attemptCount()
                 || job.get("selected_track_index")==null
@@ -166,7 +170,8 @@ public final class LibraryConversionOutputService {
             SELECT reserved_bytes,reserved_files FROM library_account_usage
             WHERE account_id=:owner FOR UPDATE
             """).param("owner",lease.ownerAccountId()).query().singleRow();
-        if(((Number)usage.get("reserved_bytes")).longValue()<RESERVED_BYTES
+        long reservedBytes=((Number)job.get("output_reserved_bytes")).longValue();
+        if(((Number)usage.get("reserved_bytes")).longValue()<reservedBytes
                 || ((Number)usage.get("reserved_files")).intValue()<RESERVED_FILES)
             throw new IllegalStateException("Conversion quota reservation is missing");
 
@@ -191,7 +196,7 @@ public final class LibraryConversionOutputService {
                 charged_files=charged_files+2,reserved_bytes=reserved_bytes-:reservedBytes,
                 reserved_files=reserved_files-2,revision=revision+1
             WHERE account_id=:owner AND reserved_bytes>=:reservedBytes AND reserved_files>=2
-            """).param("actualBytes",actualBytes).param("reservedBytes",RESERVED_BYTES)
+            """).param("actualBytes",actualBytes).param("reservedBytes",reservedBytes)
             .param("owner",lease.ownerAccountId()).update();
         if(usageUpdated!=1) throw new IllegalStateException("Conversion quota accounting invariant violated");
 
