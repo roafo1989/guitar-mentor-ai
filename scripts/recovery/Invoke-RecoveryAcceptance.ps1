@@ -1,0 +1,261 @@
+#Requires -Version 7.4
+[CmdletBinding()]
+param(
+    [Parameter(Mandatory)][string]$ConfigPath,
+    [Parameter(Mandatory)][string]$WorkRoot,
+    [string]$Snapshot = 'latest',
+    [ValidateRange(30,300)][int]$ApplicationTimeoutSeconds = 120
+)
+$ErrorActionPreference = 'Stop'
+. (Join-Path $PSScriptRoot 'Recovery.Common.ps1')
+if (-not $IsWindows) { throw 'Используйте Windows / PowerShell 7.4+.' }
+
+$configPath = Expand-RecoveryPath $ConfigPath
+$config = Read-PilotJson $configPath
+Assert-RecoveryConfig $config
+$workRoot = Expand-RecoveryPath $WorkRoot
+foreach ($source in @($config.pilotRoot,$config.sourceRoot,$config.settingsRoot,$config.stageRoot)) {
+    if ($workRoot -eq $source -or $workRoot.StartsWith($source.TrimEnd('\') + '\',[StringComparison]::OrdinalIgnoreCase)) {
+        throw 'WorkRoot должен быть отдельным каталогом, вне рабочих данных и staging.'
+    }
+}
+$progressPath = Join-Path $workRoot 'acceptance-progress.local.json'
+$reportPath = Join-Path $workRoot 'recovery-acceptance-report.json'
+$restoreRoot = Join-Path $workRoot 'restored-set'
+$startedRun = [DateTime]::UtcNow
+$masterPassword = $null
+$secrets = $null
+$adminPassword = $null
+$stepName = 'Preflight'
+
+function Save-DrillReport([hashtable]$State, [string]$Result, [string]$Path, [string]$FailureCode = '') {
+    $now = [DateTime]::UtcNow
+    $manifest = $null
+    if (Test-Path -LiteralPath (Join-Path $State.destination 'gm-recovery-set.json')) {
+        try { $manifest = Read-PilotJson (Join-Path $State.destination 'gm-recovery-set.json') } catch {}
+    }
+    $ageMinutes = $null
+    if ($manifest -and $manifest.createdUtc) {
+        $ageMinutes = [math]::Round(($now - [DateTime]::Parse($manifest.createdUtc).ToUniversalTime()).TotalMinutes,1)
+    }
+    $dbSummary = @{}
+    foreach ($kind in @('pilot','dev')) {
+        if ($State.databases.ContainsKey($kind)) {
+            $step = "Restore$($kind.Substring(0,1).ToUpperInvariant())Database"
+            $dbSummary[$kind] = @{
+                status = if (Test-RecoveryProgressStep $State $step) { 'PASS' } else { 'NOT_RUN' }
+                tableCount = $State.databases[$kind].tableCount
+                rowCount = $State.databases[$kind].rowCount
+                flywayMigrationCount = $State.databases[$kind].flywayMigrationCount
+            }
+        }
+    }
+    $report = @{
+        schemaVersion=1;result=$Result;createdUtc=$State.startedUtc;completedUtc=$now.ToString('o')
+        durationSeconds=[math]::Round(($now - [DateTime]::Parse($State.startedUtc).ToUniversalTime()).TotalSeconds,1)
+        sourceDataAgeMinutes=$ageMinutes;snapshotShort=if ($State.snapshotId) { $State.snapshotId.Substring(0,8) } else { $null }
+        database=$dbSummary;libraryOriginalCount=if ($manifest) { @($manifest.databases.pilot.libraryReady).Count } else { $null }
+        steps=$State.steps;failureCode=$FailureCode
+        limitations=@('Только изолированная проверка; production/PILOT/DEV не изменялись.',
+            'Измерено время данного прогона, не полное время восстановления чистого ноутбука.',
+            'Проверка приложения локальная; Funnel, SMTP-доставка и внешние OAuth-провайдеры не проверялись.')
+    }
+    Write-RecoveryProgress $Path $report
+}
+
+function Get-DrillDbSummary([string]$Kind, [hashtable]$State, [hashtable]$Manifest,
+    [string]$Bin, [string]$AdminUser, [string]$AdminPassword) {
+    $entry = $State.databases[$Kind]
+    $target = @{host='127.0.0.1';port=[int]$entry.port;name=$entry.name;user=$entry.user}
+    $appPassword = [Net.NetworkCredential]::new('',(ConvertTo-SecureString $entry.passwordProtected)).Password
+    $admin = @{name='postgres';user=$AdminUser;host='127.0.0.1';port=[int]$entry.port}
+    $exists = (Invoke-RecoverySql $Bin $admin $AdminPassword "SELECT (EXISTS(SELECT 1 FROM pg_roles WHERE rolname='$($target.user)') OR EXISTS(SELECT 1 FROM pg_database WHERE datname='$($target.name)'))::int;").Trim()
+    if ($exists -eq '0') {
+        $actual = Restore-RecoveryDatabase $Bin (Join-Path $State.destination "databases/$Kind.dump") $Manifest.databases[$Kind] $target $appPassword $AdminUser $AdminPassword
+    } else {
+        $hasDb = (Invoke-RecoverySql $Bin $admin $AdminPassword "SELECT EXISTS(SELECT 1 FROM pg_database WHERE datname='$($target.name)')::int;").Trim()
+        $hasRole = (Invoke-RecoverySql $Bin $admin $AdminPassword "SELECT EXISTS(SELECT 1 FROM pg_roles WHERE rolname='$($target.user)')::int;").Trim()
+        if ($hasDb -ne '1' -or $hasRole -ne '1') {
+            throw 'Найден частично созданный изолированный объект БД/роль. Рабочие БД не затронуты; требуется удалить только созданные этим прогоном объекты и повторить этот этап.'
+        }
+        $actual = Get-RecoveryDatabaseSummary $Bin $target $appPassword
+        $expected = $Manifest.databases[$Kind]
+        foreach ($table in $expected.counts.Keys) {
+            if (-not $actual.counts.ContainsKey($table) -or $actual.counts[$table] -ne $expected.counts[$table]) {
+                throw 'Изолированная БД существует, но не совпадает с исходной копией; автоматическая перезапись запрещена.'
+            }
+        }
+        if ($actual.counts.Count -ne $expected.counts.Count -or $actual.flyway -ne $expected.flyway) {
+            throw 'Изолированная БД существует, но история Flyway/набор таблиц не совпадает; автоматическая перезапись запрещена.'
+        }
+    }
+    $rows = [long]0
+    foreach ($value in $actual.counts.Values) { $rows += [long]$value }
+    $State.databases[$Kind].tableCount = $actual.counts.Count
+    $State.databases[$Kind].rowCount = $rows
+    $State.databases[$Kind].flywayMigrationCount = @($actual.flyway | ConvertFrom-Json).Count
+    return $target
+}
+
+function Invoke-DrillApplicationSmoke([hashtable]$State, [hashtable]$Config, [hashtable]$Secrets,
+    [int]$TimeoutSeconds) {
+    $entry = $State.databases.pilot
+    $dbPassword = [Net.NetworkCredential]::new('',(ConvertTo-SecureString $entry.passwordProtected)).Password
+    $releaseState = Read-PilotJson (Join-Path $State.destination 'pilot/release-state.json')
+    $release = Join-Path $State.destination ("pilot/releases/" + $releaseState.current)
+    $jar = Join-Path $release 'app.jar'
+    $webRoot = Join-Path $release 'web'
+    if (-not (Test-Path -LiteralPath $jar) -or -not (Test-Path -LiteralPath (Join-Path $webRoot 'index.html'))) {
+        throw 'В восстановленной версии отсутствует JAR или web index.'
+    }
+    $index = Get-Content -LiteralPath (Join-Path $webRoot 'index.html') -Raw
+    $asset = [regex]::Match($index,'<script[^>]+src="([^"]+)"').Groups[1].Value
+    if ($asset -notmatch '^/assets/[^?#]+\.js$' -or -not (Test-Path -LiteralPath (Join-Path $webRoot $asset.TrimStart('/').Replace('/','\')))) {
+        throw 'Не найден JavaScript bundle восстановленного интерфейса.'
+    }
+    $listener = [Net.Sockets.TcpListener]::new([Net.IPAddress]::Loopback,0)
+    $listener.Start();$port=([Net.IPEndPoint]$listener.LocalEndpoint).Port;$listener.Stop()
+    $java=(Get-Command java.exe -ErrorAction Stop).Source
+    $settings = $Secrets.settings
+    $arguments = @('-jar',$jar,'--spring.profiles.active=secure,local-auth',
+        "--spring.config.additional-location=file:$((Join-Path $State.destination 'pilot/application-pilot.yml').Replace('\','/'))",
+        '--server.address=127.0.0.1',"--server.port=$port",
+        "--spring.datasource.url=jdbc:postgresql://127.0.0.1:$($entry.port)/$($entry.name)",
+        "--spring.datasource.username=$($entry.user)",'--guitar-mentor.security.enabled=true',
+        '--guitar-mentor.local-auth.unified-local=false',"--guitar-mentor.local-auth.public-origin=$($Config.origin)",
+        '--guitar-mentor.submissions.enabled=false','--guitar-mentor.library.enabled=false')
+    $info=[Diagnostics.ProcessStartInfo]::new()
+    $info.FileName=$java;$info.WorkingDirectory=$release;$info.UseShellExecute=$false
+    $info.RedirectStandardOutput=$true;$info.RedirectStandardError=$true
+    foreach($arg in $arguments){$null=$info.ArgumentList.Add($arg)}
+    $envValues=@{
+        SPRING_DATASOURCE_PASSWORD=$dbPassword
+        GUITAR_MENTOR_OIDC_CLIENT_ID=[string]$settings.clientId
+        GUITAR_MENTOR_OIDC_CLIENT_SECRET=[string]$settings.clientSecret
+        GUITAR_MENTOR_SMTP_HOST=[string]$settings.smtpHost
+        GUITAR_MENTOR_SMTP_PORT=[string]$settings.smtpPort
+        GUITAR_MENTOR_SMTP_USER=[string]$settings.smtpUser
+        GUITAR_MENTOR_SMTP_PASSWORD=[string]$settings.smtpSecret
+        GUITAR_MENTOR_MAIL_FROM=[string]$settings.mailFrom
+        GUITAR_MENTOR_SMTP_AUTH='true';GUITAR_MENTOR_SMTP_STARTTLS='true'
+        HTTP_PROXY='';HTTPS_PROXY='';ALL_PROXY=''
+    }
+    foreach($key in $envValues.Keys){$info.Environment[$key]=$envValues[$key]}
+    $process=[Diagnostics.Process]::new();$process.StartInfo=$info
+    try {
+        if(-not $process.Start()){throw 'Не удалось запустить восстановленный JAR.'}
+        $outTask=$process.StandardOutput.ReadToEndAsync();$errTask=$process.StandardError.ReadToEndAsync()
+        $client=[Net.Http.HttpClient]::new();$client.Timeout=[TimeSpan]::FromSeconds(3)
+        try {
+            $ready=$false
+            for($i=0;$i -lt $TimeoutSeconds;$i++){
+                if($process.HasExited){throw 'Восстановленное приложение завершилось до готовности.'}
+                try {
+                    $response=$client.GetAsync("http://127.0.0.1:$port/api/v1/csrf").GetAwaiter().GetResult()
+                    try {
+                        $body=$response.Content.ReadAsStringAsync().GetAwaiter().GetResult() | ConvertFrom-Json
+                        if([int]$response.StatusCode -eq 200 -and $body.token){$ready=$true;break}
+                    } finally {$response.Dispose()}
+                } catch {}
+                Start-Sleep -Seconds 1
+            }
+            if(-not $ready){throw 'Приложение не прошло локальную HTTP/CSRF-проверку за отведённое время.'}
+        } finally {$client.Dispose()}
+    } finally {
+        if(-not $process.HasExited){$process.Kill($true);$process.WaitForExit()}
+        $process.Dispose()
+    }
+    return @{status='PASS';http='PASS';csrf='PASS';webBundle='PASS';publicAccess='OFF'}
+}
+
+if (-not (Test-Path -LiteralPath $progressPath)) {
+    if (Test-Path -LiteralPath $workRoot) {
+        $existing = @(Get-ChildItem -LiteralPath $workRoot -Force)
+        if ($existing.Count -gt 0) { throw 'WorkRoot уже содержит файлы, но progress отсутствует. Выберите новый каталог.' }
+    } else { New-PrivateRecoveryDirectory $workRoot }
+    $masterPassword=Read-RecoveryPassword
+    $snapshots = @(Invoke-RecoveryRestic $config $masterPassword @('snapshots','--json','--tag','gm-dr-v1') $PSScriptRoot | ConvertFrom-Json -AsHashtable)
+    if (-not $snapshots.Count) { throw 'В облачном repository нет snapshot с тегом gm-dr-v1.' }
+    if ($Snapshot -eq 'latest') { $selected=$snapshots | Sort-Object time -Descending | Select-Object -First 1 }
+    else { $selected=$snapshots | Where-Object { $_.id -eq $Snapshot } | Select-Object -First 1 }
+    if (-not $selected -or $selected.id -notmatch '^[a-f0-9]{64}$') { throw 'Snapshot не найден. Укажите полный ID.' }
+    $state=@{schemaVersion=1;repository=$config.repository;snapshotId=$selected.id;snapshotTime=$selected.time
+        destination=$restoreRoot;startedUtc=[DateTime]::UtcNow.ToString('o');steps=@{};databases=@{}}
+    Write-RecoveryProgress $progressPath $state
+} else {
+    $state=Read-PilotJson $progressPath
+    if($state.schemaVersion -ne 1 -or $state.repository -ne $config.repository -or $state.destination -ne $restoreRoot) {
+        throw 'Progress относится к другой конфигурации/каталогу. Не переиспользуйте его; проверьте исходный прогон.'
+    }
+    $masterPassword=Read-RecoveryPassword
+}
+$adminSecure=Read-Host 'Пароль локального PostgreSQL администратора (не мастер-пароль копии)' -AsSecureString
+$adminPassword=[Net.NetworkCredential]::new('',$adminSecure).Password
+try {
+    $stepName='RestoreSnapshot'
+    if (-not (Test-RecoveryProgressStep $state $stepName)) {
+        Set-RecoveryProgressStep $state $stepName 'RUNNING' $progressPath
+        if (Test-Path -LiteralPath $restoreRoot) {
+            $null=Test-RecoverySet $restoreRoot
+        } else {
+            $nodes=Invoke-RecoveryRestic $config $masterPassword @('ls','--json',$state.snapshotId) $PSScriptRoot
+            $markers=@($nodes -split '\r?\n' | Where-Object {$_} | ForEach-Object {$_|ConvertFrom-Json -AsHashtable} |
+                Where-Object {$_.ContainsKey('name') -and $_.name -eq 'gm-recovery-set.json'})
+            if($markers.Count -ne 1){throw 'Не найден единственный манифест в выбранном snapshot.'}
+            $snapshotRoot=$markers[0].path.Substring(0,$markers[0].path.LastIndexOf('/'))
+            New-PrivateRecoveryDirectory $restoreRoot
+            $null=Invoke-RecoveryRestic $config $masterPassword @('restore',($state.snapshotId+':'+$snapshotRoot),'--target',$restoreRoot,'--verify') $PSScriptRoot
+        }
+        Set-RecoveryProgressStep $state $stepName 'PASS' $progressPath
+    }
+    $stepName='ValidateFiles'
+    if(-not (Test-RecoveryProgressStep $state $stepName)){
+        Set-RecoveryProgressStep $state $stepName 'RUNNING' $progressPath
+        $manifest=Test-RecoverySet $restoreRoot
+        Set-RecoveryProgressStep $state $stepName 'PASS' $progressPath "files=$($manifest.files.Count)"
+    } else {$manifest=Test-RecoverySet $restoreRoot}
+
+    $secrets=Unprotect-RecoverySecrets (Read-PilotJson (Join-Path $restoreRoot 'secrets.enc.json')) $masterPassword
+    foreach($kind in @('pilot','dev')){
+        if($kind -eq 'dev' -and -not $manifest.databases.ContainsKey('dev')){continue}
+        $stepName="Restore$($kind.Substring(0,1).ToUpperInvariant())Database"
+        if(-not $state.databases.ContainsKey($kind)){
+            $name='gm_dr_'+[guid]::NewGuid().ToString('N').Substring(0,16)
+            $password=[Convert]::ToHexString([Security.Cryptography.RandomNumberGenerator]::GetBytes(32))
+            $port=if($kind -eq 'pilot'){5432}else{[int]$config.devDatabase.port}
+            $state.databases[$kind]=@{name=$name;user=$name;port=$port
+                passwordProtected=(ConvertTo-SecureString $password -AsPlainText -Force | ConvertFrom-SecureString)
+                tableCount=0;rowCount=0;flywayMigrationCount=0}
+            Write-RecoveryProgress $progressPath $state
+            $password=$null
+        }
+        if(-not (Test-RecoveryProgressStep $state $stepName)){
+            Set-RecoveryProgressStep $state $stepName 'RUNNING' $progressPath
+            $null=Get-DrillDbSummary $kind $state $manifest $config.postgresBin 'postgres' $adminPassword
+            Set-RecoveryProgressStep $state $stepName 'PASS' $progressPath
+        } else {$null=Get-DrillDbSummary $kind $state $manifest $config.postgresBin 'postgres' $adminPassword}
+    }
+
+    $stepName='ApplicationSmoke'
+    if(-not (Test-RecoveryProgressStep $state $stepName)){
+        Set-RecoveryProgressStep $state $stepName 'RUNNING' $progressPath
+        $state.applicationSmoke=Invoke-DrillApplicationSmoke $state $config $secrets $ApplicationTimeoutSeconds
+        Set-RecoveryProgressStep $state $stepName 'PASS' $progressPath
+    }
+    Save-DrillReport $state 'PASS' $reportPath
+    Write-Host "Восстановление и локальный smoke пройдены. Обезличенный отчёт: $reportPath"
+    Write-Host "Длительность прогона: $([math]::Round(([DateTime]::UtcNow-$startedRun).TotalSeconds,1)) сек."
+} catch {
+    $failure=Get-RecoveryFailureHint $_.Exception.Message
+    if($state){
+        try {
+            Set-RecoveryProgressStep $state $stepName 'FAIL' $progressPath $failure
+            Save-DrillReport $state 'FAIL' $reportPath $stepName
+        } catch {}
+    }
+    Write-Error "Приёмочная проверка остановлена на этапе $stepName. Прогресс сохранён; повторный запуск продолжит с этого этапа. $failure Отчёт: $reportPath"
+    exit 1
+} finally {
+    if($secrets){$secrets.Clear()}
+    $masterPassword=$null;$adminPassword=$null
+}
