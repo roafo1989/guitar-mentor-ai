@@ -22,6 +22,11 @@ try {
   if (!stat.isFile() || stat.size < 1) fail('EMPTY_OR_INVALID_SOURCE');
   if (stat.size > MAX_INPUT) fail('SOURCE_TOO_LARGE');
   const bytes = fs.readFileSync(INPUT);
+  const expectedHeaders = { GP3: 'FICHIER GUITAR PRO v3.00', GP4: 'FICHIER GUITAR PRO v4.06', GP5: 'FICHIER GUITAR PRO v5.10' };
+  const headerLength = bytes[0];
+  const versionHeader = headerLength > 0 && headerLength <= 30 && bytes.length >= headerLength + 1
+    ? bytes.subarray(1, headerLength + 1).toString('ascii') : '';
+  if (versionHeader !== expectedHeaders[FORMAT]) fail('UNSUPPORTED_FORMAT_VERSION');
   const settings = new alphaTab.Settings();
   settings.core.engine = 'svg';
   settings.display.layoutMode = alphaTab.LayoutMode.Page;
