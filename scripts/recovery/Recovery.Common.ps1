@@ -115,6 +115,33 @@ function Get-RecoveryFailureHint([string]$ErrorText) {
     if ($ErrorText -match 'Обнаружена ошибка целостности') {
         return 'Обнаружена ошибка целостности. Не используйте эту копию для восстановления; сохраните диагностический отчёт.'
     }
+    # Provider-specific diagnostics for the first real cloud preflight. Only
+    # classify known-safe signatures; never echo raw rclone/restic stderr because
+    # provider errors can contain account identifiers, remote paths or tokens.
+    if ($ErrorText -match '(?i)wrong password or no key found|no key found for repository') {
+        return 'Мастер-пароль restic не подходит к этому облачному хранилищу. Не выполняйте Init: проверьте сохранённый пароль в менеджере паролей.'
+    }
+    if ($ErrorText -match '(?i)didn.t find section in config file|section .* not found|config file .* not found|failed to create file system.*config') {
+        return 'rclone не нашёл remote в указанном rclone.conf. Проверьте имя remote gm-backup и путь файла конфигурации; повторная авторизация пока не нужна.'
+    }
+    if ($ErrorText -match '(?i)invalid_grant|AADSTS[0-9]+|token.*(expired|refresh)|failed to.*(refresh|renew).*token|authorization.*expired|reauthori[sz]') {
+        return 'Авторизация OneDrive через rclone истекла или отклонена. Нужно повторно авторизовать существующий remote gm-backup; не создавайте новый remote и не запускайте Init.'
+    }
+    if ($ErrorText -match '(?i)driveNotFound|itemNotFound|couldn.t find.*drive|no drive found|drive.*not found') {
+        return 'OneDrive не разрешил доступ к выбранному диску/папке. Проверьте, что remote gm-backup указывает на личный OneDrive нужного аккаунта.'
+    }
+    if ($ErrorText -match '(?i)HTTP 429|status code 429|too many requests|throttl') {
+        return 'OneDrive временно ограничил частоту запросов. Подождите 10–15 минут и повторите только проверку облачного подключения.'
+    }
+    if ($ErrorText -match '(?i)HTTP 507|status code 507|insufficientStorage|quota exceeded|quota.*full') {
+        return 'В OneDrive закончилась доступная квота. Освободите место или увеличьте объём; существующие snapshot не удаляйте.'
+    }
+    if ($ErrorText -match '(?i)certificate verify failed|x509:|TLS handshake|certificate.*(invalid|expired)') {
+        return 'Не удалось установить защищённое TLS-соединение с облаком. Проверьте дату/время Windows, системные сертификаты и сетевой фильтр.'
+    }
+    if ($ErrorText -match '(?i)repository does not exist|config file does not exist|unable to open config file|Is there a repository at') {
+        return 'Restic не нашёл инициализированное хранилище по заданному адресу. Не запускайте Init автоматически: сначала нужно сверить remote и путь repository.'
+    }
     if ($ErrorText -match '(?i)not enough space|no space left|disk full|quota exceeded|there is insufficient space|недостаточно.*мест|квот.*превыш') {
         return 'Недостаточно места или превышена квота хранилища. Освободите место/увеличьте квоту и повторите только неуспешный шаг.'
     }
