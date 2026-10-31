@@ -59,7 +59,10 @@ try {
     }
     $shell = New-Object -ComObject WScript.Shell
     $desktop = [Environment]::GetFolderPath('Desktop')
-    $pwsh = [Environment]::ProcessPath
+    $commandShell = $env:ComSpec
+    if ([string]::IsNullOrWhiteSpace($commandShell) -or -not (Test-Path -LiteralPath $commandShell)) {
+        throw 'Не найден системный cmd.exe для ярлыков. Проверьте переменную ComSpec.'
+    }
     foreach ($item in @(
         @{file='Start-Pilot.ps1'; mode='Start'; title='Guitar Mentor — для друзей'},
         @{file='Update-Pilot.ps1'; mode='Update'; title='Обновить Guitar Mentor'},
@@ -70,8 +73,17 @@ try {
         $rootLiteral = $Root.Replace("'","''")
         "& '$scriptPath' -Mode $($item.mode) -Root '$rootLiteral'" | Set-Content -LiteralPath $entry -Encoding utf8
         $shortcut = $shell.CreateShortcut((Join-Path $desktop ($item.title + '.lnk')))
-        $shortcut.TargetPath = $pwsh
-        $shortcut.Arguments = '-NoProfile -File "' + $entry + '"'
+        $launcher = Join-Path $Root ($item.file -replace '\.ps1
+    }
+    Write-Host 'Готово: ярлыки запуска, обновления и возврата созданы. Текущая версия сохранена; сайт не запущен.'
+    if ($filesEnabled) { Write-Host 'Загрузки и библиотека включены. Файлы: data/attempts, data/scores, data/library.' }
+} finally { $lock.Dispose() }
+,'.cmd')
+        $launcherText = New-PilotShortcutCommand -Mode $item.mode
+        [IO.File]::WriteAllText($launcher, ($launcherText -replace "`r?`n", "`r`n") + "`r`n", [Text.Encoding]::ASCII)
+        $shortcut = $shell.CreateShortcut((Join-Path $desktop ($item.title + '.lnk')))
+        $shortcut.TargetPath = $commandShell
+        $shortcut.Arguments = '/d /c ""' + $launcher + '""'
         $shortcut.WorkingDirectory = $Root
         $shortcut.Save()
     }
