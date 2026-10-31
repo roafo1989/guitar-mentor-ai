@@ -79,6 +79,10 @@ public final class LibraryConversionProcessRunner {
         Path inputDir = Files.createDirectory(workspace.resolve("input"));
         Path outputDir = Files.createDirectory(workspace.resolve("output"));
         Path inputFile = inputDir.resolve("source.gp");
+        setPermissions(inputDir, EnumSet.of(PosixFilePermission.OWNER_READ, PosixFilePermission.OWNER_WRITE,
+                PosixFilePermission.OWNER_EXECUTE, PosixFilePermission.GROUP_READ,
+                PosixFilePermission.GROUP_EXECUTE, PosixFilePermission.OTHERS_READ,
+                PosixFilePermission.OTHERS_EXECUTE));
         Files.copy(source, inputFile, StandardCopyOption.COPY_ATTRIBUTES);
         setPermissions(inputFile, EnumSet.of(PosixFilePermission.OWNER_READ,
                 PosixFilePermission.GROUP_READ, PosixFilePermission.OTHERS_READ));
@@ -232,6 +236,14 @@ public final class LibraryConversionProcessRunner {
         }
         if (!signature.equals(new String(header, java.nio.charset.StandardCharsets.US_ASCII)))
             throw new IOException("Invalid conversion output signature");
+        if ("RIFF".equals(signature)) {
+            try (var input = Files.newInputStream(file)) {
+                input.skipNBytes(8);
+                byte[] wave = input.readNBytes(4);
+                if (!"WAVE".equals(new String(wave, java.nio.charset.StandardCharsets.US_ASCII)))
+                    throw new IOException("Invalid WAV container");
+            }
+        }
     }
 
     private static void setPermissions(Path path, java.util.Set<PosixFilePermission> permissions) throws IOException {
