@@ -43,7 +43,8 @@ try {
   const guitarTracks = [];
   for (let i = 0; i < score.tracks.length; i++) {
     const track = score.tracks[i];
-    if (track.staves?.some(staff => staff.isStringed)) {
+    if (track.staves?.some(staff => staff.isStringed
+        && JSON.stringify(staff.tuning) === JSON.stringify([64, 59, 55, 50, 45, 40]))) {
       guitarTracks.push({ trackIndex: i, name: String(track.name || 'Guitar').slice(0, 80), guitar: true, instrument: 'Guitar' });
     }
   }
