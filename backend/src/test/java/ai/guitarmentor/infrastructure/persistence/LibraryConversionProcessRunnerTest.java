@@ -89,7 +89,8 @@ class LibraryConversionProcessRunnerTest {
     }
 
     private LibraryConversionProcessRunner runner(Path docker) {
-        return new LibraryConversionProcessRunner(docker.toString(), "gm-conversion-worker:170b",
+        String executable = System.getProperty("gm.test.docker", docker.toString());
+        return new LibraryConversionProcessRunner(executable, "gm-conversion-worker:170b",
                 temp.resolve("work").toString(), new ObjectMapper());
     }
 
@@ -138,7 +139,7 @@ class LibraryConversionProcessRunnerTest {
             // Values are injected through a wrapper script to avoid changing global process state.
             try {
                 Path wrapper = docker.resolveSibling("docker-wrapper.sh");
-                Files.writeString(wrapper, "#!/bin/sh\\nGM_DOCKER_ARGS='" + args + "' GM_STUB_MODE='" + mode
+                Files.writeString(wrapper, "#!/bin/sh\nGM_DOCKER_ARGS='" + args + "' GM_STUB_MODE='" + mode
                         + "' exec '" + docker + "' \"$@\"\\n");
                 Files.setPosixFilePermissions(wrapper, Set.of(PosixFilePermission.OWNER_READ,
                         PosixFilePermission.OWNER_WRITE, PosixFilePermission.OWNER_EXECUTE));
