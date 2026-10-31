@@ -514,3 +514,22 @@ function Switch-PilotRelease([string]$Root, [hashtable]$Config, [hashtable]$Stat
         throw
     }
 }
+
+function New-PilotShortcutCommand([ValidateSet('Start','Update','Rollback')][string]$Mode) {
+    # Resolve pwsh at launch time; MSIX updates can move the versioned WindowsApps path.
+    @(
+        '@echo off'
+        'setlocal'
+        'where.exe pwsh.exe >nul 2>nul'
+        'if errorlevel 1 ('
+        '  echo ERROR: PowerShell 7.4 or later (pwsh.exe) was not found on PATH.'
+        '  echo Install PowerShell 7.4 or later and ensure pwsh.exe is available on PATH.'
+        '  pause'
+        '  exit /b 9009'
+        ')'
+        ('pwsh.exe -NoLogo -NoProfile -File "%~dp0' + $Mode + '-Pilot.ps1"')
+        'set "pilotExit=%ERRORLEVEL%"'
+        'if not "%pilotExit%"=="0" pause'
+        'exit /b %pilotExit%'
+    ) -join "`r`n"
+}
