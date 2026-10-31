@@ -8,6 +8,13 @@ import java.io.OutputStream;
 import java.nio.ByteBuffer;
 import java.nio.ByteOrder;
 import java.util.Arrays;
+import java.util.concurrent.ArrayBlockingQueue;
+import java.util.concurrent.ExecutionException;
+import java.util.concurrent.Future;
+import java.util.concurrent.RejectedExecutionException;
+import java.util.concurrent.ThreadPoolExecutor;
+import java.util.concurrent.TimeUnit;
+import java.util.concurrent.TimeoutException;
 import javazoom.jl.decoder.Bitstream;
 import javazoom.jl.decoder.Decoder;
 import javazoom.jl.decoder.Header;
@@ -25,6 +32,11 @@ public final class LibraryMediaInspector {
     public static final int MAX_SIDE = 12_000;
     public static final long MAX_DURATION_MILLIS = 10 * 60 * 1000L;
     private static final byte[] PNG = {(byte) 0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a};
+    private static final ThreadPoolExecutor MP3_DECODERS = new ThreadPoolExecutor(
+            2,2,0L,TimeUnit.MILLISECONDS,new ArrayBlockingQueue<>(2),r -> {
+                Thread t=new Thread(r,"library-mp3-decoder"); t.setDaemon(true); return t;
+            },new ThreadPoolExecutor.AbortPolicy());
+    private static final long MP3_DECODE_TIMEOUT_SECONDS = 30L;
 
     private LibraryMediaInspector() {}
 
@@ -210,12 +222,38 @@ public final class LibraryMediaInspector {
 
     private static void verifyMp3Payload(byte[] bytes,int start,int end,int expectedFrames,
             int expectedRate,int expectedChannels) throws IOException {
-        Bitstream stream = new Bitstream(new ByteArrayInputStream(Arrays.copyOfRange(bytes,start,end)));
-        Decoder decoder = new Decoder();
+        Future<Integer> future;
+        try {
+            byte[] frames=Arrays.copyOfRange(bytes,start,end);
+            future=MP3_DECODERS.submit(() -> decodeMp3Frames(frames,expectedRate,expectedChannels));
+        } catch(RejectedExecutionException e) {
+            throw new InvalidMedia("MP3_DECODER_BUSY",e);
+        }
+        try {
+            int decoded=future.get(MP3_DECODE_TIMEOUT_SECONDS,TimeUnit.SECONDS);
+            if(decoded!=expectedFrames) throw new InvalidMedia("MP3_FRAME_COUNT_MISMATCH");
+        } catch(TimeoutException e) {
+            future.cancel(true);
+            throw new InvalidMedia("MP3_DECODE_TIMEOUT",e);
+        } catch(InterruptedException e) {
+            future.cancel(true);
+            Thread.currentThread().interrupt();
+            throw new InvalidMedia("MP3_DECODE_INTERRUPTED",e);
+        } catch(ExecutionException e) {
+            Throwable cause=e.getCause();
+            if(cause instanceof InvalidMedia invalid) throw invalid;
+            throw new InvalidMedia("MP3_FRAME_DECODE_FAILED",cause);
+        }
+    }
+
+    private static int decodeMp3Frames(byte[] frames,int expectedRate,int expectedChannels) throws Exception {
+        Bitstream stream=new Bitstream(new ByteArrayInputStream(frames));
+        Decoder decoder=new Decoder();
         int decodedFrames=0;
         try {
             Header header;
             while((header=stream.readFrame())!=null) {
+                if(Thread.currentThread().isInterrupted()) throw new InvalidMedia("MP3_DECODE_INTERRUPTED");
                 SampleBuffer output=(SampleBuffer)decoder.decodeFrame(header,stream);
                 if(output.getBufferLength()<=0 || output.getSampleFrequency()!=expectedRate
                         || output.getChannelCount()!=expectedChannels)
@@ -223,6 +261,7 @@ public final class LibraryMediaInspector {
                 decodedFrames++;
                 stream.closeFrame();
             }
+            return decodedFrames;
         } catch(InvalidMedia e) {
             throw e;
         } catch(Exception | LinkageError e) {
@@ -230,7 +269,6 @@ public final class LibraryMediaInspector {
         } finally {
             try { stream.close(); } catch(Exception ignored) { /* bounded in-memory source */ }
         }
-        if(decodedFrames!=expectedFrames) throw new InvalidMedia("MP3_FRAME_COUNT_MISMATCH");
     }
 
     private static boolean validMp3Header(byte[] b, int p) {
