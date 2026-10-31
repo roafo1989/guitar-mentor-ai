@@ -142,7 +142,11 @@ class LibraryOriginalHttpPostgresTest {
         mvc.perform(org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get("/api/v1/library/capabilities")
             .with(identity).sessionAttr("guitarMentorAccessVersion",0L))
             .andExpect(status().isOk()).andExpect(jsonPath("$.enabled").value(false))
-            .andExpect(jsonPath("$.roles.length()").value(0));
+            .andExpect(jsonPath("$.roles.length()").value(0))
+            .andExpect(jsonPath("$.maxFilesPerRequest").value(0))
+            .andExpect(jsonPath("$.maxFilesPerMaterial").value(5))
+            .andExpect(jsonPath("$.maxAudio").value(0))
+            .andExpect(jsonPath("$.maxRequestBytes").value(0));
         mvc.perform(org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get(
             "/api/v1/library/materials/"+material+"/files/"+asset+"/content")
             .with(identity).sessionAttr("guitarMentorAccessVersion",0L))
