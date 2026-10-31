@@ -4,7 +4,7 @@
 |---|---|---|
 | 0.1 | 31.10.2026 | Анализ после завершения FT-013-01/#169; подготовлен контракт первого инкремента 170-A. |
 | 0.2 | 31.10.2026 | Уточнены PostgreSQL test harness, оценка 10ч и граница 170-A. |
-| 0.3 | 31.10.2026 | Приведена схема в соответствие с V33/Java API; отражены фактические DB slots и результаты CI. |
+| 0.3 | 31.10.2026 | Приведена схема в соответствие с V33/Java API; отражены фактические DB slots и результаты CI. |\n| 0.4 | 01.11.2026 | Добавлены 170-B worker contract и 170-C persistence, lineage, quota reservation и recovery. |
 
 ## 1. Назначение и границы
 
@@ -196,7 +196,7 @@ Java ProcessBuilder запускает Docker напрямую без shell, с 
 
 ### 8.3 Граница 170-B
 
-PR #260 добавляет container image, CLI worker, Java execution adapter, focused tests и CI с независимыми synthetic GP3/4/5 fixtures. Runner пока не подключён к durable queue и не завершает job state: это намеренно отнесено к 170-C вместе с атомарной записью private derived assets, quota reservation/finalization, lineage и cleanup. Image должен быть заранее установлен на host; job execution не скачивает его. Windows Docker Desktop и production rollout не считаются проверенными.
+PR #260 добавляет container image, CLI worker, Java execution adapter, focused tests и CI с независимыми synthetic GP3/4/5 fixtures. Runner пока не подключён к durable queue. 170-C предоставляет атомарную запись private derived assets, quota reservation/finalization, lineage и cleanup; полный polling/dispatch orchestration остаётся в 170-E. Image должен быть заранее установлен на host; job execution не скачивает его. Windows Docker Desktop и production rollout не считаются проверенными.
 
 Feature flag `GUITAR_MENTOR_LIBRARY_CONVERSION_ENABLED` остаётся false до завершения 170-C/170-D/170-E и отдельной эксплуатационной приёмки.
 
