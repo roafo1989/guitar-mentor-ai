@@ -64,9 +64,12 @@ public class CommunityWorkController {
     }
     private void check(long actual,long expected) {if(actual!=expected) throw new Failure(412,"REVISION_CONFLICT");}
     private void event(UUID work,UUID actor,String action,UUID old,UUID next,String reason,UUID request) {
-        jdbc.sql("INSERT INTO community_work_events(id,work_id,actor_account_id,action,previous_work_id,new_work_id,reason_code,request_id) VALUES(:id,:work,:actor,:action,:old,:next,:reason,:request)")
+        event(work,actor,action,old,next,reason,request,null,null);
+    }
+    private void event(UUID work,UUID actor,String action,UUID old,UUID next,String reason,UUID request,String previousStatus,String newStatus) {
+        jdbc.sql("INSERT INTO community_work_events(id,work_id,actor_account_id,action,previous_work_id,new_work_id,reason_code,request_id,previous_status,new_status) VALUES(:id,:work,:actor,:action,:old,:next,:reason,:request,:ps,:ns)")
             .param("id",UUID.randomUUID()).param("work",work).param("actor",actor).param("action",action)
-            .param("old",old).param("next",next).param("reason",reason).param("request",request).update();
+            .param("old",old).param("next",next).param("reason",reason).param("request",request).param("ps",previousStatus).param("ns",newStatus).update();
     }
     // Per-actor/key transaction advisory lock serializes concurrent first requests without
     // taking an account FK lock in the inverse order of publish/delete material locks.
@@ -99,7 +102,7 @@ public class CommunityWorkController {
         String t=text(payload.title(),true), ar=text(payload.artist(),false),sig="candidate|"+t.length()+":"+t+ar;
         var previous=replay(a,k,sig);
         if(previous!=null) {var w=work((UUID)previous.get("result_id"),false); return ok(w,w.revision());}
-        Work w=create(a,t,ar,"CANDIDATE"); event(w.id(),a,"CREATE",null,w.id(),"",k); operation(a,k,sig,w.id(),1);
+        Work w=create(a,t,ar,"CANDIDATE"); event(w.id(),a,"CREATE",null,w.id(),"",k,null,"CANDIDATE"); operation(a,k,sig,w.id(),1);
         return ok(w,1);
     }
     @GetMapping("/api/v1/community/work-candidates/{id}")
@@ -117,7 +120,7 @@ public class CommunityWorkController {
         Work w=work(id,true); check(w.revision(),rev);
         if(!w.status().equals("CANDIDATE")) throw new Failure(409,"WORK_STATE_CONFLICT");
         jdbc.sql("UPDATE community_works SET identity_status='VERIFIED',revision=revision+1,updated_at=now() WHERE id=:id").param("id",id).update();
-        event(id,a,"VERIFY",id,id,reason,UUID.randomUUID()); return ok(work(id,false),rev+1);
+        event(id,a,"VERIFY",id,id,reason,UUID.randomUUID(),w.status(),"VERIFIED"); return ok(work(id,false),rev+1);
     }
     public record Metadata(String title,String artist,String reason) {}
     @PatchMapping("/api/v1/admin/community/works/{id}") @Transactional
@@ -136,7 +139,7 @@ public class CommunityWorkController {
         Work w=work(id,true);check(w.revision(),rev);
         if(w.status().equals("RETIRED")) throw new Failure(409,"WORK_STATE_CONFLICT");
         jdbc.sql("UPDATE community_works SET identity_status='RETIRED',revision=revision+1,updated_at=now() WHERE id=:id").param("id",id).update();
-        event(id,a,"RETIRE",id,id,r,UUID.randomUUID());return ok(work(id,false),rev+1);
+        event(id,a,"RETIRE",id,id,r,UUID.randomUUID(),w.status(),"RETIRED");return ok(work(id,false),rev+1);
     }
     private long lockMaterial(UUID a,UUID id) {
         return jdbc.sql("SELECT revision FROM library_materials WHERE id=:id AND owner_account_id=:a AND state='READY' FOR UPDATE")

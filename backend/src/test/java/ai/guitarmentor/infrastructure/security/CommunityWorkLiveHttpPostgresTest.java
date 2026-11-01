@@ -104,7 +104,13 @@ class CommunityWorkLiveHttpPostgresTest {
         assertEquals(401,guest.request("GET",detail,null,Map.of()).statusCode());
         assertEquals(200,alice.request("DELETE",la,null,headers("2")).statusCode());
         assertEquals(2,JSON.readTree(bob.request("GET",detail,null,Map.of()).body()).path("publications").size());
-        assertEquals(202,alice.request("DELETE","/api/v1/library/materials/"+ma.path("id").asText(),null,headers("3")).statusCode());
+        var deletionPool=java.util.concurrent.Executors.newFixedThreadPool(2);
+        try {
+            var deleted=deletionPool.submit(()->alice.request("DELETE","/api/v1/library/materials/"+ma.path("id").asText(),null,headers("3")));
+            var withdrawn=deletionPool.submit(()->secondAlice.request("POST","/api/v1/library/materials/"+ma.path("id").asText()+"/publications/"+pa.path("id").asText()+"/withdraw","{}",headers("1")));
+            var d=deleted.get(30,java.util.concurrent.TimeUnit.SECONDS);var w=withdrawn.get(30,java.util.concurrent.TimeUnit.SECONDS);
+            assertEquals(202,d.statusCode(),d.body());assertEquals(200,w.statusCode(),w.body());
+        } finally {deletionPool.shutdownNow();}
         var remaining=JSON.readTree(bob.request("GET",detail,null,Map.of()).body()).path("publications");assertEquals(1,remaining.size());assertEquals(pb.path("id").asText(),remaining.get(0).path("id").asText());
         String media="/api/v1/community/publications/"+pb.path("id").asText()+"/files/"+mb.path("files").get(0).path("id").asText()+"/content";
         assertEquals(200,bob.request("GET",media,null,Map.of()).statusCode());

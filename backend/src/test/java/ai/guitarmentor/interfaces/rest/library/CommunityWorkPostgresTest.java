@@ -90,6 +90,8 @@ class CommunityWorkPostgresTest {
         error("IDEMPOTENCY_KEY_REUSED",()->works.candidate(ar,key,new CommunityWorkController.Identity("Different","Synthetic")));
         works.verify(owner,w.id(),"\"1\"",new CommunityWorkController.Reason("manual source reference"));
         error("REVISION_CONFLICT",()->works.metadata(owner,w.id(),"\"1\"",new CommunityWorkController.Metadata("Corrected","Synthetic","manual source")));
+        assertEquals("CANDIDATE",jdbc.sql("SELECT previous_status FROM community_work_events WHERE work_id=:id AND action='VERIFY'").param("id",w.id()).query(String.class).single());
+        assertEquals("VERIFIED",jdbc.sql("SELECT new_status FROM community_work_events WHERE work_id=:id AND action='VERIFY'").param("id",w.id()).query(String.class).single());
         var m=material(a);works.attach(ar,m.id(),"\"1\"",UUID.randomUUID().toString(),new CommunityWorkController.LinkRequest(w.id()));var p=publish(ar,m,2);
         assertEquals(1,works.search(ar,w.title(),1,null).getBody().items().size());
         publications.hide(owner,p.id(),"\"1\"",new LibraryPublicationController.HideRequest("synthetic moderation"));
