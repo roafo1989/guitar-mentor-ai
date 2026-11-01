@@ -29,6 +29,26 @@ const activeJob = computed(() => !!job.value && ["QUEUED","RUNNING","AWAITING_TR
 const canCancel = computed(() => !!job.value && ["QUEUED","RUNNING","AWAITING_TRACK_SELECTION"].includes(job.value.state));
 const canRetry = computed(() => !!job.value && ["FAILED","TIMED_OUT"].includes(job.value.state) && job.value.retryable);
 const storageKey = () => "gm.conversion." + (auth.actor?.accountId ?? "anonymous") + "." + props.material.id;
+const pendingStorageKey = () => storageKey() + ".pending";
+function readPending(): { key: string; sourceAssetId: string; revision: number } | null {
+  try {
+    const raw = sessionStorage.getItem(pendingStorageKey());
+    if (!raw) return null;
+    const value: unknown = JSON.parse(raw);
+    if (!value || typeof value !== "object") return null;
+    const item = value as Record<string, unknown>;
+    if (typeof item.key !== "string" || !/^[0-9a-f-]{36}$/i.test(item.key)
+        || typeof item.sourceAssetId !== "string" || !/^[0-9a-f-]{36}$/i.test(item.sourceAssetId)
+        || !Number.isSafeInteger(item.revision) || Number(item.revision) < 1) return null;
+    return { key: item.key, sourceAssetId: item.sourceAssetId, revision: Number(item.revision) };
+  } catch { return null; }
+}
+function storePending(value: { key: string; sourceAssetId: string; revision: number }) {
+  try { sessionStorage.setItem(pendingStorageKey(), JSON.stringify(value)); } catch { /* Current view still works without session storage. */ }
+}
+function clearPending() {
+  try { sessionStorage.removeItem(pendingStorageKey()); } catch { /* Ignore unavailable storage. */ }
+}
 function readStored(): string {
   try { return sessionStorage.getItem(storageKey()) ?? ""; } catch { return ""; }
 }
@@ -130,18 +150,37 @@ async function restore() {
   const owner = auth.actor?.accountId;
   if (!owner) return;
   const id = readStored();
-  if (!id) return;
+  const pending = id ? null : readPending();
+  if (!id && !pending) return;
   const ticket = generation;
   const request = requestController();
   busy.value = true;
   try {
-    const existing = await conversionService.get(props.material.id, id, request.signal);
-    if (isCurrent(ticket, owner)) await applyJob(existing, ticket, owner);
+    if (id) {
+      const existing = await conversionService.get(props.material.id, id, request.signal);
+      if (isCurrent(ticket, owner)) await applyJob(existing, ticket, owner);
+    } else if (pending) {
+      const sourceExists = props.material.files.some(file => file.id === pending.sourceAssetId
+        && file.role === "SCORE_ORIGINAL" && file.processingState === "READY" && supported.has(file.format));
+      if (!sourceExists) { clearPending(); return; }
+      // Replay the same idempotent POST if the page was reloaded before its response arrived.
+      const replay = await conversionService.create({ ...props.material, revision: pending.revision },
+        pending.sourceAssetId, pending.key, request.signal);
+      if (isCurrent(ticket, owner)) {
+        storeJob(replay.id);
+        clearPending();
+        await applyJob(replay, ticket, owner);
+      }
+    }
   } catch (cause) {
     if (isCurrent(ticket, owner) && !request.signal.aborted) {
-      if (cause instanceof ConversionFailure && cause.status === 404) {
+      if (cause instanceof ConversionFailure && cause.status === 404 && id) {
         try { sessionStorage.removeItem(storageKey()); } catch { /* Ignore unavailable storage. */ }
-      } else error.value = errorMessage(cause);
+      } else {
+        if (pending && cause instanceof ConversionFailure && cause.status !== 503 && cause.status !== null)
+          clearPending();
+        error.value = errorMessage(cause);
+      }
     }
   } finally {
     if (isCurrent(ticket, owner)) busy.value = false;
@@ -166,17 +205,22 @@ async function start(source: LibraryFile) {
   busy.value = true;
   error.value = "";
   notice.value = "";
+  storePending({ key: pendingKey, sourceAssetId: source.id, revision: props.material.revision });
   const request = requestController();
   try {
     const created = await conversionService.create(props.material, source.id, pendingKey, request.signal);
     if (!isCurrent(ticket, owner)) return;
     storeJob(created.id);
+    clearPending();
     pendingKey = "";
     pendingFingerprint = "";
     selectedTrack.value = null;
     await applyJob(created, ticket, owner);
   } catch (cause) {
-    if (isCurrent(ticket, owner) && !request.signal.aborted) error.value = errorMessage(cause);
+    if (isCurrent(ticket, owner) && !request.signal.aborted) {
+      if (cause instanceof ConversionFailure && cause.status !== 503 && cause.status !== null) clearPending();
+      error.value = errorMessage(cause);
+    }
   } finally {
     if (isCurrent(ticket, owner)) busy.value = false;
   }
