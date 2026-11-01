@@ -117,8 +117,9 @@ async function poll(ticket = generation, owner = auth.actor?.accountId) {
   } catch (cause) {
     if (isCurrent(ticket, owner) && !request.signal.aborted) {
       error.value = errorMessage(cause);
-      // A transient GET failure does not discard the known job; continue with a slower retry.
-      timer = setTimeout(() => { void poll(ticket, owner); }, 4000);
+      // Do not hammer an endpoint explicitly disabled by the server.
+      if (!(cause instanceof ConversionFailure && cause.status === 503))
+        timer = setTimeout(() => { void poll(ticket, owner); }, 4000);
     }
   }
 }
