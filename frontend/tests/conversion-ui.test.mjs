@@ -2,6 +2,7 @@ import test from "node:test";
 import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
 import ts from "typescript";
+import { createRenderer, reactive, h, nextTick } from "vue";
 import { ApiFailure, isArrayOf, isObject, isString, isUuid } from "../src/shared/api-failure.ts";
 
 const read = path => readFileSync(new URL("../" + path, import.meta.url), "utf8");
@@ -169,5 +170,123 @@ function renderer() {
     if (i >= 0) siblings.splice(i, 1);
     n.parent = null;
   };
-  return (awaitRenderer => awaitRenderer) && null;
+  return createRenderer({
+    createElement: node,
+    createText: value => ({ ...node("#text"), text: value }),
+    createComment: value => ({ ...node("#comment"), text: value }),
+    setText(n, value) { n.text = value; },
+    setElementText(n, value) { n.text = value; n.children = []; },
+    patchProp(n, key, _old, value) { n.props[key] = value; },
+    insert(n, parent, anchor = null) {
+      if (n.parent) remove(n);
+      n.parent = parent;
+      const i = parent.children.indexOf(anchor);
+      if (i < 0) parent.children.push(n); else parent.children.splice(i, 0, n);
+    },
+    remove, parentNode: n => n.parent,
+    nextSibling: n => n.parent?.children[n.parent.children.indexOf(n) + 1] ?? null,
+  });
 }
+async function flushVue() { for (let i = 0; i < 10; i++) { await Promise.resolve(); await nextTick(); } }
+
+test("mounted conversion panel creates, selects, cancels, retries and restores a job per account", async () => {
+  const originalStorage = globalThis.sessionStorage;
+  const values = new Map();
+  globalThis.sessionStorage = {
+    getItem: key => values.get(key) ?? null,
+    setItem: (key, value) => values.set(key, String(value)),
+    removeItem: key => values.delete(key),
+  };
+  const auth = reactive({ actor: { accountId: "A" } });
+  const calls = [];
+  const queued = { ...job, state: "QUEUED", revision: 1 };
+  const awaiting = { ...job, state: "AWAITING_TRACK_SELECTION", revision: 2,
+    tracks: [{ trackIndex: 3, name: "Guitar", guitar: true, instrument: "SteelString" }] };
+  const fresh = { id: materialId, title: "Test", type: "COMPOSITION", author: null,
+    state: "READY", visibility: "PRIVATE", reviewStatus: "UNREVIEWED", revision: 8,
+    createdAt: "2026-11-01T00:00:00Z", updatedAt: "2026-11-01T00:00:00Z",
+    files: [
+      { id: pdfId, originalName: "score.pdf", format: "PDF", byteSize: 5, role: "DERIVED_SCORE_PDF" },
+      { id: audioId, originalName: "preview.wav", format: "WAV", byteSize: 5, role: "SYNTHESIZED_PREVIEW" },
+    ] };
+  const api = {
+    async create(...args) { calls.push(["create", ...args]); return queued; },
+    async get(...args) { calls.push(["get", ...args]); return { ...queued, state: "RUNNING", revision: 4 }; },
+    async selectTrack(...args) { calls.push(["selectTrack", ...args]); return { ...queued, revision: 3 }; },
+    async cancel(...args) { calls.push(["cancel", ...args]); return { ...queued, state: "CANCEL_REQUESTED", revision: 5 }; },
+    async retry(...args) { calls.push(["retry", ...args]); return { ...queued, revision: 6 }; },
+    async refreshMaterial(...args) { calls.push(["refreshMaterial", ...args]); return fresh; },
+  };
+  globalThis.__conversionPanelAuth = auth;
+  globalThis.__conversionPanelApi = api;
+  globalThis.__conversionPanelFailure = class extends Error {
+    constructor(status, code, kind = "HTTP") { super(kind); this.status = status; this.code = code; this.kind = kind; }
+  };
+  const source = { id: sourceId, originalName: "song.gp5", format: "GP5",
+    role: "SCORE_ORIGINAL", processingState: "READY" };
+  const material = { id: materialId, revision: 7, files: [source] };
+  let app, binding, emitted;
+  try {
+    const Base = await loadPanel();
+    const Wrapper = { setup() {
+      binding = Base.setup({ material }, { emit: (event, value) => { if (event === "updated") emitted = value; } });
+      return () => h("section");
+    } };
+    app = renderer().createApp(Wrapper);
+    app.mount({ tag: "root", children: [], parent: null });
+    await flushVue();
+    await binding.start(source);
+    assert.equal(binding.job.value.id, jobId);
+    assert.equal(calls[0][0], "create");
+    assert.equal(calls[0][2], sourceId);
+    assert.equal(calls[0][3], 7);
+    assert.ok(values.has("gm.conversion.A." + materialId));
+
+    binding.job.value = awaiting;
+    binding.selectedTrack.value = 3;
+    binding.chooseTrack();
+    await flushVue();
+    assert.ok(calls.some(c => c[0] === "selectTrack" && c[2] === 3));
+
+    binding.job.value = { ...queued, state: "RUNNING", revision: 4 };
+    binding.cancel();
+    await flushVue();
+    assert.ok(calls.some(c => c[0] === "cancel"));
+
+    binding.job.value = { ...queued, state: "FAILED", retryable: true, revision: 5 };
+    binding.retry();
+    await flushVue();
+    assert.ok(calls.some(c => c[0] === "retry"));
+
+    const succeeded = { ...queued, state: "SUCCEEDED", pdfAssetId: pdfId,
+      audioAssetId: audioId, revision: 9 };
+    await binding.applyJob(succeeded, binding.generation, "A");
+    assert.equal(emitted, fresh);
+    assert.equal(binding.notice.value, "conversion.completed");
+    app.unmount();
+    app = null;
+
+    // The stored job is recovered in the same tab after remount/page reload.
+    const Wrapper2 = { setup() {
+      binding = Base.setup({ material }, { emit: () => {} });
+      return () => h("section");
+    } };
+    app = renderer().createApp(Wrapper2);
+    app.mount({ tag: "root", children: [], parent: null });
+    await flushVue();
+    assert.ok(calls.some(c => c[0] === "get" && c[1] === materialId && c[2] === jobId));
+    assert.equal(binding.job.value.state, "RUNNING");
+
+    auth.actor = { accountId: "B" };
+    await flushVue();
+    assert.equal(binding.job.value, null, "account switch clears previous private job state");
+    app.unmount();
+    app = null;
+  } finally {
+    app?.unmount();
+    globalThis.sessionStorage = originalStorage;
+    delete globalThis.__conversionPanelAuth;
+    delete globalThis.__conversionPanelApi;
+    delete globalThis.__conversionPanelFailure;
+  }
+});
