@@ -2,7 +2,7 @@
 import { computed, onBeforeUnmount, ref, watch } from "vue";
 import { useI18n } from "vue-i18n";
 import { auth } from "../../core/auth/auth";
-import { libraryService, type LibraryFile, type LibraryMaterial } from "./library.service";
+import type { LibraryMaterial } from "./library.service";
 import { ConversionFailure, conversionService, type ConversionJob } from "./conversion.service";
 import { libraryError } from "./library-errors";
 
@@ -206,16 +206,6 @@ function cancel() {
 function retry() {
   void mutate(() => conversionService.retry(job.value!, controller?.signal));
 }
-function download(file: LibraryFile) {
-  const materialId = props.material.id, owner = auth.actor?.accountId, ticket = generation;
-  error.value = "";
-  busy.value = true;
-  const request = requestController();
-  void libraryService.download(materialId, file,
-    () => isCurrent(ticket, owner), request.signal)
-    .catch(cause => { if (isCurrent(ticket, owner)) error.value = errorMessage(cause); })
-    .finally(() => { if (isCurrent(ticket, owner)) busy.value = false; });
-}
 function stateLabel(state: string): string {
   return te("conversion.states." + state) ? t("conversion.states." + state) : t("conversion.states.UNKNOWN");
 }
@@ -223,11 +213,6 @@ function stageLabel(stage: string | null): string {
   if (!stage) return "";
   return te("conversion.stages." + stage) ? t("conversion.stages." + stage) : t("conversion.stages.UNKNOWN");
 }
-const resultFiles = computed(() => {
-  if (job.value?.state !== "SUCCEEDED") return [];
-  return props.material.files.filter(file =>
-    file.id === job.value?.pdfAssetId || file.id === job.value?.audioAssetId);
-});
 </script>
 
 <template>
@@ -270,10 +255,7 @@ const resultFiles = computed(() => {
       <div v-if="job.state === 'SUCCEEDED'" class="conversion-result">
         <strong>{{ t("conversion.ready") }}</strong>
         <p>{{ t("conversion.resultHint") }}</p>
-        <button v-for="file in resultFiles" :key="file.id" type="button"
-          :disabled="busy" @click="download(file)">
-          {{ t(file.role === "DERIVED_SCORE_PDF" ? "conversion.downloadPdf" : "conversion.downloadAudio") }}
-        </button>
+        <p>{{ t("conversion.downloadHint") }}</p>
       </div>
       <p v-if="job.state === 'UNSUPPORTED'" class="conversion-error">{{ t("conversion.unsupported") }}</p>
       <div class="conversion-actions">
