@@ -239,7 +239,7 @@ test("mounted conversion panel creates, selects, cancels, retries and restores a
     assert.equal(binding.job.value.id, jobId);
     assert.equal(calls[0][0], "create");
     assert.equal(calls[0][2], sourceId);
-    assert.equal(calls[0][3], 7);
+    assert.equal(calls[0][1].revision, 7);
     assert.ok(values.has("gm.conversion.A." + materialId));
 
     binding.job.value = awaiting;
