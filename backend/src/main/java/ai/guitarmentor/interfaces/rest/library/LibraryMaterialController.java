@@ -188,6 +188,14 @@ public class LibraryMaterialController {
                     .param("actor",account).update();
             }
         }
+        if(jdbc!=null) {
+            jdbc.sql("""
+                INSERT INTO community_work_events(id,work_id,actor_account_id,action,previous_work_id,reason_code,request_id)
+                SELECT :event,work_id,:actor,'DELETE_DETACH',work_id,'MATERIAL_DELETE',:request
+                FROM library_material_work_links WHERE material_id=:id
+                """).param("event",UUID.randomUUID()).param("actor",account).param("request",UUID.randomUUID()).param("id",id).update();
+            jdbc.sql("DELETE FROM library_material_work_links WHERE material_id=:id").param("id",id).update();
+        }
         repository.queueDeletion(id);
         return ResponseEntity.accepted().cacheControl(CacheControl.noStore())
             .body(new Deleting(id,"DELETING"));

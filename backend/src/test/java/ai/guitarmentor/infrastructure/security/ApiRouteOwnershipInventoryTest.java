@@ -72,6 +72,13 @@ class ApiRouteOwnershipInventoryTest {
                     || path.equals("/api/v1/community/publications/{publicationId}/hide")
                     || path.equals("/api/v1/admin/catalog/publications/{publicationId}/hide"))
                     continue; // #165: authenticated PUBLISHED+READY checks per object; hide requires OWNER and audit.
+                if (Set.of("/api/v1/community/works", "/api/v1/community/works/{id}",
+                        "/api/v1/community/work-candidates", "/api/v1/community/work-candidates/{id}",
+                        "/api/v1/admin/community/works/{id}", "/api/v1/admin/community/works/{id}/verify",
+                        "/api/v1/admin/community/works/{id}/retire", "/api/v1/admin/community/works/{id}/split",
+                        "/api/v1/admin/community/works/{id}/split/dry-run").contains(path))
+                    continue; // #204: admitted published-only read; creator/OWNER candidate review;
+                              // OWNER identity commands + If-Match, reason, persisted split plan and audit.
                 if (SHARED_API.contains(path)) continue;
                 unclassified.add(method.getBeanType().getSimpleName() + " " + path);
             }
