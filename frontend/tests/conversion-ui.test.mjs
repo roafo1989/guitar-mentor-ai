@@ -2,7 +2,7 @@ import test from "node:test";
 import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
 import ts from "typescript";
-import { isArrayOf, isObject, isString, isUuid } from "../src/shared/api-failure.ts";
+import { ApiFailure, isArrayOf, isObject, isString, isUuid } from "../src/shared/api-failure.ts";
 
 const read = path => readFileSync(new URL("../" + path, import.meta.url), "utf8");
 const source = read("src/entities/library/conversion.service.ts");
@@ -18,7 +18,7 @@ function serviceHarness() {
   }).outputText;
   const exports = {};
   new Function("require", "exports", code)((id) => {
-    if (id === "../../shared/api-failure") return { isArrayOf, isObject, isString, isUuid };
+    if (id === "../../shared/api-failure") return { ApiFailure, isArrayOf, isObject, isString, isUuid };
     if (id === "./library.service") return { validMaterial: value => !!value };
     throw Error("unexpected dependency " + id);
   }, exports);
