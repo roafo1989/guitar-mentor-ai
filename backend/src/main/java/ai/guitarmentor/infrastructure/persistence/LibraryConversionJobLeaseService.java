@@ -33,7 +33,7 @@ public final class LibraryConversionJobLeaseService {
         this.leaseSeconds = leaseSeconds;
     }
 
-    public record Lease(int slotNumber, UUID jobId, UUID ownerAccountId,
+    public record Lease(int slotNumber, UUID jobId, UUID ownerAccountId, UUID materialId,
             UUID sourceAssetId, String sourceSha256, String sourceFormat,
             long sourceByteSize, int attemptCount, UUID leaseOwner) {}
 
@@ -50,7 +50,7 @@ public final class LibraryConversionJobLeaseService {
             if (slots.isEmpty()) return null;
             int slot = slots.getFirst();
             List<Map<String,Object>> jobs = jdbc.sql("""
-                SELECT id,owner_account_id,source_asset_id,source_sha256,source_format,
+                SELECT id,owner_account_id,material_id,source_asset_id,source_sha256,source_format,
                        source_byte_size,attempt_count
                 FROM library_conversion_jobs
                 WHERE state='QUEUED'
@@ -76,7 +76,7 @@ public final class LibraryConversionJobLeaseService {
                 WHERE id=:job AND state='QUEUED'
                 """).param("attempts", attempts).param("job", jobId).update();
             return new Lease(slot, jobId, (UUID) job.get("owner_account_id"),
-                (UUID) job.get("source_asset_id"), ObjectsText.value(job.get("source_sha256")),
+                (UUID) job.get("material_id"), (UUID) job.get("source_asset_id"), ObjectsText.value(job.get("source_sha256")),
                 ObjectsText.value(job.get("source_format")),
                 ((Number) job.get("source_byte_size")).longValue(), attempts, workerId);
         });
