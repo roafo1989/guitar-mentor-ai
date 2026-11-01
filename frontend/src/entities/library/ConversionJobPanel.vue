@@ -23,7 +23,6 @@ let pendingFingerprint = "";
 const supported = new Set(["GP3", "GP4", "GP5"]);
 const sources = computed(() => props.material.files.filter(file =>
   file.role === "SCORE_ORIGINAL" && file.processingState === "READY" && supported.has(file.format)));
-const terminal = computed(() => !!job.value && ["SUCCEEDED","UNSUPPORTED","FAILED","TIMED_OUT","CANCELLED"].includes(job.value.state));
 const startableSources = computed(() => sources.value.filter(file =>
   !(job.value?.sourceAssetId === file.id && ["SUCCEEDED","UNSUPPORTED","FAILED","TIMED_OUT"].includes(job.value.state))));
 const canCancel = computed(() => !!job.value && ["QUEUED","RUNNING","AWAITING_TRACK_SELECTION"].includes(job.value.state));
