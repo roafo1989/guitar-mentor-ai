@@ -12,10 +12,18 @@ participant "LibraryObjectStore" as Store
 Student -> UI: Convert original GP
 UI -> API: POST conversion-jobs\nIdempotency-Key + If-Match + sourceAssetId
 API -> DB: Lock owner material + source asset
-API -> DB: Check owner, role, format, state, SHA, quota
+API -> DB: Check owner, role, format, state, SHA, active job
 API -> DB: Insert QUEUED job + request fingerprint
 DB --> API: jobId, revision
 API --> UI: 202 Accepted + job URL
+UI -> UI: Store jobId in account/material-scoped sessionStorage
+
+loop QUEUED / RUNNING / CANCEL_REQUESTED
+  UI -> API: GET job (poll every 1.8s)
+  API -> DB: Owner-scoped read
+  DB --> API: State, stage, progress, revision
+  API --> UI: Current job snapshot
+end
 
 Worker -> DB: Claim slot + QUEUED job\nFOR UPDATE SKIP LOCKED
 DB --> Worker: leaseOwner, leaseUntil, source snapshot
@@ -29,11 +37,13 @@ alt Several guitar tracks
   API -> DB: Read owner-scoped job
   DB --> API: state + safe track catalog
   API --> UI: AWAITING_TRACK_SELECTION + tracks
+  UI -> UI: Stop polling; wait for explicit user choice
   Student -> UI: Select track
   UI -> API: POST track-selection + If-Match
   API -> DB: Validate trackIndex; state QUEUED
   DB --> API: Updated revision
   API --> UI: Selection accepted
+UI -> UI: Resume polling
   Worker -> DB: Claim slot + selected job
 else One guitar track
   Worker -> DB: Save automatic selection; continue
@@ -48,14 +58,30 @@ Worker -> DB: Atomic commit both assets + SUCCEEDED\nonly if leaseOwner/revision
 UI -> API: GET conversion job
 API -> DB: Read owner-scoped job
 DB --> API: SUCCEEDED + output asset IDs
-API --> UI: PDF/WAV links
+API --> UI: SUCCEEDED + PDF/WAV asset IDs
+UI -> API: GET private material detail
+API -> DB: Owner-scoped read of refreshed assets
+DB --> API: DERIVED_SCORE_PDF + SYNTHESIZED_PREVIEW
+API --> UI: Refreshed material DTO
+UI -> UI: Verify both asset IDs/roles; show PDF reader + WAV player
 
 opt Cancel
   Student -> UI: Cancel
   UI -> API: POST cancel
   API -> DB: CANCEL_REQUESTED
+  API --> UI: Updated state + revision
   Worker -> Renderer: Stop process; cleanup scratch
   Worker -> DB: CANCELLED; release lease/slot
+  UI -> API: GET final job state
+  API --> UI: CANCELLED
+end
+
+opt Retry FAILED / TIMED_OUT when retryable
+  Student -> UI: Retry
+  UI -> API: POST retry + If-Match
+  API -> DB: Validate state, retryable and attempt limit
+  API --> UI: QUEUED + new revision
+  UI -> UI: Resume polling
 end
 
 opt Failure / timeout

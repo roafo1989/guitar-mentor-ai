@@ -140,7 +140,7 @@ async function view(asset: LibraryFile | PublicationAsset, download = false) {
           {{ t("library.download") }}
         </button>
       </template>
-      <p v-if="asset.role === 'SCORE_ORIGINAL' && asset.format !== 'PDF'">
+      <p v-if="asset.role === 'SCORE_ORIGINAL' && (kind === 'publication' || !['GP3', 'GP4', 'GP5'].includes(asset.format))">
         {{ t("community.noConversion") }}
       </p>
       <ScoreReader

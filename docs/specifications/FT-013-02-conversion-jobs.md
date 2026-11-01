@@ -4,8 +4,9 @@
 |---|---|---|
 | 0.1 | 31.10.2026 | Анализ после завершения FT-013-01/#169; подготовлен контракт первого инкремента 170-A. |
 | 0.2 | 31.10.2026 | Уточнены PostgreSQL test harness, оценка 10ч и граница 170-A. |
-| 0.3 | 31.10.2026 | Приведена схема в соответствие с V33/Java API; отражены фактические DB slots и результаты CI. |\n| 0.4 | 01.11.2026 | Добавлены 170-B worker contract и 170-C persistence, lineage, quota reservation и recovery. |
-
+| 0.3 | 31.10.2026 | Приведена схема в соответствие с V33/Java API; отражены фактические DB slots и результаты CI. |
+| 0.4 | 01.11.2026 | Добавлены 170-B worker contract и 170-C persistence, lineage, quota reservation и recovery. |
+| 0.5 | 01.11.2026 | Добавлен пользовательский Vue workflow 170-D: запуск, выбор дорожки, polling, отмена/повтор и результат. |
 ## 1. Назначение и границы
 
 Документ описывает production-контур конвертации оригинального Guitar Pro в приватные производные PDF (ноты + TAB) и WAV. Исследование #169 доказало только ограниченный subset:
@@ -228,3 +229,33 @@ Feature flag `GUITAR_MENTOR_LIBRARY_CONVERSION_ENABLED` остаётся false �
 PostgreSQL integration tests добавлены для успешной пары + lineage/quota, отказа на некорректном WAV без частичных записей и recovery резерва после истечения lease.
 
 **Граница 170-C:** этот инкремент предоставляет безопасный транзакционный слой persistence. Полный цикл polling/dispatch renderer и обработка всех terminal/error/cancel сценариев остаются частью 170-E; Vue UX — 170-D. Feature flags не включаются, production rollout не выполняется.
+
+
+## 10. Инкремент 170-D — пользовательский интерфейс конвертации (01.11.2026)
+
+Реализация ведётся в дочерней задаче [#263](https://github.com/roafo1989/guitar-mentor-ai/issues/263), PR [#264](https://github.com/roafo1989/guitar-mentor-ai/pull/264).
+
+### 10.1 Встраивание в библиотеку
+
+- Конвертация доступна из деталей личного материала, рядом с оригиналами. Общая/опубликованная библиотека не получает действия конвертации.
+- Действие показывается только для READY-файлов роли SCORE_ORIGINAL форматов GP3, GP4, GP5.
+- Перед созданием job UI передаёт sourceAssetId, UUID Idempotency-Key и If-Match с текущей revision материала.
+- При нескольких гитарных дорожках пользователь выбирает конкретную; автоматического выбора первой дорожки нет.
+- Состояние, этап, процент, попытка, безопасный код ошибки и доступные действия выводятся в локализованной панели.
+- Cancel доступен для QUEUED/RUNNING/AWAITING_TRACK_SELECTION; retry — только для FAILED/TIMED_OUT при retryable=true.
+- Job ID хранится в sessionStorage с ключом, изолированным accountId + materialId. До POST в sessionStorage сохраняются pending Idempotency-Key, sourceAssetId и revision; если вкладка перезагрузилась до получения ответа, UI повторяет тот же идемпотентный POST и получает исходную job. При обычном повторном открытии/перезагрузке UI восстанавливает job через owner-scoped GET. Список всех jobs API не добавляется.
+- Polling идёт с интервалом 1.8 секунды только для QUEUED/RUNNING/CANCEL_REQUESTED; временная ошибка GET приводит к более редкому повтору; 503 feature-disabled прекращает автоматические повторы. Запросы и таймеры прекращаются при смене аккаунта/материала и unmount.
+- При SUCCEEDED UI повторно загружает material detail и сверяет обе роли/ID производных файлов. Файлы отображаются штатным LibraryAssets: PDF открывается штатным PDF reader, WAV — встроенным аудиоплеером; скачивание использует только проверенный same-origin URL.
+- Если серверный feature flag выключен (503), UI явно сообщает, что конвертация недоступна; исходник остаётся доступен. UI не включает feature flag.
+
+### 10.2 Безопасность и границы
+
+- Не доверять произвольным URL, путям, stdout/stderr или текстам ошибок сервера. Ошибки отображаются по HTTP status и allow-listed machine code.
+- Session storage содержит только UUID job, без содержимого файла, owner secrets или media URLs; accountId присутствует только в namespace ключа.
+- UI не создаёт публикаций и не изменяет исходный asset.
+- Поддерживаемый формат и музыкальный subset остаются ограниченными GP3/4/5; UI не обещает поддержку GPX/GP7/GP8 и сложных музыкальных конструкций.
+- Полный orchestration, Windows Docker Desktop, расширенные musical/adversarial tests и эксплуатационные gates остаются в 170-E. Production exposure запрещён.
+
+### 10.3 Проверки 170-D
+
+Frontend tests покрывают schema validation job DTO, headers/owner-scoped routes для create/get/track-selection/cancel/retry, allow-listed errors, account-scoped session recovery contract, polling cleanup, RU/EN labels и private-only integration. Полный browser/manual verification выполняется отдельно на этапе приёмки; backend feature flag остаётся выключенным, поэтому реальный worker запуск в production не проверяется.

@@ -12,6 +12,7 @@ import {
 } from "./community.service";
 import { libraryError } from "./library-errors";
 import LibraryAssets from "./LibraryAssets.vue";
+import ConversionJobPanel from "./ConversionJobPanel.vue";
 import { declaredRights, type RightsForm } from "./publication-rights";
 const props = defineProps<{ material: LibraryMaterial }>(),
   emit = defineEmits<{ updated: [material: LibraryMaterial] }>();
@@ -423,6 +424,7 @@ async function refresh() {
         </p>
       </details>
     </template>
+    <ConversionJobPanel :material="material" @updated="emit('updated', $event)" />
     <LibraryAssets kind="material" :id="material.id" :assets="material.files" />
     <details v-if="activePublication">
       <summary>{{ t("community.snapshot") }}</summary>
