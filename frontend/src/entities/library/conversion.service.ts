@@ -1,4 +1,4 @@
-import { isArrayOf, isObject, isString, isUuid } from "../../shared/api-failure";
+import { ApiFailure, isArrayOf, isObject, isString, isUuid, type ApiFailureKind } from "../../shared/api-failure";
 import { validMaterial, type LibraryMaterial } from "./library.service";
 
 export interface ConversionTrack {
@@ -28,9 +28,9 @@ export interface ConversionJob {
   createdAt: string;
   updatedAt: string;
 }
-export class ConversionFailure extends Error {
-  constructor(readonly status: number | null, readonly code: string | null, kind = "HTTP") {
-    super(kind === "HTTP" ? "CONVERSION_HTTP_" + status : kind);
+export class ConversionFailure extends ApiFailure {
+  constructor(status: number | null, code: string | null, kind: ApiFailureKind = "HTTP") {
+    super(kind, status, code);
     this.name = "ConversionFailure";
   }
 }
