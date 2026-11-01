@@ -4,7 +4,7 @@ export type MaterialType = 'EXERCISE' | 'ETUDE' | 'COMPOSITION' | 'OTHER';
 export interface LibraryFile {
   id: string; originalName: string; format: string; byteSize: number;
   sha256: string; validationStatus: string; downloadUrl: string;
-  role: 'SCORE_ORIGINAL' | 'PHOTO_ORIGINAL' | 'ORIGINAL_RECORDING' | 'SYNTHESIZED_PREVIEW';
+  role: 'SCORE_ORIGINAL' | 'DERIVED_SCORE_PDF' | 'PHOTO_ORIGINAL' | 'ORIGINAL_RECORDING' | 'SYNTHESIZED_PREVIEW';
   mediaType: string; processingState: string; previewAvailable: boolean;
   previewUrl: string | null; previewReasonCode: string | null;
   durationMillis: number | null; channels: number | null; sampleRate: number | null; width: number | null; height: number | null;
@@ -27,7 +27,7 @@ function validFile(value: unknown): value is LibraryFile {
     && Number.isSafeInteger(value.byteSize) && value.byteSize > 0
     && isString(value.sha256) && isString(value.validationStatus)
     && isString(value.downloadUrl)
-    && ['SCORE_ORIGINAL','PHOTO_ORIGINAL','ORIGINAL_RECORDING','SYNTHESIZED_PREVIEW'].includes(String(value.role))
+    && ['SCORE_ORIGINAL','DERIVED_SCORE_PDF','PHOTO_ORIGINAL','ORIGINAL_RECORDING','SYNTHESIZED_PREVIEW'].includes(String(value.role))
     && isString(value.mediaType) && ['READY','REJECTED','DELETING','PROCESSING'].includes(String(value.processingState))
     && typeof value.previewAvailable === 'boolean' && (value.previewUrl === null || isString(value.previewUrl))
     && (value.previewReasonCode === null || isString(value.previewReasonCode))
