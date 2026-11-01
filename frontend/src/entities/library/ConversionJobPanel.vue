@@ -24,6 +24,8 @@ const supported = new Set(["GP3", "GP4", "GP5"]);
 const sources = computed(() => props.material.files.filter(file =>
   file.role === "SCORE_ORIGINAL" && file.processingState === "READY" && supported.has(file.format)));
 const terminal = computed(() => !!job.value && ["SUCCEEDED","UNSUPPORTED","FAILED","TIMED_OUT","CANCELLED"].includes(job.value.state));
+const startableSources = computed(() => sources.value.filter(file =>
+  !(job.value?.sourceAssetId === file.id && ["SUCCEEDED","UNSUPPORTED","FAILED","TIMED_OUT"].includes(job.value.state))));
 const canCancel = computed(() => !!job.value && ["QUEUED","RUNNING","AWAITING_TRACK_SELECTION"].includes(job.value.state));
 const canRetry = computed(() => !!job.value && ["FAILED","TIMED_OUT"].includes(job.value.state) && job.value.retryable);
 const storageKey = () => "gm.conversion." + (auth.actor?.accountId ?? "anonymous") + "." + props.material.id;
@@ -220,8 +222,8 @@ function stageLabel(stage: string | null): string {
   <section v-if="sources.length || job" class="conversion-panel" :aria-label="t('conversion.title')">
     <h3>{{ t("conversion.title") }}</h3>
     <p class="conversion-help">{{ t("conversion.scope") }}</p>
-    <div v-if="sources.length && (!job || terminal)" class="conversion-actions">
-      <button v-for="source in sources" :key="source.id" type="button"
+    <div v-if="startableSources.length" class="conversion-actions">
+      <button v-for="source in startableSources" :key="source.id" type="button"
         :disabled="busy" @click="start(source)">
         {{ t("conversion.create") }} · {{ source.originalName }}
       </button>
