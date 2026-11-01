@@ -107,6 +107,9 @@ test("private library recognizes derived PDF and mounts conversion UI only on pr
   assert.match(sharing, /emit\('updated', \$event\)/);
   assert.match(panel, /auth\.actor\?\.accountId/);
   assert.match(panel, /sessionStorage/);
+  assert.match(panel, /storePending/);
+  assert.match(panel, /readPending/);
+  assert.match(panel, /same idempotent POST if the page was reloaded/);
   assert.match(panel, /setTimeout/);
   assert.match(panel, /clearTimeout/);
   assert.match(panel, /onBeforeUnmount/);
