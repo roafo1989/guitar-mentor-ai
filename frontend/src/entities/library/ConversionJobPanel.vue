@@ -61,12 +61,13 @@ function requestController(): AbortController {
 }
 function errorMessage(cause: unknown): string {
   if (cause instanceof ConversionFailure) {
+    if (cause.kind === "INVALID_RESPONSE") return t("conversion.invalidResponse");
+    if (cause.kind === "NETWORK") return t("conversion.network");
     if (cause.status === 503) return t("conversion.unavailable");
     if (cause.status === 412 || cause.status === 428) return t("conversion.stale");
     if (cause.status === 409) return t("conversion.conflict");
     if (cause.status === 404) return t("conversion.notFound");
     if (cause.status === 413 || cause.status === 415) return t("conversion.unsupported");
-    if (cause.status === null) return t("conversion.network");
     if (cause.code && te("conversion.errors." + cause.code)) return t("conversion.errors." + cause.code);
   }
   return libraryError(cause, t);
