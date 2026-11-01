@@ -1,4 +1,4 @@
-import { ApiFailure, isArrayOf, isObject, isString, isUuid } from "../../shared/api-failure";
+import { isArrayOf, isObject, isString, isUuid } from "../../shared/api-failure";
 import { validMaterial, type LibraryMaterial } from "./library.service";
 
 export interface ConversionTrack {
