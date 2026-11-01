@@ -1,5 +1,5 @@
 import { ApiFailure, isArrayOf, isObject, isString, isUuid } from "../../shared/api-failure";
-import type { LibraryMaterial } from "./library.service";
+import { validMaterial, type LibraryMaterial } from "./library.service";
 
 export interface ConversionTrack {
   trackIndex: number;
@@ -133,7 +133,6 @@ export const conversionService = {
     if (!response.ok) throw new ConversionFailure(response.status, null);
     let body: unknown;
     try { body = await response.json(); } catch { throw new ConversionFailure(response.status, null, "INVALID_RESPONSE"); }
-    const { validMaterial } = await import("./library.service");
     if (!validMaterial(body)) throw new ConversionFailure(response.status, null, "INVALID_RESPONSE");
     return body;
   },
