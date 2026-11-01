@@ -49,7 +49,7 @@ public class LibraryPublicationController {
     @com.fasterxml.jackson.annotation.JsonInclude(com.fasterxml.jackson.annotation.JsonInclude.Include.NON_NULL)
     public record Publication(UUID id,UUID materialId,UUID ownerAccountId,long version,long sourceRevision,
             String title,String type,String author,String state,long revision,List<AssetSnapshot> assets,
-            List<String> tags) {}
+            List<String> tags,UUID workId) {}
     public record HideRequest(String reason) {}
 
     private CurrentActor actor(HttpServletRequest request) {
@@ -107,7 +107,7 @@ public class LibraryPublicationController {
             includePrivateEvidence?(UUID)row.get("owner_account_id"):null,((Number)row.get("version")).longValue(),
             ((Number)row.get("material_revision")).longValue(),(String)row.get("title"),(String)row.get("material_type"),
             (String)row.get("author"),(String)row.get("state"),
-            ((Number)row.get("publication_revision")).longValue(),files,tags);
+            ((Number)row.get("publication_revision")).longValue(),files,tags,(UUID)row.get("work_id"));
     }
 
 
@@ -234,8 +234,8 @@ public class LibraryPublicationController {
         jdbc.sql("""
             INSERT INTO library_publications
               (id,material_id,owner_account_id,version,material_revision,idempotency_key,
-               request_fingerprint,title,material_type,author,state)
-            VALUES(:id,:material,:owner,:version,:revision,:key,:fingerprint,:title,:type,:author,'PUBLISHED')
+               request_fingerprint,title,material_type,author,state,work_id)
+            VALUES(:id,:material,:owner,:version,:revision,:key,:fingerprint,:title,:type,:author,'PUBLISHED',(SELECT work_id FROM library_material_work_links WHERE material_id=:material))
             """).param("id",pub).param("material",materialId).param("owner",owner)
             .param("version",latest+1).param("revision",currentRevision)
             .param("key",key).param("fingerprint",signature)
