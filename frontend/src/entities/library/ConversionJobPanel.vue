@@ -14,7 +14,7 @@ const selectedTrack = ref<number | null>(null);
 const busy = ref(false);
 const error = ref("");
 const notice = ref("");
-const active = ref(true);
+let active = true;
 let generation = 0;
 let timer: ReturnType<typeof setTimeout> | null = null;
 let controller: AbortController | null = null;
@@ -210,8 +210,9 @@ function download(file: LibraryFile) {
   const materialId = props.material.id, owner = auth.actor?.accountId, ticket = generation;
   error.value = "";
   busy.value = true;
+  const request = requestController();
   void libraryService.download(materialId, file,
-    () => isCurrent(ticket, owner), controller?.signal)
+    () => isCurrent(ticket, owner), request.signal)
     .catch(cause => { if (isCurrent(ticket, owner)) error.value = errorMessage(cause); })
     .finally(() => { if (isCurrent(ticket, owner)) busy.value = false; });
 }
