@@ -39,22 +39,22 @@ const uuid = (v: unknown): v is string => isUuid(v);
 const nullableUuid = (v: unknown): v is string | null => v === null || uuid(v);
 function validTrack(v: unknown): v is ConversionTrack {
   return isObject(v) && Number.isSafeInteger(v.trackIndex) && Number(v.trackIndex) >= 0
-    && isString(v.name) && typeof v.guitar === "boolean"
-    && (v.instrument === null || v.instrument === undefined || isString(v.instrument));
+    && isString(v.name) && v.name.length <= 120 && typeof v.guitar === "boolean"
+    && (v.instrument === null || v.instrument === undefined || (isString(v.instrument) && v.instrument.length <= 80));
 }
 export function validConversionJob(v: unknown): v is ConversionJob {
   return isObject(v) && uuid(v.id) && uuid(v.materialId) && uuid(v.sourceAssetId)
-    && isString(v.sourceFormat)
+    && ["GP3","GP4","GP5"].includes(String(v.sourceFormat))
     && ["QUEUED","RUNNING","AWAITING_TRACK_SELECTION","CANCEL_REQUESTED","SUCCEEDED",
       "UNSUPPORTED","FAILED","TIMED_OUT","CANCELLED"].includes(String(v.state))
     && (v.stage === null || v.stage === undefined || isString(v.stage))
     && Number.isSafeInteger(v.progress) && Number(v.progress) >= 0 && Number(v.progress) <= 100
-    && isArrayOf(v.tracks, validTrack)
+    && Array.isArray(v.tracks) && v.tracks.length <= 64 && isArrayOf(v.tracks, validTrack)
     && (v.selectedTrackIndex === null || v.selectedTrackIndex === undefined || (Number.isSafeInteger(v.selectedTrackIndex) && Number(v.selectedTrackIndex) >= 0))
     && typeof v.cancelRequested === "boolean"
     && Number.isSafeInteger(v.attemptCount) && Number(v.attemptCount) >= 0
     && typeof v.retryable === "boolean"
-    && (v.errorCode === null || v.errorCode === undefined || isString(v.errorCode))
+    && (v.errorCode === null || v.errorCode === undefined || (isString(v.errorCode) && /^[A-Z0-9_]{1,64}$/.test(v.errorCode)))
     && (nullableUuid(v.pdfAssetId) || v.pdfAssetId === undefined)
     && (nullableUuid(v.audioAssetId) || v.audioAssetId === undefined)
     && Number.isSafeInteger(v.revision) && Number(v.revision) >= 1
