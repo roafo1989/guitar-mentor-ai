@@ -925,7 +925,8 @@
       "SCORE_ORIGINAL": "Score / Guitar Pro",
       "PHOTO_ORIGINAL": "Score photo",
       "ORIGINAL_RECORDING": "Recording",
-      "SYNTHESIZED_PREVIEW": "Synthesized example"
+      "SYNTHESIZED_PREVIEW": "Synthesized example",
+      "DERIVED_SCORE_PDF": "Generated score (PDF)"
     },
     "bases": {
       "OWN_WORK": "My own work",
@@ -973,5 +974,67 @@
     "sourcePlaceholder": "Source link, license name or explanation of the distribution basis.",
     "optionalAuthor": "Author or source credit (optional, visible to others)",
     "addCredit": "Add author credit"
+  },
+  "conversion": {
+    "title": "Guitar Pro conversion",
+    "scope": "Supported: GP3, GP4 and GP5; a simple single-voice part in 4/4, standard EADGBE tuning and quarter notes. Rests, repeats, complex rhythms, effects and alternate tunings are not supported yet.",
+    "create": "Create score and audio",
+    "unavailable": "Conversion is currently unavailable. Your original file is safe and can still be downloaded.",
+    "stale": "The material changed. Refresh the page and try again.",
+    "conflict": "Another conversion is already active for your library, or this action is not available in the current state.",
+    "notFound": "The conversion job was not found. Refresh the material.",
+    "unsupported": "This file or musical construction is not supported yet. Your original has not been changed.",
+    "network": "Could not reach the server. Check your connection and refresh the job status.",
+    "invalidResponse": "The server returned an invalid job state.",
+    "invalidResult": "Could not confirm both output files. Your original is safe.",
+    "refreshFailed": "Conversion finished, but the file list could not be refreshed. Use Refresh in your library.",
+    "completed": "Your score and audio are ready. The original is kept separately.",
+    "progress": "Conversion progress",
+    "attempt": "Attempt: {count}",
+    "selectTrack": "Several guitar tracks were found. Choose the track you want to convert.",
+    "guitarTracks": "Guitar tracks",
+    "trackNumber": "Track {number}",
+    "chooseTrack": "Choose a guitar track.",
+    "confirmTrack": "Continue with this track",
+    "ready": "Result ready",
+    "resultHint": "The PDF score with notation and tablature and the WAV audio preview are saved in this private library.",
+    "downloadPdf": "Download score (PDF)",
+    "downloadAudio": "Download audio (WAV)",
+    "cancel": "Cancel conversion",
+    "retry": "Retry conversion",
+    "refresh": "Refresh status",
+    "working": "Processing job…",
+    "failed": "Conversion failed. Your original has not been changed.",
+    "states": {
+      "QUEUED": "Queued",
+      "RUNNING": "In progress",
+      "AWAITING_TRACK_SELECTION": "Waiting for track selection",
+      "CANCEL_REQUESTED": "Stopping…",
+      "SUCCEEDED": "Completed",
+      "UNSUPPORTED": "Not supported",
+      "FAILED": "Failed",
+      "TIMED_OUT": "Timed out",
+      "CANCELLED": "Cancelled",
+      "UNKNOWN": "Job status"
+    },
+    "stages": {
+      "VALIDATING_SOURCE": "Validating source file",
+      "IMPORTING_SCORE": "Reading the score",
+      "RENDERING_PDF": "Rendering notation and tablature",
+      "SYNTHESIZING_AUDIO": "Creating audio preview",
+      "VERIFYING_OUTPUTS": "Verifying outputs",
+      "UNKNOWN": "Processing"
+    },
+    "errors": {
+      "CONVERSION_SOURCE_ROLE_UNSUPPORTED": "The selected file is not an original Guitar Pro file.",
+      "CONVERSION_FORMAT_UNSUPPORTED": "Only GP3, GP4 and GP5 are supported.",
+      "CONVERSION_SOURCE_NOT_READY": "The source file is not ready for processing.",
+      "CONVERSION_SOURCE_TOO_LARGE": "The source file exceeds the allowed size.",
+      "CONVERSION_JOB_ALREADY_ACTIVE": "You already have an active conversion job.",
+      "CONVERSION_RETRY_NOT_ALLOWED": "This job cannot be retried.",
+      "CONVERSION_TRACK_NOT_FOUND": "The selected track is no longer available. Refresh the job.",
+      "CONVERSION_TRACK_NOT_GUITAR": "Only a guitar track can be selected.",
+      "IDEMPOTENCY_KEY_REUSED": "The request changed. Refresh the material and try again."
+    }
   }
 }
