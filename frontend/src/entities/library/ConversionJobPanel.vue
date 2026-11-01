@@ -2,7 +2,7 @@
 import { computed, onBeforeUnmount, ref, watch } from "vue";
 import { useI18n } from "vue-i18n";
 import { auth } from "../../core/auth/auth";
-import type { LibraryMaterial } from "./library.service";
+import type { LibraryFile, LibraryMaterial } from "./library.service";
 import { ConversionFailure, conversionService, type ConversionJob } from "./conversion.service";
 import { libraryError } from "./library-errors";
 
