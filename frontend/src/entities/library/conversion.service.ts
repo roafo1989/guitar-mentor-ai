@@ -40,22 +40,23 @@ const nullableUuid = (v: unknown): v is string | null => v === null || uuid(v);
 function validTrack(v: unknown): v is ConversionTrack {
   return isObject(v) && Number.isSafeInteger(v.trackIndex) && Number(v.trackIndex) >= 0
     && isString(v.name) && typeof v.guitar === "boolean"
-    && (v.instrument === null || isString(v.instrument));
+    && (v.instrument === null || v.instrument === undefined || isString(v.instrument));
 }
 export function validConversionJob(v: unknown): v is ConversionJob {
   return isObject(v) && uuid(v.id) && uuid(v.materialId) && uuid(v.sourceAssetId)
     && isString(v.sourceFormat)
     && ["QUEUED","RUNNING","AWAITING_TRACK_SELECTION","CANCEL_REQUESTED","SUCCEEDED",
       "UNSUPPORTED","FAILED","TIMED_OUT","CANCELLED"].includes(String(v.state))
-    && (v.stage === null || isString(v.stage))
+    && (v.stage === null || v.stage === undefined || isString(v.stage))
     && Number.isSafeInteger(v.progress) && Number(v.progress) >= 0 && Number(v.progress) <= 100
     && isArrayOf(v.tracks, validTrack)
-    && (v.selectedTrackIndex === null || (Number.isSafeInteger(v.selectedTrackIndex) && Number(v.selectedTrackIndex) >= 0))
+    && (v.selectedTrackIndex === null || v.selectedTrackIndex === undefined || (Number.isSafeInteger(v.selectedTrackIndex) && Number(v.selectedTrackIndex) >= 0))
     && typeof v.cancelRequested === "boolean"
     && Number.isSafeInteger(v.attemptCount) && Number(v.attemptCount) >= 0
     && typeof v.retryable === "boolean"
-    && (v.errorCode === null || isString(v.errorCode))
-    && nullableUuid(v.pdfAssetId) && nullableUuid(v.audioAssetId)
+    && (v.errorCode === null || v.errorCode === undefined || isString(v.errorCode))
+    && (nullableUuid(v.pdfAssetId) || v.pdfAssetId === undefined)
+    && (nullableUuid(v.audioAssetId) || v.audioAssetId === undefined)
     && Number.isSafeInteger(v.revision) && Number(v.revision) >= 1
     && isString(v.createdAt) && isString(v.updatedAt);
 }
@@ -85,7 +86,10 @@ async function request(url: string, init: RequestInit = {}): Promise<ConversionJ
   try { body = await response.json(); }
   catch { throw new ConversionFailure(response.status, null, "INVALID_RESPONSE"); }
   if (!validConversionJob(body)) throw new ConversionFailure(response.status, null, "INVALID_RESPONSE");
-  return body;
+  return { ...body, stage: body.stage ?? null, selectedTrackIndex: body.selectedTrackIndex ?? null,
+    errorCode: body.errorCode ?? null, pdfAssetId: body.pdfAssetId ?? null,
+    audioAssetId: body.audioAssetId ?? null,
+    tracks: body.tracks.map(track => ({ ...track, instrument: track.instrument ?? null })) };
 }
 function jobUrl(materialId: string, jobId?: string): string {
   return base + "/" + encodeURIComponent(materialId) + "/conversion-jobs" + (jobId ? "/" + encodeURIComponent(jobId) : "");
