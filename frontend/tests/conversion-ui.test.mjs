@@ -229,7 +229,7 @@ test("mounted conversion panel creates, selects, cancels, retries and restores a
   try {
     const Base = await loadPanel();
     const Wrapper = { setup() {
-      binding = Base.setup({ material }, { emit: (event, value) => { if (event === "updated") emitted = value; } });
+      binding = Base.setup({ material }, { expose: () => {}, emit: (event, value) => { if (event === "updated") emitted = value; } });
       return () => h("section");
     } };
     app = renderer().createApp(Wrapper);
@@ -268,7 +268,7 @@ test("mounted conversion panel creates, selects, cancels, retries and restores a
 
     // The stored job is recovered in the same tab after remount/page reload.
     const Wrapper2 = { setup() {
-      binding = Base.setup({ material }, { emit: () => {} });
+      binding = Base.setup({ material }, { expose: () => {}, emit: () => {} });
       return () => h("section");
     } };
     app = renderer().createApp(Wrapper2);
