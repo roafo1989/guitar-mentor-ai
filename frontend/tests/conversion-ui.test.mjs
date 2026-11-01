@@ -134,3 +134,40 @@ test("conversion workflow has complete Russian and English copy and explicitly l
   assert.ok(ru.community.roles.DERIVED_SCORE_PDF);
   assert.ok(en.community.roles.DERIVED_SCORE_PDF);
 });
+
+
+const vueUrl = import.meta.resolve("vue");
+const asModule = code => "data:text/javascript," + encodeURIComponent(code);
+let mountedPanel;
+async function loadPanel() {
+  if (mountedPanel) return mountedPanel;
+  const { parse, compileScript } = await import("vue/compiler-sfc");
+  const descriptor = parse(panel, { filename: "ConversionJobPanel.vue" }).descriptor;
+  const script = compileScript(descriptor, { id: "conversion-panel-test", inlineTemplate: false });
+  const js = ts.transpileModule(script.content, {
+    compilerOptions: { module: ts.ModuleKind.ESNext, target: ts.ScriptTarget.ES2022 },
+  }).outputText;
+  const mapped = js.replace(/from (['"])(.*?)\1/g, (_full, _q, id) => {
+    const dependencies = {
+      vue: vueUrl,
+      "vue-i18n": asModule("export const useI18n=()=>({t:key=>key,te:()=>true});"),
+      "../../core/auth/auth": asModule("export const auth=globalThis.__conversionPanelAuth;"),
+      "./conversion.service": asModule("export const ConversionFailure=globalThis.__conversionPanelFailure;export const conversionService=globalThis.__conversionPanelApi;"),
+      "./library-errors": asModule("export const libraryError=(_e,t)=>t('conversion.generic');"),
+    };
+    assert.ok(dependencies[id], "unexpected panel dependency " + id);
+    return "from " + JSON.stringify(dependencies[id]);
+  });
+  mountedPanel = (await import(asModule(mapped))).default;
+  return mountedPanel;
+}
+function renderer() {
+  const node = tag => ({ tag, parent: null, children: [], text: "", props: {} });
+  const remove = n => {
+    if (!n.parent) return;
+    const siblings = n.parent.children, i = siblings.indexOf(n);
+    if (i >= 0) siblings.splice(i, 1);
+    n.parent = null;
+  };
+  return (awaitRenderer => awaitRenderer) && null;
+}
