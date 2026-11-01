@@ -1035,6 +1035,7 @@
       "CONVERSION_TRACK_NOT_FOUND": "The selected track is no longer available. Refresh the job.",
       "CONVERSION_TRACK_NOT_GUITAR": "Only a guitar track can be selected.",
       "IDEMPOTENCY_KEY_REUSED": "The request changed. Refresh the material and try again."
-    }
+    },
+    "downloadHint": "The generated files are available below in this material’s file list."
   }
 }
