@@ -259,3 +259,14 @@ PostgreSQL integration tests добавлены для успешной пары
 ### 10.3 Проверки 170-D
 
 Frontend tests покрывают schema validation job DTO, headers/owner-scoped routes для create/get/track-selection/cancel/retry, allow-listed errors, account-scoped session recovery contract, polling cleanup, RU/EN labels и private-only integration. Полный browser/manual verification выполняется отдельно на этапе приёмки; backend feature flag остаётся выключенным, поэтому реальный worker запуск в production не проверяется.
+
+
+## 11. Инкремент 170-E — оркестрация и эксплуатационные проверки (02.11.2026)
+
+170-A…D приняты и слиты. `LibraryConversionWorker` теперь выполняет DB claim → source snapshot/hash → ProcessBuilder → selection handoff либо atomic private outputs. Fresh lease UUID на каждую доставку, heartbeat каждые 5 s, cancel/lost lease останавливают child. Два executor threads ограничены двумя durable DB slots; per-account unique index сохраняется. Discovery не расходует render attempt. Автоматический выбор единственной дорожки записывается под lease lock; чужой/изменённый selected index не принимается.
+
+`gm-conversion-worker:170e` использует общий 100 MiB tmpfs для `/tmp` и `/out`, без output bind mount. Потоковый протокол ограничивает JSON до 64 KiB, каждый PDF/WAV до 20 MiB до записи на host. Host staging дополнительно ≤60 MiB +64 KiB/job. Независимый container timeout TERM 59 s/KILL 60 s дополняет Java watchdog 60 s. Image должен быть заранее собран; `170b` несовместим с новым протоколом. Ошибки/отмена удаляют workspace; successful workspace удаляется после persistence; crash leftovers старше 10 минут очищаются sweep без обхода symlinks.
+
+Released reservation повторно резервируется; stale/duplicate delivery не может повторно создать output. Пользователю возвращаются стабильные безопасные коды, RU/EN текст для недоступности worker, лимитов, квот, отсутствующего original и неподдерживаемого subset. Original immutable, publication остаётся отдельным действием.
+
+Конвертация по-прежнему OFF. [Матрица проверки](../testing/TC-170E-conversion-worker.md) отделяет локальный conformance, Linux container/DB, UI, Windows и human visual/listening gates. Наличие реализации не означает эксплуатационную приёмку.

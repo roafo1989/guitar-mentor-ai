@@ -34,6 +34,10 @@ guitar-mentor:
     community-media-enabled: ${GUITAR_MENTOR_COMMUNITY_MEDIA_ENABLED:false}
     # Disabled until the renderer worker and production gates are accepted.
     conversion-enabled: ${GUITAR_MENTOR_LIBRARY_CONVERSION_ENABLED:false}
+    conversion-worker-enabled: ${GUITAR_MENTOR_LIBRARY_CONVERSION_WORKER_ENABLED:true}
+    conversion-image: ${GUITAR_MENTOR_LIBRARY_CONVERSION_IMAGE:gm-conversion-worker:170e}
+    conversion-docker-executable: ${GUITAR_MENTOR_LIBRARY_CONVERSION_DOCKER_EXECUTABLE:docker}
+    conversion-workspace: ${GUITAR_MENTOR_LIBRARY_CONVERSION_WORKSPACE:./.local-media/conversion-work}
     conversion-lease-seconds: ${GUITAR_MENTOR_LIBRARY_CONVERSION_LEASE_SECONDS:90}
     conversion-reclaim-delay-ms: ${GUITAR_MENTOR_LIBRARY_CONVERSION_RECLAIM_MS:10000}
     storage-path: ${GUITAR_MENTOR_LIBRARY_STORAGE_PATH:./.local-media/library}

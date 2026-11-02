@@ -27,6 +27,7 @@ import org.springframework.transaction.annotation.Transactional;
     "guitar-mentor.security.enabled=false",
     "guitar-mentor.library.enabled=true",
     "guitar-mentor.library.conversion-enabled=true",
+    "guitar-mentor.library.conversion-worker-enabled=false",
     "guitar-mentor.library.cursor-secret=ci-only-conversion-output-secret-long-enough",
     "guitar-mentor.library.conversion-reclaim-delay-ms=3600000",
     "guitar-mentor.library.conversion-output-recovery-delay-ms=3600000",
@@ -169,6 +170,16 @@ class LibraryConversionOutputPostgresTest {
         } finally {
             store.delete(f.objectKey());
         }
+    }
+
+    @Test void releasedReservationCanBeUsedByRetry() throws Exception {
+        Fixture f=fixture();
+        var lease=lease(f);
+        jdbc.sql("UPDATE library_conversion_jobs SET output_reservation_state='RELEASED' WHERE id=:job")
+            .param("job",lease.jobId()).update();
+        outputs.persist(lease,result(f,pdfFile(),wavFile()));
+        assertEquals("SUCCEEDED",jdbc.sql("SELECT state FROM library_conversion_jobs WHERE id=:job")
+            .param("job",lease.jobId()).query(String.class).single());
     }
 
     @Test void invalidWavCreatesNoPartialAssetAndDoesNotReserveQuota() throws Exception {

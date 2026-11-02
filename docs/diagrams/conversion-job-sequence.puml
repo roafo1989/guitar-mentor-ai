@@ -28,11 +28,11 @@ end
 Worker -> DB: Claim slot + QUEUED job\nFOR UPDATE SKIP LOCKED
 DB --> Worker: leaseOwner, leaseUntil, source snapshot
 Worker -> Store: Open source object read-only
-Worker -> Renderer: Import + inspect tracks\n(no network, bounded resources)
+Worker -> Renderer: Import + inspect tracks\n(no network, shared 100 MiB tmpfs, 60s deadline)
 Renderer --> Worker: Track catalog
 
 alt Several guitar tracks
-  Worker -> DB: Save tracks; state AWAITING_TRACK_SELECTION\nrelease global worker slot
+  Worker -> DB: Save tracks; state AWAITING_TRACK_SELECTION\nrelease slot; discovery does not consume render attempt
   UI -> API: GET conversion job
   API -> DB: Read owner-scoped job
   DB --> API: state + safe track catalog
@@ -50,8 +50,10 @@ else One guitar track
 end
 
 Worker -> Renderer: Render PDF + synthesize WAV\nsame imported score revision
-Renderer --> Worker: Temporary PDF + WAV
-Worker -> Worker: Validate both outputs and sizes
+Renderer --> Worker: Bounded stdout: JSON + PDF + WAV
+(no output bind mount)
+Worker -> DB: Heartbeat / cancel check (lease fence)
+Worker -> Worker: Validate both outputs, sizes, SHA and selected track
 Worker -> DB: Reserve actual output quota
 Worker -> Store: Store both derived assets
 Worker -> DB: Atomic commit both assets + SUCCEEDED\nonly if leaseOwner/revision still match

@@ -141,7 +141,7 @@ public final class LibraryConversionOutputService {
                     output_reserved_files=:files,output_reservation_attempt=:attempt,
                     output_reservation_state='RESERVED',
                     updated_at=now(),revision=revision+1
-                WHERE id=:job AND state='RUNNING' AND output_reservation_state='NONE'
+                WHERE id=:job AND state='RUNNING' AND output_reservation_state IN ('NONE','RELEASED')
                 """).param("bytes",reservationBytes).param("files",RESERVED_FILES)
                 .param("attempt",lease.attemptCount()).param("job",lease.jobId()).update();
             if(updated!=1) throw new IllegalStateException("Conversion reservation race");

@@ -68,3 +68,6 @@ acceptance-progress.local.json
 recovery-acceptance-report.json
 rclone.conf
 *.bundle
+
+# Reproducible synthetic acceptance evidence (published by CI)
+/artifacts/
