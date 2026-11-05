@@ -27,7 +27,8 @@ let imageRemoved = false;
 try {
   await server.listen();
   const base = 'http://127.0.0.1:' + server.httpServer.address().port;
-  browser = await chromium.launch({ headless: true });
+  browser = await chromium.launch({ headless: true,
+    ...(process.env.GM_TEST_BROWSER_EXECUTABLE ? { executablePath: process.env.GM_TEST_BROWSER_EXECUTABLE } : {}) });
   async function login(name) {
     const context = await browser.newContext({ viewport: { width: 1440, height: 1050 }, acceptDownloads: true });
     await context.addInitScript(() => localStorage.setItem('guitar-mentor.locale', 'en'));
