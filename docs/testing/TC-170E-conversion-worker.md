@@ -1,18 +1,18 @@
 # 170-E / #266 — матрица проверки
 
-База: `48d03ff9`; feature flag остаётся OFF. Дата сверки: 02.11.2026. Приёмка и rollout отдельно. PASS относится только к реально выполненной проверке; готовый тест не считается пройденным.
+База: `48d03ff9`; feature flag остаётся OFF. Дата сверки: 05.11.2026. Приёмка и rollout отдельно. PASS относится только к реально выполненной проверке; готовый тест не считается пройденным.
 
 | ID | Критерий / шаги | Ожидаемый результат | Фактический статус |
 | --- | --- | --- | --- |
-| E01 | 77 synthetic GP3/4/5 cases, `check-corpus.py --local` | 12 valid renders, canonical 4/20/128 events; точные отказы/track selection | PASS локальный Node со штатным binary stdout protocol; Docker прогон заблокирован до разрешения push |
+| E01 | 77 synthetic GP3/4/5 cases, `check-corpus.py --local` | 12 valid renders, canonical 4/20/128 events; точные отказы/track selection | PASS: Node и реальные Docker containers, 77/77; CI на `e1231233` |
 | E02 | Java ProcessBuilder fault suite | cancel/watchdog/missing executable/image, invalid/partial/oversized stream, no leaked workspace | PASS, 9 tests, Java 21 |
-| E03 | Real cgroup/container probes | 512 MiB/CPU1/PID64/UID10001/no network/readonly; disk-full/OOM/timeout | NOT_RUN: CI не запущен, push заблокирован |
-| E04 | Upload → queue → selection → real Docker → private pair → original download | GP3/4/5 SUCCEEDED; оба asset, lineage, quota, owner isolation; cleanup | NOT_RUN: CI не запущен, push заблокирован |
-| E05 | Durable retry/cancel/duplicate delivery, 1/account и 2 global, expiry/reclaim | Без дублей и частичных assets, slot freed; discovery не съедает retry | NOT_RUN до PostgreSQL CI |
-| E06 | Released reservation reuse | Повторное сохранение проходит после RELEASED, charged один раз | NOT_RUN до PostgreSQL CI |
-| E07 | Full Java/Vue CI | Regression tests + сборки PASS на финальном SHA | CI NOT_RUN; локально 233 Java PASS (186 skipped), Vue 247/247 + build PASS |
+| E03 | Real cgroup/container probes | 512 MiB/CPU1/PID64/UID10001/no network/readonly; disk-full/OOM/timeout | PASS: Linux Docker/PostgreSQL CI на `e1231233` |
+| E04 | Upload → queue → selection → real Docker → private pair → original download | GP3/4/5 SUCCEEDED; оба asset, lineage, quota, owner isolation; cleanup | PASS: Linux Docker/PostgreSQL CI на `e1231233` |
+| E05 | Durable retry/cancel/duplicate delivery, 1/account и 2 global, expiry/reclaim | Без дублей и частичных assets, slot freed; discovery не съедает retry | PASS: PostgreSQL CI на `e1231233` |
+| E06 | Released reservation reuse | Повторное сохранение проходит после RELEASED, charged один раз | PASS: PostgreSQL CI на `e1231233` |
+| E07 | Full Java/Vue CI | Regression tests + сборки PASS на финальном SHA | PASS на `e1231233`: Java 432 cases (427 PASS, 5 skipped), Vue CI PASS; новый browser increment ожидает CI |
 | E08 | Windows Docker Desktop + Java, путь с пробелами, cancellation/restart | Полный runbook PASS, recorded versions/SHA | NOT_RUN: Windows host недоступен |
-| E09 | Живой browser → действующий backend → Docker | Терминальный UI, выбор/повтор/отмена и оба приватных файла | NOT_RUN: mounted frontend и backend E2E являются отдельными слоями |
+| E09 | Живой browser → действующий backend → Docker | Терминальный UI, выбор/повтор/отмена и оба приватных файла | PENDING: добавлен настоящий Chromium → local login/CSRF → backend → scheduled worker → Docker; до результата CI не считается PASS |
 | E10 | Human PDF review + listening | MUSIC-01 layout/октава/чистота аудио | NOT_RUN: требуется фактическая пользовательская проверка |
 
 Автотесты используются только с synthetic files и отдельной БД. Производственные данные/флаги не затрагивались. Отдельная автоматическая визуальная проверка PDF не заменяет человеческую приёмку.
@@ -48,8 +48,15 @@ GP3 не умеет сохранять palm mute: корпус не выдаёт
 - WAV технически проверен: stereo PCM, 44 100 Hz, 12.501 s для 20 четвертей при 96 BPM, пик 6808/32768, clipped samples 0. Human listening **NOT_RUN**.
 - YAML parse, Node syntax, Python compilation, `git diff --check` — PASS.
 
-## Блокер публикации и следующий шаг
+## Опубликованный результат и следующий шаг
 
-**Разработка / Ожидание.** Автоматическая approval-проверка дважды отклонила `git push`: сначала потребовала проверить destination, затем после подтверждения owner/admin/public repository указала отсутствие явного разрешения пользователя на публичную публикацию кода. Адрес подтверждён как `https://github.com/roafo1989/guitar-mentor-ai.git`, аккаунт владельца — `roafo1989`. Обход запрета не выполнялся. PR и новые GitHub CI runs не созданы; не считать их успешными или существующими.
+Пользователь разрешил публикацию; открыт [PR #267](https://github.com/roafo1989/guitar-mentor-ai/pull/267), ветка `feature/170e-orchestration`. На `e12312339b81d29ce299766f7756139b9bcafc11` прошли все четыре workflow:
 
-Для продолжения требуется явное разрешение отправить `feature/170e-orchestration` в этот публичный репозиторий и открыть PR. Затем выполнить подготовленный Linux Docker/PostgreSQL CI, исправить выявленное и обновить матрицу по итоговому SHA. Windows Docker Desktop, связанный live-browser сценарий и human visual/listening остаются отдельными непроверенными gates. Слияние, production/PILOT и включение feature flag не выполнялись. Поля Project v2 не изменены: доступный connector не предоставляет соответствующие mutations.
+- [Conversion worker 170-E](https://github.com/roafo1989/guitar-mentor-ai/actions/runs/41490629433): 77/77 container corpus, isolation probes, 25/25 Java conversion tests; [PDF/WAV и отчёты](https://github.com/roafo1989/guitar-mentor-ai/actions/runs/41490629433/artifacts/13164626065).
+- [Java backend](https://github.com/roafo1989/guitar-mentor-ai/actions/runs/41490629311): 432 cases, 427 PASS, 5 skipped, 0 failures/errors; package и запуск приложения PASS.
+- [Vue frontend](https://github.com/roafo1989/guitar-mentor-ai/actions/runs/41490629402): PASS.
+- [CATALOG-169](https://github.com/roafo1989/guitar-mentor-ai/actions/runs/41490629310): PASS.
+
+Добавлен `LibraryConversionBrowserPostgresTest` / `frontend/tests/conversion-live-browser.mjs`: настоящая форма входа, upload GP3/4/5, выбор дорожки, восстановление после reload, отмена, повтор после отсутствующего тестового image, скачивание оригинала/PDF/WAV, независимые sessions владельца/другого account/гостя, квота и cleanup. API и worker не подменяются. Результат этого нового сценария ожидает CI. Для failure/retry используется отдельный UUID Docker tag, основной `:170e` не удаляется.
+
+Windows Docker Desktop и human visual/listening остаются NOT_RUN. Feature flag OFF, rollout отдельно. Поля Project v2 не изменены: доступный connector не предоставляет соответствующие mutations.

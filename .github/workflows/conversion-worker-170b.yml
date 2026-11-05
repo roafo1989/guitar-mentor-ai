@@ -8,6 +8,9 @@ on:
       - 'fixtures/research/catalog-169/**'
       - 'backend/src/**/LibraryConversion*.java'
       - 'backend/src/main/resources/application.yml'
+      - 'frontend/src/**'
+      - 'frontend/tests/conversion-live-browser.mjs'
+      - 'frontend/package*.json'
       - '.github/workflows/conversion-worker-170b.yml'
   workflow_dispatch:
 permissions:
@@ -37,6 +40,16 @@ jobs:
           distribution: temurin
           java-version: '21'
           cache: maven
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '24'
+          cache: npm
+          cache-dependency-path: frontend/package-lock.json
+      - name: Install browser test dependencies
+        working-directory: frontend
+        run: |
+          npm ci
+          npx playwright install --with-deps chromium
       - name: Generate independent musical and adversarial corpus
         run: |
           python -m pip install -r scripts/research/catalog-169/requirements.txt
@@ -57,6 +70,16 @@ jobs:
           GM_TEST_REAL_DOCKER: 'true'
           GM_TEST_CONVERSION_CORPUS: ${{ github.workspace }}/artifacts/conversion-170e/corpus
         run: ./mvnw -B -Dtest=LibraryConversionProcessRunnerTest,LibraryConversionJobPostgresTest,LibraryConversionOutputPostgresTest,LibraryConversionWorkerPostgresTest test
+      - name: Verify full browser, authenticated HTTP, scheduler and Docker flow
+        working-directory: backend
+        env:
+          SPRING_DATASOURCE_URL: jdbc:postgresql://localhost:5432/guitar_mentor
+          SPRING_DATASOURCE_USERNAME: guitar_mentor_app
+          SPRING_DATASOURCE_PASSWORD: ci_only_password
+          GUITAR_MENTOR_TEST_POSTGRES: 'true'
+          GM_TEST_REAL_BROWSER: 'true'
+          GM_TEST_CONVERSION_CORPUS: ${{ github.workspace }}/artifacts/conversion-170e/corpus
+        run: ./mvnw -B -Dtest=LibraryConversionBrowserPostgresTest test
       - name: Upload evidence, including PDF and WAV for owner review
         if: always()
         uses: actions/upload-artifact@v4
@@ -66,5 +89,6 @@ jobs:
             artifacts/conversion-170e/*report.json
             artifacts/conversion-170e/corpus/manifest.json
             artifacts/conversion-170e/results/valid-*/
+            artifacts/conversion-170e/browser/
             backend/target/surefire-reports/
           retention-days: 14

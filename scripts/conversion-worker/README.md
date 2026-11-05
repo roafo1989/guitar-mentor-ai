@@ -48,6 +48,8 @@ python scripts/conversion-worker/check-corpus.py
 
 `check-isolation.py` проверяет реальные cgroup limits, UID, loopback-only network, read-only root, ENOSPC, OOM kill и независимый timeout. `LibraryConversionProcessRunnerTest` проверяет process faults/protocol/cancel/watchdog/cleanup. `LibraryConversionWorkerPostgresTest` выполняет upload → queue → track selection → Docker → private persistence → owner download.
 
+`LibraryConversionBrowserPostgresTest` запускает настоящий Chromium с формой входа, загрузкой GP3/4/5, выбором дорожки, отменой и повтором после недоступного тестового image. Проверяются скачанные bytes, private ownership, квота и очистка. В CI сценарий включается отдельно через `GM_TEST_REAL_BROWSER=true`; требует `npm ci` и `npx playwright install --with-deps chromium` в `frontend`. Результат и screenshots попадают в `conversion-170e-evidence/browser`.
+
 [Матрица и результаты](../../docs/testing/TC-170E-conversion-worker.md), [Windows runbook](../../docs/operations/conversion-worker-windows.md). Windows Docker Desktop и human visual/audio acceptance остаются отдельными gates.
 
 При распространении образа сохраняются лицензии alphaTab MPL-2.0, Bravura SIL OFL 1.1, SONiVOX Apache-2.0 из закреплённых зависимостей.

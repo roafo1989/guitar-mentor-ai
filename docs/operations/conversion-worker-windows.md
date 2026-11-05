@@ -1,6 +1,6 @@
 # 170-E — проверка Windows Docker Desktop
 
-Статус на 02.11.2026: **NOT_RUN**. Автоматический Linux CI не подтверждает работу на Windows 10/11. Production/PILOT не изменяются. Выполнять на отдельном тестовом checkout, тестовой PostgreSQL и синтетических данных. Перед началом Docker Desktop должен работать в режиме Linux containers; Java 21 и Python доступны в PATH.
+Статус на 05.11.2026: **NOT_RUN**. Автоматический Linux CI не подтверждает работу на Windows 10/11. Production/PILOT не изменяются. Выполнять на отдельном тестовом checkout, тестовой PostgreSQL и синтетических данных. Перед началом Docker Desktop должен работать в режиме Linux containers; Java 21 и Python доступны в PATH.
 
 ## Изолированный сценарий
 
@@ -31,6 +31,22 @@ Push-Location backend
 .\mvnw.cmd '-Dtest=LibraryConversionWorkerPostgresTest,LibraryConversionJobPostgresTest,LibraryConversionOutputPostgresTest' test
 Pop-Location
 ```
+
+Для связанного browser сценария дополнительно:
+
+```powershell
+Push-Location frontend
+npm ci
+npx playwright install chromium
+Pop-Location
+$env:GM_TEST_REAL_BROWSER = 'true'
+Push-Location backend
+.\mvnw.cmd '-Dtest=LibraryConversionBrowserPostgresTest' test
+Pop-Location
+Remove-Item Env:GM_TEST_REAL_BROWSER
+```
+
+Результат и screenshots: `artifacts/conversion-170e/browser/`. Браузер использует только запущенный тестом loopback server и synthetic accounts; приложение и Docker image tag для fault/retry изолированы.
 
 Тест использует путь workspace с пробелами: проверяются аргументы ProcessBuilder, mount/ACL и очистка. POSIX fake-process tests на Windows намеренно пропускаются; реальные Docker/DB tests обязательны. Сохранить surefire reports, JSON reports, `docker version`, `java -version`, версию Windows и commit SHA. Ни один скрипт не включает production feature flag.
 
