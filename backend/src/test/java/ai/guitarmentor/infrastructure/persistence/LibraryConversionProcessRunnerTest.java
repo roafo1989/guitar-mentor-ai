@@ -1,186 +1,121 @@
 package ai.guitarmentor.infrastructure.persistence;
 
 import static org.junit.jupiter.api.Assertions.*;
-
-import com.fasterxml.jackson.databind.ObjectMapper;
 import java.nio.file.Files;
 import java.nio.file.Path;
-import java.nio.file.attribute.PosixFilePermission;
+import java.nio.file.attribute.PosixFilePermissions;
 import java.security.MessageDigest;
+import java.time.Duration;
 import java.util.HexFormat;
-import java.util.Set;
 import org.junit.jupiter.api.Test;
-import org.junit.jupiter.api.Assumptions;
 import org.junit.jupiter.api.io.TempDir;
+import org.junit.jupiter.api.condition.EnabledOnOs;
+import org.junit.jupiter.api.condition.OS;
 
+/** Protocol/fault tests use a standalone process; real Docker queue tests live in WorkerPostgresTest. */
+@EnabledOnOs({OS.LINUX, OS.MAC})
 class LibraryConversionProcessRunnerTest {
     @TempDir Path temp;
-
-    @Test
-    void launchesUnprivilegedNoNetworkContainerAndValidatesBothOutputs() throws Exception {
-        Path source = Files.writeString(temp.resolve("source.gp"), "synthetic GP5 source");
-        Path docker = stubDocker();
-        Path args = temp.resolve("docker-args.txt");
-        Path log = temp.resolve("docker-stub.log");
-        ProcessRunnerEnv.set(docker, args, log, "RENDERED", sha256(source));
-        try {
-            LibraryConversionProcessRunner runner = runner(docker);
-            var result = runner.execute(source, "GP5", sha256(source), 1, () -> false);
-
-            assertTrue(result.rendered());
-            assertEquals(1, result.selectedTrackIndex());
-            assertEquals("Lead Guitar", result.selectedTrackName());
-            assertTrue(Files.size(result.pdfPath()) > 1000);
-            assertTrue(Files.size(result.wavPath()) > 1000);
-            String command = Files.readString(args);
-            assertTrue(command.contains("--network"));
-            assertTrue(command.contains("none"));
-            assertTrue(command.contains("--memory"));
-            assertTrue(command.contains("512m"));
-            assertTrue(command.contains("--cpus"));
-            assertTrue(command.contains("1"));
-            assertTrue(command.contains("--read-only"));
-            assertTrue(command.contains("--cap-drop"));
-            assertTrue(command.contains("ALL"));
-            assertTrue(command.contains("--pull=never"));
-            runner.deleteWorkspace(result.workspace());
-            assertFalse(Files.exists(result.workspace()));
-        } finally {
-            ProcessRunnerEnv.clear();
-        }
+    private Path source() throws Exception { return Files.writeString(temp.resolve("source.gp"), "immutable synthetic source"); }
+    private String sha(Path p) throws Exception {
+        return HexFormat.of().formatHex(MessageDigest.getInstance("SHA-256").digest(Files.readAllBytes(p)));
     }
-
-    @Test
-    void returnsTrackSelectionWithoutKeepingScratchFiles() throws Exception {
-        Path source = Files.writeString(temp.resolve("source.gp"), "synthetic GP5 source");
-        Path docker = stubDocker();
-        ProcessRunnerEnv.set(docker, temp.resolve("args.txt"), temp.resolve("log.txt"), "TRACK_SELECTION_REQUIRED");
-        try {
-            var result = runner(docker).execute(source, "GP5", sha256(source), null, () -> false);
-            assertTrue(result.trackSelectionRequired());
-            assertEquals(2, result.tracks().size());
-            assertEquals(1, result.tracks().get(1).trackIndex());
-            assertNull(result.workspace());
-        } finally {
-            ProcessRunnerEnv.clear();
-        }
-    }
-
-    @Test
-    void rejectsUnsupportedFormatAndSourceHashMismatchBeforeStartingDocker() throws Exception {
-        Path source = Files.writeString(temp.resolve("source.gp"), "synthetic GP5 source");
-        Path docker = stubDocker();
-        ProcessRunnerEnv.set(docker, temp.resolve("args.txt"), temp.resolve("log.txt"), "RENDERED");
-        try {
-            var unsupported = runner(docker).execute(source, "GPX", sha256(source), null, () -> false);
-            assertEquals("UNSUPPORTED_FORMAT", unsupported.errorCode());
-            var mismatch = runner(docker).execute(source, "GP5", "0".repeat(64), null, () -> false);
-            assertEquals("SOURCE_HASH_MISMATCH", mismatch.errorCode());
-            assertFalse(Files.exists(temp.resolve("args.txt")));
-        } finally {
-            ProcessRunnerEnv.clear();
-        }
-    }
-
-    @Test
-    void rejectsWorkerResultWithDifferentSourceLineage() throws Exception {
-        Path source = Files.writeString(temp.resolve("lineage-source.gp"), "synthetic GP5 source");
-        Path docker = stubDocker();
-        ProcessRunnerEnv.set(docker, temp.resolve("lineage-args.txt"), temp.resolve("lineage-log.txt"), "RENDERED");
-        try {
-            var result = runner(docker).execute(source, "GP5", sha256(source), 1, () -> false);
-            assertEquals("WORKER_RESULT_MISMATCH", result.errorCode());
-            assertNull(result.workspace());
-        } finally {
-            ProcessRunnerEnv.clear();
-        }
-    }
-
-    @Test
-    void launchesTheRealPinnedContainerThroughJavaProcessBuilderWhenCiEnablesIt() throws Exception {
-        Assumptions.assumeTrue("true".equalsIgnoreCase(System.getenv("GM_TEST_REAL_DOCKER")),
-                "Real Docker integration is executed only by the dedicated conversion-worker CI job");
-        Path source = Path.of(System.getenv("GM_TEST_CONVERSION_SOURCE"));
-        assertTrue(Files.isRegularFile(source));
-        var runner = new LibraryConversionProcessRunner("docker", "gm-conversion-worker:170b",
-                temp.resolve("real-docker-work").toString());
-        var result = runner.execute(source, "GP5", sha256(source), 0, () -> false);
-        try {
-            assertTrue(result.rendered(), "Worker result: " + result.errorCode());
-            assertEquals(0, result.selectedTrackIndex());
-            assertTrue(Files.size(result.pdfPath()) > 1000);
-            assertTrue(Files.size(result.wavPath()) > 1000);
-        } finally {
-            if (result.workspace() != null) runner.deleteWorkspace(result.workspace());
-        }
-    }
-
-    @Test
-    void rejectsWorkspaceOutsideConfiguredRoot() throws Exception {
-        LibraryConversionProcessRunner runner = runner(stubDocker());
-        assertThrows(java.io.IOException.class,
-                () -> runner.deleteWorkspace(temp.resolve("outside")));
-    }
-
     private LibraryConversionProcessRunner runner(Path docker) {
-        String executable = System.getProperty("gm.test.docker", docker.toString());
-        return new LibraryConversionProcessRunner(executable, "gm-conversion-worker:170b",
-                temp.resolve("work").toString());
+        return new LibraryConversionProcessRunner(docker.toString(), "gm-conversion-worker:170e", temp.resolve("work").toString(), Duration.ofSeconds(2));
     }
-
-    private Path stubDocker() throws Exception {
-        Path script = temp.resolve("docker-stub.sh");
-        String body = """
-                #!/bin/sh
-                printf '%s\\n' "$@" > "$GM_DOCKER_ARGS"
-                out=""
-                while [ "$#" -gt 0 ]; do
-                  if [ "$1" = "--mount" ]; then
-                    shift
-                    case "$1" in
-                      *target=/out*) out="${1#type=bind,source=}"; out="${out%,target=/out*}" ;;
-                    esac
-                  fi
-                  shift
-                done
-                mkdir -p "$out"
-                if [ "$GM_STUB_MODE" = "TRACK_SELECTION_REQUIRED" ]; then
-                  printf '%s' '{"status":"ERROR","code":"TRACK_SELECTION_REQUIRED","tracks":[{"trackIndex":0,"name":"Rhythm","guitar":true,"instrument":"Guitar"},{"trackIndex":1,"name":"Lead","guitar":true,"instrument":"Guitar"}]}' > "$out/result.json"
-                  exit 10
-                fi
-                printf '{"status":"RENDERED","format":"GP5","sourceSha256":"%s","scoreRevision":"%s","selectedTrackIndex":1,"selectedTrackName":"Lead Guitar","wavDurationSeconds":2.0}' "$GM_STUB_SOURCE_SHA" "$GM_STUB_SOURCE_SHA" > "$out/result.json"
-                printf '%%PDF' > "$out/score.pdf"
-                dd if=/dev/zero bs=1 count=1200 >> "$out/score.pdf" 2>/dev/null
-                printf 'RIFF\\000\\004\\000\\000WAVE' > "$out/preview.wav"
-                dd if=/dev/zero bs=1 count=1200 >> "$out/preview.wav" 2>/dev/null
-                exit 0
-                """;
-        Files.writeString(script, body);
-        Files.setPosixFilePermissions(script, Set.of(PosixFilePermission.OWNER_READ,
-                PosixFilePermission.OWNER_WRITE, PosixFilePermission.OWNER_EXECUTE));
-        return script;
+    private void clean() throws Exception {
+        if (Files.exists(temp.resolve("work"))) try (var entries=Files.list(temp.resolve("work"))) { assertEquals(0,entries.count()); }
     }
-
-    private String sha256(Path path) throws Exception {
-        return HexFormat.of().formatHex(MessageDigest.getInstance("SHA-256").digest(Files.readAllBytes(path)));
+    private Path docker(String mode, String hash) throws Exception {
+        Path p=temp.resolve("docker-stub");
+        String script="""
+            #!/usr/bin/env python3
+            import sys,json,struct,time
+            from pathlib import Path
+            root=Path(__file__).parent
+            if sys.argv[1]=='rm':
+                (root/'removed').write_text(sys.argv[-1]); sys.exit(0)
+            (root/'args').write_text('\n'.join(sys.argv[1:]))
+            mode='MODE'; sha='HASH'
+            if mode=='hang': time.sleep(10)
+            if mode=='unavailable': sys.exit(125)
+            if mode=='bad-protocol': sys.stdout.buffer.write(b'BAD'); sys.exit(0)
+            pdf=b'%PDF-1.7'+b'x'*1400+b'%%EOF'
+            wav=b'RIFF'+b'0000'+b'WAVE'+b'x'*1400
+            r=dict(status='RENDERED',format='GP5',sourceSha256=sha,scoreRevision=sha,selectedTrackIndex=0,
+                selectedTrackName='Lead',pdfBytes=len(pdf),wavBytes=len(wav),wavDurationSeconds=1)
+            if mode=='selection': r=dict(status='ERROR',code='TRACK_SELECTION_REQUIRED',tracks=[dict(trackIndex=i,name='Guitar',guitar=True) for i in range(2)]); pdf=wav=b''
+            if mode=='mismatch': r['selectedTrackIndex']=1
+            if mode=='invalid': pdf=b'INVALID'+pdf[7:]
+            if mode=='partial': wav=b''
+            out=sys.stdout.buffer; out.write(b'GM170E01')
+            if mode=='oversized': out.write(struct.pack('>I',65537)); sys.exit(0)
+            for data in [json.dumps(r).encode(),pdf,wav]: out.write(struct.pack('>I',len(data))); out.write(data)
+            """.replace("'\n'.join", "'\\n'.join").replace("MODE",mode).replace("HASH",hash);
+        Files.writeString(p,script);
+        Files.setPosixFilePermissions(p,PosixFilePermissions.fromString("rwx------"));
+        return p;
     }
-
-    /** Keep environment mutation isolated and restore it after every test. */
-    private static final class ProcessRunnerEnv {
-        static void set(Path docker, Path args, Path log, String mode) { set(docker, args, log, mode, ""); }
-        static void set(Path docker, Path args, Path log, String mode, String sourceSha) {
-            System.setProperty("gm.test.docker", docker.toString());
-            // The stub reads these inherited values; ProcessBuilder inherits the test process environment.
-            // Values are injected through a wrapper script to avoid changing global process state.
-            try {
-                Path wrapper = docker.resolveSibling("docker-wrapper.sh");
-                Files.writeString(wrapper, "#!/bin/sh\nGM_DOCKER_ARGS='" + args + "' GM_STUB_MODE='" + mode
-                        + "' GM_STUB_SOURCE_SHA='" + sourceSha + "' exec '" + docker + "' \"$@\"");
-                Files.setPosixFilePermissions(wrapper, Set.of(PosixFilePermission.OWNER_READ,
-                        PosixFilePermission.OWNER_WRITE, PosixFilePermission.OWNER_EXECUTE));
-                System.setProperty("gm.test.docker", wrapper.toString());
-            } catch (Exception error) { throw new IllegalStateException(error); }
+    @Test void rendersBoundedPairAndUsesAllIsolationFlags() throws Exception {
+        Path source=source(); var runner=runner(docker("ok",sha(source)));
+        var result=runner.execute(source,"GP5",sha(source),0,()->false);
+        assertTrue(result.rendered(),result.errorCode());
+        String args=Files.readString(temp.resolve("args"));
+        for(String flag:new String[]{"--network\nnone","--memory\n512m","--memory-swap\n512m","--cpus\n1",
+                "--pids-limit\n64","--read-only","--cap-drop\nALL","no-new-privileges:true","size=100m",
+                "--user\n10001:10001","--pull=never","target=/input,readonly","GM_CONVERSION_STREAM=1"})
+            assertTrue(args.contains(flag),flag);
+        assertFalse(args.contains("target=/out"));
+        assertTrue(Files.readString(temp.resolve("removed")).startsWith("gm-conversion-"));
+        runner.deleteWorkspace(result.workspace()); clean();
+    }
+    @Test void selectionDoesNotLeakWorkspace() throws Exception {
+        Path source=source(); var r=runner(docker("selection",sha(source))).execute(source,"GP5",sha(source),null,()->false);
+        assertTrue(r.trackSelectionRequired()); assertEquals(2,r.tracks().size()); clean();
+    }
+    @Test void checksInputBeforeLaunchingProcess() throws Exception {
+        Path source=source(); var runner=runner(docker("ok",sha(source)));
+        assertEquals("UNSUPPORTED_FORMAT",runner.execute(source,"GPX",sha(source),null,()->false).errorCode());
+        assertEquals("SOURCE_HASH_MISMATCH",runner.execute(source,"GP5","0".repeat(64),null,()->false).errorCode());
+        try(var out=new java.io.RandomAccessFile(source.toFile(),"rw")) {out.setLength(20L*1024*1024+1);}
+        assertEquals("SOURCE_TOO_LARGE",runner.execute(source,"GP5","x",null,()->false).errorCode());
+        assertFalse(Files.exists(temp.resolve("args")));
+    }
+    @Test void cancelsAndKillsContainerByPreassignedName() throws Exception {
+        Path source=source(); long start=System.nanoTime();
+        var r=runner(docker("hang",sha(source))).execute(source,"GP5",sha(source),0,()->System.nanoTime()-start>100_000_000);
+        assertTrue(r.cancelled()); assertTrue(Files.exists(temp.resolve("removed"))); clean();
+    }
+    @Test void watchdogTerminatesHungProcess() throws Exception {
+        Path source=source(); var r=runner(docker("hang",sha(source))).execute(source,"GP5",sha(source),0,()->false);
+        assertEquals("TIMED_OUT",r.errorCode()); clean();
+    }
+    @Test void rejectsMalformedOrOversizedProtocolBeforeWritingLargeFiles() throws Exception {
+        Path source=source();
+        for(String mode:new String[]{"bad-protocol","oversized"}) {
+            assertEquals("WORKER_PROTOCOL_ERROR",runner(docker(mode,sha(source))).execute(source,"GP5",sha(source),0,()->false).errorCode()); clean();
         }
-        static void clear() { System.clearProperty("gm.test.docker"); }
+    }
+    @Test void rejectsInvalidPartialAndMismatchingOutputs() throws Exception {
+        Path source=source();
+        for(String mode:new String[]{"invalid","partial"}) {
+            assertThrows(java.io.IOException.class,()->runner(docker(mode,sha(source))).execute(source,"GP5",sha(source),0,()->false)); clean();
+        }
+        assertEquals("WORKER_RESULT_MISMATCH",runner(docker("mismatch",sha(source))).execute(source,"GP5",sha(source),0,()->false).errorCode()); clean();
+    }
+    @Test void missingExecutableOrImageCleansWorkspace() throws Exception {
+        Path source=source();
+        assertEquals("WORKER_UNAVAILABLE",runner(temp.resolve("missing")).execute(source,"GP5",sha(source),0,()->false).errorCode()); clean();
+        assertEquals("WORKER_UNAVAILABLE",runner(docker("unavailable",sha(source))).execute(source,"GP5",sha(source),0,()->false).errorCode()); clean();
+    }
+    @Test void cleanupCannotDeleteRootOrFollowSymlinksAndRecoversOldWorkspaces() throws Exception {
+        var runner=runner(temp.resolve("missing"));
+        Path root=Files.createDirectory(temp.resolve("work")), job=Files.createDirectory(root.resolve("job-old"));
+        Path outside=Files.writeString(temp.resolve("outside"),"keep");
+        Files.createSymbolicLink(job.resolve("link"),outside);
+        assertThrows(java.io.IOException.class,()->runner.deleteWorkspace(root));
+        assertThrows(java.io.IOException.class,()->runner.deleteWorkspace(temp));
+        Files.setLastModifiedTime(job,java.nio.file.attribute.FileTime.from(java.time.Instant.now().minusSeconds(700)));
+        runner.cleanupAbandonedWorkspaces(); assertTrue(Files.exists(outside)); clean();
     }
 }

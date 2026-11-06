@@ -1,24 +1,34 @@
 import fs from 'node:fs';
 import path from 'node:path';
 import crypto from 'node:crypto';
+import { fileURLToPath } from 'node:url';
 import PDFDocument from 'pdfkit';
 import SVGtoPDF from 'svg-to-pdfkit';
 import * as alphaTab from '@coderline/alphatab';
 
-const INPUT = '/input/source.gp';
-const OUTPUT = '/out';
+const INPUT = process.env.GM_CONVERSION_INPUT || '/input/source.gp';
+const OUTPUT = process.env.GM_CONVERSION_OUTPUT || '/out';
 const MAX_INPUT = 20 * 1024 * 1024;
-const MAX_OUTPUT = 80 * 1024 * 1024;
+const MAX_OUTPUT = 20 * 1024 * 1024;
 const FORMAT = process.env.GM_CONVERSION_FORMAT || '';
 const selectedArg = process.env.GM_CONVERSION_TRACK_INDEX;
-const fail = (code, details = {}) => {
-  const result = { status: 'ERROR', code, ...details };
-  fs.writeFileSync(path.join(OUTPUT, 'result.json'), JSON.stringify(result));
-  console.log(JSON.stringify(result));
-  process.exit(code === 'TRACK_SELECTION_REQUIRED' ? 10 : 20);
+class Rejected extends Error {
+  constructor(code, details = {}) { super(code); this.code = code; this.details = details; }
+}
+const fail = (code, details = {}) => { throw new Rejected(code, details); };
+const emit = async (result) => {
+  if (process.env.GM_CONVERSION_STREAM !== '1') { console.log(JSON.stringify(result)); return; }
+  // Await backpressure. Fixed names/lengths; neither archive paths nor console logs enter stdout.
+  const write = part => new Promise((resolve, reject) => process.stdout.write(part, error => error ? reject(error) : resolve()));
+  await write(Buffer.from('GM170E01'));
+  for (const data of [Buffer.from(JSON.stringify(result)), ...['score.pdf','preview.wav'].map(name =>
+      result.status === 'RENDERED' ? fs.readFileSync(path.join(OUTPUT, name)) : Buffer.alloc(0))]) {
+    const length = Buffer.alloc(4); length.writeUInt32BE(data.length);
+    await write(length); await write(data);
+  }
 };
-fs.mkdirSync(OUTPUT, { recursive: true });
 try {
+  fs.mkdirSync(OUTPUT, { recursive: true });
   if (!['GP3', 'GP4', 'GP5'].includes(FORMAT)) fail('UNSUPPORTED_FORMAT');
   const stat = fs.statSync(INPUT);
   if (!stat.isFile() || stat.size < 1) fail('EMPTY_OR_INVALID_SOURCE');
@@ -31,6 +41,7 @@ try {
   if (versionHeader !== expectedHeaders[FORMAT]) fail('UNSUPPORTED_FORMAT_VERSION');
   const settings = new alphaTab.Settings();
   settings.core.engine = 'svg';
+  settings.core.logLevel = alphaTab.LogLevel.None;
   settings.display.layoutMode = alphaTab.LayoutMode.Page;
   settings.display.barsPerRow = 4;
   settings.display.barCountPerPartial = 4;
@@ -43,8 +54,7 @@ try {
   const guitarTracks = [];
   for (let i = 0; i < score.tracks.length; i++) {
     const track = score.tracks[i];
-    if (track.staves?.some(staff => staff.isStringed
-        && JSON.stringify(staff.tuning) === JSON.stringify([64, 59, 55, 50, 45, 40]))) {
+    if (track.staves?.some(staff => staff.isStringed && staff.tuning?.length === 6)) {
       guitarTracks.push({ trackIndex: i, name: String(track.name || 'Guitar').slice(0, 80), guitar: true, instrument: 'Guitar' });
     }
   }
@@ -78,15 +88,19 @@ try {
       if (!isInitialTempo) fail('UNSUPPORTED_TEMPO_CHANGE');
     }
   }
+  const events = [];
   for (let barIndex = 0; barIndex < staff.bars.length; barIndex++) {
     const bar = staff.bars[barIndex];
     if (bar.voices.length > 2 || bar.voices[1]?.beats?.length > 0) fail('UNSUPPORTED_POLYPHONY');
     const voice = bar.voices[0];
     if (!voice.beats?.length) fail('UNSUPPORTED_EMPTY_BAR');
+    if (voice.beats.length !== 4) fail('UNSUPPORTED_RHYTHM_OR_REST');
     for (let beatIndex = 0; beatIndex < voice.beats.length; beatIndex++) {
       const beat = voice.beats[beatIndex];
-      if (beat.duration !== 4 || beat.notes?.length !== 1) fail('UNSUPPORTED_RHYTHM_OR_REST');
+      if (beat.duration !== 4 || beat.dots || beat.hasTuplet || beat.notes?.length !== 1) fail('UNSUPPORTED_RHYTHM_OR_REST');
+      if (beat.fade || beat.brushType || beat.pickStroke || beat.slap || beat.pop || beat.tap || beat.vibrato || beat.isRasgueado) fail('UNSUPPORTED_NOTE_EFFECT');
       const note = beat.notes[0];
+      events.push([barIndex + 1, beatIndex, 7 - note.string, note.fret, note.realValue, beat.playbackDuration]);
       const effectFlags = {
         dead: !!note.isDead, ghost: !!note.isGhost, tieDestination: !!note.isTieDestination,
         tieOrigin: !!note.isTieOrigin || !!note.tieOrigin || !!note.tieDestination,
@@ -138,12 +152,12 @@ try {
   });
   renderer.renderScore(score, [selectedIndex]);
   if (renderFailed || systems.length === 0) fail('PDF_RENDER_FAILED');
-  if (systems[0].lastBar - systems[0].firstBar + 1 !== 4
+  if (systems[0].lastBar - systems[0].firstBar + 1 !== Math.min(4, score.masterBars.length)
       || systems[systems.length - 1].lastBar !== score.masterBars.length) fail('PDF_LAYOUT_VALIDATION_FAILED');
   const pdfPath = path.join(OUTPUT, 'score.pdf');
   const pdf = new PDFDocument({ size: 'A4', margin: 24, autoFirstPage: false, compress: true });
   const pdfStream = fs.createWriteStream(pdfPath);
-  const moduleDir = path.dirname(new URL(import.meta.url).pathname);
+  const moduleDir = path.dirname(fileURLToPath(import.meta.url));
   const fontPath = path.join(moduleDir, 'node_modules/@coderline/alphatab/dist/font/Bravura.otf');
   if (!fs.existsSync(fontPath)) fail('RENDERER_ASSET_MISSING');
   pdf.registerFont('Bravura', fontPath);
@@ -152,11 +166,11 @@ try {
   let y = 24;
   const maxWidth = 547, maxBottom = 818;
   for (const system of systems) {
-    let scale = Math.min(maxWidth / system.width, (maxBottom - y) / system.height);
+    let scale = Math.min(maxWidth / system.width, (maxBottom - 24) / system.height);
     let height = system.height * scale;
     if (y + height > maxBottom && y > 24) {
       pdf.addPage({ size: 'A4', margin: 24 }); y = 24;
-      scale = Math.min(maxWidth / system.width, (maxBottom - y) / system.height);
+      scale = Math.min(maxWidth / system.width, (maxBottom - 24) / system.height);
       height = system.height * scale;
     }
     SVGtoPDF(pdf, system.svg, 24, y, { width: system.width * scale, height,
@@ -219,9 +233,14 @@ try {
     selectedTrackIndex:selectedIndex,selectedTrackName:String(track.name||'Guitar').slice(0,80),
     scoreRevision:crypto.createHash('sha256').update(bytes).digest('hex'),
     pdfBytes:fs.statSync(pdfPath).size,wavBytes:wav.length,wavDurationSeconds:sampleCount/(44100*2),
+    eventCount:events.length,eventDigest:crypto.createHash('sha256').update(JSON.stringify(events)).digest('hex'),
     alphaTabVersion:'1.8.4'};
   fs.writeFileSync(path.join(OUTPUT,'result.json'),JSON.stringify(result));
-  console.log(JSON.stringify(result));
+  await emit(result);
 } catch (error) {
-  fail('CONVERSION_INTERNAL_ERROR');
+  const code = error instanceof Rejected ? error.code : 'CONVERSION_INTERNAL_ERROR';
+  const result = {status:'ERROR', code, ...(error instanceof Rejected ? error.details : {})};
+  try { fs.writeFileSync(path.join(OUTPUT, 'result.json'), JSON.stringify(result)); } catch { /* disk full */ }
+  try { await emit(result); } catch { /* parent stopped reading/cancelled */ }
+  process.exitCode = code === 'TRACK_SELECTION_REQUIRED' ? 10 : 20;
 }

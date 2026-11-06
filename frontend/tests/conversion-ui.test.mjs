@@ -2,7 +2,7 @@ import test from "node:test";
 import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
 import ts from "typescript";
-import { createRenderer, reactive, h, nextTick } from "vue";
+import { createRenderer, reactive, shallowReactive, h, nextTick } from "vue";
 import { ApiFailure, isArrayOf, isObject, isString, isUuid } from "../src/shared/api-failure.ts";
 
 const read = path => readFileSync(new URL("../" + path, import.meta.url), "utf8");
@@ -229,7 +229,13 @@ test("mounted conversion panel creates, selects, cancels, retries and restores a
   try {
     const Base = await loadPanel();
     const Wrapper = { setup() {
-      binding = Base.setup({ material }, { expose: () => {}, emit: (event, value) => { if (event === "updated") emitted = value; } });
+      const props = shallowReactive({ material });
+      binding = Base.setup(props, { expose: () => {}, emit: (event, value) => {
+        if (event === "updated") {
+          emitted = value;
+          props.material = value;
+        }
+      } });
       return () => h("section");
     } };
     app = renderer().createApp(Wrapper);
@@ -261,8 +267,12 @@ test("mounted conversion panel creates, selects, cancels, retries and restores a
     const succeeded = { ...queued, state: "SUCCEEDED", pdfAssetId: pdfId,
       audioAssetId: audioId, revision: 9 };
     await binding.applyJob(succeeded, binding.generation, "A");
+    await flushVue();
     assert.equal(emitted, fresh);
+    assert.equal(binding.job.value.state, "SUCCEEDED");
     assert.equal(binding.notice.value, "conversion.completed");
+    assert.equal(calls.filter(([method]) => method === "get").length, 0,
+      "refreshing the same material must not restore the job again");
     app.unmount();
     app = null;
 

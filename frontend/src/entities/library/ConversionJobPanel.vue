@@ -186,7 +186,7 @@ async function restore() {
     if (isCurrent(ticket, owner)) busy.value = false;
   }
 }
-watch(() => [props.material.id, auth.actor?.accountId], () => {
+watch([() => props.material.id, () => auth.actor?.accountId], () => {
   reset();
   if (auth.actor) void restore();
 }, { immediate: true, flush: "sync" });

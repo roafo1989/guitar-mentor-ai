@@ -4,6 +4,7 @@ WORKDIR /opt/converter
 COPY scripts/research/catalog-169/package.json scripts/research/catalog-169/package-lock.json ./
 RUN npm ci --omit=dev --ignore-scripts --no-audit --no-fund
 COPY scripts/conversion-worker/worker.mjs ./worker.mjs
-RUN mkdir -p /input /out && chown 10001:10001 /input /out
+COPY scripts/conversion-worker/entrypoint.sh ./entrypoint.sh
+RUN mkdir -p /input /scratch && rm -rf /tmp && ln -s /scratch/tmp /tmp && ln -s /scratch/out /out && chmod 755 entrypoint.sh
 USER 10001:10001
-ENTRYPOINT ["node", "/opt/converter/worker.mjs"]
+ENTRYPOINT ["/opt/converter/entrypoint.sh"]

@@ -20,6 +20,7 @@ import org.springframework.transaction.annotation.Transactional;
     "guitar-mentor.security.enabled=false",
     "guitar-mentor.library.enabled=true",
     "guitar-mentor.library.conversion-enabled=true",
+    "guitar-mentor.library.conversion-worker-enabled=false",
     "guitar-mentor.library.cursor-secret=ci-only-conversion-secret-long-enough-32-bytes",
     "guitar-mentor.library.conversion-reclaim-delay-ms=3600000",
     "guitar-mentor.library.reconcile-delay-ms=3600000",

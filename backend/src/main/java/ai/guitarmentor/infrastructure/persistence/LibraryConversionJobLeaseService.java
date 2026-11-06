@@ -131,12 +131,30 @@ public final class LibraryConversionJobLeaseService {
                 UPDATE library_conversion_jobs
                 SET state='AWAITING_TRACK_SELECTION',stage=NULL,progress=0,
                     tracks=CAST(:tracks AS jsonb),selected_track_index=NULL,
+                    attempt_count=GREATEST(0,attempt_count-1),
                     updated_at=now(),revision=revision+1
                 WHERE id=:job AND state='RUNNING'
                 """).param("tracks", tracksJson).param("job", jobId).update();
             if (updated != 1) return false;
             clearSlot(slots.getFirst(), jobId, workerId);
             return true;
+        }));
+    }
+
+    /** Bind an automatic single-track choice, or verify the user's existing choice, under the lease lock. */
+    public boolean recordSelectedTrack(UUID jobId, UUID workerId, Integer track) {
+        if (!enabled || track == null || track < 0 || track >= 32) return false;
+        return Boolean.TRUE.equals(transactions.execute(status -> {
+            var slots = jdbc.sql("""
+                SELECT slot_number FROM library_conversion_worker_slots
+                WHERE job_id=:job AND lease_owner=:worker AND lease_until>now() FOR UPDATE
+                """).param("job", jobId).param("worker", workerId).query(Integer.class).list();
+            if (slots.isEmpty()) return false;
+            return jdbc.sql("""
+                UPDATE library_conversion_jobs SET selected_track_index=:track,revision=revision+1,updated_at=now()
+                WHERE id=:job AND state='RUNNING' AND cancel_requested=FALSE
+                  AND (selected_track_index IS NULL OR selected_track_index=:track)
+                """).param("job", jobId).param("track", track).update() == 1;
         }));
     }
 
