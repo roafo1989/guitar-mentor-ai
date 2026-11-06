@@ -79,7 +79,7 @@ class LibraryConversionBrowserPostgresTest {
             assertEquals(1,count("SELECT count(*) FROM library_conversion_jobs WHERE owner_account_id=:owner AND state='CANCELLED'",a));
             assertEquals(5,count("SELECT count(*) FROM library_conversion_output_lineage WHERE owner_account_id=:owner AND source_sha256=score_revision",a));
             assertEquals(16,count("SELECT count(*) FROM library_assets WHERE material_id IN (SELECT id FROM library_materials WHERE owner_account_id=:owner)",a));
-            assertEquals(0,count("SELECT count(*) FROM library_materials WHERE owner_account_id=:owner AND visibility<>'PRIVATE'",a));
+            assertEquals(0,count("SELECT count(*) FROM library_publications WHERE owner_account_id=:owner",a));
             assertEquals(0,count("SELECT count(*) FROM library_conversion_worker_slots WHERE job_id IN (SELECT id FROM library_conversion_jobs WHERE owner_account_id=:owner)",a));
             var usage=jdbc.sql("SELECT charged_bytes,charged_files,reserved_bytes,reserved_files FROM library_account_usage WHERE account_id=:id").param("id",a).query().singleRow();
             assertEquals(16,((Number)usage.get("charged_files")).longValue());

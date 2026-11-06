@@ -1,6 +1,6 @@
 # 170-E / #266 — матрица проверки
 
-База: `48d03ff9`; feature flag остаётся OFF. Дата сверки: 05.11.2026. Приёмка и rollout отдельно. PASS относится только к реально выполненной проверке; готовый тест не считается пройденным.
+База: `48d03ff9`; feature flag остаётся OFF. Дата сверки: 06.11.2026. Приёмка и rollout отдельно. PASS относится только к реально выполненной проверке; готовый тест не считается пройденным.
 
 | ID | Критерий / шаги | Ожидаемый результат | Фактический статус |
 | --- | --- | --- | --- |
@@ -10,9 +10,9 @@
 | E04 | Upload → queue → selection → real Docker → private pair → original download | GP3/4/5 SUCCEEDED; оба asset, lineage, quota, owner isolation; cleanup | PASS: Linux Docker/PostgreSQL CI на `e1231233` |
 | E05 | Durable retry/cancel/duplicate delivery, 1/account и 2 global, expiry/reclaim | Без дублей и частичных assets, slot freed; discovery не съедает retry | PASS: PostgreSQL CI на `e1231233` |
 | E06 | Released reservation reuse | Повторное сохранение проходит после RELEASED, charged один раз | PASS: PostgreSQL CI на `e1231233` |
-| E07 | Full Java/Vue CI | Regression tests + сборки PASS на финальном SHA | PASS на `e1231233`: Java 432 cases (427 PASS, 5 skipped), Vue CI PASS; новый browser increment ожидает CI |
+| E07 | Full Java/Vue CI | Regression tests + сборки PASS на финальном SHA | PASS на `e1231233`: Java 432 cases (427 PASS, 5 skipped), Vue CI PASS. Финальный SHA — в [PR #267](https://github.com/roafo1989/guitar-mentor-ai/pull/267/checks) |
 | E08 | Windows Docker Desktop + Java, путь с пробелами, cancellation/restart | Полный runbook PASS, recorded versions/SHA | NOT_RUN: Windows host недоступен |
-| E09 | Живой browser → действующий backend → Docker | Терминальный UI, выбор/повтор/отмена и оба приватных файла | PENDING: добавлен настоящий Chromium → local login/CSRF → backend → scheduled worker → Docker; до результата CI не считается PASS |
+| E09 | Живой browser → действующий backend → Docker | Терминальный UI, выбор/повтор/отмена и оба приватных файла | На `a2068bec` браузерный сценарий завершился, но проверка БД в тесте упала. Итог E09 — в [PR #267](https://github.com/roafo1989/guitar-mentor-ai/pull/267/checks) |
 | E10 | Human PDF review + listening | MUSIC-01 layout/октава/чистота аудио | NOT_RUN: требуется фактическая пользовательская проверка |
 
 Автотесты используются только с synthetic files и отдельной БД. Производственные данные/флаги не затрагивались. Отдельная автоматическая визуальная проверка PDF не заменяет человеческую приёмку.
@@ -57,6 +57,6 @@ GP3 не умеет сохранять palm mute: корпус не выдаёт
 - [Vue frontend](https://github.com/roafo1989/guitar-mentor-ai/actions/runs/41490629402): PASS.
 - [CATALOG-169](https://github.com/roafo1989/guitar-mentor-ai/actions/runs/41490629310): PASS.
 
-Добавлен `LibraryConversionBrowserPostgresTest` / `frontend/tests/conversion-live-browser.mjs`: настоящая форма входа, upload GP3/4/5, выбор дорожки, восстановление после reload, отмена, повтор после отсутствующего тестового image, скачивание оригинала/PDF/WAV, независимые sessions владельца/другого account/гостя, квота и cleanup. API и worker не подменяются. Результат этого нового сценария ожидает CI. Для failure/retry используется отдельный UUID Docker tag, основной `:170e` не удаляется.
+Добавлен `LibraryConversionBrowserPostgresTest` / `frontend/tests/conversion-live-browser.mjs`: настоящая форма входа, upload GP3/4/5, выбор дорожки, восстановление после reload, отмена, повтор после отсутствующего тестового image, скачивание оригинала/PDF/WAV, независимые sessions владельца/другого account/гостя, квота и cleanup. API и worker не подменяются. На `a2068bec` браузерный сценарий завершился. Проверка отсутствия публикаций обращалась к несуществующему полю `library_materials.visibility`, исправлена на запрос к `library_publications`. Итоговые результаты зафиксированы в [PR #267](https://github.com/roafo1989/guitar-mentor-ai/pull/267). Для failure/retry используется отдельный UUID Docker tag, основной `:170e` не удаляется.
 
-Windows Docker Desktop и human visual/listening остаются NOT_RUN. Feature flag OFF, rollout отдельно. Поля Project v2 не изменены: доступный connector не предоставляет соответствующие mutations.
+Windows Docker Desktop и human visual/listening остаются NOT_RUN. Feature flag OFF, rollout отдельно. Этап и состояние задачи ведутся в GitHub Project.
