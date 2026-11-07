@@ -6,7 +6,7 @@ import assert from 'node:assert/strict';
 import { isPage, isDetail, validQuery, safeFileName, DEFAULT_QUERY, LIMIT, MAX_OFFSET } from '../src/entities/music-archive/music-archive.service.ts';
 const work={id:'abc',title:'Yesterday',artist:'The Beatles',identityStatus:'CANDIDATE'};
 const arr={id:'arr',name:'Fingerstyle',identityStatus:'UNRESOLVED',parserStatus:'PARSED',tempo:null,timeSignatures:'4/4',instruments:null,trackCount:'1',measureCount:null,noteCount:null};
-const file={id:'file',name:'C:\\private\\score.gpx',format:'.gpx',sizeBytes:0,rightsStatus:'unknown',parserStatus:'PARSED',originalAvailability:'UNAVAILABLE'};
+const file={id:'file',name:'C:\\private\\score.gpx',format:'.gpx',sizeBytes:0,rightsStatus:'unknown',parserStatus:'PARSED',originalAvailability:'UNAVAILABLE',original:null};
 test('strict query validation and literal GP format',()=>{
  assert.ok(validQuery({...DEFAULT_QUERY,q:'Ветер перемен',format:'gp'}));
  assert.equal(validQuery({...DEFAULT_QUERY,format:'gtp'}),false);
@@ -20,9 +20,12 @@ test('page validation does not invent total or accept invalid offset',()=>{
  assert.equal(isPage({items:[{...work,id:''}],limit:LIMIT,offset:0,nextOffset:null},0),false);
  assert.equal(isPage({items:[],limit:LIMIT,offset:0,nextOffset:100},0),false);
 });
-test('detail requires consistent identity and unavailable originals',()=>{
+test('detail requires consistent identity and a valid private original reference',()=>{
  assert.ok(isDetail({work,arrangements:[{arrangement:arr,files:[file]}]},'abc'));
  assert.equal(isDetail({work,arrangements:[{arrangement:arr,files:[{...file,originalAvailability:'AVAILABLE'}]}]},'abc'),false);
+ const linked={...file,originalAvailability:'AVAILABLE',original:{materialId:'11111111-1111-4111-8111-111111111111',assetId:'22222222-2222-4222-8222-222222222222'}};
+ assert.ok(isDetail({work,arrangements:[{arrangement:arr,files:[linked]}]},'abc'));
+ assert.equal(isDetail({work,arrangements:[{arrangement:arr,files:[{...linked,original:{materialId:'D:\\secret',assetId:'https://public'}}]}]},'abc'),false);
  assert.equal(isDetail({work,arrangements:[]},'another'),false);
  assert.equal(isDetail({work,arrangements:[{arrangement:arr,files:[]},{arrangement:arr,files:[]}]},'abc'),false);
 });

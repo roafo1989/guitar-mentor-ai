@@ -59,7 +59,7 @@ class MusicCatalogRepositoryPostgresTest {
         var file=catalog.files(alice,"arr1").getFirst();
         assertEquals("UNAVAILABLE",file.originalAvailability());
         assertEquals("Yesterday.gp5",file.name());
-        assertEquals(7,file.getClass().getRecordComponents().length);
+        assertNull(file.original());
     }
 
     @Test void unicodeLiteralSearchFormatParserAndPageBoundaries() {

@@ -18,7 +18,8 @@ public class MusicCatalogRepository {
             String parserStatus, String tempo, String timeSignatures, String instruments,
             String trackCount, String measureCount, String noteCount) {}
     public record SourceFile(String id, String name, String format, long sizeBytes,
-            String rightsStatus, String parserStatus, String originalAvailability) {}
+            String rightsStatus, String parserStatus, String originalAvailability, Original original) {}
+    public record Original(UUID materialId, UUID assetId) {}
 
     private static final org.springframework.jdbc.core.RowMapper<Work> WORK = (rs,n) ->
         new Work(rs.getString("source_work_id"),rs.getString("title"),rs.getString("artist"),
@@ -90,19 +91,45 @@ public class MusicCatalogRepository {
             """).param("owner",owner).param("id",id).query(ARRANGEMENT).optional();
     }
 
+    /** Locks the existing library rows against deletion while attaching; never copies bytes or paths. */
+    @org.springframework.transaction.annotation.Transactional
+    public boolean bindOriginal(UUID owner, String fileId, UUID materialId, UUID assetId) {
+        return jdbc.sql("""
+            WITH eligible AS (
+                SELECT asset.id FROM library_assets asset
+                JOIN library_materials m ON m.id=asset.material_id
+                WHERE m.id=:material AND m.owner_account_id=:owner AND m.state='READY'
+                  AND asset.id=:asset AND asset.processing_state='READY'
+                  AND asset.role='SCORE_ORIGINAL'
+                  AND asset.format IN ('PDF','GTP','GP','GP3','GP4','GP5','GPX')
+                FOR SHARE OF m,asset
+            )
+            UPDATE music_catalog_source_files f SET original_asset_id=e.id FROM eligible e
+            WHERE f.owner_account_id=:owner AND f.source_file_id=:file AND f.visibility='PRIVATE'
+            """).param("owner",owner).param("file",fileId)
+            .param("material",materialId).param("asset",assetId).update()==1;
+    }
+
     public List<SourceFile> files(UUID owner,String arrangementId) {
         return jdbc.sql("""
             SELECT f.source_file_id,f.original_filename,f.extension,f.size_bytes,
-                   f.rights_status,a.parser_status
+                   f.rights_status,a.parser_status, m.id AS material_id, asset.id AS asset_id
             FROM music_catalog_source_files f
             JOIN music_catalog_arrangements a ON a.owner_account_id=f.owner_account_id
                  AND a.source_arrangement_id=f.source_arrangement_id
+            LEFT JOIN library_assets asset ON asset.id=f.original_asset_id
+                AND asset.role='SCORE_ORIGINAL' AND asset.processing_state='READY'
+                AND asset.format IN ('PDF','GTP','GP','GP3','GP4','GP5','GPX')
+            LEFT JOIN library_materials m ON m.id=asset.material_id
+                AND m.owner_account_id=f.owner_account_id AND m.state='READY'
             WHERE f.owner_account_id=:owner AND f.source_arrangement_id=:id
               AND f.visibility='PRIVATE'
             ORDER BY f.source_file_id
             """).param("owner",owner).param("id",arrangementId)
             .query((rs,n)->new SourceFile(rs.getString(1),rs.getString(2),
                 rs.getString(3),rs.getLong(4),rs.getString(5),rs.getString(6),
-                "UNAVAILABLE")).list();
+                rs.getObject("material_id")==null?"UNAVAILABLE":"AVAILABLE",
+                rs.getObject("material_id")==null?null:new Original(
+                    rs.getObject("material_id",UUID.class),rs.getObject("asset_id",UUID.class)))).list();
     }
 }
