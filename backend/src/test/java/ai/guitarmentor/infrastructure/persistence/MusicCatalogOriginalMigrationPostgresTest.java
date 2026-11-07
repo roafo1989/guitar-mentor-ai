@@ -14,11 +14,11 @@ import org.springframework.boot.test.context.SpringBootTest;
 @EnabledIfEnvironmentVariable(named="GUITAR_MENTOR_TEST_POSTGRES",matches="true")
 class MusicCatalogOriginalMigrationPostgresTest {
     @Autowired DataSource datasource;
-    @Test void v34IndexRowsRemainUnavailableAfterV35() throws Exception {
+    @Test void v35IndexRowsRemainUnavailableAfterV36() throws Exception {
         String schema="cat196_"+UUID.randomUUID().toString().replace("-","");
         try(var c=datasource.getConnection();var s=c.createStatement()){s.execute("CREATE SCHEMA "+schema);}
         try {
-            Flyway.configure().dataSource(datasource).schemas(schema).defaultSchema(schema).target("34").load().migrate();
+            Flyway.configure().dataSource(datasource).schemas(schema).defaultSchema(schema).target("35").load().migrate();
             UUID owner=UUID.randomUUID();
             try(var c=datasource.getConnection();var s=c.createStatement()) {
                 String previous=c.getSchema();

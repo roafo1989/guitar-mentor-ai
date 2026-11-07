@@ -1,6 +1,6 @@
 # #196 — проверки оригиналов личного архива
 
-Дата: 07.11.2026. База: `2d9101dd`. Только синтетические аккаунты и разрешённые синтетические PDF/GP5. Реальный пользовательский корпус не переносился в репозиторий и не читался.
+Дата: 07.11.2026. База: `2d9101dd`, затем интеграция актуального main `15288a9d` (#204/V35). Только синтетические аккаунты и разрешённые синтетические PDF/GP5. Реальный пользовательский корпус не переносился в репозиторий и не читался.
 
 [Контракт и матрица main → #196](../development/issue-196-private-catalog-originals.md).
 
@@ -19,12 +19,12 @@
 | Библиотека выключена | PASS — `MusicCatalogOriginalControllerTest`, 503 и отсутствие вызова repository |
 | Квоты и права при привязке | PASS — charged_files остаётся 2 после повторных привязок, rightsStatus не меняется |
 | Существующие ограничения загрузки и хранилище | PASS — `LibraryOriginalControllerTest`, `LibraryOriginalPostgresTest`, `LibraryOriginalHttpPostgresTest`, `LibraryObjectStoreTest`: размер, квота, число файлов, PDF-сигнатура, расширения GP, path traversal, идемпотентность, байты, private download, recovery |
-| Миграция на старых строках | PASS — `MusicCatalogOriginalMigrationPostgresTest`: отдельная схема V1–V34, запись до V35, upgrade; NULL-ссылка, прежние size/rights/visibility/path сохранены; физическое удаление asset обнуляет FK без удаления строки |
+| Миграция на старых строках | PASS — `MusicCatalogOriginalMigrationPostgresTest`: отдельная схема V1–V35, запись до V36, upgrade; NULL-ссылка, прежние size/rights/visibility/path сохранены; физическое удаление asset обнуляет FK без удаления строки |
 | Регрессия поиска и владения | PASS — `MusicCatalogRepositoryPostgresTest`, `MusicCatalogControllerTest` |
 | Фронтенд | PASS — `npm test`: 247/247, без пропусков; `npm run build`: typecheck + production build |
 | Реальный браузер | Выполняется отдельным CI `Private catalog originals browser`; окончательные ссылки и результат фиксируются в PR |
 
-31 целевой Java-тест выполнен успешно без пропусков (девять классов выше). В этой среде Mockito запущен через premain `-javaagent` из установленного Maven artifact, PostgreSQL использует TCP без Unix-сокета. Первая локальная попытка Chromium остановилась до сценария из-за запрета Unix-сокетов среды; это не считается браузерным PASS. В CI браузерный тест не допускает пропуск: проверяются JUnit XML и `result.json`.
+Целевые Java-тесты выполнены успешно без пропусков (девять классов выше). В этой среде Mockito запущен через premain `-javaagent` из установленного Maven artifact, PostgreSQL использует TCP без Unix-сокета. Первая локальная попытка Chromium остановилась до сценария из-за запрета Unix-сокетов среды; это не считается браузерным PASS. В CI браузерный тест не допускает пропуск: проверяются JUnit XML и `result.json`.
 
 ## Воспроизведение
 
