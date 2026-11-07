@@ -64,6 +64,8 @@ class ApiRouteOwnershipInventoryTest {
                     || path.startsWith("/api/v1/music-catalog/works/")
                     || path.startsWith("/api/v1/music-catalog/arrangements/"))
                     continue; // #194 private indexed metadata, CurrentActor account scoping.
+                if (path.equals("/api/v1/music-catalog/files/{id}/original"))
+                    continue; // #196: CSRF + CurrentActor owns both index row and READY original/material.
                 if (path.equals("/api/v1/community/publications"))
                     continue; // #166: admitted-only published search; never returns private sources.
                 if (path.equals("/api/v1/community/publications/{publicationId}")

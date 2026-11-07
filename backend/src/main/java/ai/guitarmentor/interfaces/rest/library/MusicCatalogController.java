@@ -15,8 +15,8 @@ import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
 /**
- * Private metadata-only archive, isolated from /api/v1/library/materials and community publication.
- * No file path, storage URL, download endpoint or publishing capability.
+ * Private indexed archive, isolated from /api/v1/library/materials and community publication.
+ * Original references resolve only through the existing owner-protected library API.
  */
 @RestController
 @RequestMapping("/api/v1/music-catalog")

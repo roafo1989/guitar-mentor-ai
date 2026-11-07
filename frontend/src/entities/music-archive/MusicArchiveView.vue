@@ -4,6 +4,8 @@ import { useI18n } from 'vue-i18n';
 import { auth } from '../../core/auth/auth';
 import { CatalogError, DEFAULT_QUERY, LIMIT, MAX_OFFSET, getWork, listWorks, safeFileName, validQuery, type CatalogQuery, type Work, type WorkDetail } from './music-archive.service';
 
+import ArchiveOriginal from './ArchiveOriginal.vue';
+
 const {t,locale}=useI18n();
 const draft=ref<CatalogQuery>({...DEFAULT_QUERY});
 const applied=ref<CatalogQuery>({...DEFAULT_QUERY});
@@ -162,7 +164,7 @@ onBeforeUnmount(clearAll);
               <li v-for="file in entry.files" :key="file.id">
                 <strong>{{textOr(safeFileName(file.name))}}</strong>
                 <span>{{file.format}} · {{new Intl.NumberFormat(locale).format(file.sizeBytes)}} B · {{file.rightsStatus}} · {{file.parserStatus}}</span>
-                <span>{{t('musicArchive.originalUnavailable')}}</span>
+                <ArchiveOriginal :file="file" @changed="selected && choose(selected)" />
               </li>
             </ul>
           </article>

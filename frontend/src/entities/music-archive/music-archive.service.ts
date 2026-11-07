@@ -1,6 +1,6 @@
 export type Work = { id: string; title: string; artist: string; identityStatus: string };
 export type Arrangement = { id: string; name: string; identityStatus: string; parserStatus: string; tempo: string|null; timeSignatures: string|null; instruments: string|null; trackCount: string|null; measureCount: string|null; noteCount: string|null };
-export type SourceFile = { id: string; name: string; format: string; sizeBytes: number; rightsStatus: string; parserStatus: string; originalAvailability: 'UNAVAILABLE' };
+export type SourceFile = { id: string; name: string; format: string; sizeBytes: number; rightsStatus: string; parserStatus: string; originalAvailability: 'UNAVAILABLE'|'AVAILABLE'; original: { materialId: string; assetId: string }|null };
 export type WorkDetail = { work: Work; arrangements: { arrangement: Arrangement; files: SourceFile[] }[] };
 export type WorkPage = { items: Work[]; limit: number; offset: number; nextOffset: number|null };
 export type CatalogQuery = { q: string; format: string; parserStatus: string; sort: 'title'|'artist'|'title_desc' };
@@ -18,7 +18,8 @@ const id = (v: unknown): v is string => str(v) && !!v.trim() && v.length <= 64 &
 const nullable = (v: unknown): v is string|null => v === null || str(v);
 const work = (v: unknown): v is Work => obj(v) && id(v.id) && str(v.title) && str(v.artist) && str(v.identityStatus);
 const arrangement = (v: unknown): v is Arrangement => obj(v) && id(v.id) && str(v.name) && str(v.identityStatus) && str(v.parserStatus) && ['tempo','timeSignatures','instruments','trackCount','measureCount','noteCount'].every(k=>nullable(v[k]));
-const file = (v: unknown): v is SourceFile => obj(v) && id(v.id) && str(v.name) && str(v.format) && typeof v.sizeBytes === 'number' && Number.isSafeInteger(v.sizeBytes) && (v.sizeBytes as number)>=0 && str(v.rightsStatus) && str(v.parserStatus) && v.originalAvailability === 'UNAVAILABLE';
+const uuid = (v: unknown): v is string => str(v) && /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/.test(v);
+const file = (v: unknown): v is SourceFile => obj(v) && id(v.id) && str(v.name) && str(v.format) && typeof v.sizeBytes === 'number' && Number.isSafeInteger(v.sizeBytes) && (v.sizeBytes as number)>=0 && str(v.rightsStatus) && str(v.parserStatus) && ((v.originalAvailability === 'UNAVAILABLE' && v.original === null) || (v.originalAvailability === 'AVAILABLE' && obj(v.original) && uuid(v.original.materialId) && uuid(v.original.assetId)));
 export function validQuery(q: CatalogQuery): boolean {
   return q.q.length<=150 && !/[\x00-\x1f\x7f-\x9f]/.test(q.q) && ['','gp','gp3','gp4','gp5','gpx','pdf'].includes(q.format) && ['','PARSED','METADATA_ONLY'].includes(q.parserStatus) && ['title','artist','title_desc'].includes(q.sort);
 }
@@ -79,4 +80,16 @@ export async function getWork(workId: string, signal: AbortSignal): Promise<Work
   const result=await request('/api/v1/music-catalog/works/'+encodeURIComponent(workId),signal);
   if(!isDetail(result,workId)) throw new CatalogError('INVALID_RESPONSE');
   return result;
+}
+
+export async function bindOriginal(fileId: string, materialId: string, assetId: string, signal: AbortSignal): Promise<void> {
+  if(!id(fileId) || !uuid(materialId) || !uuid(assetId)) throw new CatalogError('INVALID_RESPONSE');
+  let response: Response;
+  try {
+    response=await fetch('/api/v1/music-catalog/files/'+encodeURIComponent(fileId)+'/original', {
+      method:'PUT', credentials:'same-origin', cache:'no-store', signal,
+      headers:{'Content-Type':'application/json'}, body:JSON.stringify({materialId,assetId}),
+    });
+  } catch { if(signal.aborted) throw new DOMException('Aborted','AbortError'); throw new CatalogError('NETWORK'); }
+  if(response.status!==204) throw new CatalogError('HTTP',response.status);
 }
