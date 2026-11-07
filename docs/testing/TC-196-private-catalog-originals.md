@@ -22,9 +22,9 @@
 | Миграция на старых строках | PASS — `MusicCatalogOriginalMigrationPostgresTest`: отдельная схема V1–V35, запись до V36, upgrade; NULL-ссылка, прежние size/rights/visibility/path сохранены; физическое удаление asset обнуляет FK без удаления строки |
 | Регрессия поиска и владения | PASS — `MusicCatalogRepositoryPostgresTest`, `MusicCatalogControllerTest` |
 | Фронтенд | PASS — `npm test`: 247/247, без пропусков; `npm run build`: typecheck + production build |
-| Реальный браузер | Выполняется отдельным CI `Private catalog originals browser`; окончательные ссылки и результат фиксируются в PR |
+| Реальный браузер | PASS — [CI run 42349291669](https://github.com/roafo1989/guitar-mentor-ai/actions/runs/42349291669), code SHA `1187ec2c`: 1 тест, 0 failures/errors/skips; проверка JUnit XML и result.json успешна |
 
-Целевые Java-тесты выполнены успешно без пропусков (девять классов выше). В этой среде Mockito запущен через premain `-javaagent` из установленного Maven artifact, PostgreSQL использует TCP без Unix-сокета. Первая локальная попытка Chromium остановилась до сценария из-за запрета Unix-сокетов среды; это не считается браузерным PASS. В CI браузерный тест не допускает пропуск: проверяются JUnit XML и `result.json`.
+После интеграции main #204 выполнен чистый запуск: **36 Java-тестов, 0 failures/errors/skips**. Помимо девяти целевых классов проверены `ApiRouteOwnershipInventoryTest`, `CommunityWorkPostgresTest`, `CommunityWorkMigrationPostgresTest`. Выполнены clean install V1–V36 и populated V35→V36; production-схемы и общий Work совместимы. В этой среде Mockito запущен через premain `-javaagent` из установленного Maven artifact, PostgreSQL использует TCP без Unix-сокета. Первая локальная попытка Chromium остановилась до сценария из-за запрета Unix-сокетов среды; это не считается браузерным PASS. В CI браузерный тест не допускает пропуск: проверяются JUnit XML и `result.json`.
 
 ## Воспроизведение
 
@@ -33,7 +33,7 @@
 ```bash
 cd backend
 GUITAR_MENTOR_TEST_POSTGRES=true ./mvnw -B -ntp \
-  -Dtest=MusicCatalogControllerTest,MusicCatalogOriginalControllerTest,MusicCatalogRepositoryPostgresTest,MusicCatalogOriginalHttpPostgresTest,MusicCatalogOriginalMigrationPostgresTest,LibraryOriginalControllerTest,LibraryOriginalHttpPostgresTest,LibraryOriginalPostgresTest,LibraryObjectStoreTest test
+  -Dtest=MusicCatalogControllerTest,MusicCatalogOriginalControllerTest,MusicCatalogRepositoryPostgresTest,MusicCatalogOriginalHttpPostgresTest,MusicCatalogOriginalMigrationPostgresTest,LibraryOriginalControllerTest,LibraryOriginalHttpPostgresTest,LibraryOriginalPostgresTest,LibraryObjectStoreTest,ApiRouteOwnershipInventoryTest,CommunityWorkPostgresTest,CommunityWorkMigrationPostgresTest clean test
 ```
 
 Реальный браузер (Node 22.16+, Java 21, PostgreSQL 17):
@@ -49,10 +49,10 @@ GUITAR_MENTOR_TEST_POSTGRES=true GM_TEST_REAL_BROWSER=true ./mvnw -B -ntp \
 
 Java harness создаёт отдельные временные аккаунты и storage-root, запускает реальный Spring Boot на случайном loopback-порту, затем Node/Vite/Chromium. Локальный логин, CSRF, backend, БД, загрузка, привязка и download не подменяются. После сценария тест удаляет свои аккаунты/файлы. По желанию путь Chromium задаётся через `GM_TEST_BROWSER_EXECUTABLE`.
 
-План браузерного теста: загрузить PDF и GP5 в «Мои материалы» → открыть архив → убедиться в отсутствии download у непривязанной строки → привязать каждый оригинал → скачать и сравнить SHA-256 и имя → проверить 390px без горизонтального overflow → отдельный аккаунт и гость не получают метаданные/байты. Evidence: `artifacts/catalog-196/browser/{result.json,browser.log,desktop.png,mobile.png}`, CI artifact `catalog-196-browser`.
+Выполненный браузерный сценарий: загрузить PDF и GP5 в «Мои материалы» → открыть архив → убедиться в отсутствии download у непривязанной строки → привязать каждый оригинал → скачать и сравнить SHA-256 и имя → проверить 390px без горизонтального overflow → отдельный аккаунт и гость не получают метаданные/байты. Evidence: `artifacts/catalog-196/browser/{result.json,browser.log,desktop.png,mobile.png}`, [CI artifact catalog-196-browser](https://github.com/roafo1989/guitar-mentor-ai/actions/runs/42349291669/artifacts/13564414169). Артефакт скачан: result.json=PASS, pageErrors=[], desktop/mobile скриншоты визуально проверены; кнопки и карточка помещаются на 390px. Runner закреплён на Ubuntu 24.04, совместимой с зафиксированным Playwright 1.56.1.
 
 ## Саморевью
 
-Проверены границы ownership на обеих сторонах связи, запрет клиентских путей/URL, role/state/format, блокировка удаления на время привязки, отсутствие повторного списания квоты, удаление FK и сохранение старых записей. UI не использует размер офлайн-индекса для скачивания и не принимает произвольный URL. Запросы отменяются при размонтировании; ответы и Blob download защищены проверкой текущего actor. Схема старых миграций, загрузчик, хранилище, выдача и публикации не переписаны.
+Новый маршрут явно классифицирован в security inventory. Проверены границы ownership на обеих сторонах связи, запрет клиентских путей/URL, role/state/format, блокировка удаления на время привязки, отсутствие повторного списания квоты, удаление FK и сохранение старых записей. UI не использует размер офлайн-индекса для скачивания и не принимает произвольный URL. Запросы отменяются при размонтировании; ответы и Blob download защищены проверкой текущего actor. Схема старых миграций, загрузчик, хранилище, выдача и публикации не переписаны.
 
 В ходе проверки тестового upgrade исправлено восстановление search_path при возврате соединения в pool; затем вместе с migration test успешно выполнены существующие `LibraryOriginalPostgresTest`. Production-контракт из-за этого не менялся. Формального независимого ревью или пользовательской приёмки этот отчёт не заменяет.
