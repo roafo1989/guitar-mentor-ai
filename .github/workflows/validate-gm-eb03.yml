@@ -1,0 +1,24 @@
+name: GM-EB03 score validation
+on:
+  pull_request:
+    paths:
+      - 'music/etudes/GM-EB03/**'
+      - '.github/workflows/validate-gm-eb03.yml'
+  push:
+    branches:
+      - 'feature/78-gm-eb03-arpeggio'
+    paths:
+      - 'music/etudes/GM-EB03/**'
+      - '.github/workflows/validate-gm-eb03.yml'
+jobs:
+  validate-score:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Validate notation and event source
+        run: python music/etudes/GM-EB03/v1.0.0/validate.py
