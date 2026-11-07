@@ -1,0 +1,1391 @@
+{
+  "metadata": {
+    "id": "GM-EB05",
+    "version": "1.1.0",
+    "title": "Midnight Train Blues — Call and Response",
+    "source": "ORIGINAL",
+    "license": "CC BY 4.0",
+    "status": "PENDING_MUSICAL_REVIEW",
+    "instrument": "ACOUSTIC_GUITAR",
+    "technique": "FINGERSTYLE",
+    "meter": "4/4",
+    "bpm": 96,
+    "bars": 12,
+    "tuning": "E A D G B E",
+    "rhythmFeel": "swing eighths (long-short; approximate 2:1)",
+    "learningGoal": "Melodic call-and-response, expressive pauses, chromatic blue notes and an independent alternating thumb",
+    "practiceInstructions": "Tune EADGBE; play thumb p on bass and i/m/a on treble strings; no pick or percussion. Start at 60 BPM, feel the eighth notes long-short, keep the bass steady and hold the last melody note four beats.",
+    "successCriteria": [
+      "Even alternating bass at quarter-note pulse",
+      "Deliberate upper voice rests and contrasting phrases",
+      "E7/A7/C#7/F#m7/B7 chord movement and closing E tonic",
+      "Musical articulation: question/answer and final sustained E"
+    ],
+    "review": {
+      "guitarPlayability": "PENDING_OWNER",
+      "ownerListening": "PENDING_OWNER"
+    },
+    "media": {
+      "audio": "SYNTHESIZED_PREVIEW",
+      "pdf": "STAFF_AND_TAB_GENERATED"
+    }
+  },
+  "measures": [
+    {
+      "bar": 1,
+      "chord": "E7",
+      "label": "Question",
+      "bass": [
+        {
+          "beat": 0,
+          "length": 1,
+          "notes": [
+            {
+              "string": 6,
+              "fret": 0
+            }
+          ],
+          "velocity": 83,
+          "technique": "thumb"
+        },
+        {
+          "beat": 1,
+          "length": 1,
+          "notes": [
+            {
+              "string": 5,
+              "fret": 2
+            }
+          ],
+          "velocity": 72,
+          "technique": "thumb"
+        },
+        {
+          "beat": 2,
+          "length": 1,
+          "notes": [
+            {
+              "string": 6,
+              "fret": 0
+            }
+          ],
+          "velocity": 83,
+          "technique": "thumb"
+        },
+        {
+          "beat": 3,
+          "length": 1,
+          "notes": [
+            {
+              "string": 5,
+              "fret": 2
+            }
+          ],
+          "velocity": 72,
+          "technique": "thumb"
+        }
+      ],
+      "upper": [
+        {
+          "beat": 0.5,
+          "length": 0.5,
+          "notes": [
+            {
+              "string": 2,
+              "fret": 0
+            }
+          ],
+          "velocity": 88,
+          "technique": "pluck"
+        },
+        {
+          "beat": 1,
+          "length": 1,
+          "notes": [
+            {
+              "string": 1,
+              "fret": 3
+            }
+          ],
+          "velocity": 88,
+          "technique": "pluck"
+        },
+        {
+          "beat": 2.5,
+          "length": 0.5,
+          "notes": [
+            {
+              "string": 1,
+              "fret": 0
+            }
+          ],
+          "velocity": 88,
+          "technique": "pluck"
+        },
+        {
+          "beat": 3,
+          "length": 1,
+          "notes": [
+            {
+              "string": 2,
+              "fret": 3
+            }
+          ],
+          "velocity": 88,
+          "technique": "pluck"
+        }
+      ]
+    },
+    {
+      "bar": 2,
+      "chord": "E7",
+      "label": "Answer",
+      "bass": [
+        {
+          "beat": 0,
+          "length": 1,
+          "notes": [
+            {
+              "string": 6,
+              "fret": 0
+            }
+          ],
+          "velocity": 83,
+          "technique": "thumb"
+        },
+        {
+          "beat": 1,
+          "length": 1,
+          "notes": [
+            {
+              "string": 5,
+              "fret": 2
+            }
+          ],
+          "velocity": 72,
+          "technique": "thumb"
+        },
+        {
+          "beat": 2,
+          "length": 1,
+          "notes": [
+            {
+              "string": 6,
+              "fret": 0
+            }
+          ],
+          "velocity": 83,
+          "technique": "thumb"
+        },
+        {
+          "beat": 3,
+          "length": 1,
+          "notes": [
+            {
+              "string": 5,
+              "fret": 2
+            }
+          ],
+          "velocity": 72,
+          "technique": "thumb"
+        }
+      ],
+      "upper": [
+        {
+          "beat": 0,
+          "length": 0.5,
+          "notes": [
+            {
+              "string": 1,
+              "fret": 0
+            }
+          ],
+          "velocity": 88,
+          "technique": "pluck"
+        },
+        {
+          "beat": 0.5,
+          "length": 0.5,
+          "notes": [
+            {
+              "string": 1,
+              "fret": 3
+            }
+          ],
+          "velocity": 88,
+          "technique": "pluck"
+        },
+        {
+          "beat": 1,
+          "length": 1,
+          "notes": [
+            {
+              "string": 1,
+              "fret": 4
+            }
+          ],
+          "velocity": 88,
+          "technique": "pluck"
+        },
+        {
+          "beat": 2.5,
+          "length": 0.5,
+          "notes": [
+            {
+              "string": 1,
+              "fret": 3
+            }
+          ],
+          "velocity": 88,
+          "technique": "pluck"
+        },
+        {
+          "beat": 3,
+          "length": 0.5,
+          "notes": [
+            {
+              "string": 1,
+              "fret": 0
+            }
+          ],
+          "velocity": 88,
+          "technique": "pluck"
+        },
+        {
+          "beat": 3.5,
+          "length": 0.5,
+          "notes": [
+            {
+              "string": 2,
+              "fret": 3
+            }
+          ],
+          "velocity": 88,
+          "technique": "pluck"
+        }
+      ]
+    },
+    {
+      "bar": 3,
+      "chord": "A7",
+      "label": "IV color",
+      "bass": [
+        {
+          "beat": 0,
+          "length": 1,
+          "notes": [
+            {
+              "string": 5,
+              "fret": 0
+            }
+          ],
+          "velocity": 83,
+          "technique": "thumb"
+        },
+        {
+          "beat": 1,
+          "length": 1,
+          "notes": [
+            {
+              "string": 4,
+              "fret": 2
+            }
+          ],
+          "velocity": 72,
+          "technique": "thumb"
+        },
+        {
+          "beat": 2,
+          "length": 1,
+          "notes": [
+            {
+              "string": 5,
+              "fret": 0
+            }
+          ],
+          "velocity": 83,
+          "technique": "thumb"
+        },
+        {
+          "beat": 3,
+          "length": 1,
+          "notes": [
+            {
+              "string": 4,
+              "fret": 2
+            }
+          ],
+          "velocity": 72,
+          "technique": "thumb"
+        }
+      ],
+      "upper": [
+        {
+          "beat": 0.5,
+          "length": 0.5,
+          "notes": [
+            {
+              "string": 2,
+              "fret": 2
+            }
+          ],
+          "velocity": 88,
+          "technique": "pluck"
+        },
+        {
+          "beat": 1,
+          "length": 0.5,
+          "notes": [
+            {
+              "string": 1,
+              "fret": 0
+            }
+          ],
+          "velocity": 88,
+          "technique": "pluck"
+        },
+        {
+          "beat": 1.5,
+          "length": 0.5,
+          "notes": [
+            {
+              "string": 1,
+              "fret": 3
+            }
+          ],
+          "velocity": 88,
+          "technique": "pluck"
+        },
+        {
+          "beat": 2,
+          "length": 1,
+          "notes": [
+            {
+              "string": 1,
+              "fret": 0
+            }
+          ],
+          "velocity": 88,
+          "technique": "pluck"
+        },
+        {
+          "beat": 3.5,
+          "length": 0.5,
+          "notes": [
+            {
+              "string": 2,
+              "fret": 2
+            }
+          ],
+          "velocity": 88,
+          "technique": "pluck"
+        }
+      ]
+    },
+    {
+      "bar": 4,
+      "chord": "E7",
+      "label": "Space",
+      "bass": [
+        {
+          "beat": 0,
+          "length": 1,
+          "notes": [
+            {
+              "string": 6,
+              "fret": 0
+            }
+          ],
+          "velocity": 83,
+          "technique": "thumb"
+        },
+        {
+          "beat": 1,
+          "length": 1,
+          "notes": [
+            {
+              "string": 5,
+              "fret": 2
+            }
+          ],
+          "velocity": 72,
+          "technique": "thumb"
+        },
+        {
+          "beat": 2,
+          "length": 1,
+          "notes": [
+            {
+              "string": 6,
+              "fret": 0
+            }
+          ],
+          "velocity": 83,
+          "technique": "thumb"
+        },
+        {
+          "beat": 3,
+          "length": 1,
+          "notes": [
+            {
+              "string": 5,
+              "fret": 2
+            }
+          ],
+          "velocity": 72,
+          "technique": "thumb"
+        }
+      ],
+      "upper": [
+        {
+          "beat": 0,
+          "length": 1.5,
+          "notes": [
+            {
+              "string": 1,
+              "fret": 3
+            }
+          ],
+          "velocity": 88,
+          "technique": "pluck"
+        },
+        {
+          "beat": 2,
+          "length": 0.5,
+          "notes": [
+            {
+              "string": 1,
+              "fret": 0
+            }
+          ],
+          "velocity": 88,
+          "technique": "pluck"
+        },
+        {
+          "beat": 2.5,
+          "length": 0.5,
+          "notes": [
+            {
+              "string": 2,
+              "fret": 3
+            }
+          ],
+          "velocity": 88,
+          "technique": "pluck"
+        },
+        {
+          "beat": 3,
+          "length": 1,
+          "notes": [
+            {
+              "string": 2,
+              "fret": 0
+            }
+          ],
+          "velocity": 88,
+          "technique": "pluck"
+        }
+      ]
+    },
+    {
+      "bar": 5,
+      "chord": "A7",
+      "label": "Question varied",
+      "bass": [
+        {
+          "beat": 0,
+          "length": 1,
+          "notes": [
+            {
+              "string": 5,
+              "fret": 0
+            }
+          ],
+          "velocity": 83,
+          "technique": "thumb"
+        },
+        {
+          "beat": 1,
+          "length": 1,
+          "notes": [
+            {
+              "string": 4,
+              "fret": 2
+            }
+          ],
+          "velocity": 72,
+          "technique": "thumb"
+        },
+        {
+          "beat": 2,
+          "length": 1,
+          "notes": [
+            {
+              "string": 5,
+              "fret": 0
+            }
+          ],
+          "velocity": 83,
+          "technique": "thumb"
+        },
+        {
+          "beat": 3,
+          "length": 1,
+          "notes": [
+            {
+              "string": 4,
+              "fret": 2
+            }
+          ],
+          "velocity": 72,
+          "technique": "thumb"
+        }
+      ],
+      "upper": [
+        {
+          "beat": 0.5,
+          "length": 0.5,
+          "notes": [
+            {
+              "string": 1,
+              "fret": 0
+            }
+          ],
+          "velocity": 88,
+          "technique": "pluck"
+        },
+        {
+          "beat": 1,
+          "length": 0.5,
+          "notes": [
+            {
+              "string": 1,
+              "fret": 3
+            }
+          ],
+          "velocity": 88,
+          "technique": "pluck"
+        },
+        {
+          "beat": 1.5,
+          "length": 0.5,
+          "notes": [
+            {
+              "string": 1,
+              "fret": 0
+            }
+          ],
+          "velocity": 88,
+          "technique": "pluck"
+        },
+        {
+          "beat": 2,
+          "length": 1,
+          "notes": [
+            {
+              "string": 2,
+              "fret": 2
+            }
+          ],
+          "velocity": 88,
+          "technique": "pluck"
+        },
+        {
+          "beat": 3.5,
+          "length": 0.5,
+          "notes": [
+            {
+              "string": 1,
+              "fret": 3
+            }
+          ],
+          "velocity": 88,
+          "technique": "pluck"
+        }
+      ]
+    },
+    {
+      "bar": 6,
+      "chord": "A7",
+      "label": "Reply",
+      "bass": [
+        {
+          "beat": 0,
+          "length": 1,
+          "notes": [
+            {
+              "string": 5,
+              "fret": 0
+            }
+          ],
+          "velocity": 83,
+          "technique": "thumb"
+        },
+        {
+          "beat": 1,
+          "length": 1,
+          "notes": [
+            {
+              "string": 4,
+              "fret": 2
+            }
+          ],
+          "velocity": 72,
+          "technique": "thumb"
+        },
+        {
+          "beat": 2,
+          "length": 1,
+          "notes": [
+            {
+              "string": 5,
+              "fret": 0
+            }
+          ],
+          "velocity": 83,
+          "technique": "thumb"
+        },
+        {
+          "beat": 3,
+          "length": 1,
+          "notes": [
+            {
+              "string": 4,
+              "fret": 2
+            }
+          ],
+          "velocity": 72,
+          "technique": "thumb"
+        }
+      ],
+      "upper": [
+        {
+          "beat": 0,
+          "length": 1,
+          "notes": [
+            {
+              "string": 1,
+              "fret": 0
+            }
+          ],
+          "velocity": 88,
+          "technique": "pluck"
+        },
+        {
+          "beat": 1.5,
+          "length": 0.5,
+          "notes": [
+            {
+              "string": 2,
+              "fret": 2
+            }
+          ],
+          "velocity": 88,
+          "technique": "pluck"
+        },
+        {
+          "beat": 2,
+          "length": 0.5,
+          "notes": [
+            {
+              "string": 1,
+              "fret": 3
+            }
+          ],
+          "velocity": 88,
+          "technique": "pluck"
+        },
+        {
+          "beat": 2.5,
+          "length": 0.5,
+          "notes": [
+            {
+              "string": 1,
+              "fret": 0
+            }
+          ],
+          "velocity": 88,
+          "technique": "pluck"
+        },
+        {
+          "beat": 3,
+          "length": 1,
+          "notes": [
+            {
+              "string": 3,
+              "fret": 2
+            }
+          ],
+          "velocity": 88,
+          "technique": "pluck"
+        }
+      ]
+    },
+    {
+      "bar": 7,
+      "chord": "E7",
+      "label": "Rising tension",
+      "bass": [
+        {
+          "beat": 0,
+          "length": 1,
+          "notes": [
+            {
+              "string": 6,
+              "fret": 0
+            }
+          ],
+          "velocity": 83,
+          "technique": "thumb"
+        },
+        {
+          "beat": 1,
+          "length": 1,
+          "notes": [
+            {
+              "string": 5,
+              "fret": 2
+            }
+          ],
+          "velocity": 72,
+          "technique": "thumb"
+        },
+        {
+          "beat": 2,
+          "length": 1,
+          "notes": [
+            {
+              "string": 6,
+              "fret": 0
+            }
+          ],
+          "velocity": 83,
+          "technique": "thumb"
+        },
+        {
+          "beat": 3,
+          "length": 1,
+          "notes": [
+            {
+              "string": 5,
+              "fret": 2
+            }
+          ],
+          "velocity": 72,
+          "technique": "thumb"
+        }
+      ],
+      "upper": [
+        {
+          "beat": 0.5,
+          "length": 0.5,
+          "notes": [
+            {
+              "string": 2,
+              "fret": 0
+            }
+          ],
+          "velocity": 88,
+          "technique": "pluck"
+        },
+        {
+          "beat": 1,
+          "length": 0.5,
+          "notes": [
+            {
+              "string": 1,
+              "fret": 3
+            }
+          ],
+          "velocity": 88,
+          "technique": "pluck"
+        },
+        {
+          "beat": 1.5,
+          "length": 0.5,
+          "notes": [
+            {
+              "string": 1,
+              "fret": 4
+            }
+          ],
+          "velocity": 88,
+          "technique": "pluck"
+        },
+        {
+          "beat": 2,
+          "length": 1,
+          "notes": [
+            {
+              "string": 1,
+              "fret": 0
+            }
+          ],
+          "velocity": 88,
+          "technique": "pluck"
+        },
+        {
+          "beat": 3,
+          "length": 1,
+          "notes": [
+            {
+              "string": 2,
+              "fret": 3
+            }
+          ],
+          "velocity": 88,
+          "technique": "pluck"
+        }
+      ]
+    },
+    {
+      "bar": 8,
+      "chord": "C#7",
+      "label": "Secondary dominant",
+      "bass": [
+        {
+          "beat": 0,
+          "length": 1,
+          "notes": [
+            {
+              "string": 5,
+              "fret": 4
+            }
+          ],
+          "velocity": 83,
+          "technique": "thumb"
+        },
+        {
+          "beat": 1,
+          "length": 1,
+          "notes": [
+            {
+              "string": 6,
+              "fret": 4
+            }
+          ],
+          "velocity": 72,
+          "technique": "thumb"
+        },
+        {
+          "beat": 2,
+          "length": 1,
+          "notes": [
+            {
+              "string": 5,
+              "fret": 4
+            }
+          ],
+          "velocity": 83,
+          "technique": "thumb"
+        },
+        {
+          "beat": 3,
+          "length": 1,
+          "notes": [
+            {
+              "string": 6,
+              "fret": 4
+            }
+          ],
+          "velocity": 72,
+          "technique": "thumb"
+        }
+      ],
+      "upper": [
+        {
+          "beat": 0,
+          "length": 1,
+          "notes": [
+            {
+              "string": 2,
+              "fret": 2
+            }
+          ],
+          "velocity": 88,
+          "technique": "pluck"
+        },
+        {
+          "beat": 1.5,
+          "length": 0.5,
+          "notes": [
+            {
+              "string": 2,
+              "fret": 4
+            }
+          ],
+          "velocity": 88,
+          "technique": "pluck"
+        },
+        {
+          "beat": 2,
+          "length": 0.5,
+          "notes": [
+            {
+              "string": 1,
+              "fret": 1
+            }
+          ],
+          "velocity": 88,
+          "technique": "pluck"
+        },
+        {
+          "beat": 2.5,
+          "length": 0.5,
+          "notes": [
+            {
+              "string": 2,
+              "fret": 4
+            }
+          ],
+          "velocity": 88,
+          "technique": "pluck"
+        },
+        {
+          "beat": 3,
+          "length": 1,
+          "notes": [
+            {
+              "string": 2,
+              "fret": 2
+            }
+          ],
+          "velocity": 88,
+          "technique": "pluck"
+        }
+      ]
+    },
+    {
+      "bar": 9,
+      "chord": "F#m7",
+      "label": "Minor detour",
+      "bass": [
+        {
+          "beat": 0,
+          "length": 1,
+          "notes": [
+            {
+              "string": 6,
+              "fret": 2
+            }
+          ],
+          "velocity": 83,
+          "technique": "thumb"
+        },
+        {
+          "beat": 1,
+          "length": 1,
+          "notes": [
+            {
+              "string": 5,
+              "fret": 4
+            }
+          ],
+          "velocity": 72,
+          "technique": "thumb"
+        },
+        {
+          "beat": 2,
+          "length": 1,
+          "notes": [
+            {
+              "string": 6,
+              "fret": 2
+            }
+          ],
+          "velocity": 83,
+          "technique": "thumb"
+        },
+        {
+          "beat": 3,
+          "length": 1,
+          "notes": [
+            {
+              "string": 5,
+              "fret": 4
+            }
+          ],
+          "velocity": 72,
+          "technique": "thumb"
+        }
+      ],
+      "upper": [
+        {
+          "beat": 0.5,
+          "length": 0.5,
+          "notes": [
+            {
+              "string": 1,
+              "fret": 2
+            }
+          ],
+          "velocity": 88,
+          "technique": "pluck"
+        },
+        {
+          "beat": 1,
+          "length": 0.5,
+          "notes": [
+            {
+              "string": 1,
+              "fret": 0
+            }
+          ],
+          "velocity": 88,
+          "technique": "pluck"
+        },
+        {
+          "beat": 1.5,
+          "length": 0.5,
+          "notes": [
+            {
+              "string": 2,
+              "fret": 2
+            }
+          ],
+          "velocity": 88,
+          "technique": "pluck"
+        },
+        {
+          "beat": 2,
+          "length": 1.5,
+          "notes": [
+            {
+              "string": 1,
+              "fret": 2
+            }
+          ],
+          "velocity": 88,
+          "technique": "pluck"
+        }
+      ]
+    },
+    {
+      "bar": 10,
+      "chord": "B7",
+      "label": "V turnaround",
+      "bass": [
+        {
+          "beat": 0,
+          "length": 1,
+          "notes": [
+            {
+              "string": 5,
+              "fret": 2
+            }
+          ],
+          "velocity": 83,
+          "technique": "thumb"
+        },
+        {
+          "beat": 1,
+          "length": 1,
+          "notes": [
+            {
+              "string": 6,
+              "fret": 2
+            }
+          ],
+          "velocity": 72,
+          "technique": "thumb"
+        },
+        {
+          "beat": 2,
+          "length": 1,
+          "notes": [
+            {
+              "string": 5,
+              "fret": 2
+            }
+          ],
+          "velocity": 83,
+          "technique": "thumb"
+        },
+        {
+          "beat": 3,
+          "length": 1,
+          "notes": [
+            {
+              "string": 6,
+              "fret": 2
+            }
+          ],
+          "velocity": 72,
+          "technique": "thumb"
+        }
+      ],
+      "upper": [
+        {
+          "beat": 0,
+          "length": 0.5,
+          "notes": [
+            {
+              "string": 2,
+              "fret": 0
+            }
+          ],
+          "velocity": 88,
+          "technique": "pluck"
+        },
+        {
+          "beat": 0.5,
+          "length": 0.5,
+          "notes": [
+            {
+              "string": 2,
+              "fret": 4
+            }
+          ],
+          "velocity": 88,
+          "technique": "pluck"
+        },
+        {
+          "beat": 1,
+          "length": 1,
+          "notes": [
+            {
+              "string": 1,
+              "fret": 2
+            }
+          ],
+          "velocity": 88,
+          "technique": "pluck"
+        },
+        {
+          "beat": 2.5,
+          "length": 0.5,
+          "notes": [
+            {
+              "string": 2,
+              "fret": 4
+            }
+          ],
+          "velocity": 88,
+          "technique": "pluck"
+        },
+        {
+          "beat": 3,
+          "length": 0.5,
+          "notes": [
+            {
+              "string": 1,
+              "fret": 2
+            }
+          ],
+          "velocity": 88,
+          "technique": "pluck"
+        },
+        {
+          "beat": 3.5,
+          "length": 0.5,
+          "notes": [
+            {
+              "string": 1,
+              "fret": 0
+            }
+          ],
+          "velocity": 88,
+          "technique": "pluck"
+        }
+      ]
+    },
+    {
+      "bar": 11,
+      "chord": "E7",
+      "label": "Blue-note pickup",
+      "bass": [
+        {
+          "beat": 0,
+          "length": 1,
+          "notes": [
+            {
+              "string": 6,
+              "fret": 0
+            }
+          ],
+          "velocity": 83,
+          "technique": "thumb"
+        },
+        {
+          "beat": 1,
+          "length": 1,
+          "notes": [
+            {
+              "string": 5,
+              "fret": 2
+            }
+          ],
+          "velocity": 72,
+          "technique": "thumb"
+        },
+        {
+          "beat": 2,
+          "length": 1,
+          "notes": [
+            {
+              "string": 6,
+              "fret": 0
+            }
+          ],
+          "velocity": 83,
+          "technique": "thumb"
+        },
+        {
+          "beat": 3,
+          "length": 1,
+          "notes": [
+            {
+              "string": 5,
+              "fret": 2
+            }
+          ],
+          "velocity": 72,
+          "technique": "thumb"
+        }
+      ],
+      "upper": [
+        {
+          "beat": 0.5,
+          "length": 0.5,
+          "notes": [
+            {
+              "string": 1,
+              "fret": 3
+            }
+          ],
+          "velocity": 88,
+          "technique": "pluck"
+        },
+        {
+          "beat": 1,
+          "length": 0.5,
+          "notes": [
+            {
+              "string": 1,
+              "fret": 4
+            }
+          ],
+          "velocity": 88,
+          "technique": "pluck"
+        },
+        {
+          "beat": 1.5,
+          "length": 0.5,
+          "notes": [
+            {
+              "string": 1,
+              "fret": 3
+            }
+          ],
+          "velocity": 88,
+          "technique": "pluck"
+        },
+        {
+          "beat": 2,
+          "length": 1,
+          "notes": [
+            {
+              "string": 1,
+              "fret": 0
+            }
+          ],
+          "velocity": 88,
+          "technique": "pluck"
+        },
+        {
+          "beat": 3,
+          "length": 0.5,
+          "notes": [
+            {
+              "string": 2,
+              "fret": 3
+            }
+          ],
+          "velocity": 88,
+          "technique": "pluck"
+        },
+        {
+          "beat": 3.5,
+          "length": 0.5,
+          "notes": [
+            {
+              "string": 2,
+              "fret": 0
+            }
+          ],
+          "velocity": 88,
+          "technique": "pluck"
+        }
+      ]
+    },
+    {
+      "bar": 12,
+      "chord": "E7",
+      "label": "Cadence",
+      "bass": [
+        {
+          "beat": 0,
+          "length": 1,
+          "notes": [
+            {
+              "string": 6,
+              "fret": 0
+            }
+          ],
+          "velocity": 83,
+          "technique": "thumb"
+        },
+        {
+          "beat": 1,
+          "length": 1,
+          "notes": [
+            {
+              "string": 5,
+              "fret": 2
+            }
+          ],
+          "velocity": 72,
+          "technique": "thumb"
+        },
+        {
+          "beat": 2,
+          "length": 1,
+          "notes": [
+            {
+              "string": 6,
+              "fret": 0
+            }
+          ],
+          "velocity": 83,
+          "technique": "thumb"
+        },
+        {
+          "beat": 3,
+          "length": 1,
+          "notes": [
+            {
+              "string": 5,
+              "fret": 2
+            }
+          ],
+          "velocity": 72,
+          "technique": "thumb"
+        }
+      ],
+      "upper": [
+        {
+          "beat": 0,
+          "length": 4,
+          "notes": [
+            {
+              "string": 1,
+              "fret": 0
+            }
+          ],
+          "velocity": 88,
+          "technique": "pluck"
+        }
+      ]
+    }
+  ]
+}

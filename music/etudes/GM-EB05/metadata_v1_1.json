@@ -1,0 +1,31 @@
+{
+  "id": "GM-EB05",
+  "version": "1.1.0",
+  "title": "Midnight Train Blues — Call and Response",
+  "source": "ORIGINAL",
+  "license": "CC BY 4.0",
+  "status": "PENDING_MUSICAL_REVIEW",
+  "instrument": "ACOUSTIC_GUITAR",
+  "technique": "FINGERSTYLE",
+  "meter": "4/4",
+  "bpm": 96,
+  "bars": 12,
+  "tuning": "E A D G B E",
+  "rhythmFeel": "swing eighths (long-short; approximate 2:1)",
+  "learningGoal": "Melodic call-and-response, expressive pauses, chromatic blue notes and an independent alternating thumb",
+  "practiceInstructions": "Tune EADGBE; play thumb p on bass and i/m/a on treble strings; no pick or percussion. Start at 60 BPM, feel the eighth notes long-short, keep the bass steady and hold the last melody note four beats.",
+  "successCriteria": [
+    "Even alternating bass at quarter-note pulse",
+    "Deliberate upper voice rests and contrasting phrases",
+    "E7/A7/C#7/F#m7/B7 chord movement and closing E tonic",
+    "Musical articulation: question/answer and final sustained E"
+  ],
+  "review": {
+    "guitarPlayability": "PENDING_OWNER",
+    "ownerListening": "PENDING_OWNER"
+  },
+  "media": {
+    "audio": "SYNTHESIZED_PREVIEW",
+    "pdf": "STAFF_AND_TAB_GENERATED"
+  }
+}
