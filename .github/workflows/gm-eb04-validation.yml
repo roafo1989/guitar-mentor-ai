@@ -1,0 +1,24 @@
+name: GM-EB04 music sources
+
+on:
+  pull_request:
+    paths:
+      - 'music/etudes/GM-EB04/**'
+      - '.github/workflows/gm-eb04-validation.yml'
+  push:
+    paths:
+      - 'music/etudes/GM-EB04/**'
+      - '.github/workflows/gm-eb04-validation.yml'
+
+jobs:
+  music-validation:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Validate score, TAB, and source checksums
+        run: python music/etudes/GM-EB04/validate.py
