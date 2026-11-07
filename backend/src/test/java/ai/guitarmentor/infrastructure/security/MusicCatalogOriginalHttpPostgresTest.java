@@ -132,4 +132,36 @@ class MusicCatalogOriginalHttpPostgresTest {
         var hidden=source(detail("cat196-alice"),"empty196");
         assertEquals("UNAVAILABLE",hidden.path("originalAvailability").asText());assertTrue(hidden.path("original").isNull());
     }
+
+    @Test void replacementIsAtomicAndRejectedAttachmentPreservesPreviousOriginal() throws Exception {
+        UUID alice=account("cat196-replace-alice");
+        account("cat196-replace-bob");
+        byte[] firstBytes="%PDF-1.7\nfirst synthetic original\n".getBytes();
+        byte[] secondBytes="%PDF-1.7\nsecond synthetic original\n".getBytes();
+        var first=upload("cat196-replace-alice","first.pdf",firstBytes);
+        var second=upload("cat196-replace-alice","second.pdf",secondBytes);
+        var foreign=upload("cat196-replace-bob","foreign.pdf",firstBytes);
+        var actor=identity("cat196-replace-alice");
+        mvc.perform(put(endpoint("pdf196")).with(actor).with(csrf()).sessionAttr("guitarMentorAccessVersion",0L)
+            .contentType("application/json").content(link(first))).andExpect(status().isNoContent());
+        for(String rejected:List.of(link(foreign),link(second).replace(second.path("files").get(0).path("id").asText(),UUID.randomUUID().toString()))) {
+            mvc.perform(put(endpoint("pdf196")).with(actor).with(csrf()).sessionAttr("guitarMentorAccessVersion",0L)
+                .contentType("application/json").content(rejected)).andExpect(status().isNotFound());
+            assertEquals(first.path("id").asText(),source(detail("cat196-replace-alice"),"pdf196").path("original").path("materialId").asText());
+        }
+        mvc.perform(put(endpoint("pdf196")).with(actor).with(csrf()).sessionAttr("guitarMentorAccessVersion",0L)
+            .contentType("application/json").content(link(second))).andExpect(status().isNoContent());
+        var linked=source(detail("cat196-replace-alice"),"pdf196");
+        assertEquals("AVAILABLE",linked.path("originalAvailability").asText());
+        assertEquals(second.path("id").asText(),linked.path("original").path("materialId").asText());
+        assertEquals(second.path("files").get(0).path("id").asText(),linked.path("original").path("assetId").asText());
+        // Replacing the association never deletes the independently uploaded first material.
+        for(var card:List.of(first,second)) {
+            mvc.perform(get(uri(card)).with(actor).sessionAttr("guitarMentorAccessVersion",0L))
+                .andExpect(status().isOk()).andExpect(result->assertArrayEquals(card==first?firstBytes:secondBytes,result.getResponse().getContentAsByteArray()));
+        }
+        assertEquals(2,jdbc.sql("SELECT charged_files FROM library_account_usage WHERE account_id=:o").param("o",alice).query(Integer.class).single());
+        assertEquals("course_private",linked.path("rightsStatus").asText());
+    }
+
 }
